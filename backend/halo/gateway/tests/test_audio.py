@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import asyncio
 
-from contracts.binary import MIC, TAB, pack_audio, pack_rec
-
 from halo.gateway.audio import MAX_PAD_FRAMES, AudioRouter
+
+from contracts.binary import MIC, TAB, pack_audio, pack_rec
 
 PCM = bytes(range(256)) * 12 + bytes(128)  # 3200 bytes: one 100 ms frame
 
