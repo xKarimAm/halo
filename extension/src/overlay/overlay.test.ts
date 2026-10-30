@@ -112,6 +112,30 @@ describe("expiry and folding", () => {
   });
 });
 
+// Review fix: captions floor — a bubble's bottom never goes below
+// captions_rect's top edge (null = no floor)
+describe("captions floor", () => {
+  it("folds bubbles that would cross the captions top edge", () => {
+    const { overlay } = make();
+    overlay.applyTiles({ tiles: [{ tile_id: "tile-1", name: "Layla", is_self: false, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: [0, 100, 400, 40] }] });
+    const pts = [point({ rank: 1 }), point({ rank: 2 }), point({ rank: 3 })];
+    pts.forEach((p, i) => overlay.applyPointsUpsert(p, `env-c${i}`));
+    expect(overlay.layout("tile-1").floorY).toBe(100);
+    expect(overlay.visiblePoints("tile-1")).toHaveLength(1); // only the first fits above y=100
+    expect(overlay.overflowCount("tile-1")).toBe(2);
+    expect(overlay.bubbleBottom("tile-1")).toBeLessThanOrEqual(100);
+  });
+
+  it("null captions_rect means no floor: the normal cap applies", () => {
+    const { overlay } = make(); // make() uses captions_rect: null
+    const pts = [point({ rank: 1 }), point({ rank: 2 }), point({ rank: 3 })];
+    pts.forEach((p, i) => overlay.applyPointsUpsert(p, `env-n${i}`));
+    expect(overlay.layout("tile-1").floorY).toBeNull();
+    expect(overlay.visiblePoints("tile-1")).toHaveLength(3);
+    expect(overlay.overflowCount("tile-1")).toBe(0);
+  });
+});
+
 // (5) thinking sweep, (6) Alt+H, (9) Arabic pill attrs
 describe("thinking, hide, language", () => {
   it("thinking runs from speaker pause until a point lands or 5 s pass", () => {

@@ -9,6 +9,11 @@ import { AGEING_FRACTION, KIND_COLORS, POINT_LIFETIME_MS } from "./tokens";
 
 export type PointUpsert = PointsUpsert;
 
+/** Summed chip geometry for the fit rule (OVERLAY-UX section 5: fit is
+ * measured from summed chip heights, never live offsets). */
+export const CHIP_HEIGHT_PX = 28;
+export const CHIP_GAP_PX = 6;
+
 export class FakeClock {
   constructor(public now = 0) {}
 }
@@ -151,7 +156,24 @@ export class Overlay {
   }
 
   visiblePoints(tileId: string): StoredPoint[] {
-    return this.live(tileId).slice(0, Math.min(this.perFace, 3));
+    return this.live(tileId).slice(0, this.maxVisible(tileId));
+  }
+
+  /** Chips that fit above the captions floor (normal cap when no floor). */
+  private maxVisible(tileId: string): number {
+    const cap = Math.min(this.perFace, 3);
+    const { stackPos, floorY } = this.layout(tileId);
+    if (floorY === null) return cap;
+    let n = 0;
+    while (n < cap && stackPos.y + (n + 1) * CHIP_HEIGHT_PX + n * CHIP_GAP_PX <= floorY) n += 1;
+    return n; // a bubble's bottom never goes below the captions top edge
+  }
+
+  /** Bottom edge (px, layout space) of the lowest visible bubble on a tile. */
+  bubbleBottom(tileId: string): number {
+    const n = this.visiblePoints(tileId).length;
+    const { stackPos } = this.layout(tileId);
+    return n === 0 ? stackPos.y : stackPos.y + n * CHIP_HEIGHT_PX + (n - 1) * CHIP_GAP_PX;
   }
 
   overflowCount(tileId: string): number {
@@ -167,11 +189,16 @@ export class Overlay {
     mode: "face" | "frame";
     namePos: { x: number; y: number };
     stackPos: { x: number; y: number };
+    floorY: number | null;
     faceBox?: { x: number; y: number; w: number; h: number };
   } {
     const tile = this.tiles.get(tileId);
     const face = this.faces.get(tileId);
     const index = this.tileOrder.indexOf(tileId);
+    // Captions floor: captions_rect's top edge, in the same space as
+    // stackPos (page space for Face mode, tile space for Frame mode).
+    // null captions_rect = no floor.
+    const captionsTop = tile?.captions_rect ? tile.captions_rect[1] : null;
     if (tile && face && index >= 0 && index < 6) {
       const box = projectFaceBox(tile, face.box);
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
@@ -182,11 +209,17 @@ export class Overlay {
         mode: "face",
         namePos: { x: box.x + box.w / 2, y: Math.max(tile.rect[1] + 21, box.y - 6) },
         stackPos: { x: stackX, y: box.y },
+        floorY: captionsTop,
         faceBox: box,
       };
     }
     // Frame mode (this PR's shipped path): name + stack pinned inside the tile.
-    return { mode: "frame", namePos: { x: 10, y: 10 }, stackPos: { x: 10, y: 44 } };
+    return {
+      mode: "frame",
+      namePos: { x: 10, y: 10 },
+      stackPos: { x: 10, y: 44 },
+      floorY: captionsTop !== null && tile ? captionsTop - tile.rect[1] : null,
+    };
   }
 
   thinking(tileId: string, reducedMotion: boolean): "sweep" | "dotted" | null {

@@ -23,7 +23,7 @@ Implement extension/src/overlay per its PLAN.md (Frame mode first); done ONLY wh
 - `extension/src/overlay/index.ts`: Meet-page boot for the hub content wrapper.
 
 ## Current step
-Done (Frame mode): 9 Vitest cases green, `tsc --noEmit` clean. PR open for Karim to merge. Face-mode projection is unit-tested and activates when face_detector lands next; L3 ±4 px runs once hub_capture/meet_adapter merge.
+Review fix pushed: captions floor implemented — chips fold into +N so a bubble's bottom never goes below `captions_rect`'s top edge (null = no floor, normal cap), fit from summed chip heights (28 px + 6 px gap). 11 Vitest cases green, `tsc --noEmit` clean. Then rebased on main. Face-mode projection is unit-tested and activates when face_detector lands; L3 ±4 px runs once hub_capture/meet_adapter merge.
 
 ## Open questions
 - Urgency-mark look: open draft item for Karim (not blocking; plain-text "Urgent" in the popover until picked, per PLAN).
