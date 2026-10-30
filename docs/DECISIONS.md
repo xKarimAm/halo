@@ -1,0 +1,114 @@
+# Halo: decisions (single source of truth)
+
+Every agent (Muse, OpenCode, any Claude account) reads this first. If another doc disagrees with this file, this file wins. The build plan is `docs/PLAN.md` (master) plus one `PLAN.md` per module.
+
+## 1. Product (locked)
+
+- **Halo**: a bilingual Arabic/English Google Meet copilot. Chrome extension + local Python backend on the user's PC. **Open source (MIT). Nothing is hosted**; no logins, no cloud backend.
+- **Face mode is the core.** The person's **name floats above their head: the name is the halo** (no rings, arcs or crowns). Up to 3 points beside the face as transparent glass speech bubbles with a tail toward the face, kind-tagged: point, question, decision, pushback. Frame mode (points inside the tile) when no face is found or for tiles beyond 6.
+- Points show in the viewer's language (default English); the original quote is one click away. Points fade after ~60 s; corrections replace a point in place (same id).
+- **Notes app** (served by the backend at 127.0.0.1): meetings list + search; meeting page with clickable avatars; per person: why they matter (role), relevant points, own points, action items. Every point links to its transcript line and recording moment. Markdown export.
+- Categories: Decision, Open question, Pushback, Point. **Action items grouped by urgency: Urgent, Medium, Later / to discuss.** Assigned (said aloud) vs suggested (by role). Labels come from a low-cost model; the user can re-tag in one click.
+- Retention: notes, transcripts, logs **and recordings** are local files on the user's PC, kept until the user deletes them (Karim, 2026-10-30; an optional cloud upload via an API comes later). Consent: user-controlled Meet chat notice + visible badge. Every demo participant consents; demo scenes and content are made up.
+- **Headset required** for anyone running Halo (otherwise the mic re-captures the call: echo). Crosstalk: a turn with two speakers is marked `overlap` and stays provisional; the demo script avoids crosstalk (no off-the-shelf fix exists in this stack).
+- Latency target: ~3 s typical, p90 under 4 s from a speaker's pause to the point.
+
+## 2. UI source of truth (locked 2026-10-30)
+
+- **Overlay:** `docs/ui/overlay-mix-b.html` ("Mix B, black borders"): Smoked Glass layout + Aurora per-person hue; coloured kind icons (sky point, lilac question, mint decision, peach pushback) with a 1.5px black ring.
+- **Notes page:** `docs/ui/notes-v2.html?palette=2` ("People First" layout, palette "Sage & Clay").
+- Overlay rules: `docs/ui/OVERLAY-UX.md` (its halo-ring rules are superseded by section 1 above). Build from the two files above, not from older drafts.
+
+## 3. Architecture (v2, final)
+
+- Two processes: **(1) WXT/TypeScript extension** (Setup Panel, Meet Adapter, Tab + Mic Capture, Face Detector, Overlay), one WebSocket to the backend, no API keys; **(2) one FastAPI modular-monolith backend** (Gateway, Transcriber, Correlator, Insight, Classifier, Notes Builder, Notes Service, Recorder, Event Store) on an in-process asyncio EventBus interface, SQLite + FTS5 + local files.
+- **Face tracking (2026-10-30):** a small in-browser face detector (MediaPipe Face Detector or YuNet) inside the extension, about 1-2 ms per tile. **Video frames never leave the browser.** It emits `faces.update`; the contract is engine-agnostic so SAM 3.1 can plug in later. SAM 3.1 is a stretch goal only. No VLM for faces; no Gemini in the product.
+- Frame source: read each tile's `<video>` directly; if Meet exposes none (Karim's day-0 meet-overlay probe decides), crop tiles from the tabCapture video instead.
+- **Diagram:** `docs/architecture/halo-v2-final.drawio` (open `halo-v2-final.html` next to it for a zoomable view). Boxes = module jobs, arrows = contracts with ACK, grey boxes = JSON types.
+- Not used: Redis, WSL, Pipecat, LangGraph, a GPU worker (unless the SAM stretch happens).
+- **Engineering defaults (2026-10-30, from Chrome/MediaPipe docs):** Face Detector = MediaPipe (`@mediapipe/tasks-vision`), WASM + model bundled in the extension (MV3 forbids remote code). It runs in a Worker inside a hidden extension iframe on the Meet page; the content script transfers ImageBitmaps to it. Path B paints our overlay out of each crop. Capture starts from the toolbar popup (Chrome needs a user gesture for tabCapture); the offscreen doc replays tab audio through an AudioContext so the user still hears the call; mic permission is granted once on an extension page.
+- **Pairing:** Origin check (extension id) + a one-time 6-digit code from 127.0.0.1/pair.
+- **Repo + tooling:** one public repo (`contracts/`, `backend/`, `extension/`, `rig/`, `docs/`). Backend: Python 3.12 + uv; `uv run halo` starts it on `127.0.0.1:8765` and prints the pairing code. Extension: WXT + npm. Keys only in `.env` (git-ignored; `.env.example` lists them).
+
+## 4. Contracts (Sergio's rule: contracts first)
+
+- Every JSON message is a CloudEvents 1.0 envelope (`id, type, source, time, meetingid, data`) and gets an ACK (`ack_of, status: ok|error, error?`). Raw audio is binary, with no envelope and no ACK.
+- ACK = accepted onto the bus, not "processed". On a missing ACK the sender resends the same `id`; receivers dedupe by `id`.
+- One clock: audio frames carry the browser timestamp; the Transcriber maps ASR offsets onto it.
+- Schemas live in `/contracts` (AsyncAPI + JSON Schema); types are generated from them. Model outputs are always validated against the schema (Spark Open on Baseten does not enforce `json_schema`).
+- Future-proofing, add now: `project_id` (optional) on `meeting.context`; the Meet Adapter implements a platform-neutral `MeetingAdapter` interface; `faces.update` is engine-agnostic.
+
+## 5. Engines and models
+
+| Job | Engine |
+|---|---|
+| Speech to text | Muse Voice Transcribe realtime: tab session = DIARIZATION, mic session = ENDPOINTING ("you") |
+| Live Insight | Spark Open on Baseten (`reasoning_effort` low); auto-failover to `muse-spark-1.3-contributor` if more than 1 of the last 10 calls takes over 4 s, JSON fails twice, or Baseten rate-limits (HTTP 429; the basic tier is 15 RPM, so Karim asks Baseten for 120 RPM before the demo). Spark Open on Baseten is Halo's entry for the $10k "Best Build on Meta Open Weight Models" prize, so it stays the default. Each point carries a first-guess `urgency` + `is_action` (same call, no extra latency). |
+| Urgency/category tagging (Classifier) | **`muse-spark-1.3-contributor`**. **Live:** every 10 s, one batched call if new points arrived; corrects Insight's guess in place. **Meeting end:** tags all action items. User re-tag always wins. $0.10 in / $0.002 cached / $0.20 out per 1M tokens, 150 RPM. |
+| Notes Builder | **`muse-spark-1.3-contributor`**, once per meeting, schema enforced |
+| Contributor rule (Karim, 2026-10-30) | Every Spark 1.3 call uses the contributor model. Meta training on the content is fine: Halo is open source and demo meetings hold no real data. The consent badge still says it. |
+| Faces | in-browser detector (section 3) |
+| Rules for calling Meta models | `.agents/skills/meta-model-api/` |
+
+## 6. Budgets (who pays for what)
+
+| Budget | Use |
+|---|---|
+| Muse Code subscription (membership) | W1: bulk backend modules. Main coding budget. |
+| Baseten $100 | W2: OpenCode + Spark Open for UI/extension modules (about $50), Insight at runtime (about $50) |
+| Meta API free credit ($148) | W3: Muse + Wonder for hard modules (about $100 cap), runtime Voice + Spark (rest). **Any Muse window that runs Spark 1.3 on the API key uses `muse-spark-1.3-contributor`** (about 12-21x cheaper; the code is open source anyway). The product's runtime Spark 1.3 calls use it too (section 5). Pass the key per run; never store it. Free credits mean Meta may use the content: tell test-call participants. |
+| Modal $30 | optional: only for the SAM 3.1 stretch. Never leave a GPU warm. |
+| Gemini | research only, never in the product |
+| Claude (any account) | plans, contracts review, PR review, integration. Not bulk coding. |
+
+### Windows (2026-10-30): one TUIOS window, one pane per agent
+
+TUIOS 0.11.1 (Sergio's agent multiplexer) is installed at `%LOCALAPPDATA%\Programs\tuios` and on the user PATH. Claude stays in the Claude desktop app.
+
+| Phase | Panes open | Who codes |
+|---|---|---|
+| Wave 0 (`/contracts` + PLAN.md files) | 2: W1 + a shell | W1 only. Everything depends on the contracts, so nothing else codes yet. |
+| Waves 1-3 (parallel) | 4: W1, W2, W3 + a shell | W1 Muse (subscription): Gateway, EventBus, Event Store, Transcriber, Insight, Classifier, Notes Builder, Notes Service, Recorder. W2 OpenCode + Baseten: Setup Panel, Meet Adapter, Frame Source, Face Detector, Overlay, Notes page. W3 Muse + Wonder (key per run): lean test rig first, then Tab + Mic Capture, Correlator, pairing. |
+| Integration | 2-3 | W1 + W3 fix what the Replay rig finds; Claude reviews. |
+
+At most 3 coding agents at once, one module per git worktree. Each window runs one agent by default; Muse helpers (cap 3) only when a module is clearly split.
+
+## 7. How we build (Sergio's workflow)
+
+1. Diagram (draw.io): boxes = what the module does; arrows = the contract (with ACK); JSON types in grey boxes joined by plain lines.
+2. The diagram XML goes to Muse, which writes a master `PLAN.md` and one `PLAN.md` per module, asking Karim about every doubt. Claude reviews the plans.
+3. One repo (never one repo per module: `/contracts` must stay shared), one git worktree per agent, built in waves. Agents raise needs to other modules as GitHub issues (`module:<name>` labels, rules in `AGENTS.md` "Module lanes"; Karim, 2026-10-30, replaces the earlier "no tickets" call). Wave 0 = `/contracts`. Then a **lean test rig** (Fake Meet page, FakeASR + FakeLLM, Replayer with one fixture; checks are plain test asserts) built **in parallel** with the first module waves, then integration. Golden truth = one real-engine run on Karim's recorded bilingual calls (2-3), frozen, spot-checked by Karim.
+4. Each module is built with the `build-module` skill; its tests are the done-criterion. CI on every PR: tests, contract checks, module-boundary checks, review bot. Claude reviews every PR at first; Karim merges; `main` is protected.
+5. Design work: Karim picks from drafts before anything is built.
+
+## 8. Integration: critical path and cut lines
+
+**Deadline: submit Nov 3 (Karim).** The official deadline is Nov 4, 9 PM ET; we finish a day early. The submission is a public repo + a 3-minute demo video. No X post (no account).
+
+| Day | Goal |
+|---|---|
+| Oct 30 (tonight) | Diagram final, repo skeleton, Muse writes PLAN.md files; Karim runs the 3 day-0 probes |
+| Oct 31 | Morning: `/contracts` (W1 only). Afternoon: W1/W2/W3 in parallel; W3 builds the lean rig first. Karim records 2-3 test calls |
+| Nov 1 | **Thin end-to-end by night** on the Replay rig: audio → transcript → point → bubble (Frame mode) |
+| Nov 2 | Face mode + live Meet; Event Store, Notes page, Classifier, Notes Builder, Recorder. Night: live rehearsal; **apply the cut list** to anything not solid; packaging (README install steps + one `halo` command that starts the backend and prints the pairing code) |
+| Nov 3 | Record the demo video, final README, submit |
+
+**Critical path (the demo dies if any link fails):** Tab + Mic Capture -> Gateway -> Transcriber -> Correlator -> Insight -> Gateway -> Overlay, plus Meet Adapter (tiles, names, speaking highlight) and the Face Detector. Integrate and demo this chain end to end first, on the Replay rig, then live.
+
+**Second ring:** Event Store, Notes Service + Notes page, Setup Panel, Classifier (urgency/category).
+
+**Cut lines, in this order if time runs out:** (1) SAM 3.1 stretch, (2) Zoom/Teams adapters, (3) Recorder (keep transcript links, drop video), (4) Notes Builder per-person depth (keep live points + action list), (5) re-tag menu, (6) Arabic UI polish beyond RTL correctness. Never cut: consent badge, the critical path, contract validation.
+
+## 9. Feature roadmap (after the MVP, in order)
+
+1. **Recall per project:** a local retrieval system (RAG) over transcripts, points, notes and documents, scoped by `project_id`. Ask "what did we decide about pricing across the last 3 meetings?" and Spark answers with links back to transcript lines. Builds on the Event Store + FTS5, adding local embeddings.
+2. **Zoom and Teams web clients:** new `MeetingAdapter`s for the browser versions (app.zoom.us, teams.microsoft.com). Audio capture already works for any tab. Desktop apps are out of reach of a Chrome extension.
+3. Spark 1.3 reads the shared slide during screen share, as context for Insight.
+4. SAM 3.1 visual stretch (the name tucks behind the head).
+5. Optional cloud upload of recordings and notes through an API.
+6. Per-speaker audio from Meet's 3 loudest-speaker WebRTC tracks, to fix crosstalk at the source.
+
+## 10. For a new agent session
+
+1. Read this file, then `docs/PLAN.md`, then your module's `PLAN.md`.
+2. Karim's working rules: drafts before designs; one agent per task by default (save Claude usage for building); never spend Meta/Baseten credit on design work; keys go in hidden prompts or `.env`, never in chat or files.

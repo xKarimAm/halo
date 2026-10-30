@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-palette="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halo Notes v2</title>
+<script>{const p=new URLSearchParams(location.search).get('palette');document.documentElement.dataset.palette=/^[123]$/.test(p)?p:'1'}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* All design tokens live in the palette blocks below. Every colour, surface and shadow further down is a var(); nothing is hard-coded. */
+/* Palettes: picked with ?palette=1|2|3 (default 1) or the switcher in the caption bar. Every colour token lives here. */
+/* 1 · Paper & Ink: warm paper, near-black ink, one ink-blue accent, earthy muted categories. */
+[data-palette="1"]{
+  color-scheme:light;
+  --r:16px; --font:'Inter','IBM Plex Sans Arabic',system-ui,sans-serif;
+  --blur:blur(14px) saturate(110%);
+  --slide:36px;
+  --bg:#F6F3EC; --text:#1D1D1F; --muted:#5B5F66; --faint:#615D55; --on-accent:#FFFFFF;
+  --glass:rgba(255,255,255,.82); --glass-hi:rgba(43,79,203,.08); --glass-lo:rgba(120,100,60,.05);
+  --rim:#DCD9D3; --hair:#E7E4DE; --track:rgba(29,29,31,.10);
+  --caption-bg:#EDE9E0; --menu-bg:rgba(255,255,255,.98);
+  --aura-1:rgba(232,222,200,.35); --aura-2:rgba(205,216,236,.25); --aura-3:transparent;
+  --dec:#1D6A50; --q:#8A5300; --push:#A12B2B; --pt:#2B4FCB;
+  --urg-hi:#A3264B; --urg-mid:#7A5C00; --urg-lo:#4E5F72;
+  --focus:#2B4FCB; --knob:#1D1D1F; --logo-dot:#1D1D1F;
+  --mark-bg:#FFF1B8; --mark-text:#1D1D1F;
+  --why-a:rgba(43,79,203,.07);
+  --photo:#D2CDC1; --photo-text:#3E3B35;
+  --av-s1:31%; --av-l1:33%; --av-ring:45%; --av-glow:70%; --glow-a:0;
+  --sh-glass:inset 0 1px 0 rgba(255,255,255,.8);
+  --sh-menu:0 12px 28px rgba(29,29,31,.12),0 2px 6px rgba(29,29,31,.06);
+  --sh-logo:0 1px 2px rgba(29,29,31,.25);
+}
+/* 2 · Sage & Clay: warm stone paper, frosted warm-white glass, sage / slate / clay / plum. */
+[data-palette="2"]{
+  color-scheme:light;
+  --r:22px; --font:'Inter','IBM Plex Sans Arabic',system-ui,sans-serif;
+  --blur:blur(20px) saturate(115%);
+  --slide:36px;
+  /* text */
+  --bg:#e9e4da; --text:#2a2924; --muted:#57544b; --faint:#625e55; --on-accent:#fbf8f1;
+  /* surfaces */
+  --glass:rgba(255,252,246,.55); --glass-hi:rgba(255,252,246,.85); --glass-lo:rgba(255,252,246,.30);
+  --rim:#d0cabf; --hair:#dbd5cb; --track:rgba(74,64,48,.16);
+  --caption-bg:#dfe3d6; --menu-bg:rgba(250,247,241,.985);
+  /* backdrop wash: sage, clay, sand */
+  --aura-1:rgba(127,154,120,.16); --aura-2:rgba(201,138,104,.13); --aura-3:rgba(214,186,132,.18);
+  /* moment types: sage / slate / clay / plum */
+  --dec:#3b6343; --q:#3d6079; --push:#9a4526; --pt:#6f5468;
+  /* urgency: brick / ochre / grey-sage */
+  --urg-hi:#a23b37; --urg-mid:#77590d; --urg-lo:#5a5f56;
+  /* accents */
+  --focus:#3d6079; --knob:#2a2924; --logo-dot:#5f7f62;
+  --mark-bg:rgba(217,180,90,.38); --mark-text:#2a2924;
+  --why-a:rgba(127,154,120,.20);
+  --photo:#7d776b; --photo-text:#fbf8f1;
+  /* avatars (hue per person; muted, mid-dark so light initials pass AA) */
+  --av-s1:27%; --av-l1:33%; --av-ring:40%; --av-glow:55%; --glow-a:.22;
+  /* shadows: resting glass keeps only its top sheen; menus float */
+  --sh-glass:inset 0 1px 0 rgba(255,255,255,.75);
+  --sh-menu:0 14px 34px rgba(60,48,30,.16);
+  --sh-logo:0 0 10px 2px rgba(95,127,98,.30); /* soft glow only: no ring around the dot */
+}
+/* 3 · Dusk: lamplit warm charcoal, cream text, dusty sage-teal / ochre / rose / slate. */
+[data-palette="3"]{
+  color-scheme:dark;
+  --r:22px; --font:'Inter','IBM Plex Sans Arabic',system-ui,sans-serif;
+  --blur:blur(18px) saturate(115%);
+  --slide:36px;
+  /* text */
+  --bg:#1c1916; --text:#f1e9dc; --muted:#d2c7b6; --faint:#bcb09d; --on-accent:#1c1916;
+  /* surfaces */
+  --glass:rgba(255,240,220,.05); --glass-hi:rgba(255,240,220,.09); --glass-lo:rgba(255,240,220,.035);
+  --rim:#403b34; --hair:#2e2a25; --track:rgba(255,236,210,.14);
+  --caption-bg:#262019; --menu-bg:rgba(38,33,28,.985);
+  /* backdrop washes: muted, low alpha, no purple-blue */
+  --aura-1:rgba(201,140,92,.12); --aura-2:rgba(104,150,140,.10); --aura-3:rgba(190,120,120,.10);
+  /* categories: decision sage-teal, open question ochre, pushback dusty rose, point slate */
+  --dec:#86c4b4; --q:#dcb46c; --push:#eaa99a; --pt:#a9bccf;
+  /* urgency: urgent coral, medium amber, later sage-stone */
+  --urg-hi:#f59f8c; --urg-mid:#e3bd70; --urg-lo:#b1b5a8;
+  /* bits */
+  --focus:#e3bd70; --knob:#f1e9dc; --logo-dot:#f1e9dc;
+  --mark-bg:rgba(220,180,108,.26); --mark-text:#fbeccb;
+  --why-a:rgba(220,180,108,.12);
+  --photo:#4a4139; --photo-text:#dcd2c4;
+  /* avatars: low saturation so per-person hues stay mellow */
+  --av-s1:30%; --av-l1:68%; --av-ring:66%; --av-glow:60%; --glow-a:.28;
+  /* shadows */
+  --sh-glass:inset 0 1px 0 rgba(255,240,220,.10);
+  --sh-menu:0 14px 34px rgba(0,0,0,.5);
+  --sh-logo:0 0 10px 3px rgba(227,189,112,.40);
+}
+/* after the palettes, so RTL wins the tie on specificity */
+[dir=rtl]{--slide:-36px}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 var(--font);min-height:100vh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(40vw 40vw at 12% 18%,var(--aura-1),transparent 70%), /* taste-skill-ignore: palette wash behind the frosted glass */
+  radial-gradient(38vw 38vw at 88% 10%,var(--aura-2),transparent 70%), /* taste-skill-ignore */
+  radial-gradient(45vw 45vw at 70% 95%,var(--aura-3),transparent 70%),var(--bg)} /* taste-skill-ignore */
+[dir=rtl] body,[lang=ar]{font-family:'IBM Plex Sans Arabic','Inter',system-ui,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:8px}
+.glass{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--rim);border-radius:var(--r);box-shadow:var(--sh-glass)} /* taste-skill-ignore: Halo's frosted glass, owner's rule */
+button.glass{box-shadow:none}
+.glass:has(.retag[open]){position:relative;z-index:10}
+.caption{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;padding:8px 16px;background:var(--caption-bg);border-bottom:1px solid var(--rim);font-size:13px}
+.caption b{color:var(--pt)} .caption>span{color:var(--muted);flex:1 1 320px}
+.pal{display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center}
+.pal small{color:var(--muted);margin-inline-end:2px}
+.pal button{padding:3px 10px;border-radius:999px;border:1px solid var(--rim);font-size:12px;font-weight:600;color:var(--muted)}
+.pal button:hover{background:var(--glass-hi)}
+.pal button[aria-pressed=true]{color:var(--text);background:var(--glass-hi);border-color:var(--text)}
+.top{display:flex;align-items:center;gap:14px;padding:14px 24px;flex-wrap:wrap}
+.logo{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
+.logo i{width:10px;height:10px;border-radius:50%;background:var(--logo-dot);box-shadow:var(--sh-logo)}
+.crumb{color:var(--muted);font-size:14px} .crumb button{text-decoration:underline;text-underline-offset:3px}
+.sp{flex:1}
+.seg{display:inline-flex;padding:3px;border-radius:999px}
+.seg button{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--glass-hi);color:var(--text)}
+.btn{padding:8px 14px;border-radius:999px;font-weight:600;font-size:14px}
+.btn:hover{background:var(--glass-hi)}
+main{padding:0 24px 40px;max-width:1440px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px;line-height:1.25} h2{font-size:15px;color:var(--text);margin:0 0 10px;font-weight:600}
+h3{font-size:13px;font-weight:700;margin:0 0 8px;display:flex;align-items:center;gap:7px;color:var(--u,var(--text))}
+h3 em,.filters em{font-style:normal;font-weight:500;color:var(--faint);font-variant-numeric:tabular-nums}
+.sub{color:var(--muted);font-size:14px}
+ul{list-style:none;margin:0;padding:0}
+mark{background:var(--mark-bg);color:var(--mark-text);border-radius:4px;padding:0 2px}
+.ic{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.udot{display:inline-block;flex:none;width:9px;height:9px;border-radius:50%;background:var(--u)}
+.c-dec{--c:var(--dec)} .c-q{--c:var(--q)} .c-push{--c:var(--push)} .c-pt{--c:var(--pt)}
+.u-hi{--u:var(--urg-hi)} .u-mid{--u:var(--urg-mid)} .u-lo{--u:var(--urg-lo)}
+/* list view */
+.search{display:flex;align-items:center;gap:10px;padding:12px 18px;margin:8px 0 18px}
+.search input{flex:1;background:none;border:0;color:var(--text);font:inherit;font-size:16px;min-width:0}
+.search input::placeholder{color:var(--faint)}
+.listgrid{display:grid;grid-template-columns:1fr 1.1fr;gap:20px}
+.mtg-card{display:flex;gap:16px;align-items:center;width:100%;text-align:start;padding:16px 18px;margin-bottom:12px}
+.mtg-card:hover{background:var(--glass-hi)}
+.stack{display:flex} .stack .av{margin-inline-start:-10px;border:2px solid var(--bg)} .stack .av:first-child{margin-inline-start:0}
+.hits{padding:16px 18px}
+.hit{display:block;width:100%;text-align:start;padding:10px 12px;border-radius:14px}
+.hit:hover{background:var(--glass-hi)}
+.hit small{color:var(--muted);display:block;font-size:12px}
+.kind{font-size:12px;font-weight:600;color:var(--faint)}
+/* avatars: hue is per person, saturation/lightness come from the palette */
+.av{--s:30px;width:var(--s);height:var(--s);flex:none;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:max(11px,calc(var(--s)*.36));color:var(--on-accent);
+  background:hsl(var(--h) var(--av-s1) var(--av-l1));position:relative;overflow:hidden}
+.av.photo{background:var(--photo);color:var(--photo-text)}
+.av.photo svg{width:62%;height:62%;margin-top:22%}
+/* meeting view */
+.mtg{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:22px;align-items:start}
+.head{padding:20px 22px;margin-bottom:18px}
+.agenda{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.agenda button{padding:5px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--rim);font-size:13px}
+.agenda button:hover{background:var(--glass-hi)}
+.agenda em{font-style:normal;color:var(--muted);margin-inline-start:6px;font-variant-numeric:tabular-nums}
+.people{display:flex;gap:14px;align-items:flex-end;overflow-x:auto;padding:14px 4px 18px;scrollbar-width:thin}
+.person{flex:1 0 128px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px 12px;border-radius:var(--r);border:1px solid transparent;transition:transform .25s,background .25s,border-color .25s}
+.person:nth-child(odd){transform:translateY(-8px)}
+.person:hover{background:var(--glass)}
+.person[aria-pressed=true]{background:var(--glass-hi);border-color:var(--rim);transform:translateY(-14px)}
+.person[aria-pressed=true] .av{box-shadow:0 0 0 3px var(--bg),0 0 0 5px hsl(var(--h) var(--av-s1) var(--av-ring)),0 0 28px 6px hsl(var(--h) var(--av-s1) var(--av-glow) / var(--glow-a))}
+.person .av{--s:84px;transition:box-shadow .25s}
+.person .nm{font-weight:600} .person .rl{font-size:12px;color:var(--muted);text-align:center;line-height:1.3}
+.dots{display:flex;gap:4px} .dots i{width:8px;height:8px;border-radius:50%}
+.talk{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.all{flex:0 0 auto;align-self:center;padding:10px 14px;border-radius:999px;border:1px dashed var(--rim);font-size:13px;color:var(--muted)}
+.all[aria-pressed=true]{color:var(--text);border-style:solid;background:var(--glass-hi)}
+/* action board (by urgency) */
+.board{padding:16px 18px;margin-bottom:16px}
+.bhead{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap;margin-bottom:8px}
+.bhead h2{margin:0}
+.prov{margin:0;font-size:12px;color:var(--faint)}
+.ugrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ucol{min-width:0}
+.ugroup{margin-bottom:10px}
+.act{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;margin-bottom:8px;border:1px solid var(--rim);border-inline-start:3px solid var(--u);background:var(--glass-lo)}
+.act.sug{border-style:dashed;border-inline-start-style:solid;background:none}
+.badge{flex:none;font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px}
+.badge.as{background:color-mix(in srgb,var(--dec) 15%,transparent);color:var(--dec)}
+.badge.sg{background:var(--hair);color:var(--muted)}
+.act .body{flex:1;min-width:0}
+.act small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.ameta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
+.ameta .av{--s:20px}
+/* category filter + columns */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.filters button{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid var(--rim);background:var(--glass);font-size:13px;font-weight:600}
+.filters button:hover{background:var(--glass-hi)}
+.filters button[aria-pressed=true]{background:var(--glass-hi);border-color:var(--c,var(--text))}
+.filters .ic{color:var(--c)}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+/* decisions beside open questions (similar heights); pushbacks and points run full width */
+.cols.one{grid-template-columns:minmax(0,1fr)}
+.c-pt,.c-push{grid-column:1/-1}
+.c-pt ul,.c-push ul,.cols.one ul{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));column-gap:22px}
+.col{padding:16px}
+.col h2{color:var(--c);display:flex;align-items:center;gap:7px}
+.pt{padding:10px 0 12px;border-top:1px solid var(--hair)} .pt:first-of-type{border-top:0}
+.pt-main{display:flex;gap:10px;text-align:start;width:100%}
+.pt-main::before{content:"";flex:none;width:4px;border-radius:4px;background:var(--c)}
+.pt-main:hover .txt{text-decoration:underline;text-decoration-color:var(--c);text-underline-offset:3px}
+.tag{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--c)}
+.col .tag{display:none} /* the column heading already names the type */
+.tag .ic{width:13px;height:13px}
+.meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 0;padding-inline-start:14px;font-size:12px;color:var(--muted)}
+.meta .av{--s:20px}
+.chip{padding:2px 9px;border-radius:999px;border:1px solid var(--rim);font-size:12px;color:var(--muted)}
+.chip:hover{color:var(--text);background:var(--glass-hi)}
+.mini{display:inline-flex;align-items:center;gap:6px}
+.mini:hover span{text-decoration:underline}
+blockquote{margin:8px 0 0;margin-inline-start:14px;padding:8px 12px;border-inline-start:2px solid var(--c);background:var(--glass-lo);border-radius:10px;font-size:14px;unicode-bidi:plaintext}
+/* re-tag menu: quiet provenance, one click to change */
+.retag{position:relative;display:inline-block}
+.retag summary{list-style:none;cursor:pointer;font-size:11px;color:var(--faint);padding:2px 6px;border-radius:999px}
+.retag summary::-webkit-details-marker{display:none}
+.retag:not([open]) .menu{display:none}
+.retag summary:hover,.retag[open] summary{color:var(--text);background:var(--glass-hi)}
+.menu{position:absolute;z-index:20;top:calc(100% + 4px);inset-inline-start:0;min-width:190px;padding:6px;border-radius:14px;border:1px solid var(--rim);background:var(--menu-bg);box-shadow:var(--sh-menu);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.menu p{margin:2px 8px 6px;font-size:11px;color:var(--faint)}
+.menu button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border-radius:9px;font-size:13px;color:var(--text);text-align:start}
+.menu button:hover{background:var(--glass-hi)}
+.menu button .ic{color:var(--c)}
+.menu button[aria-checked=true]{background:var(--glass)}
+.menu button .ck{margin-inline-start:auto;color:var(--muted)}
+/* person panel */
+.panel{padding:22px;animation:slideIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideIn{from{opacity:0;transform:translateX(var(--slide))}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.panel{animation:none}.person{transition:none}}
+.p-head{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+.p-head .av{--s:64px}
+.p-head h2{font-size:22px;font-weight:700;line-height:1.25;margin:0 0 4px}
+.x{margin-inline-start:auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--rim);font-size:18px}
+.x:hover{background:var(--glass-hi)}
+.why{padding:14px 16px;border-radius:16px;background:var(--why-a);border:1px solid var(--rim);margin-bottom:18px}
+.why p{margin:4px 0 0}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.pgrid > section{min-width:0}
+.span2{grid-column:1/-1}
+.empty{color:var(--faint);font-size:14px}
+/* transcript */
+.tx{position:sticky;top:12px;display:flex;flex-direction:column;max-height:calc(100vh - 24px);overflow:hidden}
+.player{padding:14px 16px;border-bottom:1px solid var(--rim)}
+.prow{display:flex;align-items:center;gap:12px}
+.play{width:38px;height:38px;border-radius:50%;background:var(--text);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.bar{flex:1;height:6px;border-radius:6px;background:var(--track);position:relative}
+.bar i{position:absolute;inset-block:0;inset-inline-start:0;border-radius:6px;background:var(--focus)}
+.bar b{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--knob);transform:translate(-50%,-50%)}
+[dir=rtl] .bar b{transform:translate(50%,-50%)}
+.time{font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted);direction:ltr}
+.keep{font-size:12px;color:var(--faint);margin-top:8px}
+.lines{overflow-y:auto;padding:8px 10px 14px;position:relative;scrollbar-width:thin}
+.ln{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:10px;border-radius:14px;width:100%;text-align:start;border-inline-start:3px solid transparent}
+.ln:hover{background:var(--glass-lo)}
+.ln.on{background:var(--glass-hi);border-inline-start-color:var(--pt)}
+.ln .av{--s:26px;grid-row:span 3}
+.ln .who{font-size:12px;color:var(--muted)} .ln .who b{color:var(--text);font-weight:600}
+.ln .o{unicode-bidi:plaintext}
+.ln .tr{font-size:13px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;inset-inline-start:50%;transform:translateX(-50%);padding:10px 16px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+[dir=rtl] .toast{transform:translateX(50%)}
+.toast.show{opacity:1}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:1100px){.ugrid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:900px){
+  .mtg,.listgrid{grid-template-columns:minmax(0,1fr)}
+  .tx{position:static;max-height:70vh}
+  .pgrid{grid-template-columns:1fr}
+  .person{flex-basis:100px}
+}
+@media (max-width:560px){
+  main{padding:0 16px 32px} .top{padding:12px 16px}
+  .cols{grid-template-columns:1fr}
+  .people{align-items:flex-start} .person{flex:0 0 96px} .person .av{--s:60px} .person:nth-child(odd){transform:none}
+  .person[aria-pressed=true]{transform:none}
+  h1{font-size:20px} .head,.panel,.board{padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="caption" dir="ltr" lang="en"><b>Notes v2 · People First</b><span>Draft 2's layout, plus filterable moment types (decision, open question, pushback, point) and action items sorted by urgency. Tags come from Halo's low-cost classifier; click "by Halo" to re-tag.</span>
+  <div class="pal" role="group" aria-label="Colour palette"><small>Palette</small><button data-pal="1">Paper &amp; Ink</button><button data-pal="2">Sage &amp; Clay</button><button data-pal="3">Dusk</button></div></div>
+<header class="top">
+  <div class="logo"><i aria-hidden="true"></i>Halo <span class="sub" data-t="notes"></span></div>
+  <nav class="crumb" id="crumb" aria-label="Breadcrumb"></nav>
+  <div class="sp"></div>
+  <div class="seg glass" role="group" aria-label="Interface language">
+    <button data-lang="en">EN</button><button data-lang="ar" lang="ar">عربي</button>
+  </div>
+  <button class="btn glass" id="export" hidden></button>
+</header>
+<main id="view"></main>
+<div class="toast glass" id="toast" role="status"></div>
+
+<script>
+// ponytail: fake data inline; the real page renders the same shapes from the Notes Service.
+const P = {
+  karim:{n:'Karim',na:'كريم',ini:'K',h:262,photo:true,role:'Product lead (host)',roleAr:'قائد المنتج (المضيف)',talk:9,
+    why:'Host and final decision-maker. Every launch, pricing and scope call in this meeting ends with him.',
+    whyAr:'المضيف وصاحب القرار النهائي. كل قرارات الإطلاق والتسعير والنطاق في هذا الاجتماع تنتهي عنده.'},
+  layla:{n:'Layla',na:'ليلى',ini:'L',h:190,role:'Engineering lead',roleAr:'قائدة الهندسة',talk:6,
+    why:'Owns RTL support and transcription quality, the two things that decide whether the Dec 1 beta can ship.',
+    whyAr:'مسؤولة عن دعم RTL وجودة التفريغ، وهما ما يحدد إن كانت نسخة ١ ديسمبر قابلة للإطلاق.'},
+  omar:{n:'Omar',na:'عمر',ini:'O',h:330,role:'Product designer',roleAr:'مصمم المنتج',talk:5,
+    why:'Now owns the onboarding redesign end to end, and flagged the RTL layout risk to the launch date.',
+    whyAr:'أصبح مسؤولاً عن إعادة تصميم الإعداد بالكامل، ونبّه إلى خطر تصاميم RTL على موعد الإطلاق.'},
+  sarah:{n:'Sarah',na:'سارة',ini:'S',h:30,role:'Customer success (Riyadh accounts)',roleAr:'نجاح العملاء (حسابات الرياض)',talk:5,
+    why:'The link to the Riyadh customers: early-access invites and real call samples for the dialect test both go through her.',
+    whyAr:'حلقة الوصل مع عملاء الرياض: دعوات الوصول المبكر وعينات المكالمات لاختبار اللهجة تمر عبرها.'},
+  yusuf:{n:'Yusuf',na:'يوسف',ini:'Y',h:140,role:'Finance',roleAr:'المالية',talk:5,
+    why:'Pro pricing is open until his model is ready, and video retention was set by his storage-cost concern.',
+    whyAr:'تسعير Pro معلّق حتى يجهز نموذجه، ومدة حفظ الفيديو حُددت بسبب ملاحظته عن تكلفة التخزين.'}
+};
+const ORDER = ['karim','layla','omar','sarah','yusuf'];
+const CATS = ['dec','q','push','pt'], URG = ['hi','mid','lo'];
+const HEAD = {dec:'decs',q:'qs',push:'pushes',pt:'pts'};
+const DUR = 1802;
+const LINES = [
+ [1,12,'karim','mix','Okay يا جماعة، خلونا نبدأ. الـ agenda اليوم: Arabic launch، pricing، والـ onboarding.','Okay everyone, let\'s start. Today\'s agenda: Arabic launch, pricing, and onboarding.'],
+ [2,41,'layla','mix','من ناحية الـ engineering، الـ RTL support جاهز تقريباً، بس الـ transcription للهجة الخليجية لسا مش مضمون.','On engineering, RTL support is almost ready, but Gulf-dialect transcription still isn\'t guaranteed.'],
+ [3,125,'omar','en','I\'m worried about December 1st. The RTL layouts for onboarding need two more weeks.','','أنا قلق من موعد ١ ديسمبر. تصاميم RTL للإعداد تحتاج أسبوعين إضافيين.'],
+ [4,210,'karim','mix','طيب، let\'s launch it as a beta on December 1st، والـ onboarding يجي بعدين.','Okay, let\'s launch it as a beta on December 1st, and onboarding comes later.'],
+ [5,250,'sarah','mix','Customers in Riyadh keep asking for Arabic summaries. لو أطلقنا beta، أقدر أعطي ثلاث عملاء early access.','Customers in Riyadh keep asking for Arabic summaries. If we launch a beta, I can give three customers early access.'],
+ [6,302,'karim','mix','سارة، تواصلي معهم هالأسبوع please.','Sarah, reach out to them this week please.'],
+ [7,405,'yusuf','en','Before pricing: the Pro tier at fifteen dollars doesn\'t cover our transcription cost per user.','','قبل التسعير: باقة Pro بخمسة عشر دولاراً لا تغطي تكلفة التفريغ لكل مستخدم.'],
+ [8,450,'layla','ar','التكلفة تقريباً أربعة دولار لكل ساعة اجتماع.','The cost is roughly four dollars per meeting hour.'],
+ [9,500,'yusuf','ar','يعني لازم يكون على الأقل عشرين دولار، أو نحط حد على عدد الساعات.','So it has to be at least twenty dollars, or we put a cap on the hours.'],
+ [10,595,'karim','en','Let\'s keep the free tier at three meetings a month, and decide the Pro price next week.','','لنُبقِ الباقة المجانية على ثلاثة اجتماعات شهرياً، ونحسم سعر Pro الأسبوع القادم.'],
+ [11,630,'karim','ar','يوسف، جهّز لنا نموذج للتسعير قبل الخميس.','Yusuf, prepare a pricing model for us before Thursday.'],
+ [12,761,'layla','mix','سؤال: هل Voice Transcribe يدعم اللهجة الخليجية؟ ما لقينا أي benchmark.','Question: does Voice Transcribe support the Gulf dialect? We couldn\'t find any benchmark.'],
+ [13,795,'sarah','en','I can get real call samples from the Riyadh customers, with their consent.','','أستطيع الحصول على عينات مكالمات حقيقية من عملاء الرياض، بموافقتهم.'],
+ [14,902,'omar','mix','For onboarding, I want to drop the five-step wizard. خطوة وحدة بس: اختار لغتك ودورك.','For onboarding, I want to drop the five-step wizard. Just one step: choose your language and your role.'],
+ [15,1000,'layla','mix','That works, بس مين يكتب الـ Arabic copy؟ ما عندنا copywriter.','That works, but who writes the Arabic copy? We don\'t have a copywriter.'],
+ [16,1040,'karim','en','Omar, can you own the onboarding redesign end to end?','','عمر، هل تتولى إعادة تصميم الإعداد بالكامل؟'],
+ [17,1085,'omar','mix','تمام، أنا عليها. Mockups by Monday.','Sure, I\'m on it. Mockups by Monday.'],
+ [18,1290,'yusuf','en','One more thing: recordings. Keeping video longer than a week will cost us in storage.','','شيء أخير: التسجيلات. الاحتفاظ بالفيديو أكثر من أسبوع سيكلفنا في التخزين.'],
+ [19,1330,'karim','ar','متفقين، الفيديو سبعة أيام بس، والملاحظات تبقى.','Agreed: video for seven days only, and the notes stay.'],
+ [20,1605,'sarah','en','Are we announcing the beta publicly, or is it invite-only?','','هل سنعلن النسخة التجريبية للعامة أم بالدعوة فقط؟'],
+ [21,1730,'karim','mix','Invite-only for now. خلاص، شكراً يا جماعة.','Invite-only for now. That\'s it, thanks everyone.']
+].map(([id,t,sp,lang,orig,en,ar])=>({id,t,sp,lang,orig,en:en||orig,ar:lang==='en'?ar:orig}));
+const LN = Object.fromEntries(LINES.map(l=>[l.id,l]));
+
+// type = category from Halo's classifier; mine=true once the user re-tags it.
+const PTS = [
+ ['p1','dec','karim',4,'Launch Arabic as a beta on Dec 1; the onboarding redesign follows.','إطلاق النسخة العربية كنسخة تجريبية في ١ ديسمبر، وإعادة تصميم الإعداد تأتي لاحقاً.',['layla','omar','sarah']],
+ ['p2','dec','karim',10,'Free tier stays at 3 meetings a month.','تبقى الباقة المجانية على ٣ اجتماعات شهرياً.',['yusuf','sarah']],
+ ['p3','dec','karim',19,'Video kept 7 days; notes and transcripts stay until deleted.','الفيديو يُحفظ ٧ أيام فقط، والملاحظات والنصوص تبقى حتى الحذف.',['yusuf','layla']],
+ ['p4','dec','karim',21,'The beta is invite-only for now.','النسخة التجريبية بالدعوة فقط حالياً.',['sarah']],
+ ['p5','q','layla',12,'Does Voice Transcribe handle the Gulf dialect? No benchmark found.','هل يدعم Voice Transcribe اللهجة الخليجية؟ لا يوجد اختبار منشور.',['sarah','karim']],
+ ['p6','q','layla',15,'Who writes the Arabic onboarding copy? No copywriter on the team.','من يكتب نصوص الإعداد بالعربية؟ لا يوجد كاتب محتوى في الفريق.',['omar','karim']],
+ ['p7','q','karim',10,'Pro price: $15, $20, or capped hours? Decided next week.','سعر Pro: ١٥ دولاراً أم ٢٠ أم ساعات محدودة؟ يُحسم الأسبوع القادم.',['yusuf','sarah']],
+ ['p8','push','omar',3,'Dec 1 is too early: RTL onboarding layouts need two more weeks.','موعد ١ ديسمبر مبكر: تصاميم RTL للإعداد تحتاج أسبوعين إضافيين.',['karim','layla']],
+ ['p9','push','yusuf',7,'Pro at $15 doesn\'t cover transcription cost per user.','باقة Pro بـ ١٥ دولاراً لا تغطي تكلفة التفريغ لكل مستخدم.',['karim','sarah']],
+ ['p10','pt','layla',2,'RTL support is almost ready; Gulf-dialect transcription isn\'t guaranteed.','دعم RTL جاهز تقريباً، لكن تفريغ اللهجة الخليجية غير مضمون.',['karim','omar']],
+ ['p11','pt','sarah',5,'Riyadh customers keep asking for Arabic summaries; 3 can join early access.','عملاء الرياض يطلبون ملخصات عربية باستمرار، و٣ منهم يمكنهم الانضمام للوصول المبكر.',['karim']],
+ ['p12','pt','layla',8,'Transcription costs about $4 per meeting hour.','تكلفة التفريغ نحو ٤ دولارات لكل ساعة اجتماع.',['yusuf']],
+ ['p13','pt','yusuf',9,'Pro needs at least $20, or a cap on hours.','باقة Pro تحتاج ٢٠ دولاراً على الأقل، أو حداً لعدد الساعات.',['karim','sarah']],
+ ['p14','pt','sarah',13,'Can get consented real call samples from Riyadh customers.','يمكن الحصول على عينات مكالمات حقيقية بموافقة عملاء الرياض.',['layla']],
+ ['p15','pt','omar',14,'Replace the 5-step wizard with one step: pick language and role.','استبدال معالج الخطوات الخمس بخطوة واحدة: اختيار اللغة والدور.',['layla','karim']],
+ ['p16','pt','yusuf',18,'Keeping video beyond a week adds real storage cost.','الاحتفاظ بالفيديو أكثر من أسبوع يضيف تكلفة تخزين حقيقية.',['karim']]
+].map(([id,type,by,line,en,ar,rel])=>({id,type,by,line,en,ar,rel}));
+
+// urg = urgency from Halo's classifier (hi/mid/lo); due only when it was said aloud.
+const ACTS = [
+ ['a1','sarah','as','hi',6,'Contact the 3 Riyadh customers about early access.','التواصل مع عملاء الرياض الثلاثة بخصوص الوصول المبكر.','This week','هذا الأسبوع'],
+ ['a2','yusuf','as','hi',11,'Prepare a pricing model.','تجهيز نموذج تسعير.','Before Thu','قبل الخميس'],
+ ['a3','omar','as','hi',17,'Own the onboarding redesign; share mockups.','تولّي إعادة تصميم الإعداد ومشاركة النماذج.','Mon','الاثنين'],
+ ['a4','omar','sg','mid',3,'Check which RTL layouts must be in the Dec 1 beta scope.','تحديد تصاميم RTL الضرورية ضمن نطاق نسخة ١ ديسمبر.'],
+ ['a5','layla','sg','mid',12,'Run a Gulf-dialect accuracy test on Sarah\'s samples.','إجراء اختبار دقة للهجة الخليجية على عينات سارة.'],
+ ['a6','sarah','sg','mid',13,'Collect the consented call samples for the dialect test.','جمع عينات المكالمات الموافق عليها لاختبار اللهجة.'],
+ ['a7','karim','sg','lo',15,'Find an owner for the Arabic onboarding copy.','تعيين مسؤول عن نصوص الإعداد بالعربية.'],
+ ['a8','yusuf','sg','lo',18,'Estimate 7-day video storage cost per user.','تقدير تكلفة تخزين الفيديو لمدة ٧ أيام لكل مستخدم.'],
+ ['a9','karim','sg','lo',20,'Revisit a public beta announcement once invite-only feedback is in.','إعادة النظر في إعلان النسخة التجريبية للعامة بعد ملاحظات مرحلة الدعوات.']
+].map(([id,who,kind,urg,line,en,ar,due,dueAr])=>({id,who,kind,urg,line,en,ar,due,dueAr}));
+
+const MEETINGS = [
+ {id:'m1',en:'Halo Q4: Arabic launch & pricing',ar:'Halo للربع الرابع: الإطلاق العربي والتسعير',date:'Tue 28 Oct',dateAr:'الثلاثاء ٢٨ أكتوبر',min:30,who:ORDER,video:6,
+  sum:'4 decisions · 3 open questions · 2 pushbacks · 3 urgent actions',sumAr:'٤ قرارات · ٣ أسئلة مفتوحة · اعتراضان · ٣ مهام عاجلة'},
+ {id:'m2',en:'Weekly eng sync',ar:'اجتماع الهندسة الأسبوعي',date:'Thu 23 Oct',dateAr:'الخميس ٢٣ أكتوبر',min:25,who:['layla','karim','omar'],video:1,
+  sum:'2 decisions · 1 open question',sumAr:'قراران · سؤال مفتوح',snip:['Face tracker queue keeps newest frame only.','Pricing page copy waits for the Q4 pricing call.']},
+ {id:'m3',en:'Riyadh customer call: Al Noor Logistics',ar:'مكالمة عميل الرياض: النور للخدمات اللوجستية',date:'Tue 21 Oct',dateAr:'الثلاثاء ٢١ أكتوبر',min:45,who:['sarah','karim'],video:0,
+  sum:'3 decisions · 2 action items',sumAr:'٣ قرارات · مهمتان',snip:['They asked about pricing for 40 seats with Arabic summaries.','Want transcripts kept on their own storage.']},
+ {id:'m4',en:'Design review: overlay glass',ar:'مراجعة التصميم: الزجاج الشفاف',date:'Thu 16 Oct',dateAr:'الخميس ١٦ أكتوبر',min:20,who:['omar','karim','layla'],video:0,
+  sum:'1 decision · 1 pushback',sumAr:'قرار واحد · اعتراض واحد',snip:['Name above the head is the halo; no rings.']}
+];
+const AGENDA = [[1,'Arabic launch date','موعد الإطلاق العربي'],[7,'Pro pricing','تسعير باقة Pro'],[14,'Onboarding redesign','إعادة تصميم الإعداد'],[18,'Recording retention','مدة حفظ التسجيلات']];
+
+const T = {
+ en:{notes:'Notes',meetings:'Meetings',search:'Search every meeting: points, actions and transcripts',results:'Search results',inPoints:'Point',inTx:'Transcript',noHits:'No matches.',
+  dec:'Decision',q:'Open question',push:'Pushback',pt:'Point',decs:'Key decisions',qs:'Open questions',pushes:'Pushbacks',pts:'Points',agenda:'Agenda',everyone:'Whole meeting',
+  hi:'Urgent',mid:'Medium',lo:'Later / to discuss',filter:'Filter by type',all:'All',
+  byHalo:'by Halo',byYou:'by you',menuCat:'Change type',menuUrg:'Change urgency',
+  tipCat:'Type picked by Halo\'s low-cost classifier. Click to change it.',tipUrg:'Urgency picked by Halo\'s low-cost classifier. Click to change it.',
+  prov:'Sorted by Halo\'s lightweight classifier. Wrong call? Click “by Halo” on any item to re-tag it.',retagged:'Changed to {v}.',
+  why:'Why {n} matters here',actions:'Action items',action:'Action item',as:'Assigned',sg:'Suggested',asNote:'Said aloud',sgNote:'Suggested from their role, not said aloud',due:'Due',
+  own:'Said by {n}',rel:'Relevant to {n}, said by others',tx:'Transcript',export:'Export Markdown',orig:'Original',hide:'Hide original',
+  keep:'Video auto-deletes after 7 days (4 Nov). Notes and transcript stay.',talk:'{m} min talking',close:'Close profile',people:'People',
+  role:'Role from Setup',vid:'Video: {d} days left',vidGone:'Video deleted · notes kept',vid1:'Video: 1 day left',jump:'Jump to line',draftOnly:'Draft: only the 28 Oct meeting is filled in.',
+  play:'Play recording from here',exported:'Markdown file saved.',none:'Nothing here.',translated:'Translated'},
+ ar:{notes:'الملاحظات',meetings:'الاجتماعات',search:'ابحث في كل الاجتماعات: النقاط والمهام والنصوص',results:'نتائج البحث',inPoints:'نقطة',inTx:'النص',noHits:'لا توجد نتائج.',
+  dec:'قرار',q:'سؤال مفتوح',push:'اعتراض',pt:'نقطة',decs:'القرارات الرئيسية',qs:'أسئلة مفتوحة',pushes:'اعتراضات',pts:'نقاط',agenda:'جدول الأعمال',everyone:'الاجتماع كاملاً',
+  hi:'عاجل',mid:'متوسط',lo:'لاحقاً / للنقاش',filter:'تصفية حسب النوع',all:'الكل',
+  byHalo:'بواسطة Halo',byYou:'بواسطتك',menuCat:'تغيير النوع',menuUrg:'تغيير الأولوية',
+  tipCat:'صنّف Halo هذا النوع بنموذج منخفض التكلفة. اضغط لتغييره.',tipUrg:'حدّد Halo الأولوية بنموذج منخفض التكلفة. اضغط لتغييرها.',
+  prov:'رتّبها مصنّف Halo الخفيف. التصنيف غير دقيق؟ اضغط «بواسطة Halo» على أي عنصر لتعديله.',retagged:'تم التغيير إلى {v}.',
+  why:'لماذا يهم {n} هنا',actions:'المهام',action:'مهمة',as:'مُسندة',sg:'مقترحة',asNote:'قيلت في الاجتماع',sgNote:'مقترحة حسب الدور، لم تُذكر صراحةً',due:'الموعد',
+  own:'قالها {n}',rel:'تهمّ {n}، قالها آخرون',tx:'النص الكامل',export:'تصدير Markdown',orig:'الأصل',hide:'إخفاء الأصل',
+  keep:'يُحذف الفيديو تلقائياً بعد ٧ أيام (٤ نوفمبر). الملاحظات والنص باقية.',talk:'{m} دقائق حديث',close:'إغلاق الملف',people:'الأشخاص',
+  role:'الدور من الإعداد',vid:'الفيديو: {d} أيام متبقية',vidGone:'حُذف الفيديو · الملاحظات باقية',vid1:'الفيديو: يوم واحد متبقٍ',jump:'انتقل إلى السطر',draftOnly:'مسودة: اجتماع ٢٨ أكتوبر فقط مكتمل.',
+  play:'شغّل التسجيل من هنا',exported:'تم حفظ ملف Markdown.',none:'لا شيء هنا.',translated:'مترجم'}
+};
+
+const S = {lang:'en', view:'list', person:null, line:4, q:'pricing', orig:{}, cat:'all'};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const t = (k,v={}) => T[S.lang][k].replace(/\{(\w)\}/g,(_,x)=>v[x]);
+const L = o => S.lang==='ar' ? o.ar : o.en;
+const name = id => S.lang==='ar' ? P[id].na : P[id].n;
+const role = id => S.lang==='ar' ? P[id].roleAr : P[id].role;
+const fmt = s => String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+const dirOf = l => l.lang==='en' ? 'ltr' : 'rtl';
+const langOf = l => l.lang==='en' ? 'en' : 'ar';
+const SIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5" fill="currentColor"/><path d="M2 24c0-6 4.5-9 10-9s10 3 10 9z" fill="currentColor"/></svg>';
+const av = id => `<span class="av${P[id].photo?' photo':''}" style="--h:${P[id].h}" title="${P[id].photo?'Meet profile photo':''}" aria-hidden="true">${P[id].photo?SIL:P[id].ini}</span>`;
+const lineTxt = l => S.lang==='ar' ? l.ar : l.en;
+const ICON = {
+  dec:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  q:'<path d="M9 9.2a3 3 0 1 1 4.3 2.7c-.8.4-1.3 1.1-1.3 2V15"/><path d="M12 18.6v.1"/>',
+  push:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  pt:'<circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/>'
+};
+const icon = k => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
+const vis = p => S.cat==='all' || p.type===S.cat;
+const byUrg = list => URG.map(u=>[u,list.filter(a=>a.urg===u).sort((a,b)=>a.kind.localeCompare(b.kind))]);
+const empty = tag => `<${tag} class="empty">${t('none')}</${tag}>`;
+
+function hl(text,q){
+  const e = esc(text); if(!q) return e;
+  return e.replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark>${m}</mark>`);
+}
+
+// One-click re-tag: quiet "by Halo" provenance that opens a tiny menu.
+function retag(x,kind){
+  const cat = kind==='cat', cur = cat ? x.type : x.urg;
+  return `<details class="retag"><summary title="${t(cat?'tipCat':'tipUrg')}">${x.mine?t('byYou'):t('byHalo')} ▾</summary>
+    <div class="menu" role="menu"><p>${t(cat?'menuCat':'menuUrg')}</p>${(cat?CATS:URG).map(v=>
+      `<button class="${cat?'c-':'u-'}${v}" role="menuitemradio" aria-checked="${v===cur}" data-retag="${x.id}" data-val="${v}">${cat?icon(v):'<i class="udot"></i>'}${t(v)}${v===cur?`<svg class="ic ck" viewBox="0 0 24 24" aria-hidden="true">${ICON.dec}</svg>`:''}</button>`).join('')}</div></details>`;
+}
+
+function pointHTML(p,showBy=true){
+  const l = LN[p.line], open = S.orig[p.id];
+  return `<li class="pt c-${p.type}">
+    <button class="pt-main" data-line="${p.line}" aria-label="${t(p.type)}: ${esc(L(p))}. ${t('jump')} ${fmt(l.t)}"><span><span class="tag">${icon(p.type)}${t(p.type)}</span><span class="txt">${esc(L(p))}</span></span></button>
+    <div class="meta">
+      ${showBy?`<button class="mini" data-person="${p.by}">${av(p.by)}<span>${esc(name(p.by))}</span></button>`:''}
+      <button class="chip" data-line="${p.line}" title="${t('play')}">▶ <span dir="ltr">${fmt(l.t)}</span></button>
+      <button class="chip" data-orig="${p.id}" aria-expanded="${!!open}">${open?t('hide'):t('orig')}</button>
+      ${retag(p,'cat')}
+    </div>
+    ${open?`<blockquote dir="${dirOf(l)}" lang="${langOf(l)}">“${esc(l.orig)}”</blockquote>`:''}
+  </li>`;
+}
+
+function actHTML(a,showWho){
+  return `<li class="act${a.kind==='sg'?' sug':''} u-${a.urg}">
+    <span class="badge ${a.kind}">${t(a.kind)}</span>
+    <div class="body">${esc(L(a))}<small>${a.kind==='as'?t('asNote'):t('sgNote')}${a.due?` · ${t('due')}: <b>${esc(S.lang==='ar'?a.dueAr:a.due)}</b>`:''}</small>
+      <div class="ameta">${showWho?`<button class="mini" data-person="${a.who}">${av(a.who)}<span>${esc(name(a.who))}</span></button>`:''}
+        <button class="chip" data-line="${a.line}" title="${t('play')}">▶ <span dir="ltr">${fmt(LN[a.line].t)}</span></button>
+        ${retag(a,'urg')}</div></div></li>`;
+}
+
+function filtersHTML(list){
+  return `<div class="filters" role="group" aria-label="${t('filter')}">
+    <button data-cat="all" aria-pressed="${S.cat==='all'}">${t('all')} <em>${list.length}</em></button>
+    ${CATS.map(k=>`<button class="c-${k}" data-cat="${k}" aria-pressed="${S.cat===k}">${icon(k)}${t(k)} <em>${list.filter(p=>p.type===k).length}</em></button>`).join('')}
+  </div>`;
+}
+
+function renderList(){
+  $('#view').innerHTML = `
+  <h1 style="margin:4px 0 0">${t('meetings')}</h1>
+  <label class="search glass"><span aria-hidden="true">⌕</span><span class="sr">${t('search')}</span>
+    <input id="q" type="search" value="${esc(S.q)}" placeholder="${t('search')}"></label>
+  <div class="listgrid">
+    <section aria-label="${t('meetings')}">
+      ${MEETINGS.map(m=>`<button class="mtg-card glass" data-open="${m.id}">
+        <span class="stack">${m.who.slice(0,4).map(av).join('')}</span>
+        <span style="flex:1;min-width:0"><b>${esc(L(m))}</b><br>
+          <span class="sub">${S.lang==='ar'?m.dateAr:m.date} · ${m.min} ${S.lang==='ar'?'دقيقة':'min'} · ${S.lang==='ar'?m.sumAr:m.sum}</span><br>
+          <span class="sub" style="font-size:12px;color:var(--faint)">${m.video>1?t('vid',{d:m.video}):m.video===1?t('vid1'):t('vidGone')}</span></span>
+      </button>`).join('')}
+    </section>
+    <section class="hits glass" aria-live="polite"><h2>${t('results')}</h2><div id="hits"></div></section>
+  </div>`;
+  renderHits();
+}
+
+function renderHits(){
+  const q = S.q.trim().toLowerCase(), out = [];
+  if(q){
+    const has = s => s.toLowerCase().includes(q);
+    for(const p of PTS){ const l=LN[p.line]; const f=[L(p),p.en,p.ar,l.orig].find(has); if(f) out.push({k:t('inPoints')+' · '+t(p.type),txt:f,line:p.line,sp:p.by,m:'m1'}); }
+    for(const a of ACTS){ const f=[L(a),a.en,a.ar].find(has); if(f) out.push({k:t('action')+' · '+t(a.urg),txt:f,line:a.line,sp:a.who,m:'m1'}); }
+    for(const l of LINES){ const f=[lineTxt(l),l.orig,l.en].find(has); if(f) out.push({k:t('inTx'),txt:f,line:l.id,sp:l.sp,m:'m1'}); }
+    for(const m of MEETINGS) for(const s of m.snip||[]) if(has(s)) out.push({k:t('inPoints'),txt:s,m:m.id});
+  }
+  $('#hits').innerHTML = out.length ? out.map(h=>{
+    const m = MEETINGS.find(x=>x.id===h.m);
+    const rtl = /[\u0600-\u06FF]/.test(h.txt);
+    return `<button class="hit" data-open="${h.m}" ${h.line?`data-line="${h.line}"`:''}>
+      <span class="kind">${h.k}</span>
+      <div dir="${rtl?'rtl':'ltr'}" style="unicode-bidi:plaintext">${hl(h.txt,S.q.trim())}</div>
+      <small>${esc(L(m))}${h.sp?` · ${esc(name(h.sp))} · <span dir="ltr">${fmt(LN[h.line].t)}</span>`:''}</small></button>`;
+  }).join('') : `<p class="empty">${q?t('noHits'):''}</p>`;
+}
+
+function renderMeeting(){
+  const m = MEETINGS[0], sel = S.person;
+  const counts = id => CATS.map(k=>PTS.filter(p=>p.by===id&&p.type===k).map(()=>`<i style="background:var(--${k})"></i>`).join('')).join('');
+  $('#view').innerHTML = `<div class="mtg">
+  <div>
+    <section class="head glass">
+      <h1>${esc(L(m))}</h1>
+      <div class="sub">${S.lang==='ar'?m.dateAr:m.date} 2026 · 30 ${S.lang==='ar'?'دقيقة':'min'} · Google Meet</div>
+      <div class="agenda" aria-label="${t('agenda')}"><span class="sub" style="align-self:center">${t('agenda')}:</span>
+        ${AGENDA.map(([ln,en,ar])=>`<button data-line="${ln}">${S.lang==='ar'?ar:en}<em dir="ltr">${fmt(LN[ln].t)}</em></button>`).join('')}</div>
+    </section>
+    <h2 class="sr">${t('people')}</h2>
+    <div class="people" role="group" aria-label="${t('people')}">
+      <button class="all" data-person="" aria-pressed="${!sel}">${t('everyone')}</button>
+      ${ORDER.map(id=>`<button class="person" data-person="${id}" aria-pressed="${sel===id}" style="--h:${P[id].h}">
+        ${av(id)}<span class="nm">${esc(name(id))}</span><span class="rl" title="${t('role')}">${esc(role(id))}</span>
+        <span class="dots" aria-hidden="true">${counts(id)}</span><span class="talk">${t('talk',{m:P[id].talk})}</span></button>`).join('')}
+    </div>
+    <div id="stage">${stageHTML()}</div>
+  </div>
+  <aside class="tx glass" id="tx" aria-label="${t('tx')}"></aside>
+  </div>`;
+  renderTx();
+}
+
+const stageHTML = () => S.person ? personHTML(S.person) : summaryHTML();
+
+function summaryHTML(){
+  const col = k => `<section class="col glass c-${k}"><h2>${icon(k)}${t(HEAD[k])}</h2><ul>${PTS.filter(p=>p.type===k).map(p=>pointHTML(p)).join('')||empty('li')}</ul></section>`;
+  return `<section class="board glass"><div class="bhead"><h2>${t('actions')}</h2><p class="prov">${t('prov')}</p></div>
+    <div class="ugrid">${byUrg(ACTS).map(([u,l])=>`<section class="ucol u-${u}"><h3><i class="udot"></i>${t(u)} <em>${l.length}</em></h3>
+      <ul>${l.map(a=>actHTML(a,true)).join('')||empty('li')}</ul></section>`).join('')}</div></section>
+  ${filtersHTML(PTS)}
+  <div class="cols${S.cat==='all'?'':' one'}">${(S.cat==='all'?CATS:[S.cat]).map(col).join('')}</div>`;
+}
+
+function personHTML(id){
+  const p = P[id], n = name(id);
+  const own = PTS.filter(x=>x.by===id), rel = PTS.filter(x=>x.by!==id && x.rel.includes(id));
+  const acts = byUrg(ACTS.filter(a=>a.who===id)).filter(([,l])=>l.length);
+  return `<section class="panel glass" aria-label="${esc(n)}" style="--h:${p.h}">
+    <div class="p-head">${av(id)}<div><h2>${esc(n)}</h2><div class="sub" title="${t('role')}">${esc(role(id))} · ${t('talk',{m:p.talk})}</div></div>
+      <button class="x" data-person="" aria-label="${t('close')}">×</button></div>
+    <div class="why"><h2>${t('why',{n})}</h2><p>${esc(S.lang==='ar'?p.whyAr:p.why)}</p></div>
+    <div class="pgrid">
+      <section class="span2"><div class="bhead"><h2>${t('actions')}</h2><p class="prov">${t('prov')}</p></div>
+        ${acts.map(([u,l])=>`<div class="ugroup u-${u}"><h3><i class="udot"></i>${t(u)} <em>${l.length}</em></h3><ul>${l.map(a=>actHTML(a,false)).join('')}</ul></div>`).join('')||empty('p')}</section>
+      <div class="span2">${filtersHTML([...own,...rel])}</div>
+      <section><h2>${t('own',{n})}</h2><ul>${own.filter(vis).map(x=>pointHTML(x,false)).join('')||empty('li')}</ul></section>
+      <section><h2>${t('rel',{n})}</h2><ul>${rel.filter(vis).map(x=>pointHTML(x)).join('')||empty('li')}</ul></section>
+    </div></section>`;
+}
+
+function renderTx(){
+  const cur = LN[S.line], pct = cur.t/DUR*100;
+  $('#tx').innerHTML = `<div class="player">
+    <div class="prow"><button class="play" aria-label="${t('play')}">▶</button>
+      <div class="bar" role="img" aria-label="${fmt(cur.t)} / ${fmt(DUR)}"><i style="width:${pct}%"></i><b style="inset-inline-start:${pct}%"></b></div>
+      <span class="time">${fmt(cur.t)} / ${fmt(DUR)}</span></div>
+    <div class="keep">${t('keep')}</div></div>
+  <h2 style="padding:12px 20px 0">${t('tx')}</h2>
+  <div class="lines" id="lines">${LINES.map(l=>{
+    const tr = (S.lang==='en' && l.lang!=='en') || (S.lang==='ar' && l.lang==='en');
+    return `<button class="ln${l.id===S.line?' on':''}" data-line="${l.id}" id="ln${l.id}" aria-current="${l.id===S.line}">
+      ${av(l.sp)}<span class="who"><b>${esc(name(l.sp))}</b> · <span dir="ltr">${fmt(l.t)}</span></span>
+      <span class="o" dir="${dirOf(l)}" lang="${langOf(l)}">${esc(l.orig)}</span>
+      ${tr?`<span class="tr" dir="${S.lang==='ar'?'rtl':'ltr'}">${t('translated')}: ${esc(lineTxt(l))}</span>`:''}</button>`;}).join('')}</div>`;
+  const box = $('#lines'), el = $('#ln'+S.line);
+  box.scrollTop = el.offsetTop - box.clientHeight/2 + el.offsetHeight/2;
+}
+
+function render(){
+  document.documentElement.lang = S.lang; document.documentElement.dir = S.lang==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===S.lang));
+  document.querySelectorAll('[data-pal]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pal===document.documentElement.dataset.palette));
+  document.querySelectorAll('[data-t]').forEach(e=>e.textContent=t(e.dataset.t));
+  $('#export').hidden = S.view!=='meeting'; $('#export').textContent = '⇩ '+t('export');
+  $('#crumb').innerHTML = S.view==='list' ? `<span>${t('meetings')}</span>`
+    : `<button data-nav="list">${t('meetings')}</button> / ${esc(L(MEETINGS[0]))}${S.person?' / '+esc(name(S.person)):''}`;
+  S.view==='list' ? renderList() : renderMeeting();
+}
+
+function toast(msg){ const e=$('#toast'); e.textContent=msg; e.classList.add('show'); clearTimeout(toast.h); toast.h=setTimeout(()=>e.classList.remove('show'),2200); }
+
+function markdown(){
+  const E = T.en, m = MEETINGS[0], ts = ln => `[${fmt(LN[ln].t)}](#t=${LN[ln].t})`, mine = x => x.mine?' _(re-tagged by you)_':'';
+  const li = p => `- **${E[p.type]}** · ${p.en} (${P[p.by].n}, ${ts(p.line)})${mine(p)}\n  > ${LN[p.line].orig}`;
+  const ai = a => `- [ ] **${E[a.urg]}** · ${a.en} (${P[a.who].n}${a.due?`, due ${a.due}`:''}, ${a.kind==='as'?'assigned aloud':'suggested from role'}, ${ts(a.line)})${mine(a)}`;
+  let md = `# ${m.en}\n\n${m.date} 2026 · 30 min · ${ORDER.map(id=>`${P[id].n} (${P[id].role})`).join(', ')}\n\n## Agenda\n${AGENDA.map(a=>`- ${a[1]}`).join('\n')}\n`;
+  md += `\n## Action items by urgency\n_Urgency and types classified by Halo's low-cost model; items marked "re-tagged by you" were changed by hand._\n`;
+  for(const [u,l] of byUrg(ACTS)) md += `\n### ${E[u]}\n${l.map(ai).join('\n')||'- None'}\n`;
+  for(const k of CATS) md += `\n## ${E[HEAD[k]]}\n${PTS.filter(p=>p.type===k).map(li).join('\n')||'- None'}\n`;
+  md += `\n## People\n`;
+  for(const id of ORDER) md += `\n### ${P[id].n}: ${P[id].role}\n${P[id].why}\n\n${byUrg(ACTS.filter(a=>a.who===id)).flatMap(([,l])=>l).map(ai).join('\n')||'- No action items'}\n`;
+  return md;
+}
+
+document.addEventListener('click', e=>{
+  const g = s => e.target.closest(s);
+  document.querySelectorAll('.retag[open]').forEach(d=>{ if(!d.contains(e.target)) d.open=false; });
+  let b;
+  if((b=g('[data-retag]'))){
+    const x = [...PTS,...ACTS].find(o=>o.id===b.dataset.retag), v = b.dataset.val;
+    x[x.urg?'urg':'type'] = v; x.mine = true;
+    const y = scrollY; render(); scrollTo(0,y); return toast(t('retagged',{v:t(v)}));
+  }
+  if((b=g('[data-pal]'))){
+    document.documentElement.dataset.palette=b.dataset.pal; try{history.replaceState(null,'','?palette='+b.dataset.pal)}catch{} // ponytail: file:// may refuse; the switch still works
+    document.querySelectorAll('[data-pal]').forEach(x=>x.setAttribute('aria-pressed',x===b)); return;
+  }
+  if((b=g('[data-cat]'))){ S.cat=b.dataset.cat; $('#stage').innerHTML=stageHTML(); return; }
+  if((b=g('[data-lang]'))){ S.lang=b.dataset.lang; return render(); }
+  if((b=g('[data-nav]'))){ S.view='list'; S.person=null; return render(); }
+  if((b=g('#export'))){
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([markdown()],{type:'text/markdown'}));
+    a.download='halo-notes-2026-10-28.md'; a.click(); URL.revokeObjectURL(a.href); return toast(t('exported'));
+  }
+  if((b=g('[data-open]'))){
+    if(b.dataset.open!=='m1') return toast(t('draftOnly'));
+    S.view='meeting'; S.person=null; if(b.dataset.line) S.line=+b.dataset.line; render(); scrollTo(0,0); return;
+  }
+  if((b=g('[data-orig]'))){ S.orig[b.dataset.orig]=!S.orig[b.dataset.orig]; $('#stage').innerHTML = stageHTML(); return; }
+  if((b=g('[data-person]'))){
+    S.person=b.dataset.person||null; const st=$('#stage').getBoundingClientRect().top; render();
+    if(st<0) $('#stage').scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if((b=g('[data-line]'))){
+    S.line=+b.dataset.line; renderTx();
+    if(innerWidth<=900 && !g('#tx')) $('#tx').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+});
+// Keep the re-tag menu on screen (narrow columns, RTL).
+document.addEventListener('toggle', e=>{
+  const d = e.target; if(!d.matches || !d.matches('.retag') || !d.open) return;
+  const m = d.querySelector('.menu'); m.style.translate = '0';
+  const r = m.getBoundingClientRect(), dx = r.right > innerWidth-8 ? innerWidth-8-r.right : r.left < 8 ? 8-r.left : 0;
+  m.style.translate = dx+'px 0';
+}, true);
+document.addEventListener('input', e=>{ if(e.target.id==='q'){ S.q=e.target.value; renderHits(); } });
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  const o = document.querySelector('.retag[open]');
+  if(o){ o.open=false; o.querySelector('summary').focus(); return; }
+  if(S.person){ S.person=null; render(); }
+});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="overlay.css">
+<style>body{margin:0;background:#202124}.grid{display:grid;grid-template-columns:repeat(2,400px);gap:8px;padding:8px}.t{position:relative;height:225px;background:#3c4043}video{width:100%;height:100%}</style>
+</head><body>
+<div class="grid" id="g">
+  <div class="t" data-participant-id="spaces/x/devices/1" data-requested-participant-id="spaces/x/devices/1" data-tile-media-id="m1"><video autoplay muted></video><span class="notranslate">Karim Amer</span><button aria-label="Pin Karim Amer to your main screen"><span class="notranslate">keep_outline</span></button></div>
+  <div class="t" data-participant-id="spaces/x/devices/2" data-tile-media-id="m2"><video autoplay muted></video><span class="notranslate">ليلى حسن</span></div>
+  <div class="t" data-participant-id="spaces/x/devices/3"><div aria-label="x"><button aria-label="More options for Sam Lee"></button></div></div>
+</div>
+<div role="listitem" data-participant-id="spaces/x/devices/9" style="width:300px;height:50px"><span class="notranslate">Panel Row</span></div>
+<div data-participant-id="spaces/x/devices/1" data-tile-media-id="fx" style="width:20px;height:20px"></div>
+<script>
+for (const v of document.querySelectorAll('video')) {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 360; const x = c.getContext('2d');
+  let i = 0; setInterval(() => { x.fillStyle = `hsl(${i++ * 5 % 360},70%,50%)`; x.fillRect(0, 0, 640, 360); }, 33);
+  v.srcObject = c.captureStream(30);
+}
+</script>
+<script src="content.js"></script>
+</body></html>

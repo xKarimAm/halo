@@ -1,0 +1,26 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# node / wxt
+node_modules/
+.output/
+.wxt/
+
+# local user data (meetings, recordings, logs)
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+recordings/
+
+# recorded test calls stay local
+rig/fixtures/*/
+!rig/fixtures/synthetic/
