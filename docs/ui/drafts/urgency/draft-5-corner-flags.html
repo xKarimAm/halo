@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Draft 5 — Corner flags · Halo urgency mark</title>
+<style>
+:root{--dark:#0b0f1a;--ink:#fff;--blur:blur(16px) saturate(140%) brightness(.88)}
+*{box-sizing:border-box}body{margin:0;background:#17181a;color:#e8eaed;font:14px/1.45 Inter,system-ui,'IBM Plex Sans Arabic',sans-serif;padding:22px}
+h1{font-size:17px;margin:0 0 4px}.sub{color:#bdc1c6;font-size:13px;margin:0 0 16px}
+.tile{position:relative;width:min(680px,100%);aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:linear-gradient(116deg,#2f4a5e 0%,#6a5138 36%,#4a3a5e 68%,#63483e 100%)}
+.tile:before{content:"";position:absolute;inset:0;background:radial-gradient(300px 180px at 16% 14%,rgba(255,236,195,.46),transparent 70%),radial-gradient(250px 190px at 88% 84%,rgba(150,210,255,.3),transparent 70%),repeating-linear-gradient(93deg,transparent 0 47px,rgba(0,0,0,.13) 47px 49px)}
+.scene{position:absolute;inset:0}.scene i{position:absolute;display:block;background:rgba(10,14,20,.28);border-radius:4px}
+.person{position:absolute;left:15%;top:24%;width:120px;height:190px}
+.head{width:74px;height:88px;border-radius:48% 48% 46% 46%;background:#e0b995;margin:0 auto}
+.shoulders{width:120px;height:92px;border-radius:60px 60px 0 0;background:#5e3436;margin:-8px auto 0}
+.name{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);white-space:nowrap;font-weight:500;font-size:12.5px;color:rgba(255,255,255,.94);padding:4px 11px;border-radius:999px;background:rgba(12,14,18,.62);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.55)}
+.stack{position:absolute;left:42%;top:15%;display:flex;flex-direction:column;gap:10px;width:min(330px,52%)}
+.bubble{position:relative;display:flex;align-items:center;gap:7px;padding:7px 11px 7px 8px;border-radius:10px;font-size:12.5px;color:var(--ink);background:linear-gradient(120deg,rgba(190,210,255,.20),rgba(255,255,255,.10) 55%,rgba(255,220,180,.16)),rgba(12,14,18,.55);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.62)}
+.bubble:before{content:"";position:absolute;left:-5px;top:50%;width:10px;height:10px;transform:translateY(-50%) rotate(45deg);background:rgba(38,44,54,.72);border-left:1px solid rgba(255,255,255,.62);border-bottom:1px solid rgba(255,255,255,.62);clip-path:polygon(0 0,0 100%,100% 100%)}
+.k{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:var(--dark);box-shadow:0 0 0 1.5px var(--dark);font-size:11px;font-weight:700}
+.kind-decision{background:#7fdcc0}.kind-point{background:#8ecbf5}.kind-question{background:#c3a8ff}
+[lang=ar]{font-family:'IBM Plex Sans Arabic',Tahoma,sans-serif}
+.meetlabel{position:absolute;left:10px;bottom:8px;font-size:12px;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:4px}
+/* Draft 5 marks: a pennant flag planted on the bubble's top inline-start corner, on a short pole. Filled + raised = urgent; outlined = medium; folded-down triangle = later. */
+.flag{position:absolute;top:-11px;inset-inline-start:12px;width:18px;height:14px}
+.flag:before{content:"";position:absolute;inset-inline-start:0;top:0;width:2px;height:14px;background:#fff}
+.flag i{position:absolute;top:0;inset-inline-start:2px;width:14px;height:9px;background:#fff;clip-path:polygon(0 0,100% 38%,0 100%)}
+.flag.medium i{background:transparent;border:1.5px solid #fff;width:11px;height:6px}
+.flag.later i{top:5px;width:10px;height:8px;background:rgba(255,255,255,.45);clip-path:polygon(0 0,100% 0,50% 100%)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;color:#bdc1c6;font-size:12.5px}.legend b{color:#fff}
+</style></head><body>
+<h1>Draft 5 — Corner flags</h1>
+<p class="sub">Urgency = a pennant on the bubble's top corner: filled and flying urgent, outlined medium, folded down later. Borrowed from flags everyone already reads on maps and mail.</p>
+<div class="tile"><div class="scene"><i style="right:7%;top:12%;width:112px;height:70px"></i><i style="left:4%;top:66%;width:175px;height:13px"></i><i style="left:48%;top:8%;width:12px;height:100px"></i></div>
+<div class="person"><div class="name">Rania Saleh</div><div class="head"></div><div class="shoulders"></div></div>
+<div class="stack">
+  <div class="bubble"><span class="k kind-decision">✓</span><span>Ship the fix tonight, freeze scope after</span><span class="flag urgent"><i></i></span></div>
+  <div class="bubble"><span class="k kind-point">•</span><span>Beta cohort grows to 20% on Friday</span><span class="flag medium"><i></i></span></div>
+  <div class="bubble" dir="rtl" lang="ar"><span class="k kind-question">؟</span><span>نراجع أسعار الباقة لاحقاً هذا الربع</span><span class="flag later"><i></i></span></div>
+</div><span class="meetlabel">Rania Saleh</span></div>
+<div class="legend"><span><b>filled flag</b> urgent</span><span><b>outlined flag</b> medium</span><span><b>folded flag</b> later</span></div>
+</body></html>
