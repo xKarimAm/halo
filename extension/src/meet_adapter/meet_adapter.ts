@@ -61,6 +61,11 @@ export class MeetDomAdapter implements MeetingAdapter {
   private timer: ReturnType<typeof setInterval> | null = null;
   private prevIds: string[] | null = null;
   private prevById = new Map<string, Tile>();
+  private prevSnapshot: string | null = null;
+  private resizeTarget: Window | null = null;
+  private readonly onResize = (): void => {
+    this.rescan();
+  };
 
   constructor(options: MeetAdapterOptions = {}) {
     this.scope = options.root ?? document;
@@ -69,6 +74,15 @@ export class MeetDomAdapter implements MeetingAdapter {
     const baseline = this.tiles();
     this.prevIds = baseline.map((tile) => tile.tile_id);
     this.prevById = new Map(baseline.map((tile) => [tile.tile_id, tile]));
+    this.prevSnapshot = JSON.stringify(baseline);
+    const isDocument = typeof Document !== "undefined" && this.scope instanceof Document;
+    const view = isDocument
+      ? (this.scope as Document).defaultView
+      : (this.scope as Element).ownerDocument?.defaultView;
+    if (view) {
+      this.resizeTarget = view;
+      view.addEventListener("resize", this.onResize);
+    }
     if (typeof MutationObserver !== "undefined") {
       this.observer = new MutationObserver((records) => this.onMutations(records));
       this.observer.observe(this.scope, {
@@ -167,11 +181,15 @@ export class MeetDomAdapter implements MeetingAdapter {
         }
       }
     }
-    if (ids.length !== this.prevIds.length || ids.some((id, index) => id !== this.prevIds?.[index])) {
+    // The Overlay positions bubbles from snapshot rects, so any tile field
+    // change (rect, name, is_self, fit, video size, captions_rect) re-emits.
+    const serialized = JSON.stringify(current);
+    if (serialized !== this.prevSnapshot) {
       this.tileCbs.forEach((cb) => cb(current));
     }
     this.prevIds = ids;
     this.prevById = new Map(current.map((tile) => [tile.tile_id, tile]));
+    this.prevSnapshot = serialized;
   }
 
   dispose(): void {
@@ -181,6 +199,8 @@ export class MeetDomAdapter implements MeetingAdapter {
       clearInterval(this.timer);
       this.timer = null;
     }
+    this.resizeTarget?.removeEventListener("resize", this.onResize);
+    this.resizeTarget = null;
     this.tileCbs.clear();
     this.speakingCbs.clear();
     this.joinCbs.clear();

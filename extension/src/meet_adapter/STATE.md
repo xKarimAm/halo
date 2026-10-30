@@ -31,7 +31,7 @@ Goal: Implement meet_adapter per its PLAN.md; done ONLY when `npm --prefix exten
 
 ## Current step
 
-Tasks 2-4 done: 12/12 Vitest green (run at real CI depth), `tsc --noEmit` clean. Next: commit, push, open PR. Cross-module issue filed: #8 (fake_meet conventions).
+Fix pushed to PR #9: rescan() re-emits on any tile field change (serialized compare) + window resize listener; 15/15 Vitest green, `tsc` clean. Cross-module issue filed: #8 (fake_meet conventions).
 
 ## Open questions
 

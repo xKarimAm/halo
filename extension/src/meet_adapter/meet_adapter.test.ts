@@ -231,6 +231,50 @@ describe("speaking", () => {
   });
 });
 
+describe("field changes", () => {
+  it("emits a new snapshot within one poll when a rect changes with ids unchanged", async () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 20 });
+    const snapshots: Tile[][] = [];
+    const off = adapter.onTiles((tiles) => snapshots.push(tiles));
+    const tile = document.querySelector('[data-participant-id="id-1"]') as Element;
+    stubRect(tile, { x: 100, y: 100, w: 200, h: 120 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    off();
+    adapter.dispose();
+    expect(snapshots.length).toBeGreaterThan(0);
+    const latest = snapshots[snapshots.length - 1] as Tile[];
+    expect(latest.map((t) => t.tile_id)).toEqual(["id-1", "id-2", "id-3"]);
+    expect(latest[0]?.rect).toEqual([100, 100, 200, 120]);
+  });
+
+  it("emits no snapshot when a poll finds nothing changed", async () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 20 });
+    const snapshots: Tile[][] = [];
+    const off = adapter.onTiles((tiles) => snapshots.push(tiles));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    off();
+    adapter.dispose();
+    expect(snapshots).toEqual([]);
+  });
+
+  it("rescans on window resize", async () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    const snapshots: Tile[][] = [];
+    const off = adapter.onTiles((tiles) => snapshots.push(tiles));
+    const tile = document.querySelector('[data-participant-id="id-2"]') as Element;
+    stubRect(tile, { x: 0, y: 0, w: 320, h: 180 });
+    window.dispatchEvent(new window.Event("resize"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    off();
+    adapter.dispose();
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]?.find((t) => t.tile_id === "id-2")?.rect).toEqual([0, 0, 320, 180]);
+  });
+});
+
 describe("matches()", () => {
   it("handles Meet URLs only", () => {
     const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
