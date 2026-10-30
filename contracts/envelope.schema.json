@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/envelope",
+  "title": "envelope",
+  "type": "object",
+  "properties": {
+    "specversion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "pair.hello",
+        "pair.ok",
+        "pair.rejected",
+        "meeting.started",
+        "meeting.ended",
+        "system.status",
+        "meeting.context",
+        "tiles.snapshot",
+        "speaker.active",
+        "transcript.final",
+        "turn.attributed",
+        "speaker.mapped",
+        "points.upsert",
+        "llm.health",
+        "tags.set",
+        "notes.ready"
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "meetingid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "datacontenttype": {
+      "const": "application/json"
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "specversion",
+    "id",
+    "type",
+    "source",
+    "time",
+    "meetingid",
+    "datacontenttype",
+    "data"
+  ],
+  "additionalProperties": false
+}

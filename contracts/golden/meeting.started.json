@@ -1,0 +1,16 @@
+{
+  "specversion": "1.0",
+  "id": "00000004-0000-4000-8000-000000000004",
+  "type": "meeting.started",
+  "source": "halo/golden",
+  "time": "2026-10-31T09:00:00Z",
+  "meetingid": "22222222-2222-4222-8222-222222222222",
+  "datacontenttype": "application/json",
+  "data": {
+    "meeting_id": "22222222-2222-4222-8222-222222222222",
+    "platform": "meet",
+    "meeting_code": "abc-defg-hij",
+    "t0_ms": 1760000000000,
+    "self_name": "Karim"
+  }
+}

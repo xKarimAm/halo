@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/llm.health",
+  "title": "llm.health",
+  "type": "object",
+  "properties": {
+    "engine": {
+      "type": "string"
+    },
+    "p90_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "engine",
+    "p90_ms"
+  ],
+  "additionalProperties": false
+}
