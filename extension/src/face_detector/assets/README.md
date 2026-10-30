@@ -1,13 +1,14 @@
 # Bundled detector assets
 
-`blaze_face_short_range.task` (BlazeFace short-range, float16) belongs in
-this folder, next to a `wasm/` copy of the `@mediapipe/tasks-vision` WASM
-fileset, so the extension never loads remote code (MV3). The MediaPipe
-engine (`../mediapipe.ts`) reads `assets/blaze_face_short_range.task` and
-`assets/wasm` relative to the extension root at runtime.
+`blaze_face_short_range.tflite` (BlazeFace short-range) is committed here,
+next to where the MediaPipe engine (`../mediapipe.ts`, `MODEL_ASSET`)
+expects it, so the extension never loads remote code (MV3). The WASM
+fileset comes from the installed `@mediapipe/tasks-vision` package
+(`node_modules/@mediapipe/tasks-vision/wasm`) at build time.
 
-The model binary is not committed by the build that introduced this
-module: its download was blocked in that sandbox (TLS/404 to Google
-Storage). Drop the file here once and Face mode turns on; until then
-`detect()` returns null and every tile uses Frame mode, which is the
+`model.test.ts` in this module loads the committed binary and checks it
+is a valid TFLite model (TFL3 flatbuffer). The full MediaPipe runtime
+load (WASM + FaceDetector) needs a browser document, so it runs in the
+L3 Fake Meet harness rather than in Node unit tests; until the model
+loads there, `detect()` returns null and tiles use Frame mode, the
 locked probe fallback (DECISIONS section 3).

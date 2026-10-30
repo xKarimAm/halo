@@ -1,12 +1,12 @@
 // MediaPipe engine (MVP default): BlazeFace short-range via
 // @mediapipe/tasks-vision, WASM + model bundled in the extension (MV3
 // forbids remote code). The model binary lives at
-// assets/blaze_face_short_range.task next to this module; if it cannot
+// assets/blaze_face_short_range.tflite next to this module; if it cannot
 // load, detect() returns null and the Overlay uses Frame mode (the locked
 // probe fallback) instead of breaking the tab.
 import type { Detection, DetectorEngine, TileFrameLike } from "./detector";
 
-export const MODEL_ASSET = "assets/blaze_face_short_range.task";
+export const MODEL_ASSET = "assets/blaze_face_short_range.tflite";
 export const WASM_ASSET = "assets/wasm";
 
 interface MpDetection {
