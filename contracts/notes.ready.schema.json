@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/notes.ready",
+  "title": "notes.ready",
+  "type": "object",
+  "properties": {
+    "meeting_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "degraded": {
+      "type": "boolean"
+    },
+    "people": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          },
+          "relevant_points": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "own_points": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "assigned",
+                    "suggested"
+                  ]
+                },
+                "urgency": {
+                  "type": "string",
+                  "enum": [
+                    "urgent",
+                    "medium",
+                    "later"
+                  ]
+                }
+              },
+              "required": [
+                "action_id",
+                "text",
+                "owner",
+                "status",
+                "urgency"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "why",
+          "relevant_points",
+          "own_points",
+          "actions"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "meeting_id",
+    "url",
+    "degraded",
+    "people"
+  ],
+  "additionalProperties": false
+}

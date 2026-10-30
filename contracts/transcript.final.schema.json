@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/transcript.final",
+  "title": "transcript.final",
+  "type": "object",
+  "properties": {
+    "turn_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stream": {
+      "type": "string",
+      "enum": [
+        "tab",
+        "mic"
+      ]
+    },
+    "speaker": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "ar",
+        "en",
+        "mixed"
+      ]
+    },
+    "ts_start_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ts_end_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "turn_id",
+    "stream",
+    "speaker",
+    "text",
+    "lang",
+    "ts_start_ms",
+    "ts_end_ms"
+  ],
+  "additionalProperties": false
+}

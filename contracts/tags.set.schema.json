@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/tags.set",
+  "title": "tags.set",
+  "type": "object",
+  "properties": {
+    "target": {
+      "type": "string",
+      "enum": [
+        "point",
+        "action"
+      ]
+    },
+    "target_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "point",
+        "question",
+        "decision",
+        "pushback"
+      ]
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "urgent",
+        "medium",
+        "later"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "model",
+        "user"
+      ]
+    },
+    "model": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "target",
+    "target_id",
+    "source"
+  ],
+  "additionalProperties": false
+}

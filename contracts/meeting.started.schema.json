@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/meeting.started",
+  "title": "meeting.started",
+  "type": "object",
+  "properties": {
+    "meeting_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "meet",
+        "zoom",
+        "teams"
+      ]
+    },
+    "meeting_code": {
+      "type": "string"
+    },
+    "t0_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "self_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "meeting_id",
+    "platform",
+    "meeting_code",
+    "t0_ms",
+    "self_name"
+  ],
+  "additionalProperties": false
+}

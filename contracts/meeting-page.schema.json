@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/meeting-page",
+  "title": "meeting-page",
+  "type": "object",
+  "properties": {
+    "meeting": {
+      "type": "object",
+      "properties": {
+        "meeting_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "t0_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "meeting_id",
+        "subject",
+        "t0_ms"
+      ],
+      "additionalProperties": false
+    },
+    "people": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "why"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "point_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tile_id": {
+            "type": "string"
+          },
+          "speaker_name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "point",
+              "question",
+              "decision",
+              "pushback"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "turn_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "medium",
+              "later"
+            ]
+          },
+          "is_action": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "point_id",
+          "tile_id",
+          "speaker_name",
+          "kind",
+          "text",
+          "quote",
+          "turn_ids",
+          "rank",
+          "is_action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "transcript_lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "turn_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "speaker_name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "ts_start_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ts_end_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recording_offset_ms": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "turn_id",
+          "speaker_name",
+          "text",
+          "ts_start_ms",
+          "ts_end_ms",
+          "recording_offset_ms"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "recording": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "start_ts_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "path",
+        "start_ts_ms"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "meeting",
+    "people",
+    "points",
+    "transcript_lines",
+    "recording"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/meeting.context",
+  "title": "meeting.context",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string"
+    },
+    "agenda": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "viewer_lang": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar"
+      ]
+    },
+    "project_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject",
+    "agenda",
+    "roles",
+    "viewer_lang"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/system.status",
+  "title": "system.status",
+  "type": "object",
+  "properties": {
+    "asr": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "reconnecting",
+        "down"
+      ]
+    },
+    "llm": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "type": "string"
+        },
+        "failover": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "engine",
+        "failover"
+      ],
+      "additionalProperties": false
+    },
+    "tagger": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "down"
+      ]
+    }
+  },
+  "required": [
+    "asr",
+    "llm",
+    "tagger"
+  ],
+  "additionalProperties": false
+}
