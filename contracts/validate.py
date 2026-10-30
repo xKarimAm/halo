@@ -25,6 +25,13 @@ def _validator(name: str) -> Draft202012Validator:
     return Draft202012Validator(_load(name))
 
 
+def known_type(type_: object) -> bool:
+    """True when `type_` is one of the envelope schema's pinned event types."""
+    if not isinstance(type_, str):
+        return False
+    return type_ in _load("envelope")["properties"]["type"]["enum"]
+
+
 def validate_envelope(envelope: dict) -> list[str]:
     """Return a list of validation errors; empty means valid."""
     errors = [e.message for e in _validator("envelope").iter_errors(envelope)]
