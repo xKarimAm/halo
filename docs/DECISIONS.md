@@ -48,6 +48,7 @@ Every agent (Muse, OpenCode, any Claude account) reads this first. If another do
 | Urgency/category tagging (Classifier) | **`muse-spark-1.3-contributor`**. **Live only:** every 10 s, one batched call if new points arrived; corrects Insight's guess in place. Action items are tagged by the Notes Builder (no race with `notes.ready`). User re-tag always wins. Kept by Karim; it is the first ring-2 cut. $0.10 in / $0.002 cached / $0.20 out per 1M tokens, 150 RPM. |
 | Notes Builder | **`muse-spark-1.3-contributor`**, once per meeting, schema enforced; outputs each action item's owner, assigned/suggested and urgency |
 | Contributor rule (Karim, 2026-10-30) | Every Spark 1.3 call uses the contributor model. Meta training on the content is fine: Halo is open source and demo meetings hold no real data. The consent badge still says it. |
+| Measured (day-0 probe, 2026-10-30) | Spark 1.3 at `minimal`, Insight-shaped prompt, 20 calls: total p50 2.74 s, p90 3.62 s, max 3.71 s, 0 errors, 100% valid JSON, prompt cache hits ~91%. PASS. Spark Open on Baseten not measured yet (new key pending). End to end adds ASR finalisation (~1 s): expect ~3.7 s typical, ~4.5 s p90. |
 | Faces | in-browser detector (section 3) |
 | Rules for calling Meta models | `.agents/skills/meta-model-api/` |
 
