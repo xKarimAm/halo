@@ -8,15 +8,21 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from halo.bus import Bus
+from halo.event_store import EventStore
 
 HOST, PORT = "127.0.0.1", 8765
 _ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
+
+
+def _data_dir() -> Path:
+    return Path(os.environ.get("HALO_DATA_DIR", "data"))
 
 
 def _host_ok(host: str | None) -> bool:
@@ -34,6 +40,10 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     app.state.audio_mic_queue = asyncio.Queue(maxsize=200)
     app.state.rec_queue = asyncio.Queue(maxsize=200)
     app.state.pairing_code = f"{secrets.randbelow(1_000_000):06d}"
+    # Event Store tap: every accepted envelope lands in events.sqlite.
+    app.state.store = EventStore(_data_dir() / "events.sqlite")
+    app.state.bus.set_tap(app.state.store.tap)
+    app.state.bus.register_health("event_store", app.state.store.health_status)
 
     @app.middleware("http")
     async def host_check(request: Request, call_next):  # type: ignore[no-untyped-def]
