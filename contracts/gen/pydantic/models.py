@@ -96,7 +96,7 @@ class MeetingPagePoints(BaseModel):
     is_action: bool
 
 
-class MeetingPageTranscript_lines(BaseModel):
+class MeetingPageTranscriptLines(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     turn_id: UUID
@@ -120,7 +120,7 @@ class MeetingPage(BaseModel):
     meeting: MeetingPageMeeting
     people: list[MeetingPagePeople]
     points: list[MeetingPagePoints]
-    transcript_lines: list[MeetingPageTranscript_lines]
+    transcript_lines: list[MeetingPageTranscriptLines]
     recording: MeetingPageRecording
 
 class MeetingContextRoles(BaseModel):
@@ -257,7 +257,7 @@ class TagsSet(BaseModel):
     source: Literal["model", "user"]
     model: str | None = None
 
-class Tileframe(BaseModel):
+class TileFrame(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     tile_id: str

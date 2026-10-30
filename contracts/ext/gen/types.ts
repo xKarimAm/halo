@@ -72,7 +72,7 @@ export interface MeetingPagePoints {
   is_action: boolean;
 }
 
-export interface MeetingPageTranscript_lines {
+export interface MeetingPageTranscriptLines {
   turn_id: string;
   speaker_name: string;
   text: string;
@@ -90,7 +90,7 @@ export interface MeetingPage {
   meeting: MeetingPageMeeting;
   people: MeetingPagePeople[];
   points: MeetingPagePoints[];
-  transcript_lines: MeetingPageTranscript_lines[];
+  transcript_lines: MeetingPageTranscriptLines[];
   recording: MeetingPageRecording;
 }
 
@@ -208,7 +208,7 @@ export interface TagsSet {
   model?: string;
 }
 
-export interface Tileframe {
+export interface TileFrame {
   tile_id: string;
   ts_ms: number;
   frame_w: number;
