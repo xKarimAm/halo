@@ -16,12 +16,12 @@ Scope is limited to the locked decisions in `docs/DECISIONS.md`. This spec adds 
 
 ### Face box
 
-- The Face Tracker sends a normalised `[cx, cy, w, h]` for each tile.
+- The Face Detector (in the browser) sends `faces.update` with `box: [x, y, w, h]` (top-left corner, 0..1 of the source frame) and a `head_anchor: [x, y]` per tile; see `contracts/`.
 - The box is **never drawn** and never saved.
 - Overlay positions are percentages of the tile, so the layout scales from tiles of about 200 px up to full screen.
 - Tiles beyond the first 6 faces use Frame mode.
 
-### Halo ring
+### Halo ring (REMOVED: no rings, the name is the halo; DECISIONS section 1. Only the "thinking" idea below may move to the name chip)
 
 - Shape: an ellipse above the head.
   - centre y = faceTop - 0.1 x faceH
@@ -37,7 +37,7 @@ Scope is limited to the locked decisions in `docs/DECISIONS.md`. This spec adds 
 
 ### Name chip
 
-- Sits on top of the ring, centred on the face.
+- Sits just above `head_anchor` (the top of the head), centred on the face box. There is no ring: the name is the halo.
 - Text: 12 px / 600 IBM Plex Sans. The role is 11 px in `#cfd3da`.
 - Background: the chip glass (section 4) with a pill radius (999 px), padding 5/10 px.
 - While the person is speaking, the chip gets a 1 px gold ring `rgba(255,217,138,.5)` and a 16 px glow `rgba(255,200,100,.35)` on top of the glass edge. The ring above the head carries the main speaking glow.
@@ -184,7 +184,7 @@ All of these surfaces use the same glass (section 4):
 - It shows:
   - the halo logo
   - "Halo"
-  - a pulsing red `REC` while the Recorder is on (video is kept 7 days)
+  - a pulsing red `REC` while the Recorder is on (recordings stay on this PC until deleted)
   - an eye toggle
 - When overlays are hidden, the badge **stays** and reads `Halo · hidden`.
 
@@ -197,7 +197,7 @@ The menu holds:
 - Points per face 1-3
 - Meeting setup…
 - Post consent notice to Meet chat
-- Recorder switch ("video kept 7 days, then deleted")
+- Recorder switch ("recordings stay on this PC until you delete them")
 - Open meeting notes
 - A privacy line: "No face images are saved. Halo never infers emotion or personality."
 
@@ -225,7 +225,7 @@ The menu holds:
 
 ### Setup panel
 
-- Docks in Meet's 360 px side-panel slot. It is never a modal and never sits over the bottom bar.
+- Lives in the extension's toolbar popup (its Start click is the user gesture Chrome needs for tab capture). Consent: a button copies the chat notice to the clipboard for the user to paste.
 - It contains:
   - Subject
   - Agenda (one item per line)
@@ -237,7 +237,7 @@ The menu holds:
 
 - Pills are native `<button>`s in tab order. Each has the label `"Name, Kind: text. Show original quote"`.
 - If a focused pill expires or folds into `+N`, focus moves to the Halo badge instead of being lost.
-- The badge's accessible name carries its state, for example "Halo is on, recording (video kept 7 days), overlays hidden. Open Halo menu".
+- The badge's accessible name carries its state, for example "Halo is on, recording (kept on this PC), overlays hidden. Open Halo menu".
 - The focus ring is a 2 px `#ffd98a` outline with a 2 px offset.
 - An `aria-live="polite"` region announces new and updated points. Its `lang` follows the viewer's language.
 - `prefers-reduced-motion`:

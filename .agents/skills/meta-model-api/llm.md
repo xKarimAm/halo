@@ -5,7 +5,7 @@
 | Engine | Base URL | Model id | Key env var |
 |---|---|---|---|
 | Spark Open (default for Insight) | `https://inference.baseten.co/v1` | `meta-models/muse-spark-open-1026` (the hackathon key works with this id only) | `BASETEN_API_KEY` |
-| Spark 1.3 (failover) | `https://api.meta.ai/v1` | `muse-spark-1.3` | `META_API_KEY` |
+| Spark 1.3 contributor (failover, Classifier, Notes Builder) | `https://api.meta.ai/v1` | `muse-spark-1.3-contributor` (every Halo runtime call; see docs/DECISIONS.md section 5) | `META_API_KEY` |
 
 Both speak the OpenAI Chat Completions API (verified 2026-10-29: plain replies, tool calls and the Responses API all return 200 on Baseten). One adapter with the base URL, model and key as config covers both.
 
@@ -17,7 +17,7 @@ Both speak the OpenAI Chat Completions API (verified 2026-10-29: plain replies, 
 - **The Meta API enforces the schema; Spark Open on Baseten accepts `json_schema` but does not enforce it** (docs.baseten.co/inference/structured-outputs). Its replies can come back in the wrong shape.
 - Lock the schema: `additionalProperties: false`, every field `required`, `enum` for closed sets.
 - Recursive `$ref` schemas return HTTP 400. Flatten them.
-- Validate every response against the schema in `/contracts` on every engine. On a validation failure, retry once on the same engine; if it fails again, send that call to Spark 1.3 (schema-enforced) and emit a failover event.
+- Validate every response against the schema in `/contracts` on every engine. On a validation failure, retry once on the same engine; if it fails again, send that call to `muse-spark-1.3-contributor` (schema-enforced) and emit a failover event. Failover is per call: after 30 s the next call tries Spark Open again, and every point records the `engine` that produced it.
 
 ## Latency levers (live Insight targets ~3 s, p90 under 4 s)
 
