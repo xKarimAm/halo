@@ -39,4 +39,4 @@ jobs:
       - name: Typecheck
         run: npm --prefix extension run typecheck
       - name: Unit tests
-        run: npm --prefix extension test -- --passWithNoTests
+        run: npm --prefix extension test
