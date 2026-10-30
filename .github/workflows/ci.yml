@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: L0 contracts
+        run: uv run pytest contracts -q
+      - name: Codegen drift
+        run: uv run python -m contracts.codegen --check
+      - name: Python tests
+        run: uv run pytest -q
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Import-linter lanes
+        run: uv run lint-imports
+      - name: Mypy (report only)
+        run: uv run mypy backend/halo
+        continue-on-error: true
+
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm --prefix extension install
+      - name: Typecheck
+        run: npm --prefix extension run typecheck
+      - name: Unit tests
+        run: npm --prefix extension test -- --passWithNoTests
