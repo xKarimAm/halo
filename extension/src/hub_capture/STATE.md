@@ -25,7 +25,7 @@ Implement extension/src/hub_capture per its PLAN.md; done ONLY when `npm --prefi
 - `extension/wxt.config.ts`: composition root config + manifest.
 
 ## Current step
-Done: 8 Vitest cases green, `tsc --noEmit` clean, `wxt build` produces `.output/chrome-mv3` (manifest, offscreen, meet content script). PR open for Karim to merge; it answers and closes issue #6.
+Review fix pushed: socket reconnects with backoff (1 s, 2 s, 4 s, cap 5 s), no resend on close, nothing sent on a non-open socket, `pair.hello` direct on open (not via outbox), everything else held until `pair.ok` then resent once with the same ids. 10 Vitest cases green, typecheck clean. Then rebased on main.
 
 ## Open questions
 - L3 full form (hub opens on the Fake Meet page via `?halo_test=1`) runs once this module's `.output` and meet_adapter coexist on main; the hook and fixture-audio path are unit-tested here.

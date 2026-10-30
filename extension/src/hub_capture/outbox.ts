@@ -16,15 +16,19 @@ export class Outbox {
   private seen = new Set<string>();
   degraded = false;
 
-  constructor(private send: (text: string) => void) {}
+  constructor(
+    private send: (text: string) => void,
+    private canSend: () => boolean = () => true,
+  ) {}
 
   get backlog(): number {
     return this.pending.size;
   }
 
   enqueue(env: Envelope, nowMs: number): void {
-    this.pending.set(env.id, { env, tries: 1, lastSentMs: nowMs });
-    this.send(JSON.stringify(env));
+    const sent = this.canSend();
+    this.pending.set(env.id, { env, tries: sent ? 1 : 0, lastSentMs: nowMs });
+    if (sent) this.send(JSON.stringify(env)); // otherwise held until resendAll
   }
 
   ack(ackOf: string): void {
@@ -33,6 +37,7 @@ export class Outbox {
 
   /** Resend everything due; returns how many envelopes were resent. */
   pump(nowMs: number): number {
+    if (!this.canSend()) return 0; // held: nothing leaves on a closed/unpaired socket
     let resent = 0;
     for (const p of this.pending.values()) {
       if (nowMs - p.lastSentMs < RESEND_AFTER_MS) continue;
@@ -49,7 +54,9 @@ export class Outbox {
   }
 
   resendAll(nowMs: number): void {
+    if (!this.canSend()) return;
     for (const p of this.pending.values()) {
+      p.tries += 1;
       p.lastSentMs = nowMs;
       this.send(JSON.stringify(p.env));
     }

@@ -10,6 +10,8 @@ export const HUB_START_MESSAGE = "halo/hub.start";
 export const TILE_NAMES_KEY = "halo/tileNames";
 
 export interface SocketLike {
+  connect(): void;
+  isOpen(): boolean;
   send(data: string): void;
   sendBinary(data: Uint8Array): void;
   addEventListener(type: string, fn: (ev?: unknown) => void): void;
@@ -23,6 +25,12 @@ export interface HubDeps {
   storage: { set(key: string, value: unknown): void; get(key: string): unknown };
   token: string;
   extVersion: string;
+  schedule?: (fn: () => void, ms: number) => void;
+}
+
+/** Reconnect backoff: 1 s, 2 s, 4 s, capped at 5 s. */
+export function reconnectDelayMs(attempt: number): number {
+  return Math.min(5000, 1000 * 2 ** attempt);
 }
 
 export function isTestHook(url: string): boolean {
@@ -68,18 +76,38 @@ export class Hub {
   private recorderOn = false;
   private seq: Record<"tab" | "mic", number> = { tab: 0, mic: 0 };
   private recSeq = 0;
+  private socketOpen = false;
+  private reconnectAttempt = 0;
+  private schedule: (fn: () => void, ms: number) => void;
 
   constructor(private deps: HubDeps) {
-    this.outbox = new Outbox((text) => deps.socket.send(text));
+    this.schedule = deps.schedule ?? ((fn, ms) => { setTimeout(fn, ms); });
+    this.outbox = new Outbox(
+      (text) => deps.socket.send(text),
+      () => this.socketOpen && this.paired, // nothing leaves before pair.ok
+    );
     deps.socket.addEventListener("message", (ev) => {
       const data = (ev as { data?: unknown } | undefined)?.data;
       if (typeof data === "string") this.onSocketText(data);
     });
-    deps.socket.addEventListener("close", () => this.outbox.resendAll(deps.now()));
+    deps.socket.addEventListener("open", () => {
+      this.socketOpen = true;
+      this.reconnectAttempt = 0;
+      this.paired = false;
+      this.sendPairHello(); // direct, not via the outbox: its reply is pair.ok, not an ACK
+    });
+    deps.socket.addEventListener("close", () => {
+      this.socketOpen = false;
+      this.paired = false;
+      // No resend on close: schedule a reconnect with backoff instead.
+      const delay = reconnectDelayMs(this.reconnectAttempt);
+      this.reconnectAttempt += 1;
+      this.schedule(() => this.deps.socket.connect(), delay);
+    });
   }
 
   connect(): void {
-    this.sendEnvelope("pair.hello", { token: this.deps.token, ext_version: this.deps.extVersion }, null);
+    this.deps.socket.connect();
   }
 
   start(meta: StartMeta): string {
@@ -137,7 +165,11 @@ export class Hub {
       return;
     }
     const env = msg as unknown as Envelope;
-    if (env.type === "pair.ok") { this.paired = true; return; }
+    if (env.type === "pair.ok") {
+      this.paired = true;
+      this.outbox.resendAll(this.deps.now()); // held envelopes, same ids, once each
+      return;
+    }
     if (env.type === "pair.rejected") { this.paired = false; return; }
     if (!env.id || !this.outbox.firstSeen(env.id)) return; // dedupe by id
     this.fannedOut += 1;
@@ -150,6 +182,7 @@ export class Hub {
   }
 
   sendAudio(stream: "tab" | "mic", pcm: Uint8Array, tsMs: number): void {
+    if (!this.socketOpen || !this.paired) return; // audio held off the wire until pair.ok
     const byte = stream === "tab" ? 0 : 1;
     this.deps.socket.sendBinary(packAudioFrame(byte as 0 | 1, this.seq[stream]++, tsMs, pcm));
   }
@@ -160,6 +193,7 @@ export class Hub {
 
   sendRec(webm: Uint8Array, tsMs: number): void {
     if (!this.recorderOn) return; // Recorder switch only gates kind=3
+    if (!this.socketOpen || !this.paired) return;
     this.deps.socket.sendBinary(packRecFrame(this.recSeq++, tsMs, webm));
   }
 
@@ -167,8 +201,8 @@ export class Hub {
     this.deps.toPage({ type: "hub.status", outbox_backlog: this.outbox.backlog });
   }
 
-  private sendEnvelope(type: Envelope["type"], data: unknown, meetingid: string | null): void {
-    const env: Envelope = {
+  private makeEnvelope(type: Envelope["type"], data: unknown, meetingid: string | null): Envelope {
+    return {
       specversion: "1.0",
       id: this.deps.uuid(),
       type,
@@ -178,7 +212,17 @@ export class Hub {
       datacontenttype: "application/json",
       data: data as Record<string, unknown>,
     };
-    this.outbox.enqueue(env, this.deps.now());
+  }
+
+  private sendPairHello(): void {
+    if (!this.socketOpen) return; // never send on a non-open socket
+    const env = this.makeEnvelope(
+      "pair.hello", { token: this.deps.token, ext_version: this.deps.extVersion }, null);
+    this.deps.socket.send(JSON.stringify(env));
+  }
+
+  private sendEnvelope(type: Envelope["type"], data: unknown, meetingid: string | null): void {
+    this.outbox.enqueue(this.makeEnvelope(type, data, meetingid), this.deps.now());
   }
 }
 

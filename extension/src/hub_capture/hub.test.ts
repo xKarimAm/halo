@@ -14,15 +14,43 @@ import { chunkPcm16, replayThrough } from "./capture";
 class FakeSocket implements SocketLike {
   sent: string[] = [];
   binary: Uint8Array[] = [];
+  open = false;
+  connectCalls = 0;
+  sentWhileClosed = 0;
   private handlers: Record<string, ((ev?: unknown) => void)[]> = {};
-  send(data: string): void { this.sent.push(data); }
-  sendBinary(data: Uint8Array): void { this.binary.push(data); }
+  connect(): void { this.connectCalls += 1; }
+  isOpen(): boolean { return this.open; }
+  send(data: string): void {
+    if (!this.open) { this.sentWhileClosed += 1; return; }
+    this.sent.push(data);
+  }
+  sendBinary(data: Uint8Array): void {
+    if (!this.open) { this.sentWhileClosed += 1; return; }
+    this.binary.push(data);
+  }
   addEventListener(type: string, fn: (ev?: unknown) => void): void {
     (this.handlers[type] ??= []).push(fn);
   }
-  emit(type: string, ev?: unknown): void { for (const fn of this.handlers[type] ?? []) fn(ev); }
+  emit(type: string, ev?: unknown): void {
+    if (type === "open") this.open = true;
+    if (type === "close") this.open = false;
+    for (const fn of this.handlers[type] ?? []) fn(ev);
+  }
   receive(text: string): void { this.emit("message", { data: text }); }
   envelopes(): Record<string, unknown>[] { return this.sent.map((s) => JSON.parse(s)); }
+}
+
+function pairOk(socket: FakeSocket): void {
+  socket.receive(JSON.stringify({
+    specversion: "1.0", id: "srv-pair", type: "pair.ok", source: "halo/gateway",
+    time: "t", meetingid: null, datacontenttype: "application/json", data: { session_id: "s-1" },
+  }));
+}
+
+function openAndPair(hub: Hub, socket: FakeSocket): void {
+  hub.connect();
+  socket.emit("open");
+  pairOk(socket);
 }
 
 function makeHub() {
@@ -31,6 +59,7 @@ function makeHub() {
   let seq = 0;
   const page: unknown[] = [];
   const storage = new Map<string, unknown>();
+  const scheduled: { fn: () => void; ms: number }[] = [];
   const deps: HubDeps = {
     socket,
     now: () => now,
@@ -39,8 +68,13 @@ function makeHub() {
     storage: { set: (k, v) => storage.set(k, v), get: (k) => storage.get(k) },
     token: "123456",
     extVersion: "0.1.0",
+    schedule: (fn, ms) => scheduled.push({ fn, ms }),
   };
-  return { hub: new Hub(deps), socket, page, storage, tick: (ms: number) => { now += ms; } };
+  return {
+    hub: new Hub(deps), socket, page, storage, scheduled,
+    tick: (ms: number) => { now += ms; },
+    runNextScheduled: () => scheduled.shift()?.fn(),
+  };
 }
 
 const started = { platform: "meet" as const, meeting_code: "abc-defg-hij", self_name: "Karim Amer" };
@@ -52,7 +86,9 @@ describe("hub lifecycle", () => {
     expect(isTestHook("https://meet.google.com/x?halo_test=1")).toBe(true);
     expect(isTestHook("https://meet.google.com/x")).toBe(false);
     hub.connect();
+    socket.emit("open");
     hub.start(started);
+    pairOk(socket);
     const envs = socket.envelopes();
     expect(envs[0].type).toBe("pair.hello");
     expect((envs[0].data as Record<string, unknown>).token).toBe("123456");
@@ -65,7 +101,7 @@ describe("hub lifecycle", () => {
   // (6) one meeting.ended on Stop; Meet-page reload does not end it
   it("ends once on stop and survives a page reload", () => {
     const { hub, socket } = makeHub();
-    hub.connect();
+    openAndPair(hub, socket);
     hub.start(started);
     hub.onPagePortDisconnected(); // Meet-page reload: hub survives the grace
     hub.stop("left");
@@ -80,14 +116,14 @@ describe("hub lifecycle", () => {
 describe("outbox", () => {
   it("resends the same id after 2 s and dedupes inbound", () => {
     const { hub, socket, tick } = makeHub();
-    hub.connect();
+    openAndPair(hub, socket);
     hub.start(started);
     const ctx = { subject: "S", agenda: [], roles: [], viewer_lang: "en" as const };
     hub.onPortMessage({ type: "meeting.context", data: ctx });
     const firstSend = socket.sent.length;
     tick(2001);
     hub.pumpOutbox();
-    expect(socket.sent.length).toBe(firstSend + 3); // pair.hello + started + context all due
+    expect(socket.sent.length).toBe(firstSend + 2); // started + context due; pair.hello is not in the outbox
     const resent = JSON.parse(socket.sent[socket.sent.length - 1]);
     expect(resent.id).toBe(JSON.parse(socket.sent[firstSend - 1]).id);
     const point = JSON.stringify({
@@ -104,7 +140,7 @@ describe("outbox", () => {
 describe("viewer language", () => {
   it("resends the latest context once with the new language", () => {
     const { hub, socket } = makeHub();
-    hub.connect();
+    openAndPair(hub, socket);
     hub.start(started);
     const ctx = { subject: "S", agenda: ["a"], roles: [], viewer_lang: "en" as const };
     hub.onPortMessage({ type: "meeting.context", data: ctx });
@@ -126,7 +162,7 @@ describe("binary frames", () => {
     expect(new DataView(f.buffer).getUint32(2, true)).toBe(7);
     expect(Number(new DataView(f.buffer).getBigUint64(6, true))).toBe(5000);
     const { hub, socket } = makeHub();
-    hub.connect();
+    openAndPair(hub, socket);
     hub.start(started);
     hub.sendAudio("tab", new Uint8Array(3200), 1000);
     hub.sendAudio("mic", new Uint8Array(3200), 1000);
@@ -136,7 +172,7 @@ describe("binary frames", () => {
 
   it("recorder switch stops kind=3 while audio continues", () => {
     const { hub, socket } = makeHub();
-    hub.connect();
+    openAndPair(hub, socket);
     hub.start(started);
     hub.setRecorder(true);
     hub.sendRec(new Uint8Array([9]), 1000);
@@ -161,12 +197,65 @@ describe("capture helpers", () => {
   });
 });
 
+// Review fix: socket reconnect with backoff + pairing gate
+describe("socket reconnect", () => {
+  it("drop mid-meeting -> reconnect -> pair.hello first -> after pair.ok every pending id resent once", () => {
+    const { hub, socket, scheduled, runNextScheduled } = makeHub();
+    openAndPair(hub, socket);
+    hub.start(started);
+    hub.onPortMessage({ type: "meeting.context", data: { subject: "S", agenda: [], roles: [], viewer_lang: "en" } });
+    const pendingIds = socket.envelopes().filter((e) => e.type !== "pair.hello").map((e) => e.id as string);
+    expect(pendingIds.length).toBeGreaterThan(0);
+
+    socket.emit("close"); // drop mid-meeting: no resend on close
+    const sentAtClose = socket.sent.length;
+    hub.sendAudio("tab", new Uint8Array(3200), 2000); // held off the wire while down
+    expect(socket.sent.length).toBe(sentAtClose);
+    expect(socket.binary).toHaveLength(0);
+    expect(scheduled.map((s) => s.ms)).toEqual([1000]); // first backoff
+
+    runNextScheduled(); // reconnect attempt fires
+    expect(socket.connectCalls).toBe(2);
+    socket.emit("close"); // attempt fails too: backoff grows, still nothing sent
+    expect(scheduled.map((s) => s.ms)).toEqual([2000]);
+    runNextScheduled();
+    socket.emit("open");
+    const afterOpen = socket.envelopes();
+    expect(afterOpen[afterOpen.length - 1].type).toBe("pair.hello"); // hello first, direct
+    const helloCount = socket.sent.length;
+
+    hub.onPortMessage({ type: "speaker.active", data: { tile_id: "t1", speaking: true, ts_ms: 1 } }); // held until pair.ok
+    expect(socket.sent.length).toBe(helloCount);
+    pairOk(socket);
+    const resent = socket.envelopes().slice(helloCount).map((e) => e.id as string);
+    for (const id of pendingIds) {
+      expect(resent.filter((x) => x === id)).toHaveLength(1); // each pending id exactly once
+    }
+    expect(resent.length).toBe(pendingIds.length + 1); // + the speaker.active held meanwhile
+    expect(socket.sentWhileClosed).toBe(0); // never sent on a non-open socket
+  });
+
+  it("backoff caps at 5 s: 1, 2, 4, 5, 5", () => {
+    const { hub, socket, scheduled, runNextScheduled } = makeHub();
+    openAndPair(hub, socket);
+    const delays: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      socket.emit("close");
+      delays.push(scheduled[scheduled.length - 1].ms);
+      runNextScheduled();
+    }
+    expect(delays).toEqual([1000, 2000, 4000, 5000, 5000]);
+  });
+});
+
 // Issue #6: start handoff + tile-names storage convention
 describe("setup_panel handoff (#6)", () => {
   it("runtime start message mints and sends meeting.started; tiles persist names", () => {
     const { hub, socket, storage } = makeHub();
     hub.connect();
+    socket.emit("open");
     const res = handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started });
+    pairOk(socket);
     expect(res).toBe(true);
     expect(socket.envelopes().some((e) => e.type === "meeting.started")).toBe(true);
     hub.onPortMessage({
@@ -176,3 +265,4 @@ describe("setup_panel handoff (#6)", () => {
     expect(storage.get("halo/tileNames")).toEqual(["Layla"]);
   });
 });
+
