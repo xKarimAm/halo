@@ -28,4 +28,4 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 
 ## Git inside the Muse sandbox
 
-Muse runs shell commands as a separate sandbox user, so plain `git` stops with "detected dubious ownership". Run every git command as `git -c safe.directory=* <command>`.
+Muse runs shell commands as a separate sandbox user, so plain `git` stops with "detected dubious ownership". Run every git command as `git -c safe.directory=* <command>`. `gh` works only when Karim started Muse with `GH_TOKEN` and `GH_CONFIG_DIR=E:\halo-gh` set; if `gh` says "Access is denied", stop and tell Karim.
