@@ -1,0 +1,3 @@
+{"type": "meeting.started", "tile_id": null, "ts_ms": 1700000000000}
+{"type": "transcript.final", "tile_id": null, "ts_ms": 1700000001000, "text": "Launch moves to Nov 12"}
+{"type": "transcript.final", "tile_id": null, "ts_ms": 1700000002000, "text": "Pricing stays at ten"}
