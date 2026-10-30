@@ -19,7 +19,7 @@ Implement gateway per its PLAN.md; done ONLY when `uv run pytest backend/halo/ga
 2. [x] `session.py` + contracts ACK-kit tests (PLAN 1-3)
 3. [x] `audio.py` + routing/gap tests (PLAN 5)
 4. [x] `gateway.py` (router, Host/Origin, status loop, timeout ended) + HTTP/status/timeout tests (PLAN 4, 6, 7); `app.py` move
-5. [ ] PR open for Karim to merge
+5. [x] Full suite green (23 tests) + ruff/mypy/lint-imports; PR open for Karim to merge
 
 ## File map
 - `backend/halo/gateway/pairing.py` — code/token store
