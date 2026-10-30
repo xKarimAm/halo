@@ -1,0 +1,17 @@
+{
+  "specversion": "1.0",
+  "id": "00000006-0000-4000-8000-000000000006",
+  "type": "system.status",
+  "source": "halo/golden",
+  "time": "2026-10-31T09:00:00Z",
+  "meetingid": null,
+  "datacontenttype": "application/json",
+  "data": {
+    "asr": "ok",
+    "llm": {
+      "engine": "spark-open",
+      "failover": false
+    },
+    "tagger": "ok"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/turn.attributed",
+  "title": "turn.attributed",
+  "type": "object",
+  "properties": {
+    "turn_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "text": {
+      "type": "string"
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "ar",
+        "en",
+        "mixed"
+      ]
+    },
+    "ts_start_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ts_end_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tile_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string",
+      "enum": [
+        "provisional",
+        "locked"
+      ]
+    },
+    "overlap": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "turn_id",
+    "text",
+    "lang",
+    "ts_start_ms",
+    "ts_end_ms",
+    "tile_id",
+    "name",
+    "attribution",
+    "overlap"
+  ],
+  "additionalProperties": false
+}

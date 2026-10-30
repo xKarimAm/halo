@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/points.upsert",
+  "title": "points.upsert",
+  "type": "object",
+  "properties": {
+    "point_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "tile_id": {
+      "type": "string"
+    },
+    "speaker_name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "point",
+        "question",
+        "decision",
+        "pushback"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar"
+      ]
+    },
+    "quote": {
+      "type": "string"
+    },
+    "turn_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "minItems": 1
+    },
+    "rank": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "attribution": {
+      "type": "string",
+      "enum": [
+        "provisional",
+        "locked"
+      ]
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "urgent",
+        "medium",
+        "later"
+      ]
+    },
+    "is_action": {
+      "type": "boolean"
+    },
+    "engine": {
+      "type": "string"
+    },
+    "replaces": {
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "required": [
+    "point_id",
+    "tile_id",
+    "speaker_name",
+    "kind",
+    "text",
+    "lang",
+    "quote",
+    "turn_ids",
+    "rank",
+    "attribution",
+    "is_action",
+    "engine"
+  ],
+  "additionalProperties": false
+}

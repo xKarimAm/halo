@@ -8,6 +8,8 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+.tmp/
+.uv-cache/
 
 # node / wxt
 node_modules/

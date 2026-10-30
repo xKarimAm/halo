@@ -1,0 +1,45 @@
+{
+  "meeting": {
+    "meeting_id": "22222222-2222-4222-8222-222222222222",
+    "subject": "Launch readiness",
+    "project_id": "halo-q4",
+    "t0_ms": 1760000000000
+  },
+  "people": [
+    {
+      "name": "Layla",
+      "role": "Engineering lead",
+      "why": "Owns RTL."
+    }
+  ],
+  "points": [
+    {
+      "point_id": "00000040-0000-4000-8000-000000000040",
+      "tile_id": "spaces/x/devices/1",
+      "speaker_name": "Layla",
+      "kind": "decision",
+      "text": "Launch moves to Nov 12",
+      "quote": "Launch moves to Nov 12.",
+      "turn_ids": [
+        "00000030-0000-4000-8000-000000000030"
+      ],
+      "rank": 1,
+      "urgency": "medium",
+      "is_action": true
+    }
+  ],
+  "transcript_lines": [
+    {
+      "turn_id": "00000030-0000-4000-8000-000000000030",
+      "speaker_name": "Layla",
+      "text": "Launch moves to Nov 12.",
+      "ts_start_ms": 1760000001000,
+      "ts_end_ms": 1760000004000,
+      "recording_offset_ms": 1000
+    }
+  ],
+  "recording": {
+    "path": "recordings/golden.webm",
+    "start_ts_ms": 1760000000000
+  }
+}

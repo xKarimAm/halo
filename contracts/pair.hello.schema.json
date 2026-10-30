@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/pair.hello",
+  "title": "pair.hello",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ext_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "token",
+    "ext_version"
+  ],
+  "additionalProperties": false
+}

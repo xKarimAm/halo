@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/tiles.snapshot",
+  "title": "tiles.snapshot",
+  "type": "object",
+  "properties": {
+    "tiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tile_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "is_self": {
+            "type": "boolean"
+          },
+          "rect": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "video_w": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "video_h": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fit": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "contain"
+            ]
+          },
+          "captions_rect": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "tile_id",
+          "name",
+          "is_self",
+          "rect",
+          "video_w",
+          "video_h",
+          "fit",
+          "captions_rect"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "tiles"
+  ],
+  "additionalProperties": false
+}
