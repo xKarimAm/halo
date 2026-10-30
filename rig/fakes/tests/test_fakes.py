@@ -1,0 +1,165 @@
+"""PLAN Done cases (1)-(8) for rig/fakes. Seams: the two engines' public
+feed/complete calls, the env config seam, and the LLM HTTP wire shape."""
+
+from __future__ import annotations
+
+import json
+import uuid
+
+import pytest
+
+from rig.fakes.config import engine_config, fakes_enabled
+from rig.fakes.fake_asr import FakeASR, SessionDropped
+from rig.fakes.fake_llm import FakeLLM
+from rig.fakes.scripts import load_asr_script, load_llm_script
+
+T0 = 1_000_000
+FRAME_MS = 100
+PCM_100MS = b"\x00\x00" * 1600  # 1600 samples * 2 bytes = 100 ms at 16 kHz mono PCM16
+
+
+def asr(tmp_path, lines):
+    p = tmp_path / "asr_script.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+    return load_asr_script(p)
+
+
+def llm(tmp_path, lines):
+    p = tmp_path / "llm_script.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+    return load_llm_script(p)
+
+
+# (1) fed the fixture's PCM, emits scripted turns at scripted offsets (±200 ms)
+def test_asr_emits_turns_at_scripted_offsets(tmp_path):
+    script = asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "hello world", "lang": "en",
+         "ts_start_ms": 0, "ts_end_ms": 900},
+        {"stream": "tab", "speaker": "B", "text": "second turn", "lang": "en",
+         "ts_start_ms": 2000, "ts_end_ms": 2900},
+    ])
+    fake = FakeASR(script)
+    got = []
+    for i in range(30):  # 3 s of audio
+        got += fake.feed_audio("tab", T0 + i * FRAME_MS, PCM_100MS)
+    assert [g["text"] for g in got] == ["hello world", "second turn"]
+    assert abs(got[0]["ts_start_ms"] - T0) <= 200
+    assert abs(got[1]["ts_start_ms"] - (T0 + 2000)) <= 200
+    assert got[0]["ts_end_ms"] > got[0]["ts_start_ms"]
+    uuid.UUID(got[0]["turn_id"])  # transcript.final shape
+
+
+# (2) latency knob delays turns by the set amount
+def test_asr_latency_knob_delays(tmp_path):
+    script = asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "hi", "lang": "en",
+         "ts_start_ms": 0, "ts_end_ms": 500},
+    ])
+    fake = FakeASR(script, latency_ms=500)
+    assert fake.feed_audio("tab", T0, PCM_100MS) == []
+    got = []
+    for i in range(1, 8):
+        got += fake.feed_audio("tab", T0 + i * FRAME_MS, PCM_100MS)
+    assert [g["text"] for g in got] == ["hi"]
+
+
+# (3) forced session drop closes the stream mid-flight on command
+def test_asr_forced_drop(tmp_path):
+    script = asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "hi", "lang": "en",
+         "ts_start_ms": 0, "ts_end_ms": 500},
+    ])
+    fake = FakeASR(script)
+    fake.feed_audio("tab", T0, PCM_100MS)
+    fake.drop_session()
+    assert fake.dropped is True
+    with pytest.raises(SessionDropped):
+        fake.feed_audio("tab", T0 + FRAME_MS, PCM_100MS)
+
+
+# (4) AR/EN code-switch script emits mixed-language turns unsplit
+def test_asr_code_switch_mixed(tmp_path):
+    script = asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "okay خلينا نبدأ now", "lang": "mixed",
+         "ts_start_ms": 0, "ts_end_ms": 900},
+    ])
+    fake = FakeASR(script)
+    got = fake.feed_audio("tab", T0, PCM_100MS)
+    assert len(got) == 1 and got[0]["lang"] == "mixed"
+
+
+POINT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["point", "question", "decision", "pushback"]},
+        "text": {"type": "string"},
+    },
+    "required": ["kind", "text"],
+    "additionalProperties": False,
+}
+
+
+# (5) canned JSON for the matched turn, validates against the caller's schema
+def test_llm_matches_by_prompt_substring_and_validates(tmp_path):
+    script = llm(tmp_path, [
+        {"match": "pricing", "response": {"kind": "decision", "text": "Fix price at 10"}},
+        {"match": "roadmap", "response": {"kind": "point", "text": "Ship in March"}},
+    ])
+    fake = FakeLLM(script)
+    out = fake.complete("what about pricing for Q3?", schema=POINT_SCHEMA)
+    body = json.loads(out["choices"][0]["message"]["content"])
+    assert body == {"kind": "decision", "text": "Fix price at 10"}
+    # fallback: next unplayed canned reply in order
+    out2 = fake.complete("unmatched prompt")
+    assert json.loads(out2["choices"][0]["message"]["content"])["text"] == "Ship in March"
+
+
+# (6) latency-spread knob pushes chosen calls past 4 s (drives llm failover)
+def test_llm_latency_spread_past_4s(tmp_path):
+    script = llm(tmp_path, [{"match": "x", "response": {"kind": "point", "text": "t"}}])
+    slept: list[float] = []
+    fake = FakeLLM(script, latency_spread={0: 4500}, sleep_fn=slept.append)
+    fake.complete("x")
+    assert fake.last_latency_ms > 4000 and slept == [4500]
+
+
+# (7) invalid-JSON-rate knob returns malformed bodies at the set rate
+def test_llm_invalid_json_rate(tmp_path):
+    script = llm(tmp_path, [{"match": "x", "response": {"kind": "point", "text": "t"}}])
+    fake = FakeLLM(script, invalid_json_rate=1.0)
+    content = fake.complete("x")["choices"][0]["message"]["content"]
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(content)
+    clean = FakeLLM(script, invalid_json_rate=0.0)
+    json.loads(clean.complete("x")["choices"][0]["message"]["content"])
+
+
+# (8) flag off: the backend's real client config is byte-identical
+def test_flag_off_real_config_identical():
+    assert fakes_enabled({}) is False
+    assert fakes_enabled({"HALO_FAKES": "1"}) is True
+    real = engine_config({})
+    assert real == {
+        "asr_url": "wss://api.meta.ai/v1/voice/realtime",
+        "llm_url": "https://inference.baseten.co/v1",
+        "llm_model": "spark-open",
+    }
+    fake = engine_config({"HALO_FAKES": "1"})
+    assert fake["llm_url"] != real["llm_url"] and fake["asr_url"] != real["asr_url"]
+    assert fake["llm_model"] == real["llm_model"]  # only endpoints switch
+
+
+# Wire shape: OpenAI-compatible HTTP surface the llm client talks to.
+def test_llm_http_wire_shape(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from rig.fakes.server import create_llm_app
+
+    script = llm(tmp_path, [{"match": "pricing", "response": {"kind": "point", "text": "t"}}])
+    client = TestClient(create_llm_app(FakeLLM(script)))
+    r = client.post("/v1/chat/completions", json={
+        "model": "spark-open",
+        "messages": [{"role": "user", "content": "pricing?"}],
+    })
+    assert r.status_code == 200
+    assert json.loads(r.json()["choices"][0]["message"]["content"])["text"] == "t"
