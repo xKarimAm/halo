@@ -49,6 +49,7 @@ export interface LlmHealth {
 export interface MeetingPageMeeting {
   meeting_id: string;
   subject: string;
+  degraded: boolean;
   project_id?: string;
   t0_ms: number;
 }
@@ -57,6 +58,17 @@ export interface MeetingPagePeople {
   name: string;
   role: string;
   why: string;
+  relevant_points: string[];
+  own_points: string[];
+}
+
+export interface MeetingPageActions {
+  action_id: string;
+  text: string;
+  owner: string;
+  status: "assigned" | "suggested";
+  urgency: "urgent" | "medium" | "later";
+  point_id: string;
 }
 
 export interface MeetingPagePoints {
@@ -89,6 +101,7 @@ export interface MeetingPageRecording {
 export interface MeetingPage {
   meeting: MeetingPageMeeting;
   people: MeetingPagePeople[];
+  actions: MeetingPageActions[];
   points: MeetingPagePoints[];
   transcript_lines: MeetingPageTranscriptLines[];
   recording: MeetingPageRecording;
