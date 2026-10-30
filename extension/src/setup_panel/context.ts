@@ -1,4 +1,4 @@
-import type { MeetingContext } from "../../../../../contracts/ext/gen/types";
+import type { MeetingContext } from "../../../contracts/ext/gen/types";
 
 /** One participant row in the popup form. Empty role means "no role yet". */
 export interface RoleRow {

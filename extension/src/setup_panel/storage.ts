@@ -1,4 +1,4 @@
-import type { MeetingContext } from "../../../../../contracts/ext/gen/types";
+import type { MeetingContext } from "../../../contracts/ext/gen/types";
 
 /** Everything the popup persists across opens. */
 export interface SavedSetup {

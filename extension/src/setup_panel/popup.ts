@@ -1,4 +1,4 @@
-import type { PortMeetingContext } from "../../../../../contracts/ext/port";
+import type { PortMeetingContext } from "../../../contracts/ext/port";
 import {
   buildMeetingContext,
   mergeTileNames,

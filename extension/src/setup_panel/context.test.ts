@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import goldenContext from "../../../../../contracts/golden/meeting.context.json";
+import goldenContext from "../../../contracts/golden/meeting.context.json";
 import {
   buildMeetingContext,
   mergeTileNames,

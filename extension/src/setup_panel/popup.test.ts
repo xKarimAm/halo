@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PortMeetingContext } from "../../../../../contracts/ext/port";
-import type { MeetingContext } from "../../../../../contracts/ext/gen/types";
-import goldenContext from "../../../../../contracts/golden/meeting.context.json";
+import type { PortMeetingContext } from "../../../contracts/ext/port";
+import type { MeetingContext } from "../../../contracts/ext/gen/types";
+import goldenContext from "../../../contracts/golden/meeting.context.json";
 import { PairingError } from "./pairing";
 import { initPopup, type PopupDeps } from "./popup";
 import { memorySetupStorage } from "./storage";

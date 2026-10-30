@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { MeetingContext } from "../../../../../contracts/ext/gen/types";
-import goldenContext from "../../../../../contracts/golden/meeting.context.json";
+import type { MeetingContext } from "../../../contracts/ext/gen/types";
+import goldenContext from "../../../contracts/golden/meeting.context.json";
 import { memorySetupStorage } from "./storage";
 
 const golden = goldenContext.data as unknown as MeetingContext;
