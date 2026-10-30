@@ -56,7 +56,7 @@ Every agent (Muse, OpenCode, any Claude account) reads this first. If another do
 | Budget | Use |
 |---|---|
 | Muse Code subscription (membership) | W1: bulk backend modules. Main coding budget. |
-| Baseten $100 | W2: OpenCode + Spark Open for UI/extension modules (about $50), Insight at runtime (about $50) |
+| Baseten $100 | Runtime Insight only (Spark Open, the open-weights prize entry). W2 moved off Baseten on 2026-10-30, so coding never competes with Insight for the 15 RPM limit. |
 | Meta API free credit ($148) | W3: Muse + Wonder for hard modules (about $100 cap), runtime Voice + Spark (rest). **Any Muse window that runs Spark 1.3 on the API key uses `muse-spark-1.3-contributor`** (about 12-21x cheaper; the code is open source anyway). The product's runtime Spark 1.3 calls use it too (section 5). Pass the key per run; never store it. Free credits mean Meta may use the content: tell test-call participants. |
 | Modal $30 | optional: only for the SAM 3.1 stretch. Never leave a GPU warm. |
 | Gemini | research only, never in the product |
@@ -69,7 +69,7 @@ TUIOS 0.11.1 (Sergio's agent multiplexer) is installed at `%LOCALAPPDATA%\Progra
 | Phase | Panes open | Who codes |
 |---|---|---|
 | Wave 0 (`/contracts` + PLAN.md files) | 2: W1 + a shell | W1 only. Everything depends on the contracts, so nothing else codes yet. |
-| Waves 1-3 (parallel) | 4: W1, W2, W3 + a shell | **W1** Muse (subscription): Wave 0 contracts + CI + PR template, then bus, Gateway (incl. backend pairing), Event Store, Transcriber, Correlator, Insight; Nov 2: Classifier, Notes Builder, Notes Service, Recorder, packaging. **W2** OpenCode + Baseten: Setup Panel (incl. pairing UI), Meet Adapter, Frame Source, Notes page. **W3** Muse + Wonder (key per run, `--contributor-mode on`): lean test rig first, then Hub + Capture, Face Detector, Overlay (the hardest browser modules go to the strongest agent). |
+| Waves 1-3 (parallel) | 4: W1, W2, W3 + a shell | **W1** Muse (subscription): Wave 0 contracts + CI + PR template, then bus, Gateway (incl. backend pairing), Event Store, Transcriber, Correlator, Insight; Nov 2: Classifier, Notes Builder, Notes Service, Recorder, packaging. **W2** OpenCode on the Meta API (`muse-spark-1.3-contributor`, config in `opencode.json`, key from `.env`): Setup Panel (incl. pairing UI), Meet Adapter, Frame Source, Notes page. **W3** Muse + Wonder (key per run, `--contributor-mode on`): lean test rig first, then Hub + Capture, Face Detector, Overlay (the hardest browser modules go to the strongest agent). |
 | Integration | 2-3 | W1 + W3 fix what the Replay rig finds; Claude reviews. |
 
 At most 3 coding agents at once, one module per git worktree. Each window runs one agent by default; Muse helpers (cap 3) only when a module is clearly split. Waves are "Wave n"; W1-W3 always means a window. This table is the only owner map.
