@@ -1,0 +1,12 @@
+{
+  "name": "notes-page",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

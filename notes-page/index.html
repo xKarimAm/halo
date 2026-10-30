@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-palette="2">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halo Notes</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="logo"><i aria-hidden="true"></i>Halo <span class="sub" data-t="notes"></span></div>
+  <nav class="crumb" id="crumb" aria-label="Breadcrumb"></nav>
+  <div class="sp"></div>
+  <div class="seg glass" role="group" aria-label="Interface language">
+    <button data-lang="en">EN</button><button data-lang="ar" lang="ar">عربي</button>
+  </div>
+  <button class="btn glass" id="export" hidden></button>
+</header>
+<main id="view"></main>
+<div class="toast glass" id="toast" role="status"></div>
+<script src="./app.js"></script>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var meetingId = params.get("meeting");
+  window.HaloNotes.boot(document, meetingId);
+})();
+</script>
+</body>
+</html>
