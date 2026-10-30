@@ -14,6 +14,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from halo.bus import Bus
+from halo.transcriber import Transcriber
+from halo.transcriber.transport import WsTransport
+from rig.fakes.config import engine_config
 
 HOST, PORT = "127.0.0.1", 8765
 _ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
@@ -34,6 +37,16 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     app.state.audio_mic_queue = asyncio.Queue(maxsize=200)
     app.state.rec_queue = asyncio.Queue(maxsize=200)
     app.state.pairing_code = f"{secrets.randbelow(1_000_000):06d}"
+    # Transcriber: two Voice sessions fed from the bounded audio queues.
+    # The endpoint swap is the only fake seam (rig.fakes.config).
+    asr_url = engine_config()["asr_url"]
+    app.state.transcriber = Transcriber(
+        app.state.bus,
+        app.state.audio_tab_queue,
+        app.state.audio_mic_queue,
+        lambda stream, mode: WsTransport(asr_url),
+        key=os.environ.get("META_API_KEY", ""),
+    )
 
     @app.middleware("http")
     async def host_check(request: Request, call_next):  # type: ignore[no-untyped-def]
