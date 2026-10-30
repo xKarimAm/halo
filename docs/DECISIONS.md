@@ -157,6 +157,15 @@ Recorded in the module PLAN.md files they affect; the short list here wins if a 
   - Slow Spark Open -> failover.
   - Weak Arabic ASR -> the demo leans English.
 - **Schedule:** the W3 lean rig is due Oct 31 night. W2 starts notes-page once its three modules are merged.
+  - W3 then builds hub_capture -> overlay (Frame mode) -> face_detector.
+  - `app.py` starts in Wave 0; each W1 backend PR adds its own wiring lines there.
+- **Review fixes (P1 plans, 2026-10-30):**
+  - Tab and mic are always separate streams (only the webm recording mixes them).
+  - Insight coalesces capped turns into the next call and never drops them.
+  - The Correlator never drops a turn: mic -> self tile, locked.
+  - Consent = the Overlay's dialog with "Copy notice", and nothing automates Meet chat.
+  - Pairing tokens persist in `data/` across backend restarts.
+  - The bubble has no urgency mark until a draft is picked.
 
 ## 11. For a new agent session
 
