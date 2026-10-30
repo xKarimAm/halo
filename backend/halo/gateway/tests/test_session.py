@@ -11,11 +11,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from contracts.validate import validate_ack, validate_envelope
-
 from halo.bus import Bus
 from halo.gateway.gateway import Gateway
 from halo.gateway.session import SocketSession
+
+from contracts.validate import validate_ack, validate_envelope
 
 KIT = Path(__file__).parents[4] / "contracts" / "ack-kit"
 MEETING = "22222222-2222-4222-8222-222222222222"
@@ -49,13 +49,17 @@ def attach(gateway: Gateway) -> tuple[SocketSession, list]:
     return session, out
 
 
+_TOKENS: dict[Gateway, str] = {}
+
+
 async def paired(gateway: Gateway) -> tuple[SocketSession, list]:
     # The pairing code is single-use per backend: redeem once, reuse the token.
-    token = getattr(gateway, "_test_token", None)
+    token = _TOKENS.get(gateway)
     if token is None:
-        token = gateway.pairing.redeem(gateway.pairing.current_code)
-        gateway._test_token = token
-    assert token is not None
+        redeemed = gateway.pairing.redeem(gateway.pairing.current_code)
+        assert redeemed is not None
+        _TOKENS[gateway] = redeemed
+        token = redeemed
     session, out = attach(gateway)
     reply = await session.handle_text(json.dumps(hello_envelope(token)))
     assert reply["type"] == "pair.ok"
