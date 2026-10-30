@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Draft 1 — Shape seals · Halo urgency mark</title>
+<style>
+:root{--dark:#0b0f1a;--ink:#fff;--blur:blur(16px) saturate(140%) brightness(.88)}
+*{box-sizing:border-box}body{margin:0;background:#17181a;color:#e8eaed;font:14px/1.45 Inter,system-ui,'IBM Plex Sans Arabic',sans-serif;padding:22px}
+h1{font-size:17px;margin:0 0 4px}.sub{color:#bdc1c6;font-size:13px;margin:0 0 16px}
+.tile{position:relative;width:min(680px,100%);aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:linear-gradient(115deg,#5b4a68 0%,#31435c 34%,#7a5c43 62%,#24382f 100%)}
+.tile:before{content:"";position:absolute;inset:0;background:radial-gradient(300px 180px at 18% 20%,rgba(255,235,190,.5),transparent 70%),radial-gradient(260px 200px at 86% 12%,rgba(140,200,255,.35),transparent 70%),repeating-linear-gradient(92deg,transparent 0 46px,rgba(0,0,0,.13) 46px 48px)}
+.scene{position:absolute;inset:0}.scene i{position:absolute;display:block;background:rgba(10,14,20,.28);border-radius:4px}
+.person{position:absolute;left:15%;top:24%;width:120px;height:190px}
+.head{width:74px;height:88px;border-radius:48% 48% 46% 46%;background:#caa07c;margin:0 auto}
+.shoulders{width:120px;height:92px;border-radius:60px 60px 0 0;background:#33566e;margin:-8px auto 0}
+.name{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);white-space:nowrap;font-weight:500;font-size:12.5px;color:rgba(255,255,255,.94);padding:4px 11px;border-radius:999px;background:rgba(12,14,18,.62);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.55)}
+.stack{position:absolute;left:42%;top:15%;display:flex;flex-direction:column;gap:10px;width:min(330px,52%)}
+.bubble{position:relative;display:flex;align-items:center;gap:7px;padding:7px 11px 7px 8px;border-radius:10px;font-size:12.5px;color:var(--ink);background:linear-gradient(120deg,rgba(190,210,255,.20),rgba(255,255,255,.10) 55%,rgba(255,220,180,.16)),rgba(12,14,18,.55);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.62)}
+.bubble:before{content:"";position:absolute;left:-5px;top:50%;width:10px;height:10px;transform:translateY(-50%) rotate(45deg);background:rgba(38,44,54,.72);border-left:1px solid rgba(255,255,255,.62);border-bottom:1px solid rgba(255,255,255,.62);clip-path:polygon(0 0,0 100%,100% 100%)}
+.k{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:var(--dark);box-shadow:0 0 0 1.5px var(--dark);font-size:11px;font-weight:700}
+.kind-decision{background:#7fdcc0}.kind-point{background:#8ecbf5}.kind-question{background:#c3a8ff}
+[lang=ar]{font-family:'IBM Plex Sans Arabic',Tahoma,sans-serif}
+.meetlabel{position:absolute;left:10px;bottom:8px;font-size:12px;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:4px}
+/* Draft 1 marks: a filled/outlined geometric seal overlapping the bubble's top inline-end corner. Shape + fill carry the level, never colour. */
+.seal{position:absolute;top:-8px;inset-inline-end:8px;width:19px;height:19px;display:grid;place-items:center;background:#fff;color:var(--dark);font-weight:800;font-size:12px;line-height:1;box-shadow:0 0 0 1.5px var(--dark)}
+.seal.urgent{clip-path:polygon(50% 0,100% 100%,0 100%)} /* filled triangle */
+.seal.medium{border-radius:50%}                        /* filled circle */
+.seal.later{background:transparent;color:#fff;border:2px solid #fff;box-shadow:none} /* hollow square */
+.seal span{transform:translateY(1px)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;color:#bdc1c6;font-size:12.5px}.legend b{color:#fff}
+</style></head><body>
+<h1>Draft 1 — Shape seals</h1>
+<p class="sub">Urgency = the seal's geometry on the bubble corner: filled triangle (urgent), filled circle (medium), hollow square (later). Reads in silhouette; no colour involved.</p>
+<div class="tile"><div class="scene"><i style="left:58%;top:8%;width:120px;height:74px"></i><i style="left:4%;top:64%;width:180px;height:14px"></i><i style="right:5%;top:58%;width:12px;height:120px"></i></div>
+<div class="person"><div class="name">Layla Hassan</div><div class="head"></div><div class="shoulders"></div></div>
+<div class="stack">
+  <div class="bubble"><span class="k kind-decision">✓</span><span>Ship the fix tonight, freeze scope after</span><span class="seal urgent"><span>!</span></span></div>
+  <div class="bubble"><span class="k kind-point">•</span><span>Beta cohort grows to 20% on Friday</span><span class="seal medium"><span>=</span></span></div>
+  <div class="bubble" dir="rtl" lang="ar"><span class="k kind-question">؟</span><span>نراجع أسعار الباقة لاحقاً هذا الربع</span><span class="seal later"><span></span></span></div>
+</div><span class="meetlabel">Layla Hassan</span></div>
+<div class="legend"><span><b>▲ filled triangle</b> urgent</span><span><b>● filled circle</b> medium</span><span><b>□ hollow square</b> later</span></div>
+</body></html>

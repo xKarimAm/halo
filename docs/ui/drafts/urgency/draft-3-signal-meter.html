@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Draft 3 — Signal meter · Halo urgency mark</title>
+<style>
+:root{--dark:#0b0f1a;--ink:#fff;--blur:blur(16px) saturate(140%) brightness(.88)}
+*{box-sizing:border-box}body{margin:0;background:#17181a;color:#e8eaed;font:14px/1.45 Inter,system-ui,'IBM Plex Sans Arabic',sans-serif;padding:22px}
+h1{font-size:17px;margin:0 0 4px}.sub{color:#bdc1c6;font-size:13px;margin:0 0 16px}
+.tile{position:relative;width:min(680px,100%);aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:linear-gradient(118deg,#3f5a52 0%,#62486a 36%,#7a6742 66%,#31435e 100%)}
+.tile:before{content:"";position:absolute;inset:0;background:radial-gradient(280px 170px at 20% 84%,rgba(255,220,170,.4),transparent 70%),radial-gradient(260px 190px at 88% 20%,rgba(160,215,255,.3),transparent 70%),repeating-linear-gradient(94deg,transparent 0 44px,rgba(0,0,0,.13) 44px 46px)}
+.scene{position:absolute;inset:0}.scene i{position:absolute;display:block;background:rgba(10,14,20,.28);border-radius:4px}
+.person{position:absolute;left:15%;top:24%;width:120px;height:190px}
+.head{width:74px;height:88px;border-radius:48% 48% 46% 46%;background:#d9b48f;margin:0 auto}
+.shoulders{width:120px;height:92px;border-radius:60px 60px 0 0;background:#43355e;margin:-8px auto 0}
+.name{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);white-space:nowrap;font-weight:500;font-size:12.5px;color:rgba(255,255,255,.94);padding:4px 11px;border-radius:999px;background:rgba(12,14,18,.62);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.55)}
+.stack{position:absolute;left:42%;top:15%;display:flex;flex-direction:column;gap:10px;width:min(330px,52%)}
+.bubble{position:relative;display:flex;align-items:center;gap:7px;padding:7px 11px 7px 8px;border-radius:10px;font-size:12.5px;color:var(--ink);background:linear-gradient(120deg,rgba(190,210,255,.20),rgba(255,255,255,.10) 55%,rgba(255,220,180,.16)),rgba(12,14,18,.55);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.62)}
+.bubble:before{content:"";position:absolute;left:-5px;top:50%;width:10px;height:10px;transform:translateY(-50%) rotate(45deg);background:rgba(38,44,54,.72);border-left:1px solid rgba(255,255,255,.62);border-bottom:1px solid rgba(255,255,255,.62);clip-path:polygon(0 0,0 100%,100% 100%)}
+.k{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:var(--dark);box-shadow:0 0 0 1.5px var(--dark);font-size:11px;font-weight:700}
+.kind-decision{background:#7fdcc0}.kind-point{background:#8ecbf5}.kind-question{background:#c3a8ff}
+[lang=ar]{font-family:'IBM Plex Sans Arabic',Tahoma,sans-serif}
+.meetlabel{position:absolute;left:10px;bottom:8px;font-size:12px;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:4px}
+/* Draft 3 marks: a 3-bar meter on the bubble's inline-end edge. Bar count is the level (3/2/1); bars rise toward the end, direction flips in RTL with the layout. */
+.meter{margin-inline-start:auto;flex:none;display:flex;align-items:flex-end;gap:2.5px;height:16px;padding-inline-start:6px}
+.meter i{display:block;width:4px;border-radius:1px;background:rgba(255,255,255,.28)}
+.meter i:nth-child(1){height:6px}.meter i:nth-child(2){height:10px}.meter i:nth-child(3){height:15px}
+.meter.u3 i{background:#fff}.meter.u2 i:nth-child(-n+2){background:#fff}.meter.u1 i:nth-child(1){background:#fff}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;color:#bdc1c6;font-size:12.5px}.legend b{color:#fff}
+</style></head><body>
+<h1>Draft 3 — Signal meter</h1>
+<p class="sub">Urgency = how full a 3-bar meter sits at the bubble's trailing edge: 3 lit bars urgent, 2 medium, 1 later. Count, not colour — like a phone signal.</p>
+<div class="tile"><div class="scene"><i style="right:8%;top:8%;width:118px;height:72px"></i><i style="left:5%;top:60%;width:150px;height:14px"></i><i style="right:42%;top:70%;width:90px;height:10px"></i></div>
+<div class="person"><div class="name">Sarah Nasser</div><div class="head"></div><div class="shoulders"></div></div>
+<div class="stack">
+  <div class="bubble"><span class="k kind-decision">✓</span><span>Ship the fix tonight, freeze scope after</span><span class="meter u3"><i></i><i></i><i></i></span></div>
+  <div class="bubble"><span class="k kind-point">•</span><span>Beta cohort grows to 20% on Friday</span><span class="meter u2"><i></i><i></i><i></i></span></div>
+  <div class="bubble" dir="rtl" lang="ar"><span class="k kind-question">؟</span><span>نراجع أسعار الباقة لاحقاً هذا الربع</span><span class="meter u1"><i></i><i></i><i></i></span></div>
+</div><span class="meetlabel">Sarah Nasser</span></div>
+<div class="legend"><span><b>▂▄█ 3 bars</b> urgent</span><span><b>▂▄ 2 bars</b> medium</span><span><b>▂ 1 bar</b> later</span></div>
+</body></html>
