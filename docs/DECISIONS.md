@@ -113,7 +113,52 @@ At most 3 coding agents at once, one module per git worktree. Each window runs o
 5. Optional cloud upload of recordings and notes through an API.
 6. Per-speaker audio from Meet's 3 loudest-speaker WebRTC tracks, to fix crosstalk at the source.
 
-## 10. For a new agent session
+## 10. Planning answers (P1, 2026-10-30; Muse's doubts 1-24, Karim + Claude)
+
+Recorded in the module PLAN.md files they affect; the short list here wins if a plan drifts.
+
+- **Pairing:** code -> token over plain HTTP `POST /pair`. On every socket connect the hub's first envelope is `pair.hello` (meetingid null allowed); `pair.ok` / `pair.rejected` is its ACK.
+- **meeting.ended:** two emitters. The hub is the emitter of record; the Gateway sends `reason: timeout` after 60 s with no socket. Every consumer acts once per meeting_id, and the first one wins.
+- **Tiles:** the Meet Adapter emits `tiles.snapshot` + `speaker.active`. It hands them directly to the Overlay and Frame Source in the tab, and sends them via the Port -> hub -> socket to the Correlator. `tiles.snapshot` carries an optional `captions_rect` (the Overlay's floor).
+- **Field defaults:** urgency `urgent|medium|later`; viewer_lang `en|ar`; turn lang `ar|en|mixed`; attribution `provisional|locked`; rank int 1-3 (the only rank source); ids are UUID strings; times are integer ms on the browser clock. meetingid is required except on `pair.*`, `system.status` and `llm.health`.
+- **Binary frames:** little-endian. kind=1 audio, kind=3 rec (webm, on the wire to the Recorder); kind=2 is reserved and rejected. Face frames never leave the tab.
+- **ACK errors** (closed set): `invalid_schema|unknown_type|unpaired|internal`. A duplicate id gets `ok` and is not re-published.
+- **Backend wiring:** every envelope travels as a bus topic, and no module imports another. The only exception is `backend/halo/app.py` (owned by packaging), the composition root: it wires the modules, creates the binary queues (Gateway -> Transcriber / Recorder) and mounts the routers.
+  - Health: modules call `bus.register_health(name, fn)`; the Gateway builds `system.status` (asr, llm, tagger; no outbox field) every 5 s and on change.
+  - Insight emits `llm.health` when the engine changes, at most once every 30 s otherwise.
+- **HTTP:** one FastAPI app on 127.0.0.1:8765. The Gateway owns `/ws`, `/pair` and the Host + Origin checks; Notes Service owns `/notes/*` + `/api/*`.
+  - `GET /api/meetings/{id}` returns the page JSON. `POST /api/tags` uses the tags.set fields and publishes `tags.set` (source: user).
+  - notes-page is static HTML/CSS/vanilla JS, served by Notes Service, and fetches that JSON.
+- **Corrections:** a speaker fix re-upserts the same point_id with the new tile/name and no new model call. `replaces` is only for a new point whose content supersedes an old one.
+- **Classifier:** live only, every 10 s. It never touches a target the user has re-tagged. Merge rule everywhere: latest user tag > latest model tag > original guess. The Event Store owns the SQL views `points_current` and `tags_effective`.
+- **Notes:** `meeting.ended` -> Notes Builder reads SQLite -> `notes.ready` (url `/notes/{meeting_id}`, plus `degraded: bool`) -> stored, and forwarded to the Overlay toast. If the model fails twice, it falls back to the live points + is_action points as suggested actions.
+- **Data:** everything goes in `data/` (git-ignored, `HALO_DATA_DIR`). There is no delete UI in the MVP; delete the folder. The recording link = ts − the start ts of the covering recording file.
+- **Correlator constants** (tunable, not contract): lag_ms 500, lock after 3 agreeing turns, echo window 2000 ms.
+- **Overlay:**
+  - Mix B is the only token source; OVERLAY-UX covers geometry and timing.
+  - The badge floats top-left. A presenter's points stay on their camera tile (share surface: post-MVP).
+  - Tiles beyond 6 still show pills.
+  - Thinking state = a light sweep on the name pill, from speaker.active false until a point lands or 5 s pass.
+  - The urgent mark is an open draft item.
+- **Extension:** the lane = `extension/src/<module>/`, and WXT entrypoints are thin wrappers in `src/entrypoints/`.
+  - hub_capture is the extension's composition root: wxt.config.ts, the manifest, and the Meet content script.
+  - The Port protocol is typed in `contracts/ext/port.ts`.
+  - Badge-menu settings: the language change re-sends `meeting.context`; the other settings stay in the extension.
+- **Repo + CI:** one root `pyproject.toml`; `uv run halo` and `uv run pytest` run from the root. Backend tests live in `backend/halo/<module>/tests/`.
+  - Extension: `npm --prefix extension test` / `run typecheck`. Playwright L3: `npm --prefix rig/fake_meet test`.
+  - Blocking: contract checks + codegen drift, unit tests, ruff, tsc, import-linter. L2/L3 become blocking once they exist. mypy reports only.
+  - Wave 0 creates the root files, and packaging owns them afterwards. Other lanes may only append their own dependencies.
+- **Thin milestone (Nov 1 night):** one joined run.
+  - Setup: the real extension on the Fake Meet page plays the fixture audio into the real backend, with fakes on (FakeASR + FakeLLM), Frame mode.
+  - Pass: the bubble appears on the right tile, and events.sqlite matches the golden.
+- **Probe gates:** fallbacks are locked.
+  - No `<video>` -> Frame mode everywhere.
+  - Unreadable tile rect or speaking highlight -> stop and ask Karim.
+  - Slow Spark Open -> failover.
+  - Weak Arabic ASR -> the demo leans English.
+- **Schedule:** the W3 lean rig is due Oct 31 night. W2 starts notes-page once its three modules are merged.
+
+## 11. For a new agent session
 
 1. Read this file, then `docs/PLAN.md`, then your module's `PLAN.md`.
 2. Karim's working rules: drafts before designs; one agent per task by default (save Claude usage for building); never spend Meta/Baseten credit on design work; keys go in hidden prompts or `.env`, never in chat or files.
