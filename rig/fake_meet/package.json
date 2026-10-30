@@ -1,0 +1,14 @@
+{
+  "name": "halo-fake-meet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node server.js",
+    "test": "playwright test",
+    "test:joined": "playwright test tests/joined.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}
