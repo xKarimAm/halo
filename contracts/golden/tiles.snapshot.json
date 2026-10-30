@@ -1,0 +1,28 @@
+{
+  "specversion": "1.0",
+  "id": "00000008-0000-4000-8000-000000000008",
+  "type": "tiles.snapshot",
+  "source": "halo/golden",
+  "time": "2026-10-31T09:00:00Z",
+  "meetingid": "22222222-2222-4222-8222-222222222222",
+  "datacontenttype": "application/json",
+  "data": {
+    "tiles": [
+      {
+        "tile_id": "spaces/x/devices/1",
+        "name": "Karim",
+        "is_self": true,
+        "rect": [
+          0,
+          0,
+          640,
+          360
+        ],
+        "video_w": 1280,
+        "video_h": 720,
+        "fit": "cover",
+        "captions_rect": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "specversion": "1.0",
+  "id": "00000009-0000-4000-8000-000000000009",
+  "type": "speaker.active",
+  "source": "halo/golden",
+  "time": "2026-10-31T09:00:00Z",
+  "meetingid": "22222222-2222-4222-8222-222222222222",
+  "datacontenttype": "application/json",
+  "data": {
+    "tile_id": "spaces/x/devices/1",
+    "speaking": true,
+    "ts_ms": 1760000001000
+  }
+}
