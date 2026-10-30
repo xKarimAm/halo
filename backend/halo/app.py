@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from halo.bus import Bus
+from halo.correlator import Correlator
 
 HOST, PORT = "127.0.0.1", 8765
 _ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
@@ -34,6 +35,8 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     app.state.audio_mic_queue = asyncio.Queue(maxsize=200)
     app.state.rec_queue = asyncio.Queue(maxsize=200)
     app.state.pairing_code = f"{secrets.randbelow(1_000_000):06d}"
+    # Correlator: tile + name on every final turn (internal health only).
+    app.state.correlator = Correlator(app.state.bus)
 
     @app.middleware("http")
     async def host_check(request: Request, call_next):  # type: ignore[no-untyped-def]
