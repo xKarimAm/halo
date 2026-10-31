@@ -5,9 +5,10 @@ Store state (no model call) and runs the background validation checks. A
 passing page emits `notes.ready` at once. A failing page triggers exactly
 one contributor-shaped rebuild (transcript + candidate points + V1 text +
 violations); a passing rebuild emits. When both fail, the meeting's
-last-known-good page re-emits; with no LKG the meeting errors out silently
-(logged, nothing emitted). Pipelines serialize on a lock so adjacent
-meetings cannot interleave; a fresh page emits at most once per meeting.
+last-known-good page re-emits; with no LKG the live page emits degraded
+(actions suggested, why empty), so every meeting gets a notes.ready.
+Pipelines serialize on a lock so adjacent meetings cannot interleave; a
+fresh page emits at most once per meeting.
 
 The Event Store SQLite file is read read-only with plain SQL against the
 documented base tables (`meetings`, `turns`, `points`, `tags`, `events`).
@@ -116,7 +117,11 @@ class NotesBuilder:
             log.warning("notes: rebuild failed for %s, re-emitting last-known-good", meeting_id)
             await self._emit_page(meeting_id, self._lkg[meeting_id])
         else:
-            log.error("notes: rebuild failed for %s with no last-known-good, nothing emitted", meeting_id)
+            # A meeting always ends with notes.ready (PLAN fallback): the live
+            # page, degraded. Live 2026-10-31: one reordered quote failed V1 and
+            # the full-page rebuild hit the 10 s model timeout.
+            log.warning("notes: rebuild failed for %s, emitting the live notes degraded", meeting_id)
+            await self._emit_fresh(meeting_id, degrade(candidate))
 
     # -- emission ----------------------------------------------------------
 
@@ -325,6 +330,14 @@ class NotesBuilder:
             "Current draft page: " + json.dumps(candidate),
             "Violations to fix: " + json.dumps(problems),
         ])
+
+
+def degrade(page: dict[str, Any]) -> dict[str, Any]:
+    """PLAN fallback shape: degraded, actions suggested, why empty."""
+    return {**page,
+            "meeting": {**page["meeting"], "degraded": True},
+            "people": [{**p, "why": ""} for p in page["people"]],
+            "actions": [{**a, "status": "suggested"} for a in page["actions"]]}
 
 
 def validate_page(page: dict[str, Any], store: dict[str, Any]) -> list[str]:

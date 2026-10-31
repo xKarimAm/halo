@@ -227,16 +227,22 @@ def test_unknown_meeting_no_output(tmp_path):
     asyncio.run(run())
 
 
-def test_total_failure_no_lkg_no_output(tmp_path):
+def test_total_failure_no_lkg_emits_degraded_live_notes(tmp_path):
+    # Live 2026-10-31 (Egyptian chain run): one reordered quote failed V1, the
+    # full-page rebuild timed out at 10 s, and with no LKG the meeting ended
+    # with no notes.ready at all. PLAN: fall back to the live notes, degraded.
     async def run():
-        broken = {"page": {"meeting": {}, "people": [], "points": [],
-                           "actions": [], "transcript_lines": [],
-                           "recording": {"path": "x", "start_ts_ms": 0}}}
         bus, llm, _, ready, _ = setup(
-            tmp_path / "events.sqlite", [broken], seed_kwargs={"quote": "Launch shifted."})
+            tmp_path / "events.sqlite", [{"fail": True}], seed_kwargs={"quote": "Launch shifted."})
         await bus.publish(ended_envelope())
         await settle(bus)
-        assert len(llm.calls) == 1 and ready == []
+        assert len(llm.calls) == 1 and len(ready) == 1
+        assert validate_envelope(ready[0]) == []
+        data = ready[0]["data"]
+        assert data["degraded"] is True
+        layla = next(p for p in data["people"] if p["name"] == "Layla")
+        assert layla["own_points"] == [P1] and layla["why"] == ""
+        assert [(a["status"], a["urgency"]) for a in layla["actions"]] == [("suggested", "medium")]
 
     asyncio.run(run())
 
