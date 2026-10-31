@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+import threading
 import uuid
 from types import SimpleNamespace
 
@@ -83,7 +84,7 @@ class FakeLLM:
         return {"engine": "spark-open", "failover": False}
 
 
-def seed_db(path, *, quote="Launch moves to Nov 12.", turns=2, context=True):
+def seed_db(path, *, quote="Launch moves to Nov 12.", turns=2, context=True, turn_ids=(T1,)):
     conn = sqlite3.connect(str(path))
     conn.executescript(MINI_DDL)
     conn.execute(
@@ -108,7 +109,7 @@ def seed_db(path, *, quote="Launch moves to Nov 12.", turns=2, context=True):
         (P1, "2026-10-31T09:00:00Z", MEETING, json.dumps({
             "point_id": P1, "tile_id": "t1", "speaker_name": "Layla",
             "kind": "decision", "text": "Launch moves to Nov 12", "lang": "en",
-            "quote": quote, "turn_ids": [T1], "rank": 1, "attribution": "locked",
+            "quote": quote, "turn_ids": list(turn_ids), "rank": 1, "attribution": "locked",
             "urgency": "medium", "is_action": True, "engine": "spark-open"})))
     if context:
         conn.execute(
@@ -120,6 +121,12 @@ def seed_db(path, *, quote="Launch moves to Nov 12.", turns=2, context=True):
                 "viewer_lang": "en"})))
     conn.commit()
     conn.close()
+
+
+async def settle(bus):
+    """meeting.ended only schedules the pipeline: wait for it."""
+    for fn in bus._subs.get("meeting.ended", []):
+        await fn.__self__.settle()
 
 
 def ended_envelope(meeting_id=MEETING):
@@ -147,6 +154,7 @@ def test_valid_v1_emits_one_no_model_call(tmp_path):
     async def run():
         bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
         assert (await bus.publish(ended_envelope()))["status"] == "ok"
+        await settle(bus)
         assert len(ready) == 1 and llm.calls == []
         assert validate_envelope(ready[0]) == []
         data = ready[0]["data"]
@@ -164,6 +172,7 @@ def test_broken_quote_rebuilds_once(tmp_path):
         bus, llm, _, ready, health = setup(
             tmp_path / "events.sqlite", ["repair"], seed_kwargs={"quote": "Launch shifted."})
         assert (await bus.publish(ended_envelope()))["status"] == "ok"
+        await settle(bus)
         assert len(llm.calls) == 1
         prompt = llm.calls[0]
         assert "Transcript: " in prompt and "Candidate points: " in prompt
@@ -180,6 +189,7 @@ def test_double_fubar_emits_lkg(tmp_path):
         db = tmp_path / "events.sqlite"
         bus, llm, _, ready, _ = setup(db, ["repair"])
         await bus.publish(ended_envelope())
+        await settle(bus)
         assert len(ready) == 1
         first_data = ready[0]["data"]
 
@@ -193,6 +203,7 @@ def test_double_fubar_emits_lkg(tmp_path):
                            "recording": {"path": "x", "start_ts_ms": 0}}}
         llm._replies.append(broken)
         await bus.publish(ended_envelope())
+        await settle(bus)
         assert len(llm.calls) == 1  # exactly one rebuild across both generations
         assert len(ready) == 2 and ready[1]["data"] == first_data
 
@@ -210,6 +221,7 @@ def test_unknown_meeting_no_output(tmp_path):
         ready: list = []
         bus.subscribe("notes.ready", ready.append)
         assert (await bus.publish(ended_envelope("99999999-9999-4999-8999-999999999999")))["status"] == "ok"
+        await settle(bus)
         assert ready == [] and llm.calls == []
 
     asyncio.run(run())
@@ -223,6 +235,7 @@ def test_total_failure_no_lkg_no_output(tmp_path):
         bus, llm, _, ready, _ = setup(
             tmp_path / "events.sqlite", [broken], seed_kwargs={"quote": "Launch shifted."})
         await bus.publish(ended_envelope())
+        await settle(bus)
         assert len(llm.calls) == 1 and ready == []
 
     asyncio.run(run())
@@ -233,6 +246,7 @@ def test_duplicate_ended_single_emission(tmp_path):
         bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
         await bus.publish(ended_envelope())
         await bus.publish(ended_envelope())
+        await settle(bus)
         assert len(ready) == 1 and llm.calls == []
 
     asyncio.run(run())
@@ -262,7 +276,44 @@ def test_multi_turn_latency_path(tmp_path):
         ready: list = []
         bus.subscribe("notes.ready", ready.append)
         await bus.publish(ended_envelope())
+        await settle(bus)
         assert len(ready) == 1 and validate_envelope(ready[0]) == []
         assert len(ready[0]["data"]["people"]) == 2
+
+    asyncio.run(run())
+
+
+def test_quote_spanning_the_points_own_turns_is_verbatim(tmp_path):
+    # Live 2026-10-31: Insight coalesced 3 soft-cut turns into one call and
+    # quoted across them; V1 failed and the whole page went to a rebuild.
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [], seed_kwargs={
+            "quote": "Nov 12. Noted,", "turn_ids": (T1, T2)})
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert llm.calls == [] and len(ready) == 1
+
+    asyncio.run(run())
+
+
+def test_meeting_ended_does_not_wait_for_the_rebuild(tmp_path):
+    # Live 2026-10-31: the Gateway ACKs only after bus.publish returns, so an
+    # inline rebuild held the hub's ACK (and its socket) for the model call.
+    async def run():
+        bus, llm, builder, ready, _ = setup(
+            tmp_path / "events.sqlite", ["repair"], seed_kwargs={"quote": "Launch shifted."})
+        release = threading.Event()
+        slow = llm.complete_json
+
+        def blocked(**kw):
+            release.wait(5)
+            return slow(**kw)
+
+        llm.complete_json = blocked
+        assert (await asyncio.wait_for(bus.publish(ended_envelope()), 1))["status"] == "ok"
+        assert ready == []
+        release.set()
+        await builder.settle()
+        assert len(llm.calls) == 1 and len(ready) == 1
 
     asyncio.run(run())
