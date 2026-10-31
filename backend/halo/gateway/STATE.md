@@ -12,6 +12,7 @@ Implement gateway per its PLAN.md; done ONLY when `uv run pytest backend/halo/ga
 - `system.status` is built from `bus.health()` (missing services read down/unknown), published on the bus (so the Event Store tap sees it) and broadcast to paired sockets every 5 s and on change.
 - `meeting.ended` timeout: 60 s after the last socket drops with no hub `meeting.ended` on the bus, exactly one `reason: timeout` envelope per meeting (new id) via `bus.publish`.
 - No schema slot exists in `system.status` for an audio-gap warn, so gaps surface as logs + the gateway health counters, not in the status payload (noted for Karim in the PR).
+- Restart catch-up (issue #57): on every `pair.ok` the Gateway reads `events.sqlite` (read-only) for the newest `meeting.started` with no `meeting.ended` and republishes it plus that meeting's latest `meeting.context` under their original ids, so Transcriber/Correlator/Recorder resume the same meeting. Ids go through the gateway dedupe, so it runs once per process and never when the hub already sent that started here. Limit: `pair.hello` has no meetingid and events no client id, so "open" is global (one user, one hub); a meeting orphaned by a crash is replayed on the next `pair.ok` until it ends (the 60 s no-socket timeout now covers it, since the replay feeds `_note_started`) or a newer meeting starts.
 - `app.py` keeps only mechanical mount lines (construct `Gateway`, `include_router`, register host middleware); all logic moved here.
 
 ## Task graph

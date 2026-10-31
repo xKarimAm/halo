@@ -236,3 +236,21 @@ def test_ended_clears_locks():
     ])
     assert len(out["mapped"]) == 1, "no new lock in the second meeting after one turn"
     assert by_turn(out["attributed"])[T4]["attribution"] == "provisional"
+
+
+def test_replayed_started_keeps_locks():
+    """Issue #57: a repeated meeting.started for the current meeting (the
+    Gateway's post-restart replay) must not wipe tiles or locks."""
+    same = started(MID)
+    out = run_scenario([
+        same,
+        snapshot(("tile-1", "Karim", True), ("tile-2", "Layla", False)),
+        active("tile-2", True, 900),
+        final(T1, "tab", "A", "One.", 1000, 1200),
+        final(T2, "tab", "A", "Two.", 2000, 2200),
+        final(T3, "tab", "A", "Three.", 3000, 3200),
+        same,
+        final(T4, "tab", "A", "Four.", 4000, 4200),
+    ])
+    turn = by_turn(out["attributed"])[T4]
+    assert (turn["tile_id"], turn["attribution"]) == ("tile-2", "locked")

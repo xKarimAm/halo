@@ -148,3 +148,29 @@ def test_modes_wired_per_stream():
 
     asyncio.run(go())
     assert seen == {"tab": DIARIZATION, "mic": ENDPOINTING}
+
+
+def test_replayed_started_keeps_open_sessions():
+    """Issue #57: a repeated meeting.started for the active meeting opens no
+    second pair of engine sessions."""
+    opened: list[str] = []
+    factory, _ = make_factory({"tab": [], "mic": []})
+
+    def counting(stream: str, mode: str) -> FakeTransport:
+        opened.append(stream)
+        return factory(stream, mode)
+
+    async def go() -> None:
+        bus = Bus()
+        Transcriber(bus, asyncio.Queue(), asyncio.Queue(), counting, key="fake-key")
+        await bus.publish(golden("meeting.started"))
+        await bus.publish(golden("meeting.started"))
+        current = asyncio.current_task()
+        for task in asyncio.all_tasks():
+            if task is not current:
+                task.cancel()
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if t is not current],
+                             return_exceptions=True)
+
+    asyncio.run(go())
+    assert sorted(opened) == ["mic", "tab"]
