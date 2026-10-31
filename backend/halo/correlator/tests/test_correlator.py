@@ -257,3 +257,21 @@ def test_unlabeled_soft_cut_pieces_follow_the_lit_tile_and_never_lock():
     assert out["mapped"] == []
     assert [turns[t]["name"] for t in (T1, T2, T3, T4)] == ["Layla", "Layla", "Layla", "Omar"]
     assert {turns[t]["attribution"] for t in (T1, T2, T3, T4)} == {"provisional"}
+
+
+def test_replayed_started_keeps_locks():
+    """Issue #57: a repeated meeting.started for the current meeting (the
+    Gateway's post-restart replay) must not wipe tiles or locks."""
+    same = started(MID)
+    out = run_scenario([
+        same,
+        snapshot(("tile-1", "Karim", True), ("tile-2", "Layla", False)),
+        active("tile-2", True, 900),
+        final(T1, "tab", "A", "One.", 1000, 1200),
+        final(T2, "tab", "A", "Two.", 2000, 2200),
+        final(T3, "tab", "A", "Three.", 3000, 3200),
+        same,
+        final(T4, "tab", "A", "Four.", 4000, 4200),
+    ])
+    turn = by_turn(out["attributed"])[T4]
+    assert (turn["tile_id"], turn["attribution"]) == ("tile-2", "locked")

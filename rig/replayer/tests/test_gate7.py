@@ -330,6 +330,15 @@ def test_backend_restart_continues_same_meeting(monkeypatch: Any, tmp_path: Path
         acks, _ = hub.pump(10)
         assert acks["dddddddd-dddd-4ddd-8ddd-dddddddddddd"]["status"] == "ok"
         assert acks["cccccccc-cccc-4ccc-8ccc-cccccccccccc"]["status"] == "ok"
+        # Issue #57: the hub never resends the ACKed meeting.started, so the
+        # restarted backend must resume transcription on its own. The seq
+        # continues at 15 (the router pads the gap), as the real hub does.
+        hub.send_audio(0, t0 + 1500, 50, start_seq=15)
+        after = wait_for(
+            lambda: [e for e in events_of(data_dir, "transcript.final")
+                     if e["data"]["text"] == "restart flow two"],
+            20, "post-restart final")
+        assert len(after) == 1
         stored = read_stored(data_dir)
         assert sum(1 for e in stored if e["type"] == "meeting.started") == 1
         assert [e for e in stored if e["type"] == "meeting.ended"] == []

@@ -12,7 +12,9 @@ and no hub `meeting.ended`.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -70,6 +72,7 @@ class Gateway:
     ) -> None:
         self.bus = bus
         self.pairing = PairingStore(data_dir)
+        self._events_db = Path(data_dir) / "events.sqlite"
         self.audio = AudioRouter(audio_tab, audio_mic, rec)
         self.extension_id = extension_id or PINNED_EXTENSION_ID
         self._timeout_s = timeout_s
@@ -163,6 +166,55 @@ class Gateway:
         meetingid = envelope.get("meetingid")
         if isinstance(meetingid, str):
             self._ended.add(meetingid)
+
+    async def replay_open_meeting(self) -> None:
+        """Issue #57: after a backend restart the hub never resends its ACKed
+        `meeting.started`, so on pair.ok republish the latest open meeting's
+        stored started (+ latest context) under their original ids. Each id
+        goes through `deduped`, so this runs at most once per process and is
+        a no-op when this process already saw the meeting from the hub.
+
+        ponytail: the hub's pair.hello carries no meetingid and events carry
+        no client id, so "open" is global: the newest started with no ended.
+        One user, one hub, one live meeting (the Transcriber holds one).
+        """
+        rows = self._open_meeting_rows()
+        if not rows or rows[0]["id"] in self._seen_ids:
+            return
+        for row in rows:
+            if self.deduped(row["id"]):
+                continue
+            envelope = {
+                "specversion": "1.0", "id": row["id"], "type": row["type"],
+                "source": row["source"], "time": row["time"], "meetingid": row["meetingid"],
+                "datacontenttype": "application/json", "data": json.loads(row["data"]),
+            }
+            ack = await self.bus.publish(envelope)
+            if ack["status"] != "ok":
+                log.warning("replay of stored %s failed: %s", row["type"], ack.get("error"))
+
+    def _open_meeting_rows(self) -> list[sqlite3.Row]:
+        if not self._events_db.exists():
+            return []
+        cols = "id, type, time, meetingid, source, data"
+        db = sqlite3.connect(self._events_db.resolve().as_uri() + "?mode=ro", uri=True)
+        db.row_factory = sqlite3.Row
+        try:
+            started = db.execute(
+                f"SELECT {cols} FROM events WHERE type = 'meeting.started' AND meetingid NOT IN"
+                " (SELECT meetingid FROM events WHERE type = 'meeting.ended'"
+                " AND meetingid IS NOT NULL) ORDER BY seq DESC LIMIT 1").fetchone()
+            if started is None:
+                return []
+            context = db.execute(
+                f"SELECT {cols} FROM events WHERE type = 'meeting.context' AND meetingid = ?"
+                " ORDER BY seq DESC LIMIT 1", (started["meetingid"],)).fetchone()
+        except sqlite3.Error:
+            log.exception("open-meeting replay: could not read %s", self._events_db)
+            return []
+        finally:
+            db.close()
+        return [started] if context is None else [started, context]
 
     def _schedule_timeout_checks(self) -> None:
         self._generation += 1
