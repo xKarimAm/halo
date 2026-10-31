@@ -30,6 +30,11 @@ log = logging.getLogger("halo.gateway")
 
 _ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 
+#: Pinned Chrome extension id for the Origin check. Source of truth is the
+#: pinned manifest `key` in `wxt.config.ts` (published via issue #27, also in
+#: `extension/README`). An explicit `HALO_EXTENSION_ID` overrides this.
+PINNED_EXTENSION_ID = "dbngpodihegmipdmikpbkflahdkfpgif"
+
 PAIR_PAGE_HTML = (
     "<!doctype html><title>Halo pairing</title>"
     "<h1>Halo pairing</h1><p>Enter the 6-digit code printed by "
@@ -59,14 +64,14 @@ class Gateway:
         audio_tab: asyncio.Queue | None = None,
         audio_mic: asyncio.Queue | None = None,
         rec: asyncio.Queue | None = None,
-        extension_id: str = "",
+        extension_id: str | None = None,
         timeout_s: float = 60.0,
         status_interval_s: float = 5.0,
     ) -> None:
         self.bus = bus
         self.pairing = PairingStore(data_dir)
         self.audio = AudioRouter(audio_tab, audio_mic, rec)
-        self.extension_id = extension_id
+        self.extension_id = extension_id or PINNED_EXTENSION_ID
         self._timeout_s = timeout_s
         self._status_interval_s = status_interval_s
         self.sessions: set[SocketSession] = set()
@@ -90,10 +95,6 @@ class Gateway:
         return f"chrome-extension://{self.extension_id}"
 
     def origin_ok(self, origin: str | None) -> bool:
-        # ponytail: until the extension id is pinned (issue #27), any extension
-        # origin passes; web pages are still refused and pairing still gates.
-        if not self.extension_id:
-            return origin is not None and origin.startswith("chrome-extension://")
         return origin == self.expected_origin
 
     @staticmethod

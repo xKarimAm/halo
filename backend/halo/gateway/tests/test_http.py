@@ -11,12 +11,12 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from halo.bus import Bus
-from halo.gateway.gateway import Gateway, host_check, router
+from halo.gateway.gateway import PINNED_EXTENSION_ID, Gateway, host_check, router
 
 
-def make_client(tmp_path, **gateway_kwargs):
+def make_client(tmp_path, extension_id="test-id", **gateway_kwargs):
     app = FastAPI()
-    app.state.gateway = Gateway(Bus(), data_dir=tmp_path, extension_id="test-id", **gateway_kwargs)
+    app.state.gateway = Gateway(Bus(), data_dir=tmp_path, extension_id=extension_id, **gateway_kwargs)
     app.include_router(router)
     app.middleware("http")(host_check)
     client = TestClient(app)
@@ -56,10 +56,11 @@ def test_origin_rule(tmp_path):
     assert gateway.origin_ok("") is False
 
 
-def test_origin_rule_without_pinned_id(tmp_path):
-    _, app = make_client(tmp_path)
+def test_origin_defaults_to_pinned_id(tmp_path):
+    _, app = make_client(tmp_path, extension_id=None)
     gateway: Gateway = app.state.gateway
-    gateway.extension_id = ""
-    assert gateway.origin_ok("chrome-extension://anything") is True
-    assert gateway.origin_ok("https://evil.example") is False
+    assert gateway.extension_id == PINNED_EXTENSION_ID
+    assert gateway.origin_ok(f"chrome-extension://{PINNED_EXTENSION_ID}") is True
+    assert gateway.origin_ok("chrome-extension://other-id") is False
+    assert gateway.origin_ok("https://meet.google.com") is False
     assert gateway.origin_ok(None) is False
