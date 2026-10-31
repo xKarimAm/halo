@@ -56,6 +56,17 @@ POINTS = [
     {"match": "address form", "response": {"kind": "point", "text": "Address form stays in v2.1",
      "quote": TURNS[2]["text"], "rank": 1, "urgency": "later", "is_action": False}},
 ]
+# The Classifier (wired into app.py since the day-1 integration) is a
+# second LLM consumer: one call per point, and FakeLLM replies are
+# single-use with an in-order fallback. Unscripted, its fallback burned
+# Insight's canned replies and Insight starved. Script its replies FIRST,
+# matched on its instruction line (Insight prompts never contain it), so
+# the two consumers can interleave in any order: one reply per point.
+CLASSIFIER_REPLIES = [
+    {"match": "assign tags to a meeting point",
+     "response": {"kind": "point", "urgency": "medium"}}
+    for _ in POINTS
+]
 TILES = [
     {"tile_id": "spaces/x/devices/1", "name": "Karim Amer", "is_self": True,
      "rect": [8, 8, 400, 225], "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None},
@@ -79,7 +90,7 @@ def build_base_fixture(root: Path) -> None:
     (root / "asr_script.jsonl").write_text(
         "\n".join(json.dumps(t) for t in TURNS), encoding="utf-8")
     (root / "llm_script.jsonl").write_text(
-        "\n".join(json.dumps(p) for p in POINTS), encoding="utf-8")
+        "\n".join(json.dumps(p) for p in CLASSIFIER_REPLIES + POINTS), encoding="utf-8")
     (root / "tab.pcm").write_bytes(b"\x00\x00" * 1600 * 110)  # 11 s silence
     (root / "mic.pcm").write_bytes(b"\x00\x00" * 1600 * 20)
 
