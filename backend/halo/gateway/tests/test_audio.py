@@ -69,3 +69,14 @@ def test_full_queue_drops_newest():
     assert router.handle(pack_audio(TAB, 0, 0, PCM)) == "audio"
     assert router.handle(pack_audio(TAB, 1, 100, PCM)) == "dropped"
     assert router.dropped == 1
+
+
+def test_restarted_hub_seq_resyncs_instead_of_dropping():
+    """Live 2026-10-31: a reloaded hub restarts at seq 0; its frames were all dropped."""
+    router = AudioRouter()
+    for seq in range(200):
+        router.handle(pack_audio(TAB, seq, 1000 + seq * 100, PCM))
+    drain(router.queues["tab"])
+    assert router.handle(pack_audio(TAB, 0, 99_000, PCM)) == "audio"
+    assert router.handle(pack_audio(TAB, 1, 99_100, PCM)) == "audio"
+    assert router.handle(pack_audio(TAB, 0, 99_000, PCM)) == "dropped"  # a real late frame
