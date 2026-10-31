@@ -132,6 +132,9 @@
   window.__halo_leave = (tileId) => {
     const tile = tiles.get(tileId);
     if (tile) { tile.remove(); tiles.delete(tileId); }
+    // A participant who leaves takes every node with their id (the fx decoy
+    // too); a leftover 20 px node would still read as their tile.
+    for (const el of document.querySelectorAll(`[data-participant-id="${tileId}"]`)) el.remove();
     truth.tiles = truth.tiles.filter((t) => t.tile_id !== tileId);
     truth.faces = truth.faces.filter((f) => f.tile_id !== tileId);
   };

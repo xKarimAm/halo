@@ -98,7 +98,10 @@ test("leaving the call or pressing Stop ends the meeting", async () => {
     await expect(page.locator(".t")).toHaveCount(0);
     await expect.poll(running, { timeout: 15000 }).toBe(false);
 
-    // 2. Start again, then the popup's Stop button.
+    // 2. Start again, then the popup's Stop button. Reopen the popup first,
+    // as a user does (it closes on any click into Meet): the open one still
+    // shows Start as "Running" from the first meeting.
+    await popup.reload();
     await start();
     await expect.poll(running, { timeout: 15000 }).toBe(true);
     await popup.reload();
