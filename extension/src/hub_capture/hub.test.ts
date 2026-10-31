@@ -98,6 +98,25 @@ describe("hub lifecycle", () => {
     expect(envs[1].meetingid).toBe(data.meeting_id);
   });
 
+  // Page state sent before Start must not go out with meetingid=null
+  // (the Gateway drops those): it is replayed at Start, after started.
+  it("holds pre-Start tiles/context and replays them at Start", () => {
+    const { hub, socket, storage } = makeHub();
+    openAndPair(hub, socket);
+    const tiles = [{ tile_id: "t1", name: "Layla", is_self: false, rect: [0, 0, 1, 1], video_w: 640, video_h: 360, fit: "cover" as const, captions_rect: null }];
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles } });
+    hub.onPortMessage({ type: "speaker.active", data: { tile_id: "t1", speaking: true, ts_ms: 1 } });
+    expect(socket.envelopes().some((e) => e.type === "tiles.snapshot")).toBe(false);
+    hub.start(started);
+    const envs = socket.envelopes();
+    const types = envs.map((e) => e.type);
+    expect(types.indexOf("tiles.snapshot")).toBeGreaterThan(types.indexOf("meeting.started"));
+    const snap = envs.find((e) => e.type === "tiles.snapshot");
+    expect(snap?.meetingid).toBe(hub.meetingId);
+    expect(envs.some((e) => e.type === "speaker.active")).toBe(false); // transient: dropped
+    expect(storage.get("halo/tileNames")).toEqual(["Layla"]);
+  });
+
   // (6) one meeting.ended on Stop; Meet-page reload does not end it
   it("ends once on stop and survives a page reload", () => {
     const { hub, socket } = makeHub();

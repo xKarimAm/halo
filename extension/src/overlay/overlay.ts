@@ -260,8 +260,21 @@ export class Overlay {
         this.layers.set(tileId, layer);
         root.appendChild(layer);
       }
-      const detach = (el: El & { children?: El[] }) => { el.children = []; };
+      // Clear by removing nodes: on a real Element, `children` is a
+      // getter-only HTMLCollection, so assigning it throws (strict mode).
+      const detach = (el: El & { children?: El[] }) => {
+        while (el.children && el.children.length > 0) el.children[0].remove();
+      };
       detach(layer as El & { children?: El[] });
+      const tileRect = this.tiles.get(tileId)?.rect;
+      if (tileRect) {
+        // The layer sits on its tile; stack/name offsets are tile-local.
+        layer.style.setProperty("position", "absolute");
+        layer.style.setProperty("left", `${tileRect[0]}px`);
+        layer.style.setProperty("top", `${tileRect[1]}px`);
+        layer.style.setProperty("width", `${tileRect[2]}px`);
+        layer.style.setProperty("height", `${tileRect[3]}px`);
+      }
       const layout = this.layout(tileId);
       const name = doc.createElement("span");
       name.classList.add("halo-name");

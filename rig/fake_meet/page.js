@@ -25,6 +25,7 @@
   function addTile(p) {
     const tile = document.createElement("div");
     tile.className = "t";
+    if (p.is_self) tile.setAttribute("data-self", "true"); // adapter anchor (issue #8)
     tile.setAttribute("data-participant-id", p.tile_id);
     tile.setAttribute("data-requested-participant-id", p.tile_id);
     if (p.media_id) tile.setAttribute("data-tile-media-id", p.media_id);
@@ -63,7 +64,10 @@
 
   window.__halo_set_speaking = (tileId, speaking) => {
     const tile = tiles.get(tileId);
-    if (tile) tile.classList.toggle("speaking", !!speaking);
+    if (tile) {
+      tile.classList.toggle("speaking", !!speaking);
+      tile.setAttribute("data-speaking", speaking ? "true" : "false"); // adapter anchor (issue #8)
+    }
   };
   window.__halo_join = (p) => { tiles.set(p.tile_id, addTile(p)); };
   window.__halo_leave = (tileId) => {

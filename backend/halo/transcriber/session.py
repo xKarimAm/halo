@@ -197,7 +197,10 @@ class TranscriptionSession:
             except TimeoutError:
                 await self.send_silence()
                 continue
-            for turn in await self.feed_frame(frame["seq"], frame["ts_ms"], frame["pcm"]):
+            # Gateway AudioRouter enqueues (seq, ts_ms, payload) tuples.
+            seq, ts_ms, pcm = frame if isinstance(frame, tuple) else (
+                frame["seq"], frame["ts_ms"], frame["pcm"])
+            for turn in await self.feed_frame(seq, ts_ms, pcm):
                 out.put_nowait(turn)
 
     async def close(self) -> None:
