@@ -9,6 +9,7 @@ wraps FakeASR core, the real one speaks WebSocket.
 from __future__ import annotations
 
 import asyncio
+import bisect
 import logging
 import math
 import statistics
@@ -90,6 +91,12 @@ class TranscriptionSession:
         # session counts audioProcessedMs from 0 again.
         self._session_ms = 0
         self._rekey = False
+        # Clock map (#77): from each engine position on, browser ts =
+        # anchor + position + delta, delta taken from the real frames' own
+        # ts_ms. Wall-clock pads during a stall advance the position but not
+        # the browser clock; a new breakpoint appears only when delta changes.
+        self._clock_pos: list[int] = []
+        self._clock_delta: list[int] = []
         self.pad_ms = 0
         self.health = "ok"
         self.closed = False
@@ -130,6 +137,10 @@ class TranscriptionSession:
                         self.stream, self.expected_seq, seq, gap * FRAME_MS)
             await self._send_silence(gap * FRAME_MS)
         self.expected_seq = seq + 1
+        delta = ts_ms - self.anchor_ms - self.position_ms
+        if not self._clock_delta or self._clock_delta[-1] != delta:
+            self._clock_pos.append(self.position_ms)
+            self._clock_delta.append(delta)
         frame_ms = len(pcm) // BYTES_PER_MS
         rms = self._rms(pcm)
         self._levels.append(rms)
@@ -209,9 +220,8 @@ class TranscriptionSession:
     def _map(self, turn: dict[str, Any]) -> dict[str, Any]:
         assert self.anchor_ms is not None
         if turn.get("relative"):
-            base = self.anchor_ms + self._session_ms
-            start = base + int(turn.get("start_offset_ms", 0))
-            end = base + int(turn.get("end_offset_ms", 0))
+            start = self._browser_ms(self._session_ms + int(turn.get("start_offset_ms", 0)))
+            end = self._browser_ms(self._session_ms + int(turn.get("end_offset_ms", 0)))
         else:
             start = int(turn.get("start_offset_ms", 0))
             end = int(turn.get("end_offset_ms", 0))
@@ -224,6 +234,11 @@ class TranscriptionSession:
             "ts_start_ms": start,
             "ts_end_ms": end,
         }
+
+    def _browser_ms(self, position: int) -> int:
+        assert self.anchor_ms is not None
+        i = bisect.bisect_right(self._clock_pos, position) - 1
+        return self.anchor_ms + position + (self._clock_delta[i] if i >= 0 else 0)
 
     async def _on_transport_error(self, exc: Exception) -> None:
         # First consecutive failure: reconnect once. Any further consecutive

@@ -348,3 +348,35 @@ def test_a_pause_on_loud_audio_cuts_above_the_fixed_floor():
         return out
 
     assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
+
+
+def test_stall_pads_do_not_shift_later_turns():
+    """#77: during a browser frame stall run() pads wall-clock silence to
+    Voice, then the late frames follow, so every later engine offset is
+    ahead of the browser clock by the padded amount. Turns map through the
+    frames' own timestamps: the pad must not shift them."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 1600},
+        {"type": "transcript", "transcript": "after the stall", "final": False,
+         "audioProcessedMs": 2200},
+        {"type": "speaker", "label": "A", "audioProcessedMs": 2300},
+        {"type": "speechComplete", "turnId": 0, "transcript": "after the stall",
+         "audioProcessedMs": 2400},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(10):
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, SPEECH))
+        await session.send_silence(500)  # the stall: run() pads the wall clock
+        for seq in range(10, 30):  # the late burst, no seq gap
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, SPEECH))
+        return out
+
+    [turn] = asyncio.run(go())
+    # engine 1600 ms = 1000 ms of frames + 500 ms pad + 100 ms: browser +1100
+    assert turn["ts_start_ms"] == ANCHOR + 1100
+    assert turn["ts_end_ms"] == ANCHOR + 1900
