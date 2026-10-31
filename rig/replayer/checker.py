@@ -28,6 +28,28 @@ def _actual_tile(env: dict) -> str | None:
     return tiles[0]["tile_id"] if tiles else None
 
 
+def _texts_compatible(want: str, env: dict) -> bool:
+    actual_text = normalise(str(env.get("data", {}).get("text", "")))
+    want_n = normalise(want)
+    return bool(actual_text) and (want_n in actual_text or actual_text in want_n)
+
+
+def _compatible(exp: dict, env: dict) -> bool:
+    """Match-time guard: an actual event only fills an expected slot when its
+    ts and text (when the expectation pins them) agree with it. Soft-cut
+    extras (a prefix piece or a duplicate full-text final from an earlier
+    turn) are skipped here instead of matching as the next turn and failing
+    the post-match checks below. A genuinely missing or mis-timed event still
+    reports as missing, since no later actual is compatible either."""
+    if "ts_ms" in exp:
+        ts = _actual_ts(env)
+        if ts is not None and abs(ts - int(exp["ts_ms"])) > TS_TOLERANCE_MS:
+            return False
+    if exp.get("text"):
+        return _texts_compatible(exp["text"], env)
+    return True
+
+
 def check(expected: list[dict], actual: list[dict]) -> list[str]:
     errors: list[str] = []
     used = [False] * len(actual)
@@ -39,6 +61,8 @@ def check(expected: list[dict], actual: list[dict]) -> list[str]:
             if used[i] or env.get("type") != exp["type"]:
                 continue
             if exp.get("tile_id") and _actual_tile(env) != exp["tile_id"]:
+                continue
+            if not _compatible(exp, env):
                 continue
             found = i
             break
