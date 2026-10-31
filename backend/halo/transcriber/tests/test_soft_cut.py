@@ -6,7 +6,7 @@ change (a 136 s monologue = ONE turn), with partials shaped as
 NO turnId, an int turnId, the speaker label arriving at the END of the turn,
 and speechComplete carrying the full text under "transcript". The transcriber
 must still emit about one transcript.final per spoken line, so it soft-cuts
-open turns at PCM pauses (>= 1000 ms of RMS silence) and emits only the
+open turns at PCM pauses (>= 600 ms of RMS silence) and emits only the
 uncut remainder on speechComplete.
 
 Fixture: soft_cut_fixture.json = speechStart + the first 45 transcript
@@ -269,3 +269,114 @@ def test_soft_cut_holds_back_the_tail_and_never_repeats():
     ])
     assert turn["text"] == "six seven eight"
     assert turn["speaker"] == "A"
+
+
+def test_a_700ms_pause_soft_cuts():
+    """Live 2026-10-31 (real Voice, Egyptian clip): fluent speech pauses for
+    0.7-1.0 s, so a 1000 ms threshold stopped cutting after 37 s and turns
+    ran 20-30 s (a point 30 s late). A replay of the recorded probe events
+    at 600 ms kept every word and capped turns near 10 s."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "first line here", "final": False,
+         "audioProcessedMs": 2100},
+        {"type": "transcript", "transcript": "first line here and more", "final": False,
+         "audioProcessedMs": 3500},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(36):  # speech, a 700 ms pause at 2.0 s, speech
+            pcm = SILENCE if 20 <= seq < 27 else SPEECH
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
+
+
+def test_a_pause_cuts_when_its_partial_arrives_after_speech_resumed():
+    """#76, real Voice (Sudanese clip): partials lag the audio by up to
+    1.7 s, so in 34 of 46 pauses of 0.7-1.7 s the partial covering the pause
+    start arrived only after speech resumed, the pause was forgotten, and
+    turns ran 30 s. The pause must still cut once that partial lands."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "first line here", "final": False,
+         "audioProcessedMs": 3200},
+        {"type": "transcript", "transcript": "first line here and more", "final": False,
+         "audioProcessedMs": 4500},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(40):  # speech, a 700 ms pause at 2.0 s, speech
+            pcm = SILENCE if 20 <= seq < 27 else SPEECH
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
+
+
+def test_a_pause_on_loud_audio_cuts_above_the_fixed_floor():
+    """#76, Sudanese clip: speech runs at RMS 2000-17000 and its pauses sit
+    at RMS 400-700, never under the fixed 300 floor, so turns ran 14-30 s.
+    A pause is quiet relative to the recent level, not to one number."""
+    loud = b"\x00\x10" * 1600  # RMS 4096
+    murmur = b"\x58\x02" * 1600  # RMS 600: a pause on this recording
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "first line here", "final": False,
+         "audioProcessedMs": 2100},
+        {"type": "transcript", "transcript": "first line here and more", "final": False,
+         "audioProcessedMs": 3500},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(36):  # loud speech, a 700 ms murmur pause at 2.0 s, speech
+            pcm = murmur if 20 <= seq < 27 else loud
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
+
+
+def test_stall_pads_do_not_shift_later_turns():
+    """#77: during a browser frame stall run() pads wall-clock silence to
+    Voice, then the late frames follow, so every later engine offset is
+    ahead of the browser clock by the padded amount. Turns map through the
+    frames' own timestamps: the pad must not shift them."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 1600},
+        {"type": "transcript", "transcript": "after the stall", "final": False,
+         "audioProcessedMs": 2200},
+        {"type": "speaker", "label": "A", "audioProcessedMs": 2300},
+        {"type": "speechComplete", "turnId": 0, "transcript": "after the stall",
+         "audioProcessedMs": 2400},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(10):
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, SPEECH))
+        await session.send_silence(500)  # the stall: run() pads the wall clock
+        for seq in range(10, 30):  # the late burst, no seq gap
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, SPEECH))
+        return out
+
+    [turn] = asyncio.run(go())
+    # engine 1600 ms = 1000 ms of frames + 500 ms pad + 100 ms: browser +1100
+    assert turn["ts_start_ms"] == ANCHOR + 1100
+    assert turn["ts_end_ms"] == ANCHOR + 1900

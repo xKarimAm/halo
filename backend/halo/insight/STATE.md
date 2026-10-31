@@ -11,6 +11,7 @@ Implement insight per its PLAN.md; done ONLY when `uv run pytest backend/halo/in
 - `corrects[]` never re-runs the model: stored points are re-sent with the same `point_id`, new tile/name, `attribution: locked`, text unchanged. `replaces` passes through only when the model sets it on a new point.
 - A failed model call re-queues the turns at the front (order preserved) under the normal per-speaker window; nothing is lost.
 - `llm.health {engine, p90_ms}` publishes on engine change, else at most every 30 s (p90 over the last 100 calls). The `bus.register_health("llm", ...)` callable stays the llm client's own (registered by `app.py`); `Insight.health()` delegates to it so there is exactly one `llm` health source.
+- Quotes are exact before publish (#92): `verbatim_quote` keeps a quote that is a substring of the point's joined turns (the Notes Builder's own check), else snaps it to the longest shared word run sliced from those turns (punctuation and case ignored only for matching), else the whole turn text. No extra model call.
 - Latest `meeting.context` wins per meeting and applies to later turns only; emitted points are never reprocessed.
 
 ## Task graph

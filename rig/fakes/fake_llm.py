@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from collections.abc import Callable
 
 from jsonschema import Draft202012Validator
@@ -34,7 +35,10 @@ class FakeLLM:
         self.calls = 0
         self.last_latency_ms = 0
 
-    def complete(self, prompt: str, schema: dict | None = None) -> dict:
+    def complete(self, prompt: str, schema: dict | None = None, enforce: bool = True) -> dict:
+        """One chat.completion body. `enforce` = the engine enforces the
+        caller's schema (Meta API): a canned reply that fails it raises.
+        Without it (Spark Open on Baseten) the reply goes out unchecked."""
         idx = self._pick(prompt)
         call = self.calls
         self.calls += 1
@@ -45,15 +49,22 @@ class FakeLLM:
             content = MALFORMED
         else:
             response = self._script[idx].response if idx is not None else {}
-            if schema is not None:
+            if schema is not None and enforce:
                 errors = [e.message for e in Draft202012Validator(schema).iter_errors(response)]
                 if errors:
                     raise ValueError(f"canned reply fails caller schema: {errors}")
             content = json.dumps(response)
+        # The OpenAI chat.completion shape both engines return (llm.md).
         return {
             "id": f"fake-{call}",
             "object": "chat.completion",
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": content}}],
+            "created": int(time.time()),
+            "model": "",
+            "choices": [{"index": 0, "finish_reason": "stop",
+                         "message": {"role": "assistant", "content": content}}],
+            "usage": {"prompt_tokens": len(prompt.split()), "completion_tokens": len(content.split()),
+                      "total_tokens": len(prompt.split()) + len(content.split()),
+                      "prompt_tokens_details": {"cached_tokens": 0}},
         }
 
     def _pick(self, prompt: str) -> int | None:

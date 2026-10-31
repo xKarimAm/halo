@@ -8,6 +8,8 @@ export const KIND_COLORS = {
 } as const;
 
 export const DARK = "#0b0f1a";
+// The one UI accent (OVERLAY-UX section 4): primary button, links, focus ring.
+export const HALO_GOLD = "#ffd98a";
 export const GLASS_BLUR = "blur(16px) saturate(140%) brightness(.85)";
 
 // Urgency-mark geometry: words tabs from urgency draft 2, symbol seals from
@@ -36,4 +38,21 @@ export const OVERLAY_CSS = `
 .halo-thinking{animation:halo-sweep 1.3s linear infinite}
 .halo-thinking-dotted{border-bottom:2px dotted #fff3d1}
 @media (prefers-reduced-motion:reduce){.halo-thinking{animation:none}}
+.halo-controls{position:fixed;top:12px;left:12px;z-index:2147483647;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100vw - 24px);font:500 12px/1.25 Inter,system-ui,sans-serif;color:#f5f7fa}
+.halo-badge,.halo-controls .halo-btn,.halo-toast{background:rgba(12,14,18,.66);backdrop-filter:${GLASS_BLUR};box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 1px rgba(255,255,255,.08)}
+.halo-badge{padding:5px 12px;border-radius:999px;font-weight:600}
+.halo-btn{padding:5px 12px;border:0;border-radius:999px;background:rgba(255,255,255,.08);color:#f5f7fa;font:inherit;cursor:pointer}
+.halo-btn.halo-primary{background:${HALO_GOLD};color:#1b1608}
+.halo-toast{flex-basis:100%;display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:8px 8px 8px 12px;border-radius:14px}
+.halo-toast[hidden]{display:none}
+.halo-toast a{color:${HALO_GOLD}}
+.halo-dismiss{border:0;background:none;color:#cfd3da;font:inherit;font-size:16px;line-height:1;cursor:pointer}
+.halo-dialog{width:min(440px,calc(100vw - 24px));box-sizing:border-box;padding:16px 18px;border:0;border-radius:20px;background:rgba(16,18,22,.78);backdrop-filter:blur(24px) saturate(170%);box-shadow:0 16px 40px rgba(0,0,0,.35);color:#f5f7fa;font:500 13px/1.4 Inter,system-ui,sans-serif}
+.halo-dialog::backdrop{background:rgba(0,0,0,.35)}
+.halo-dialog h2{margin:0 0 6px;font-size:15px}
+.halo-dialog p{margin:0 0 10px;color:#cfd3da}
+.halo-notice{display:block;box-sizing:border-box;width:100%;padding:10px;border:0;border-radius:12px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#f5f7fa;font:inherit;resize:vertical}
+.halo-dialog .halo-copy-status{margin:8px 0 0;min-height:1.4em;color:${HALO_GOLD}}
+.halo-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.halo-controls :focus-visible,.halo-dialog :focus-visible{outline:2px solid ${HALO_GOLD};outline-offset:2px}
 `;

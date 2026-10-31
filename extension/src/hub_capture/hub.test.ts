@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   HUB_START_MESSAGE,
   Hub,
+  MEETING_RUNNING_KEY,
   handleHubRuntimeMessage,
   isTestHook,
   packAudioFrame,
@@ -117,6 +118,25 @@ describe("hub lifecycle", () => {
     expect(storage.get("halo/tileNames")).toEqual(["Layla"]);
   });
 
+  // Live 2026-10-31: a second Start minted a new meeting but sent no
+  // tiles (the adapter only re-sends on a DOM change), so the Correlator,
+  // which clears tiles on meeting.started, held and dropped every turn.
+  it("replays the latest tiles and context for every new meeting", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    const tiles = [{ tile_id: "t1", name: "Karim Amer", is_self: true, rect: [0, 0, 1, 1], video_w: 640, video_h: 360, fit: "cover" as const, captions_rect: null }];
+    const context = { subject: "Demo", agenda: [], roles: [], viewer_lang: "en" as const };
+    hub.start(started);
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles } });
+    hub.onPortMessage({ type: "meeting.context", data: context });
+    hub.onPortMessage({ type: "set_viewer_lang", viewer_lang: "ar" });
+    const second = hub.start(started);
+    const forSecond = socket.envelopes().filter((e) => e.meetingid === second);
+    expect(forSecond.map((e) => e.type)).toEqual(["meeting.started", "tiles.snapshot", "meeting.context"]);
+    expect((forSecond[1].data as { tiles: unknown[] }).tiles).toEqual(tiles);
+    expect((forSecond[2].data as { viewer_lang: string }).viewer_lang).toBe("ar");
+  });
+
   // (6) one meeting.ended on Stop; Meet-page reload does not end it
   it("ends once on stop and survives a page reload", () => {
     const { hub, socket } = makeHub();
@@ -187,6 +207,20 @@ describe("binary frames", () => {
     hub.sendAudio("mic", new Uint8Array(3200), 1000);
     expect(socket.binary[0][1]).toBe(0);
     expect(socket.binary[1][1]).toBe(1);
+  });
+
+  it("no audio leaves before Start or after the meeting ended", () => {
+    // #86 moved the mic into the Meet tab, so #83's onEnded abort no longer
+    // stops it: its relayed frames keep arriving after Stop or leaving.
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.sendAudio("mic", new Uint8Array(3200), 900);
+    hub.start(started);
+    hub.sendAudio("mic", new Uint8Array(3200), 1000);
+    hub.stop("left");
+    hub.sendAudio("mic", new Uint8Array(3200), 1100);
+    hub.sendAudio("tab", new Uint8Array(3200), 1100);
+    expect(socket.binary).toHaveLength(1);
   });
 
   it("recorder switch stops kind=3 while audio continues", () => {
@@ -322,3 +356,71 @@ describe("setup_panel handoff (#6)", () => {
   });
 });
 
+
+// Platform audit (real Chrome): Start pressed again while a meeting runs.
+describe("repeat Start", () => {
+  it("opens one socket, keeps the running call, ends it before another call starts", () => {
+    const { hub, socket } = makeHub();
+    hub.connect();
+    hub.connect(); // second Start: no second WebSocket
+    expect(socket.connectCalls).toBe(1);
+    socket.emit("open");
+    pairOk(socket);
+    expect(handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started })).toBe(true);
+    const first = hub.meetingId;
+    expect(handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started })).toBe(false);
+    expect(hub.meetingId).toBe(first); // same call: same meeting, no second capture
+    expect(handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started, meeting_code: "xyz-abcd-efg" })).toBe(true);
+    const lifecycle = socket.envelopes()
+      .filter((e) => e.type === "meeting.started" || e.type === "meeting.ended")
+      .map((e) => `${e.type}:${e.meetingid}`);
+    expect(lifecycle).toEqual([
+      `meeting.started:${first}`, `meeting.ended:${first}`, `meeting.started:${hub.meetingId}`,
+    ]);
+  });
+});
+
+// Issue #72: the user leaves the call (or presses Stop) with the tab open.
+describe("left the call", () => {
+  it("call.left on the Port ends the running meeting once, with reason left", () => {
+    const { hub, socket, storage } = makeHub();
+    let ended = 0;
+    (hub as unknown as { deps: HubDeps }).deps.onEnded = () => { ended += 1; };
+    openAndPair(hub, socket);
+    hub.onPortMessage({ type: "call.left" }); // no meeting yet: ignored
+    expect(ended).toBe(0);
+    hub.start(started);
+    expect(storage.get(MEETING_RUNNING_KEY)).toBe(true);
+    hub.onPortMessage({ type: "call.left" });
+    hub.onPortMessage({ type: "call.left" }); // second signal: no second meeting.ended
+    const ends = socket.envelopes().filter((e) => e.type === "meeting.ended");
+    expect(ends).toHaveLength(1);
+    expect(ends[0].meetingid).toBe(hub.meetingId);
+    expect(ends[0].data).toEqual({ reason: "left" });
+    expect(storage.get(MEETING_RUNNING_KEY)).toBe(false);
+    expect(ended).toBe(1); // the entrypoint stops the capture here
+  });
+
+  it("only the Start's Meet tab can end the meeting or feed the mic", () => {
+    // A second open Meet tab doubled stream 1, and leaving it ended this call.
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "abc-defg-hij", tabId: 7 });
+    hub.sendAudio("mic", new Uint8Array(3200), 1000, 8);
+    hub.onPortMessage({ type: "call.left" }, 8);
+    expect(socket.binary).toHaveLength(0);
+    expect(socket.envelopes().some((e) => e.type === "meeting.ended")).toBe(false);
+    hub.sendAudio("mic", new Uint8Array(3200), 1000, 7);
+    hub.onPortMessage({ type: "call.left" }, 7);
+    expect(socket.binary).toHaveLength(1);
+    expect(socket.envelopes().filter((e) => e.type === "meeting.ended")).toHaveLength(1);
+  });
+
+  it("a page reload (Port disconnect) does not end the meeting", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.start(started);
+    hub.onPagePortDisconnected();
+    expect(socket.envelopes().some((e) => e.type === "meeting.ended")).toBe(false);
+  });
+});

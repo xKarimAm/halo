@@ -60,8 +60,7 @@ def test_kind2_rejected_and_late_frame_dropped():
     assert router.handle(pack_audio(TAB, 3, 3000, PCM)) == "dropped"
     assert router.dropped == 1
     got = drain(router.queues["tab"])
-    assert [seq for seq, _, _ in got] == [0, 1, 2, 3, 4, 5]  # padded from stream start
-    assert got[-1] == (5, 5000, PCM)
+    assert got == [(5, 5000, PCM)]  # the first frame sets the seq, no padding
 
 
 def test_full_queue_drops_newest():
@@ -69,3 +68,41 @@ def test_full_queue_drops_newest():
     assert router.handle(pack_audio(TAB, 0, 0, PCM)) == "audio"
     assert router.handle(pack_audio(TAB, 1, 100, PCM)) == "dropped"
     assert router.dropped == 1
+
+
+def test_restarted_hub_seq_resyncs_instead_of_dropping():
+    """Live 2026-10-31: a reloaded hub restarts at seq 0; its frames were all dropped."""
+    router = AudioRouter()
+    for seq in range(200):
+        router.handle(pack_audio(TAB, seq, 1000 + seq * 100, PCM))
+    drain(router.queues["tab"])
+    assert router.handle(pack_audio(TAB, 0, 99_000, PCM)) == "audio"
+    assert router.handle(pack_audio(TAB, 1, 99_100, PCM)) == "audio"
+    assert router.handle(pack_audio(TAB, 0, 99_000, PCM)) == "dropped"  # a real late frame
+
+
+def test_newest_socket_owns_a_stream_and_older_ones_are_ignored():
+    """Live 2026-10-31: 5 Starts left 5 sockets each sending mic at its own seq.
+    The router padded silence for every cross-socket gap and Voice closed
+    with 1008 "Audio backlog too large". Only the newest producer may feed a
+    stream; its first frame resyncs the seq without padding."""
+    router = AudioRouter()
+    for seq in range(3):
+        assert router.handle(pack_audio(MIC, seq, 1000 + seq * 100, PCM), producer=1) == "audio"
+    assert router.handle(pack_audio(TAB, 0, 1000, PCM), producer=1) == "audio"
+    assert router.handle(pack_audio(MIC, 40, 5000, PCM), producer=2) == "audio"  # takes over
+    assert router.handle(pack_audio(MIC, 3, 1300, PCM), producer=1) == "dropped"  # old socket
+    assert router.handle(pack_audio(MIC, 41, 5100, PCM), producer=2) == "audio"
+    assert router.handle(pack_audio(TAB, 1, 1100, PCM), producer=1) == "audio"  # still owns tab
+    assert router.gaps == 0 and router.padded == 0
+    assert [f[0] for f in drain(router.queues["mic"])] == [0, 1, 2, 40, 41]
+
+
+def test_first_socket_after_a_backend_restart_resyncs_without_padding():
+    """A restarted backend's first socket arrives mid-stream (hub seq 6000):
+    padding from 0 sent 300 silent frames, then the Transcriber saw a 570 s gap."""
+    router = AudioRouter()
+    assert router.handle(pack_audio(TAB, 6000, 900_000, PCM), producer=1) == "audio"
+    assert router.handle(pack_audio(TAB, 6001, 900_100, PCM), producer=1) == "audio"
+    assert router.gaps == 0 and router.padded == 0
+    assert [f[0] for f in drain(router.queues["tab"])] == [6000, 6001]

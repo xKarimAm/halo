@@ -13,6 +13,8 @@ import { defineContentScript } from "wxt/sandbox";
 import { MeetDomAdapter } from "../meet_adapter/meet_adapter";
 import { createPortSync } from "../meet_adapter/port_sync";
 import { boot as bootOverlay } from "../overlay/index";
+import { adaptAudioContext, startLiveCapture } from "../hub_capture/capture_live";
+import { createMicSender, MIC_PORT_NAME, MIC_START_MESSAGE } from "../hub_capture/mic_relay";
 
 declare const chrome: any;
 
@@ -63,9 +65,33 @@ export async function bootMeetPage(): Promise<void> {
   });
 }
 
+/**
+ * Mic stream 1, started by the popup's Start. A content script's
+ * getUserMedia runs under meet.google.com's permission, which the user
+ * already gave Meet, so there is no prompt and no extra page. Frames go to
+ * the offscreen hub over the "halo-mic" Port. Once per page.
+ */
+let micStarted = false;
+export function listenForMicStart(): void {
+  chrome.runtime.onMessage.addListener((msg: { type?: string }) => {
+    if (msg?.type !== MIC_START_MESSAGE || micStarted) return false;
+    micStarted = true;
+    const send = createMicSender(() => chrome.runtime.connect({ name: MIC_PORT_NAME }));
+    void startLiveCapture(undefined, {
+      mediaDevices: navigator.mediaDevices,
+      createContext: () => adaptAudioContext(new AudioContext()),
+      sendAudio: (_stream, pcm, tsMs) => send(pcm, tsMs),
+      setMicState: (state) => void chrome.storage.local.set({ "halo.micState": state }),
+      now: () => Date.now(),
+    }).then((res) => { micStarted = res.mic; }); // denied: a later Start may retry
+    return false;
+  });
+}
+
 export default defineContentScript({
   matches: ["https://meet.google.com/*"],
   main() {
     void bootMeetPage();
+    listenForMicStart();
   },
 });

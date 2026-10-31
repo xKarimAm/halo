@@ -27,7 +27,7 @@ Both speak the OpenAI Chat Completions API (verified 2026-10-29: plain replies, 
 
 ## Errors
 
-- Retry only 429, 5xx and timeouts, with exponential backoff, jitter and a cap. Fix 400, 401 and 404 instead of retrying them.
+- Retry only 429, 5xx and timeouts, with exponential backoff, jitter and a cap. Never retry 400, 401 or 404. Halo's primary engine fails over on 400/404 (a custom host may not serve the model id); the contributor's 400/404 are final.
 - Branch on `status_code` and the body's `type`; `code` is often null.
 - Throttle from the `x-ratelimit-remaining-*` headers. A dropped stream raises `APITimeoutError` or `APIConnectionError`: keep the partial text and treat it as a transport failure.
 

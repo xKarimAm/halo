@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  adaptAudioContext,
   startLiveCapture,
   type AudioContextLike,
   type LiveCaptureDeps,
@@ -38,6 +39,7 @@ function fakeProc(): FakeProc {
 
 interface FakeCtx extends AudioContextLike {
   procs: FakeProc[];
+  closed: boolean;
   sources: { connect: (n: unknown) => void; connected: unknown[] }[];
 }
 
@@ -46,6 +48,8 @@ function fakeContext(): FakeCtx {
     sampleRate: 48000,
     destination: { tag: "destination" },
     procs: [],
+    closed: false,
+    close: async () => { ctx.closed = true; },
     sources: [],
     createMediaStreamSource: (_stream: MediaStream) => {
       const connected: unknown[] = [];
@@ -63,10 +67,22 @@ function fakeContext(): FakeCtx {
   return ctx;
 }
 
-function fakeStream(): MediaStream {
-  return {
-    getAudioTracks: () => [{ getSettings: () => ({ channelCount: 2 }) }],
-  } as unknown as MediaStream;
+interface FakeTrack {
+  stopped: boolean;
+  end(): void; // the source stops on its own (tab closed, mic unplugged)
+}
+
+function fakeStream(made: FakeTrack[] = []): MediaStream {
+  const onEnded: (() => void)[] = [];
+  const track = {
+    stopped: false,
+    getSettings: () => ({ channelCount: 2 }),
+    stop: () => { track.stopped = true; },
+    addEventListener: (type: string, fn: () => void) => { if (type === "ended") onEnded.push(fn); },
+    end: () => { for (const fn of onEnded) fn(); },
+  };
+  made.push(track);
+  return { getAudioTracks: () => [track] } as unknown as MediaStream;
 }
 
 function depsWith(devices: MediaDevicesLike, ctx: FakeCtx) {
@@ -140,6 +156,46 @@ describe("startLiveCapture", () => {
     expect(sent).toHaveLength(0); // nothing processed yet
   });
 
+  it("abort stops every captured track; a tab closing ends the meeting, a lost mic flips the state", async () => {
+    const ctx = fakeContext();
+    const made: FakeTrack[] = [];
+    const devices: MediaDevicesLike = { getUserMedia: async () => fakeStream(made) };
+    const onTabEnded = vi.fn();
+    const { deps, micStates } = depsWith(devices, ctx);
+    const meeting = new AbortController();
+    await startLiveCapture("stream-id", { ...deps, onTabEnded, signal: meeting.signal });
+    const [tab, mic] = made;
+    mic.end(); // unplugged / revoked mid-meeting
+    expect(micStates).toEqual(["granted", "denied"]);
+    tab.end(); // the Meet tab closed
+    expect(onTabEnded).toHaveBeenCalledTimes(1);
+    meeting.abort();
+    expect(made.every((t) => t.stopped)).toBe(true);
+  });
+
+  it("after abort a late processor callback sends nothing and the context closes", async () => {
+    // Real Chromium: stopping the tracks leaves the ScriptProcessor firing
+    // with silent input; the zeros fed the next meeting's tab seq at 2x.
+    const ctx = fakeContext();
+    const { deps, sent } = depsWith({ getUserMedia: async () => fakeStream() }, ctx);
+    const meeting = new AbortController();
+    await startLiveCapture("stream-id", { ...deps, signal: meeting.signal });
+    meeting.abort();
+    for (const proc of ctx.procs) for (let i = 0; i < 4; i += 1) proc.fire([new Float32Array(4096)]);
+    expect(sent).toHaveLength(0);
+    expect(ctx.closed).toBe(true);
+  });
+
+  it("hub side (mic: false): taps only the tab, never asks for the mic", async () => {
+    const ctx = fakeContext();
+    const getUserMedia = vi.fn(async () => fakeStream());
+    const { deps, micStates } = depsWith({ getUserMedia }, ctx);
+    const res = await startLiveCapture("stream-id", deps, { mic: false });
+    expect(res).toEqual({ tab: true, mic: false });
+    expect(getUserMedia).toHaveBeenCalledTimes(1); // tab only
+    expect(micStates).toEqual([]);
+  });
+
   it("tab capture failing (rig): meeting proceeds without audio", async () => {
     const ctx = fakeContext();
     const devices: MediaDevicesLike = {
@@ -152,5 +208,39 @@ describe("startLiveCapture", () => {
     };
     const { deps } = depsWith(devices, ctx);
     await expect(startLiveCapture("stream-id", deps)).resolves.toEqual({ tab: false, mic: true });
+  });
+});
+
+describe("adaptAudioContext", () => {
+  it("connects real nodes, never the wrappers (live: 'Overload resolution failed')", () => {
+    const realNodes = new Set<object>();
+    const node = (extra: object = {}) => {
+      const n: Record<string, unknown> = {
+        ...extra,
+        connect: (target: unknown) => {
+          if (!realNodes.has(target as object)) throw new TypeError("Overload resolution failed.");
+        },
+      };
+      realNodes.add(n);
+      return n;
+    };
+    const destination = node();
+    const ctx = {
+      sampleRate: 48000,
+      destination,
+      createMediaStreamSource: () => node(),
+      createScriptProcessor: () => node({ onaudioprocess: null }),
+      createGain: () => node({ gain: { value: 1 } }),
+    } as unknown as AudioContext;
+    const like = adaptAudioContext(ctx);
+    const source = like.createMediaStreamSource({} as MediaStream);
+    const proc = like.createScriptProcessor(4096, 2, 2);
+    const sink = like.createGain();
+    expect(() => {
+      source.connect(like.destination);
+      source.connect(proc);
+      proc.connect(sink);
+      sink.connect(like.destination);
+    }).not.toThrow();
   });
 });

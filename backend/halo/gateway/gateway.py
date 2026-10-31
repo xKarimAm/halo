@@ -12,7 +12,10 @@ and no hub `meeting.ended`.
 from __future__ import annotations
 
 import asyncio
+import itertools
+import json
 import logging
+import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -34,6 +37,7 @@ _ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 #: pinned manifest `key` in `wxt.config.ts` (published via issue #27, also in
 #: `extension/README`). An explicit `HALO_EXTENSION_ID` overrides this.
 PINNED_EXTENSION_ID = "dbngpodihegmipdmikpbkflahdkfpgif"
+REPLAY_MAX_AGE_S = 2 * 3600  # an open meeting idle longer was orphaned by a crash
 
 PAIR_PAGE_HTML = (
     "<!doctype html><title>Halo pairing</title>"
@@ -70,11 +74,13 @@ class Gateway:
     ) -> None:
         self.bus = bus
         self.pairing = PairingStore(data_dir)
+        self._events_db = Path(data_dir) / "events.sqlite"
         self.audio = AudioRouter(audio_tab, audio_mic, rec)
         self.extension_id = extension_id or PINNED_EXTENSION_ID
         self._timeout_s = timeout_s
         self._status_interval_s = status_interval_s
         self.sessions: set[SocketSession] = set()
+        self.sockets_opened = 0
         self._seen_ids: set[str] = set()
         self._meetings: set[str] = set()
         self._ended: set[str] = set()
@@ -129,6 +135,8 @@ class Gateway:
             "sessions": len(self.sessions),
             "audio_gaps": self.audio.gaps,
             "audio_dropped": self.audio.dropped,
+            "audio_age_s": self.audio.audio_age_s(),
+            "sockets_opened": self.sockets_opened,
         }
 
     # -- sockets ------------------------------------------------------------
@@ -136,9 +144,12 @@ class Gateway:
     def attach(self, session: SocketSession, sender) -> None:  # type: ignore[no-untyped-def]
         session.sender = sender
         self.sessions.add(session)
+        self.sockets_opened += 1
+        log.info("extension socket opened (%d open)", len(self.sessions))
 
     def detach(self, session: SocketSession) -> None:
         self.sessions.discard(session)
+        log.info("extension socket closed (%d open)", len(self.sessions))
         if not self.sessions:
             self._schedule_timeout_checks()
 
@@ -163,6 +174,61 @@ class Gateway:
         meetingid = envelope.get("meetingid")
         if isinstance(meetingid, str):
             self._ended.add(meetingid)
+
+    async def replay_open_meeting(self) -> None:
+        """Issue #57: after a backend restart the hub never resends its ACKed
+        `meeting.started`, so on pair.ok republish the latest open meeting's
+        stored started (+ latest context) under their original ids. Each id
+        goes through `deduped`, so this runs at most once per process and is
+        a no-op when this process already saw the meeting from the hub.
+
+        ponytail: the hub's pair.hello carries no meetingid and events carry
+        no client id, so "open" is global: the newest started with no ended.
+        One user, one hub, one live meeting (the Transcriber holds one).
+        """
+        rows = self._open_meeting_rows()
+        if not rows or rows[0]["id"] in self._seen_ids:
+            return
+        for row in rows:
+            if self.deduped(row["id"]):
+                continue
+            envelope = {
+                "specversion": "1.0", "id": row["id"], "type": row["type"],
+                "source": row["source"], "time": row["time"], "meetingid": row["meetingid"],
+                "datacontenttype": "application/json", "data": json.loads(row["data"]),
+            }
+            ack = await self.bus.publish(envelope)
+            if ack["status"] != "ok":
+                log.warning("replay of stored %s failed: %s", row["type"], ack.get("error"))
+
+    def _open_meeting_rows(self) -> list[sqlite3.Row]:
+        if not self._events_db.exists():
+            return []
+        cols = "id, type, time, meetingid, source, data"
+        db = sqlite3.connect(self._events_db.resolve().as_uri() + "?mode=ro", uri=True)
+        db.row_factory = sqlite3.Row
+        try:
+            started = db.execute(
+                f"SELECT {cols} FROM events WHERE type = 'meeting.started' AND meetingid NOT IN"
+                " (SELECT meetingid FROM events WHERE type = 'meeting.ended'"
+                " AND meetingid IS NOT NULL) ORDER BY seq DESC LIMIT 1").fetchone()
+            if started is None:
+                return []
+            last = db.execute("SELECT time FROM events WHERE meetingid = ? ORDER BY seq DESC LIMIT 1",
+                              (started["meetingid"],)).fetchone()
+            if not _recent(last["time"]):
+                log.warning("open-meeting replay: %s idle over %d h, not replayed",
+                            started["meetingid"], REPLAY_MAX_AGE_S // 3600)
+                return []
+            context = db.execute(
+                f"SELECT {cols} FROM events WHERE type = 'meeting.context' AND meetingid = ?"
+                " ORDER BY seq DESC LIMIT 1", (started["meetingid"],)).fetchone()
+        except sqlite3.Error:
+            log.exception("open-meeting replay: could not read %s", self._events_db)
+            return []
+        finally:
+            db.close()
+        return [started] if context is None else [started, context]
 
     def _schedule_timeout_checks(self) -> None:
         self._generation += 1
@@ -252,6 +318,9 @@ async def pair_redeem(request: Request):  # type: ignore[no-untyped-def]
     return {"token": token}
 
 
+_socket_ids = itertools.count(1)
+
+
 @router.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
     gateway: Gateway = websocket.app.state.gateway
@@ -260,6 +329,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         return
     await websocket.accept()
     session = SocketSession(gateway)
+    producer = next(_socket_ids)  # newest socket owns the audio streams
 
     async def sender(envelope: Envelope) -> None:
         await websocket.send_json(envelope)
@@ -271,10 +341,21 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             if message.get("text") is not None:
                 await websocket.send_json(await session.handle_text(message["text"]))
             elif message.get("bytes") is not None:
-                gateway.audio.handle(message["bytes"])
+                gateway.audio.handle(message["bytes"], producer)
             else:
                 break
     except WebSocketDisconnect:
         pass
     finally:
         gateway.detach(session)
+
+
+def _recent(iso_time: str) -> bool:
+    """True when an event's envelope time is under REPLAY_MAX_AGE_S old."""
+    try:
+        at = datetime.fromisoformat(iso_time)
+    except ValueError:
+        return False
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - at).total_seconds() < REPLAY_MAX_AGE_S

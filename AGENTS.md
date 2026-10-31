@@ -1,6 +1,28 @@
 # Agent instructions
 
-**Start here:** read `docs/DECISIONS.md` (every locked decision; it wins over older docs), then `docs/PLAN.md` (the build plan) and your module's `PLAN.md`. Architecture: `docs/architecture/halo-v2-final.drawio`.
+**Start here:** read `docs/DECISIONS.md` (every locked decision; it wins over older docs), then the map for your area below, then your module's `PLAN.md` and `STATE.md`. Master build plan: `docs/PLAN.md`.
+
+## Repo map
+
+| Area | Map | Lanes (folder = lane, label = `module:<folder>`) |
+|---|---|---|
+| `backend/` | `backend/AGENTS.md` | bus, llm, gateway, transcriber, correlator, insight, classifier, event_store, notes_builder, notes_service, recorder |
+| `extension/` | `extension/AGENTS.md` | hub_capture, setup_panel, meet_adapter, frame_source, face_detector, overlay |
+| `notes-page/` | `notes-page/AGENTS.md` | notes-page |
+| `rig/` | `rig/AGENTS.md` | fakes, replayer, fake_meet |
+| `contracts/` | `contracts/AGENTS.md` | contracts |
+| `packaging/`, root files, `backend/halo/app.py` | `packaging/PLAN.md` | packaging |
+| `docs/` | `docs/DECISIONS.md` | none (Karim + Claude) |
+
+Which window (W1-W3) owns which lane: DECISIONS §6. Rules for calling Meta models: `.agents/skills/meta-model-api/`.
+
+## Finding things
+
+1. A module's `STATE.md` has a **File map** of every file it owns. Read it before searching, then open only the files it names.
+2. Search inside the area or module folder you work in rather than the repo root. In the main checkout, `.tmp/` holds about 50 full worktrees (git-ignored): work and search inside your own.
+3. Read large files by line range: find the symbol first, then read around it.
+4. Searches skip lockfiles and the architecture diagram (root `.ignore`). The diagram is one 70-90 KB line of XML and DECISIONS §3 summarises it; open `docs/architecture/halo-v2-final.drawio` only to edit it.
+5. Locked dependency versions: `npm --prefix extension ls <pkg>` or `uv tree --package <pkg>`. Claude cannot read lockfiles or `.env`, and its Glob skips git-ignored paths (`.claude/settings.json`).
 
 ## Agent skills
 
@@ -24,8 +46,38 @@ Five default labels: needs-triage, needs-info, ready-for-agent, ready-for-human,
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+`GLOSSARY.md` and `docs/adr/` are not written yet; DECISIONS.md holds the terms. Their format: `docs/agents/domain.md`.
+
+### Workflow skills (plugin `mattpocock-skills`)
+
+Load the skill when its moment comes:
+
+- a live failure: `diagnosing-bugs`
+- each fix: `tdd` (the test goes red before the fix)
+- opening a PR: `pr`; before handing it to Karim: `code-review`
+- a decision for Karim: `grilling`
+- `GLOSSARY.md` or `docs/adr/`: `domain-modeling`
+- `AGENTS.md`, `CLAUDE.md`, `.remember/` handovers: `writing-for-agents`
+
+## One of each: replace, never stack
+
+A repeat Start, a reconnect or a new meeting replaces the running instance. Keep these singular, and test it when you touch them:
+
+| One | Enforced by |
+|---|---|
+| socket per offscreen hub; capture per Start | hub (`extension/src/hub_capture`) |
+| producer per audio stream (newest socket wins) | Gateway `AudioRouter` |
+| open meeting: one tab and one mic Voice session, one turn pump | Transcriber |
+| backend per port | the OS: a second `uv run halo` exits with "address in use" |
 
 ## Git inside the Muse sandbox
 
 Muse runs shell commands as a separate sandbox user, so plain `git` stops with "detected dubious ownership". Run every git command as `git -c safe.directory=* <command>`. `gh` works only when Karim started Muse with `GH_TOKEN` and `GH_CONFIG_DIR=E:\halo-gh` set; if `gh` says "Access is denied", stop and tell Karim.
+
+## Live backend: read these first when something breaks
+
+The backend writes three files under its data dir (`data/` in the folder it runs from, or `HALO_DATA_DIR`). Read them; never call port 8765 to find out.
+
+- `backend.log`: the full log (INFO and up, rotating).
+- `alerts.jsonl`: one JSON line per warning or error; the same message writes at most once a minute and counts the repeats (`suppressed_before`).
+- `health.json`: rewritten every 5 s: each module's health, sockets open, seconds since the last tab and mic frame, queue depths, and `problems`.

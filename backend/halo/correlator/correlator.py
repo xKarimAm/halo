@@ -27,6 +27,7 @@ LAG_MS = 500
 LOCK_AFTER = 3
 ECHO_WINDOW_MS = 2000
 HOLD_TIMEOUT_S = 10
+UNLABELED = ("", "?")  # transcriber pieces cut before Voice labels the turn
 
 
 def _utcnow() -> str:
@@ -71,7 +72,10 @@ class Correlator:
 
     async def _on_lifecycle(self, envelope: Envelope) -> None:
         if envelope.get("type") == "meeting.started":
-            self._meetingid = str(envelope.get("data", {}).get("meeting_id", ""))
+            meeting_id = str(envelope.get("data", {}).get("meeting_id", ""))
+            if meeting_id and meeting_id == self._meetingid:
+                return  # a replayed started (issue #57) keeps tiles and locks
+            self._meetingid = meeting_id
         self._reset()
 
     def _reset(self) -> None:
@@ -180,6 +184,20 @@ class Correlator:
                 self._hold(data)
                 return
             chosen, _ = best
+        if speaker in UNLABELED:
+            # Soft-cut pieces go out before Voice labels the turn (the label
+            # lands at turn end). Locking "?" pinned every later piece, of
+            # any speaker, to the first tile (live 2026-10-31): stay on the
+            # lit tile, provisional, and never lock or learn from it.
+            await self._emit_turn(data, chosen, self._tiles[chosen]["name"], "provisional", overlap)
+        else:
+            await self._attribute_labeled(data, speaker, chosen, overlap)
+        if not held_release:
+            self._tab_lines.append((_norm_text(str(data.get("text", ""))), ts_start))
+            self._tab_lines = self._tab_lines[-20:]
+
+    async def _attribute_labeled(self, data: dict[str, Any], speaker: str, chosen: str,
+                                 overlap: bool) -> None:
         history = self._history.setdefault(speaker, [])
         history.append((str(data.get("turn_id", "")), chosen))
         recent = history[-self._lock_after:]
@@ -188,9 +206,6 @@ class Correlator:
             await self._emit_turn(data, chosen, self._tiles[chosen]["name"], "locked", overlap)
         else:
             await self._emit_turn(data, chosen, self._tiles[chosen]["name"], "provisional", overlap)
-        if not held_release:
-            self._tab_lines.append((_norm_text(str(data.get("text", ""))), ts_start))
-            self._tab_lines = self._tab_lines[-20:]
 
     async def _lock(self, speaker: str, tile_id: str) -> None:
         previous = [(tid, t) for tid, t in self._history.get(speaker, []) if t != tile_id]

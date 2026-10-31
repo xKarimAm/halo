@@ -40,5 +40,12 @@ final never matches as the next turn's final — fixes the #60 joined flake (tru
 cause, not two hubs; dup source filed as #62). New `tests/test_checker.py`.
 Local joined e2e still needs CI (npm EPERM installing Chromium on this box).
 
+## Joined run on free ports (branch `rig/strict-fakes`)
+`joined.py` never binds or calls 127.0.0.1:8765 (the live backend): backend,
+fakes and Fake Meet take free ports, and the spec loads a copy of the built
+extension with "127.0.0.1:8765" rewritten to the rig backend port (the copy
+is checked to contain no 8765). The backend is the same `halo.app:app`
+served by uvicorn on that port (`main()` pins 8765).
+
 ## Open questions
 - Real-Gateway L2 (Done case 1 full form) waits on the Gateway module (W1); this lane's golden test runs the identical Mode A + checker against a stub Gateway that validates/dedupes/stores like the ACK kit describes. No contract change needed.
