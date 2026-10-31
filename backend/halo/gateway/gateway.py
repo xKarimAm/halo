@@ -79,6 +79,7 @@ class Gateway:
         self._timeout_s = timeout_s
         self._status_interval_s = status_interval_s
         self.sessions: set[SocketSession] = set()
+        self.sockets_opened = 0
         self._seen_ids: set[str] = set()
         self._meetings: set[str] = set()
         self._ended: set[str] = set()
@@ -133,6 +134,8 @@ class Gateway:
             "sessions": len(self.sessions),
             "audio_gaps": self.audio.gaps,
             "audio_dropped": self.audio.dropped,
+            "audio_age_s": self.audio.audio_age_s(),
+            "sockets_opened": self.sockets_opened,
         }
 
     # -- sockets ------------------------------------------------------------
@@ -140,9 +143,12 @@ class Gateway:
     def attach(self, session: SocketSession, sender) -> None:  # type: ignore[no-untyped-def]
         session.sender = sender
         self.sessions.add(session)
+        self.sockets_opened += 1
+        log.info("extension socket opened (%d open)", len(self.sessions))
 
     def detach(self, session: SocketSession) -> None:
         self.sessions.discard(session)
+        log.info("extension socket closed (%d open)", len(self.sessions))
         if not self.sessions:
             self._schedule_timeout_checks()
 

@@ -22,6 +22,7 @@ from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
 from halo.insight import Insight
 from halo.llm import LLMClient
+from halo.monitor import health_loop, log_config
 from halo.notes_builder import NotesBuilder
 from halo.notes_service import NotesService
 from halo.notes_service import router as notes_router
@@ -76,7 +77,9 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.insight.start()
     app.state.classifier.start()
     app.state.recorder.start()
+    health = asyncio.create_task(health_loop(app, _data_dir()))
     yield
+    health.cancel()
     app.state.recorder.stop()
     app.state.classifier.stop()
     app.state.insight.stop()
@@ -158,7 +161,9 @@ def main() -> None:
             print(f"warning: missing keys in .env: {', '.join(missing)} (backend still boots; live engines need them)")
     print(f"Halo backend on http://{HOST}:{PORT} - pairing code: {app.state.gateway.pairing.current_code}",
           flush=True)
-    uvicorn.run(app, host=HOST, port=PORT)
+    _data_dir().mkdir(parents=True, exist_ok=True)
+    print(f"Logs for agents: {_data_dir() / 'backend.log'}, alerts.jsonl, health.json", flush=True)
+    uvicorn.run(app, host=HOST, port=PORT, log_config=log_config(_data_dir()))
 
 
 if __name__ == "__main__":
