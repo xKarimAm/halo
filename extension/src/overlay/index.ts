@@ -55,9 +55,14 @@ export function boot(context: { port: { onMessage: { addListener(fn: (msg: unkno
   const overlay = new Overlay(new SystemClock());
   const doc = document as unknown as DocLike;
   const style = document.createElement("style");
-  style.textContent = OVERLAY_CSS;
+  style.textContent = `${OVERLAY_CSS}
+.halo-chip{pointer-events:auto}`;
   document.head.appendChild(style);
   const root = document.createElement("div") as unknown as El;
+  // Live 2026-10-31: a static root sat under Meet's own layers (nothing
+  // visible). Fixed, full-viewport, topmost; clicks pass through except chips.
+  (root as unknown as HTMLElement).style.cssText =
+    "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   document.body.appendChild(root as unknown as Node);
   const rerender = (): void => {
     overlay.render(doc, root as El & { children?: El[] });
