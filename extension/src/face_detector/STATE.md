@@ -22,7 +22,7 @@ Implement extension/src/face_detector per its PLAN.md; done ONLY when `npm --pre
 - `extension/src/entrypoints/face-detector/index.html` + `main.ts`: hidden iframe page.
 
 ## Current step
-Review fix pushed: the BlazeFace model (`blaze_face_short_range.tflite`, 229,746 bytes) is committed at the assets path the engine loads from, with `model.test.ts` loading it as a valid TFLite (TFL3) model — 7 Vitest cases green, `tsc --noEmit` clean. Full MediaPipe WASM runtime creation needs a browser document, so it stays an L3 concern; Frame mode remains the fallback until then. Then rebased on main.
+Face-mode wiring (verification gate 5): `bridge.ts` (FaceBridge: 500 ms hold re-emits the last face, >1 s absence emits one explicit face:null, per-tile, silent over the 6-tile cap), `host.ts` (hidden-iframe host: transfer posts, faces.update reply filter, dispose), `stub.ts` (TEST-ONLY StubFaceEngine with the Fake Meet truth boxes, ?halo_face_stub=1 only), `index.ts` boot extended (engine/hold/fallback options, backward compatible), iframe `main.ts` stub hook. 19 Vitest cases green (12 new), `tsc --noEmit` clean.
 
 ## Open questions
 - L3 IoU ≥ 0.7 on CC0 faces painted by Fake Meet runs once frame_source + fake_meet merge with this module; the IoU helper and stub-engine cases here are the same math that spec asserts.
