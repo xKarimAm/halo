@@ -148,3 +148,32 @@ def test_modes_wired_per_stream():
 
     asyncio.run(go())
     assert seen == {"tab": DIARIZATION, "mic": ENDPOINTING}
+
+
+def test_context_after_start_reaches_voice_as_keywords():
+    """The hub sends meeting.started, then meeting.context. Sessions opened on
+    meeting.started with the previous meeting's terms (none at first), so
+    names and product terms never biased Voice (Sudanese clip: Baseten ->
+    "Bestin"). Voice fixes keywords at the handshake: the session reopens."""
+    factory, transports = make_factory({"tab": [], "mic": []})
+
+    async def go() -> None:
+        bus = Bus()
+        qtab: asyncio.Queue = asyncio.Queue()
+        Transcriber(bus, qtab, asyncio.Queue(), factory, key="fake-key")
+        await bus.publish(golden("meeting.started"))
+        await bus.publish(golden("meeting.context"))
+        for i in range(3):
+            qtab.put_nowait((i, ANCHOR + i * 100, FRAME))
+        await asyncio.sleep(0.3)
+        current = asyncio.current_task()
+        for task in asyncio.all_tasks():
+            if task is not current:
+                task.cancel()
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if t is not current],
+                             return_exceptions=True)
+
+    asyncio.run(go())
+    context = golden("meeting.context")["data"]
+    want = [context["subject"], *context["agenda"], *(r["name"] for r in context["roles"])]
+    assert transports["tab"].handshakes[-1]["keywords"] == want
