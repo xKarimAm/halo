@@ -29,6 +29,7 @@ import uuid
 from pathlib import Path
 
 from halo.gateway.gateway import PINNED_EXTENSION_ID
+
 from rig.replayer.checker import check
 from rig.replayer.fixture import load_fixture
 from rig.replayer.mode_a import ModeA
