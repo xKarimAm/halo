@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from halo.bus import Bus
@@ -16,15 +17,16 @@ OPEN = "22222222-2222-4222-8222-222222222222"
 DONE = "33333333-3333-4333-8333-333333333333"
 
 
-def seed(data_dir: Path, rows: list[tuple[str, str, str, dict]]) -> None:
+def seed(data_dir: Path, rows: list[tuple[str, str, str, dict]], at: datetime | None = None) -> None:
+    time = (at or datetime.now(UTC)).isoformat()
     # The Event Store's events columns, without importing that lane.
     db = sqlite3.connect(data_dir / "events.sqlite")
     db.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE,"
                " type TEXT, time TEXT, meetingid TEXT, source TEXT, data TEXT)")
     for id_, type_, mid, data in rows:
         db.execute("INSERT INTO events (id, type, time, meetingid, source, data)"
-                   " VALUES (?, ?, '2026-10-31T09:00:00Z', ?, 'halo/test', ?)",
-                   (id_, type_, mid, json.dumps(data)))
+                   " VALUES (?, ?, ?, ?, 'halo/test', ?)",
+                   (id_, type_, time, mid, json.dumps(data)))
     db.commit()
     db.close()
 
@@ -80,6 +82,22 @@ def test_pair_ok_skips_meeting_already_seen_from_hub(tmp_path):
 
 
 def test_pair_ok_without_store_replays_nothing(tmp_path):
+    async def run() -> list[dict]:
+        gateway = Gateway(Bus(), data_dir=tmp_path, extension_id="test-id")
+        seen: list[dict] = []
+        gateway.bus.subscribe("meeting.started", seen.append)
+        await paired(gateway)
+        return seen
+
+    assert asyncio.run(run()) == []
+
+
+def test_pair_ok_skips_a_meeting_idle_over_2_h(tmp_path):
+    """A crash-orphaned meeting (no meeting.ended) must not be replayed forever."""
+    seed(tmp_path, [
+        ("00000013-0000-4000-8000-000000000013", "meeting.started", OPEN, started(OPEN)),
+    ], at=datetime.now(UTC) - timedelta(hours=3))
+
     async def run() -> list[dict]:
         gateway = Gateway(Bus(), data_dir=tmp_path, extension_id="test-id")
         seen: list[dict] = []
