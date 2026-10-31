@@ -20,7 +20,7 @@ Implement notes_service per its PLAN.md; done ONLY when `uv run pytest backend/h
 2. [x] `tests/test_notes_service.py`: all 8 PLAN cases against a seeded DB
 3. [x] `app.py` wiring (construct + mount router)
 4. [x] Answer #15 with implemented shapes
-5. [ ] PR open for Karim to merge
+5. [x] PR #41 open for Karim to merge
 
 ## File map
 - `backend/halo/notes_service/notes_service.py` — `NotesService` + `router`
