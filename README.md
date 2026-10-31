@@ -6,7 +6,7 @@ Built for the Meta AI Developer Hackathon (Oct 27 – Nov 4, 2026) with Muse Voi
 
 Everything runs on your own PC: a Chrome extension plus a local Python backend. Nothing is hosted; only the model calls leave the machine.
 
-> Status: under construction. Install steps below are the target; they become real as the modules land.
+> Status: the backend boots from the steps below (verified by `packaging/release_check.py`); the extension build lands with hub_capture.
 
 ## Requirements
 
