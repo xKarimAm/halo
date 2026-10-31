@@ -29,22 +29,34 @@ function stubVideo(
   video.style.objectFit = fit;
 }
 
-/** Fixture mirroring rig/fake_meet/seed-fixture.html, plus marker attrs. */
+/**
+ * Fixture mirroring the day-0 probe DOM (issue #47): names in
+ * `span.notranslate`, self tile carrying the `visual_effects` icon,
+ * speaking signalled by class `sxlEM` on the `[jsname="QgSmzd"]`
+ * descendant, real Meet video `object-fit: contain`.
+ */
+const SPEAK_JSNAME = "QgSmzd";
+const SPEAK_CLASS = "sxlEM";
+
 function buildRoom(): HTMLElement {
   const room = document.createElement("div");
   room.id = "room";
   room.innerHTML = [
-    '<div class="t" data-participant-id="id-1" data-tile-media-id="m1">',
+    '<div class="t" data-participant-id="id-1" data-requested-participant-id="req-1" data-tile-media-id="m1">',
     "<video></video>",
-    "<span>Karim Amer</span>",
+    '<span class="notranslate">Karim Amer</span>',
     '<button aria-label="Pin Karim Amer"><span>keep_outline</span></button>',
+    `<div jsname="${SPEAK_JSNAME}" class="level"></div>`,
     "</div>",
-    '<div class="t" data-participant-id="id-2" data-tile-media-id="m2" data-self="true">',
+    '<div class="t" data-participant-id="id-2" data-requested-participant-id="req-2" data-tile-media-id="m2">',
     "<video></video>",
-    "<span>ليلى حسن</span>",
+    '<span class="notranslate">ليلى حسن</span>',
+    '<button aria-label="Backgrounds and effects"><i>visual_effects</i></button>',
+    `<div jsname="${SPEAK_JSNAME}"></div>`,
     "</div>",
     '<div class="t" data-participant-id="id-3">',
-    "<span>Sam Lee</span>",
+    '<span class="notranslate">Sam Lee</span>',
+    `<div jsname="${SPEAK_JSNAME}"></div>`,
     "</div>",
     '<div role="listitem" data-participant-id="id-9"><span>Panel Row</span></div>',
     '<div data-participant-id="id-1" data-tile-media-id="fx"></div>',
@@ -54,9 +66,17 @@ function buildRoom(): HTMLElement {
   stubRect(tiles[0] as Element, { x: 8, y: 8, w: 400, h: 225 });
   stubRect(tiles[1] as Element, { x: 416, y: 8, w: 400, h: 225 });
   stubRect(tiles[2] as Element, { x: 8, y: 241, w: 400, h: 225 });
-  stubVideo(room.querySelectorAll("video")[0] as HTMLVideoElement, { w: 1280, h: 720 }, "cover");
-  stubVideo(room.querySelectorAll("video")[1] as HTMLVideoElement, { w: 640, h: 360 }, "cover");
+  stubVideo(room.querySelectorAll("video")[0] as HTMLVideoElement, { w: 1280, h: 720 }, "contain");
+  stubVideo(room.querySelectorAll("video")[1] as HTMLVideoElement, { w: 640, h: 360 }, "contain");
   return room;
+}
+
+/** Toggle the real speaking signal on a tile. */
+function setSpeaking(tileId: string, on: boolean): void {
+  const node = document.querySelector(
+    `[data-participant-id="${tileId}"] [jsname="${SPEAK_JSNAME}"]`,
+  ) as HTMLElement;
+  node.classList.toggle(SPEAK_CLASS, on);
 }
 
 function flush(): Promise<void> {
@@ -109,7 +129,7 @@ describe("tiles()", () => {
       rect: [8, 8, 400, 225],
       video_w: 1280,
       video_h: 720,
-      fit: "cover",
+      fit: "contain",
       captions_rect: null,
     });
   });
@@ -121,6 +141,16 @@ describe("tiles()", () => {
     adapter.dispose();
     const canvasOnly = tiles.find((tile) => tile.tile_id === "id-3");
     expect(canvasOnly).toMatchObject({ video_w: 0, video_h: 0, fit: "cover" });
+  });
+
+  it("falls back to the first span outside buttons when notranslate is absent", () => {
+    buildRoom();
+    const tile = document.querySelector('[data-participant-id="id-3"]') as HTMLElement;
+    (tile.querySelector("span") as HTMLElement).removeAttribute("class");
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    const tiles = adapter.tiles();
+    adapter.dispose();
+    expect(tiles.find((t) => t.tile_id === "id-3")?.name).toBe("Sam Lee");
   });
 
   it("reports a screen-share tile as a tile", () => {
@@ -141,7 +171,9 @@ describe("captions_rect", () => {
   it("is set when the captions band is present and null when absent", () => {
     const room = buildRoom();
     const band = document.createElement("div");
-    band.setAttribute("data-captions-band", "true");
+    band.setAttribute("role", "region");
+    band.setAttribute("aria-label", "Captions");
+    band.textContent = "Karim: hello";
     document.body.appendChild(band);
     stubRect(band, { x: 8, y: 400, w: 800, h: 66 });
     const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
@@ -150,6 +182,19 @@ describe("captions_rect", () => {
     expect(adapter.tiles()[0]?.captions_rect).toBeNull();
     adapter.dispose();
     room.remove();
+  });
+
+  it("falls back to a text-bearing region when the label is localized", () => {
+    buildRoom();
+    const band = document.createElement("div");
+    band.setAttribute("role", "region");
+    band.setAttribute("aria-label", "تسميات توضيحية");
+    band.textContent = "Karim: مرحبا";
+    document.body.appendChild(band);
+    stubRect(band, { x: 8, y: 400, w: 800, h: 66 });
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    expect(adapter.tiles()[0]?.captions_rect).toEqual([8, 400, 800, 66]);
+    adapter.dispose();
   });
 });
 
@@ -199,12 +244,13 @@ describe("speaking", () => {
     });
     const events: { tile_id: string; speaking: boolean; ts_ms: number }[] = [];
     const off = adapter.onSpeaking((event) => events.push({ ...event }));
-    const tile = document.querySelector('[data-participant-id="id-1"]') as HTMLElement;
-    tile.setAttribute("data-speaking", "true");
+    setSpeaking("id-1", true);
     await flush();
     now += 40;
-    tile.setAttribute("data-speaking", "false");
+    setSpeaking("id-1", false);
     await flush();
+    expect(events).toEqual([{ tile_id: "id-1", speaking: true, ts_ms: 1760000001000 }]);
+    await new Promise((resolve) => setTimeout(resolve, 350)); // ~300 ms hold elapses
     off();
     adapter.dispose();
     expect(events).toEqual([
@@ -213,15 +259,47 @@ describe("speaking", () => {
     ]);
   });
 
+  it("holds speaking:true for ~300 ms so brief drops do not flicker", async () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    const events: { tile_id: string; speaking: boolean }[] = [];
+    const off = adapter.onSpeaking((event) => events.push({ tile_id: event.tile_id, speaking: event.speaking }));
+    setSpeaking("id-2", true);
+    await flush();
+    setSpeaking("id-2", false);
+    await flush();
+    setSpeaking("id-2", true); // resumes inside the hold: no false may fire
+    await flush();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    off();
+    adapter.dispose();
+    expect(events).toEqual([{ tile_id: "id-2", speaking: true }]);
+  });
+
+  it("ignores level-class churn on the same node", async () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    const events: unknown[] = [];
+    const off = adapter.onSpeaking((event) => events.push(event));
+    const node = document.querySelector(
+      `[data-participant-id="id-1"] [jsname="${SPEAK_JSNAME}"]`,
+    ) as HTMLElement;
+    node.classList.add("HX2H7");
+    await flush();
+    node.classList.remove("HX2H7");
+    node.classList.add("gjg47c");
+    await flush();
+    off();
+    adapter.dispose();
+    expect(events).toEqual([]);
+  });
+
   it("matches the golden speaker.active field shape", async () => {
     buildRoom();
     const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
     const events: { tile_id: string; speaking: boolean; ts_ms: number }[] = [];
     const off = adapter.onSpeaking((event) => events.push({ ...event }));
-    (document.querySelector('[data-participant-id="id-1"]') as HTMLElement).setAttribute(
-      "data-speaking",
-      "true",
-    );
+    setSpeaking("id-1", true);
     await flush();
     off();
     adapter.dispose();
