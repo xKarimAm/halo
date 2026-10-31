@@ -48,7 +48,7 @@ const hubDeps = {
     get: (_k: string) => undefined, // ponytail: the hub only writes; read via the worker if that changes
   },
   token: "", // the worker hands over "halo.token" with the Start
-  extVersion: chrome.runtime.getManifest().version,
+  extVersion: "", // handed over by the worker with the Start (no getManifest here)
 };
 const hub = new Hub(hubDeps);
 
@@ -62,13 +62,14 @@ chrome.runtime.onConnect.addListener((port: any) => {
   port.onMessage.addListener((msg: unknown) => hub.onPortMessage(msg as never));
   port.onDisconnect.addListener(() => { ports.delete(port); hub.onPagePortDisconnected(); });
 });
-type StartHandoff = { start: Record<string, unknown>; token: string } | null | undefined;
+type StartHandoff = { start: Record<string, unknown>; token: string; extVersion?: string } | null | undefined;
 
 function startFrom(handoff: StartHandoff): void {
   if (!handoff?.start || handoff.start.type !== HUB_START_MESSAGE) return;
   const msg = handoff.start;
   // Pair with the token the popup stored at pairing time (halo.token).
   hubDeps.token = handoff.token;
+  hubDeps.extVersion = handoff.extVersion ?? "";
   hub.connect();
   handleHubRuntimeMessage(hub, msg);
   // Live audio: tab stream 0 (+ local replay) and mic stream 1. Never
