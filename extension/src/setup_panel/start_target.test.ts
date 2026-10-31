@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMeetTab } from "./start_target";
+import { parseMeetTab, stillRunning } from "./start_target";
 
 describe("parseMeetTab", () => {
   it("accepts a Meet call tab and returns the meeting code", () => {
@@ -35,5 +35,19 @@ describe("parseMeetTab", () => {
       expect(res.ok).toBe(false);
       if (!res.ok) expect(res.message).toMatch(/Open a Google Meet call|Meet homepage/);
     }
+  });
+});
+
+describe("stillRunning", () => {
+  const rec = { tabId: 7, meetingCode: "abc-defg-hij" };
+  it("is running while the hub is open and the tab is on the same call", () => {
+    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij?authuser=0", true)).toBe(true);
+  });
+  it("frees Start when the call changed, the tab left Meet, or the hub is gone", () => {
+    expect(stillRunning(rec, "https://meet.google.com/xyz-abcd-efg", true)).toBe(false);
+    expect(stillRunning(rec, "https://meet.google.com/", true)).toBe(false);
+    expect(stillRunning(rec, undefined, true)).toBe(false);
+    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij", false)).toBe(false);
+    expect(stillRunning(undefined, "https://meet.google.com/abc-defg-hij", true)).toBe(false);
   });
 });

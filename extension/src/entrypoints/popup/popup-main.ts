@@ -9,8 +9,14 @@
  */
 import "./style.css";
 import { initPopup } from "../../setup_panel/popup";
-import { chromeSetupStorage } from "../../setup_panel/storage";
-import { parseMeetTab, type StartResult } from "../../setup_panel/start_target";
+import { chromeSetupStorage, MIC_STATE_KEY, type MicState } from "../../setup_panel/storage";
+import {
+  parseMeetTab,
+  RUNNING_KEY,
+  stillRunning,
+  type RunningMeeting,
+  type StartResult,
+} from "../../setup_panel/start_target";
 import { MIC_START_MESSAGE } from "../../hub_capture/mic_relay";
 
 declare const chrome: any;
@@ -27,8 +33,24 @@ function getMediaStreamId(targetTabId: number): Promise<string> {
   });
 }
 
-async function handleStart(): Promise<StartResult> {
+/** The Start recorded at RUNNING_KEY is still live (see stillRunning). */
+async function meetingRunning(): Promise<boolean> {
+  const items = await chrome.storage.local.get(RUNNING_KEY);
+  const rec = items?.[RUNNING_KEY] as RunningMeeting | undefined;
+  if (!rec) return false;
+  const tab = await chrome.tabs.get(rec.tabId).catch(() => undefined);
+  // runtime.getContexts (Chrome 116+): the hub's offscreen document is open.
+  const hubs = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] }).catch(() => []);
+  return stillRunning(rec, tab?.url, hubs.length > 0);
+}
+
+async function activeTab(): Promise<{ id?: number; url?: string } | undefined> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+async function handleStart(): Promise<StartResult> {
+  const tab = await activeTab();
   const target = parseMeetTab(tab?.url);
   if (!target.ok || tab?.id === undefined) {
     return {
@@ -38,6 +60,9 @@ async function handleStart(): Promise<StartResult> {
         : target.message,
     };
   }
+  // Second guard behind the popup's Running state: a live Start is never
+  // repeated (each repeat used to stack another capture).
+  if (await meetingRunning()) return { ok: true };
   let streamId: string | undefined;
   let warning: string | undefined;
   try {
@@ -48,6 +73,8 @@ async function handleStart(): Promise<StartResult> {
     // cover the joined gate, and the manual check covers real capture.
     warning = `Audio capture failed (${err instanceof Error ? err.message : err}). Started without audio.`;
   }
+  const running: RunningMeeting = { tabId: tab.id, meetingCode: target.meetingCode };
+  await chrome.storage.local.set({ [RUNNING_KEY]: running });
   chrome.runtime.sendMessage({
     type: "halo/hub.start",
     platform: "meet",
@@ -81,4 +108,14 @@ void initPopup(root, {
     return Array.isArray(names) ? names.filter((n) => typeof n === "string") : [];
   },
   onStart: () => handleStart(),
+  meetingRunning,
+  onMeetCall: async () => parseMeetTab((await activeTab())?.url).ok,
+  watchMicState: (onChange) => {
+    chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
+      const next = changes[MIC_STATE_KEY]?.newValue;
+      if (next === "granted" || next === "denied") onChange(next as MicState);
+    });
+  },
+  // ponytail: no onStop until the worker handles "halo/hub.stop" (the
+  // "end the meeting on Stop or leave" PR); without it Stop stays hidden.
 });
