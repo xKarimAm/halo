@@ -16,6 +16,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from halo.bus import Bus
+from halo.classifier import Classifier
 from halo.correlator import Correlator
 from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
@@ -69,7 +70,9 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # Background loops need a running event loop, so they start here.
     app.state.gateway.start()
     app.state.insight.start()
+    app.state.classifier.start()
     yield
+    app.state.classifier.stop()
     app.state.insight.stop()
     app.state.gateway.stop()
 
@@ -115,6 +118,9 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Insight: live points from attributed turns via the shared model client.
     app.state.insight = Insight(app.state.bus, app.state.llm)
     app.state.bus.register_health("insight", app.state.insight.health)
+    # Classifier: post-hoc kind/urgency tags via the shared model client.
+    app.state.classifier = Classifier(app.state.bus, app.state.llm)
+    app.state.bus.register_health("tagger", app.state.classifier.health)
 
     @app.get("/healthz")
     async def healthz() -> dict:
