@@ -12,6 +12,8 @@ window.__halo_fixture = {
     { tile_id: "spaces/x/devices/3", media_id: null, name: "Sam Lee", is_self: false,
       face: null },
   ],
+  // Captions band seed rows (speaker rows the adapter floors on).
+  captions: ["Karim Amer: hello, can you hear me?"],
   // Speaking timeline: [after_ms, tile_id, speaking]
   speaking: [
     [300, "spaces/x/devices/1", true],

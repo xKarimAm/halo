@@ -1,8 +1,11 @@
-// Fake Meet page: builds Meet-like tiles from window.__halo_fixture.
-// DOM is built with createElement/textContent only (the server sends
-// Trusted Types headers, so innerHTML building would throw, as on Meet).
+// Fake Meet page: builds probe-faithful tiles (issue #47) from
+// window.__halo_fixture. DOM is built with createElement/textContent only
+// (the server sends Trusted Types headers, so innerHTML building would
+// throw, as on Meet).
 (function () {
-  const mode = new URLSearchParams(location.search).get("mode") || "video";
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode") || "video";
+  const captionsOn = params.get("captions") !== "0";
   const fixture = window.__halo_fixture;
   const grid = document.getElementById("g");
   const truth = { mode, tiles: [], faces: [] };
@@ -45,6 +48,15 @@
     name.textContent = p.name;
     tile.appendChild(name);
     if (p.is_self) {
+      // Probe: only your own tile has the Backgrounds-and-effects button,
+      // whose icon ligature is not localized.
+      const fx = document.createElement("button");
+      fx.setAttribute("aria-label", "Backgrounds and effects");
+      const glyph = document.createElement("i");
+      glyph.textContent = "visual_effects";
+      fx.appendChild(glyph);
+      tile.appendChild(fx);
+    } else {
       const pin = document.createElement("button");
       pin.setAttribute("aria-label", `Pin ${p.name} to your main screen`);
       const glyph = document.createElement("span");
@@ -53,6 +65,10 @@
       pin.appendChild(glyph);
       tile.appendChild(pin);
     }
+    // Probe: speaking is class sxlEM on the [jsname="QgSmzd"] descendant.
+    const signal = document.createElement("div");
+    signal.setAttribute("jsname", "QgSmzd");
+    tile.appendChild(signal);
     grid.appendChild(tile);
     truth.tiles.push({ tile_id: p.tile_id, name: p.name, is_self: !!p.is_self });
     if (p.face) truth.faces.push({ tile_id: p.tile_id, box: p.face });
@@ -63,7 +79,10 @@
 
   window.__halo_set_speaking = (tileId, speaking) => {
     const tile = tiles.get(tileId);
-    if (tile) tile.classList.toggle("speaking", !!speaking);
+    if (!tile) return;
+    const signal = tile.querySelector('[jsname="QgSmzd"]');
+    if (signal) signal.classList.toggle("sxlEM", !!speaking);
+    tile.classList.toggle("speaking", !!speaking); // visual outline only
   };
   window.__halo_join = (p) => { tiles.set(p.tile_id, addTile(p)); };
   window.__halo_leave = (tileId) => {
@@ -78,4 +97,25 @@
   for (const [after, tileId, speaking] of fixture.speaking) {
     setTimeout(() => window.__halo_set_speaking(tileId, speaking), after);
   }
+
+  // Probe: full-width captions band at the bottom; the aria-label is the
+  // adapter's anchor. Scriptable via __halo_captions for L3 asserts.
+  let band = null;
+  if (captionsOn) {
+    band = document.createElement("div");
+    band.id = "captions";
+    band.setAttribute("role", "region");
+    band.setAttribute("aria-label", "Captions");
+    document.body.appendChild(band);
+  }
+  window.__halo_captions = (text) => {
+    if (!band) return;
+    band.textContent = "";
+    for (const line of String(text).split("\n")) {
+      const row = document.createElement("div");
+      row.textContent = line;
+      band.appendChild(row);
+    }
+  };
+  window.__halo_captions((fixture.captions || []).join("\n"));
 })();
