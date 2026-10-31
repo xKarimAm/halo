@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(!.env.example)",
+      "Read(./uv.lock)",
+      "Read(./**/package-lock.json)"
+    ]
+  }
+}

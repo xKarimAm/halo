@@ -26,3 +26,7 @@ recordings/
 # recorded test calls stay local
 rig/fixtures/*/
 !rig/fixtures/synthetic/
+
+# playwright browser cache and test output
+.pw-browsers/
+test-results/
