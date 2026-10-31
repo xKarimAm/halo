@@ -41,7 +41,10 @@ log = logging.getLogger("halo.transcriber")
 DIARIZATION = "DIARIZATION"
 ENDPOINTING = "ENDPOINTING"
 
-LANGUAGE_BIAS = ["arabic", "english"]
+# Verified live 2026-10-31 (day-0 asr probe + halo transport): the endpoint
+# rejects a handshake without model/audioEncoding (1008 Bad Request).
+VOICE_MODEL = "muse-voice-transcribe-1.0"
+LANGUAGE_BIAS = ["Arabic", "English"]
 
 SOFT_CUT_TAIL_WORDS = 3
 
@@ -51,6 +54,10 @@ def build_handshake(mode: str, key: str, keywords: list[str] | None = None) -> d
     return {
         "authorization": {"accessToken": f"Bearer {key}"},
         "mode": mode,
+        "model": VOICE_MODEL,
+        "audioEncoding": "PCM_16KHZ",
+        "partialMode": "CUMULATIVE",
+        "emitAudioProgress": False,
         "languageBias": list(LANGUAGE_BIAS),
         "keywords": list(keywords or []),
     }

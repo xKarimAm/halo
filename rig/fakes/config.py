@@ -10,7 +10,7 @@ import os
 from collections.abc import Mapping
 
 REAL = {
-    "asr_url": "wss://api.meta.ai/v1/voice/realtime",
+    "asr_url": "wss://api.meta.ai/v1/asr/realtime",  # /v1/voice/realtime answers 401 (live check)
     "llm_url": "https://inference.baseten.co/v1",
     "llm_model": "spark-open",
 }
