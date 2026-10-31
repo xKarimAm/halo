@@ -126,14 +126,14 @@ def setup(replies):
 def test_turn_produces_point_in_viewer_language():
     async def run():
         _clock, bus, llm, _insight, points, health = setup(
-            [point_reply("Launch moves to Nov 12", quote="Launch moves.")])
+            [point_reply("Launch moves to Nov 12", quote="Launch moves")])
         await bus.publish(context_envelope("ar"))
         await bus.publish(turn_envelope("00000030-0000-4000-8000-000000000030",
                                         "Launch moves to Nov 12"))
         assert len(points) == 1 and len(llm.calls) == 1
         point = points[0]["data"]
         assert validate_envelope(points[0]) == []
-        assert point["lang"] == "ar" and point["quote"] == "Launch moves."
+        assert point["lang"] == "ar" and point["quote"] == "Launch moves"
         assert point["turn_ids"] == ["00000030-0000-4000-8000-000000000030"]
         assert point["engine"] == "spark-open" and point["rank"] == 1
         assert llm.calls[0]["prompt_cache_key"] == PROMPT_CACHE_KEY
@@ -282,5 +282,50 @@ def test_turn_handler_never_awaits_the_model():
         Insight(bus, llm, clock=clock)
         await bus.publish(turn_envelope("00000030-0000-4000-8000-000000000030", "Launch moves"))
         assert llm.calls == []
+
+    asyncio.run(run())
+
+
+def published_quote(turn_text, model_quote):
+    async def run():
+        _clock, bus, _llm, _insight, points, _health = setup(
+            [point_reply("Need more engineers", quote=model_quote)])
+        await bus.publish(turn_envelope("00000031-0000-4000-8000-000000000031", turn_text))
+        assert len(points) == 1
+        return points[0]["data"]["quote"]
+
+    return asyncio.run(run())
+
+
+def test_reordered_quote_snaps_to_the_verbatim_span():
+    # Live 2026-11-01, Egyptian clip: Insight moved "testing" to the end.
+    quote = published_quote("testing I think we need two more engineers on",
+                            "I think we need two more engineers on testing")
+    assert quote == "I think we need two more engineers on"
+
+
+def test_mixed_arabic_english_quote_keeps_the_source_punctuation():
+    quote = published_quote("خلينا نخلص الـ testing، I think we need two more engineers on this.",
+                            "نخلص الـ testing I think we need two more engineers")
+    assert quote == "نخلص الـ testing، I think we need two more engineers"
+
+
+def test_quote_with_no_shared_words_falls_back_to_the_turn_text():
+    quote = published_quote("محتاجين اتنين مهندسين كمان", "We need two more engineers.")
+    assert quote == "محتاجين اتنين مهندسين كمان"
+
+
+def test_quote_may_span_the_points_coalesced_turns():
+    async def run():
+        clock, bus, _llm, _insight, points, _health = setup(
+            [point_reply("first"), point_reply("x", quote="engineers on this. Starting Monday")])
+        await bus.publish(turn_envelope("00000032-0000-4000-8000-000000000032", "first"))
+        await bus.publish(turn_envelope("00000033-0000-4000-8000-000000000033",
+                                        "two more engineers on this."))
+        await bus.publish(turn_envelope("00000034-0000-4000-8000-000000000034",
+                                        "Starting Monday please"))
+        clock.advance(3.0)
+        await _insight.flush()
+        assert points[-1]["data"]["quote"] == "engineers on this. Starting Monday"
 
     asyncio.run(run())
