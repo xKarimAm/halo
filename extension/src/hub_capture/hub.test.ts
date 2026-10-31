@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   HUB_START_MESSAGE,
   Hub,
+  MEETING_RUNNING_KEY,
   handleHubRuntimeMessage,
   isTestHook,
   packAudioFrame,
@@ -362,5 +363,35 @@ describe("repeat Start", () => {
     expect(lifecycle).toEqual([
       `meeting.started:${first}`, `meeting.ended:${first}`, `meeting.started:${hub.meetingId}`,
     ]);
+  });
+});
+
+// Issue #72: the user leaves the call (or presses Stop) with the tab open.
+describe("left the call", () => {
+  it("call.left on the Port ends the running meeting once, with reason left", () => {
+    const { hub, socket, storage } = makeHub();
+    let ended = 0;
+    (hub as unknown as { deps: HubDeps }).deps.onEnded = () => { ended += 1; };
+    openAndPair(hub, socket);
+    hub.onPortMessage({ type: "call.left" }); // no meeting yet: ignored
+    expect(ended).toBe(0);
+    hub.start(started);
+    expect(storage.get(MEETING_RUNNING_KEY)).toBe(true);
+    hub.onPortMessage({ type: "call.left" });
+    hub.onPortMessage({ type: "call.left" }); // second signal: no second meeting.ended
+    const ends = socket.envelopes().filter((e) => e.type === "meeting.ended");
+    expect(ends).toHaveLength(1);
+    expect(ends[0].meetingid).toBe(hub.meetingId);
+    expect(ends[0].data).toEqual({ reason: "left" });
+    expect(storage.get(MEETING_RUNNING_KEY)).toBe(false);
+    expect(ended).toBe(1); // the entrypoint stops the capture here
+  });
+
+  it("a page reload (Port disconnect) does not end the meeting", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.start(started);
+    hub.onPagePortDisconnected();
+    expect(socket.envelopes().some((e) => e.type === "meeting.ended")).toBe(false);
   });
 });

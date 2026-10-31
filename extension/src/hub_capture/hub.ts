@@ -7,6 +7,10 @@ import type { ToHubPortMessage, ToPagePortMessage } from "../../../contracts/ext
 import { Outbox } from "./outbox";
 
 export const HUB_START_MESSAGE = "halo/hub.start";
+/** Popup -> hub: the Stop button. */
+export const HUB_STOP_MESSAGE = "halo/hub.stop";
+/** True while a meeting runs: the popup shows Stop only then. */
+export const MEETING_RUNNING_KEY = "halo.meetingRunning";
 export const TILE_NAMES_KEY = "halo/tileNames";
 
 export interface SocketLike {
@@ -26,6 +30,8 @@ export interface HubDeps {
   token: string;
   extVersion: string;
   schedule?: (fn: () => void, ms: number) => void;
+  /** Called once when the running meeting ends (stop the capture). */
+  onEnded?: () => void;
 }
 
 /** Reconnect backoff: 1 s, 2 s, 4 s, capped at 5 s. */
@@ -124,6 +130,7 @@ export class Hub {
     this.meetingId = this.deps.uuid();
     this.meetingCode = meta.meeting_code;
     this.ended = false;
+    this.deps.storage.set(MEETING_RUNNING_KEY, true);
     this.sendEnvelope("meeting.started", {
       meeting_id: this.meetingId, platform: meta.platform,
       meeting_code: meta.meeting_code, t0_ms: this.deps.now(),
@@ -141,6 +148,8 @@ export class Hub {
     if (!this.meetingId || this.ended) return;
     this.ended = true;
     this.sendEnvelope("meeting.ended", { reason }, this.meetingId);
+    this.deps.storage.set(MEETING_RUNNING_KEY, false);
+    this.deps.onEnded?.();
   }
 
   /** A Meet-page reload must not end the meeting (60 s grace): no-op. */
@@ -199,6 +208,9 @@ export class Hub {
         break;
       case "ack":
         this.outbox.ack(msg.ack.ack_of);
+        break;
+      case "call.left":
+        this.stop("left");
         break;
       default:
         break; // participant.joined/left are hub-local bookkeeping only

@@ -82,6 +82,15 @@ void initPopup(root, {
     return Array.isArray(names) ? names.filter((n) => typeof n === "string") : [];
   },
   onStart: () => handleStart(),
+  onStop: () => { chrome.runtime.sendMessage({ type: "halo/hub.stop" }).catch(() => {}); },
+  // The hub's flag alone can go stale (Chrome quit mid-meeting): a meeting
+  // runs only while the offscreen hub exists too.
+  meetingRunning: async () => {
+    const items = await chrome.storage.local.get("halo.meetingRunning");
+    if (items?.["halo.meetingRunning"] !== true) return false;
+    const hubs = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] });
+    return hubs.length > 0;
+  },
   onRequestMicPermission: () => {
     void chrome.tabs.create({ url: chrome.runtime.getURL("mic-permission.html") });
   },
