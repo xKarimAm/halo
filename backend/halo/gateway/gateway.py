@@ -90,6 +90,10 @@ class Gateway:
         return f"chrome-extension://{self.extension_id}"
 
     def origin_ok(self, origin: str | None) -> bool:
+        # ponytail: until the extension id is pinned (issue #27), any extension
+        # origin passes; web pages are still refused and pairing still gates.
+        if not self.extension_id:
+            return origin is not None and origin.startswith("chrome-extension://")
         return origin == self.expected_origin
 
     @staticmethod
