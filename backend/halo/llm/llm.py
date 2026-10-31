@@ -16,13 +16,16 @@ Rules implemented here:
   again. Each HTTP attempt has a 4 s budget measured from request send to
   validated JSON; a slow-but-valid primary reply is discarded in favour of
   failover. Non-streaming: there are no partials to keep.
-- 400/401/404 are typed failures, never retried. Keys come from the
+- 400/404 are typed failures, never retried nor failed over. A 401 or a
+  missing key on the PRIMARY fails over to the contributor (no same-engine
+  retry for a deterministic 401); either is logged once. Keys come from the
   environment (never logged); missing keys fail the call, they never raise.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import time
@@ -32,6 +35,8 @@ from typing import Any
 
 import httpx
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+
+log = logging.getLogger("halo.llm")
 
 PRIMARY_ENGINE = "spark-open"
 FAILOVER_ENGINE = "muse-spark-1.3-contributor"
@@ -52,7 +57,13 @@ ENGINES: dict[str, dict[str, str]] = {
 }
 
 # The rig's FakeLLM HTTP server stands in for both engines wire-compatibly.
+# HALO_FAKE_PORT moves the whole fake rig off 18777 so parallel runs (and a
+# busy dev machine) do not share one fake server; unset keeps the default.
 FAKE_BASE_URL = "http://127.0.0.1:18777/v1"
+
+
+def _fake_base_url(env: Mapping[str, str]) -> str:
+    return f"http://127.0.0.1:{env.get('HALO_FAKE_PORT', '18777')}/v1"
 
 CALL_TIMEOUT_S = 4.0
 COOLDOWN_S = 30.0
@@ -101,6 +112,8 @@ class LLMClient:
             FAILOVER_ENGINE: meta_key if meta_key is not None else environ.get("META_API_KEY"),
         }
         self._fakes = _fakes_on(environ)
+        self._fake_base = _fake_base_url(environ)
+        self._key_warned: set[str] = set()
         self._clock: Clock = clock or time.monotonic
         self._sleep = sleep or time.sleep
         self._timeout = call_timeout_s
@@ -115,7 +128,7 @@ class LLMClient:
     def _config(self, engine: str) -> dict[str, str]:
         cfg = dict(ENGINES[engine])
         if self._fakes:
-            cfg["base_url"] = FAKE_BASE_URL
+            cfg["base_url"] = self._fake_base
         return cfg
 
     def health(self) -> dict[str, Any]:
@@ -154,6 +167,10 @@ class LLMClient:
                 return outcome.result
             if engine == PRIMARY_ENGINE:
                 self._primary_down_until = self._clock() + self._cooldown
+                code = outcome.result.error["code"] if outcome.result.error else "unknown"
+                if code != "missing_key":  # already logged once where detected
+                    log.warning("llm primary %s failed (%s); failing over to %s for %.0fs",
+                                engine, code, FAILOVER_ENGINE, self._cooldown)
             if i == len(engines) - 1:
                 return last
         return last
@@ -171,6 +188,9 @@ class LLMClient:
         cfg = self._config(engine)
         key = self._keys[engine]
         if not key:
+            if engine not in self._key_warned:
+                self._key_warned.add(engine)
+                log.warning("llm %s has no key in %s; failing over", engine, cfg["key_var"])
             return _Outcome(
                 LLMResult(ok=False, engine=engine,
                           error={"code": "missing_key",
@@ -191,8 +211,9 @@ class LLMClient:
         outcome = self._post_once(engine, cfg["base_url"], key, body, schema)
         if outcome.result.ok or not outcome.failover:
             return outcome
-        if outcome.result.error is not None and outcome.result.error["code"] == "timeout":
-            # A slow engine stays slow: fail over at once, no same-engine retry.
+        if outcome.result.error is not None and outcome.result.error["code"] in ("timeout", "unauthorized"):
+            # A slow engine stays slow and a rejected key stays rejected:
+            # fail over at once, no same-engine retry.
             return outcome
         if outcome.result.error is not None and outcome.result.error["code"] != "invalid_response":
             self._sleep(_backoff())
@@ -232,7 +253,7 @@ class LLMClient:
         if status == 400:
             return fail("bad_request", f"{engine}: HTTP 400 {_excerpt(response)}", failover=False)
         if status == 401:
-            return fail("unauthorized", f"{engine}: HTTP 401 {_excerpt(response)}", failover=False)
+            return fail("unauthorized", f"{engine}: HTTP 401 {_excerpt(response)}", failover=True)
         if status == 404:
             return fail("not_found", f"{engine}: HTTP 404 {_excerpt(response)}", failover=False)
         if status != 200:
