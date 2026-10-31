@@ -56,30 +56,40 @@ export interface LiveCaptureDeps {
  * structural seam the orchestrator and its fakes share.
  */
 export function adaptAudioContext(ctx: AudioContext): AudioContextLike {
-  const wrapProcessor = (node: ScriptProcessorNode): ProcessorNode => ({
-    connect: (target: unknown) => node.connect(target as AudioNode),
+  // Wrappers are handed back to the caller, which connects wrapper to
+  // wrapper; the real AudioNode.connect only accepts real nodes ("Overload
+  // resolution failed" live, 2026-10-31), so every connect unwraps first.
+  const real = new WeakMap<object, AudioNode>();
+  const unwrap = (target: unknown): AudioNode =>
+    real.get(target as object) ?? (target as AudioNode);
+  const wrap = <T extends object>(wrapper: T, node: AudioNode): T => {
+    real.set(wrapper, node);
+    return wrapper;
+  };
+  const wrapProcessor = (node: ScriptProcessorNode): ProcessorNode => wrap({
+    connect: (target: unknown) => node.connect(unwrap(target)),
     get onaudioprocess(): ProcessorNode["onaudioprocess"] {
       return node.onaudioprocess as unknown as ProcessorNode["onaudioprocess"];
     },
     set onaudioprocess(fn: ProcessorNode["onaudioprocess"]) {
       node.onaudioprocess = fn ? (ev) => fn(ev) : null;
     },
-  });
+  }, node);
   return {
     sampleRate: ctx.sampleRate,
     destination: ctx.destination,
     createMediaStreamSource: (stream: MediaStream) => {
       const source = ctx.createMediaStreamSource(stream);
-      return { connect: (target: unknown) => source.connect(target as AudioNode) };
+      return wrap({ connect: (target: unknown) => source.connect(unwrap(target)) }, source);
     },
     createScriptProcessor: (bufferSize: number, inputs: number, outputs: number) =>
       wrapProcessor(ctx.createScriptProcessor(bufferSize, inputs, outputs)),
     createGain: () => {
       const gain = ctx.createGain();
-      return {
+      return wrap({
         gain: gain.gain,
-        connect: (target: unknown) => gain.connect(target as AudioNode),
-      };
+        connect: (target: unknown) => gain.connect(unwrap(target)),
+      }, gain);
     },
   };
 }

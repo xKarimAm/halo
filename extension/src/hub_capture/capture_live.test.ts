@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  adaptAudioContext,
   startLiveCapture,
   type AudioContextLike,
   type LiveCaptureDeps,
@@ -152,5 +153,39 @@ describe("startLiveCapture", () => {
     };
     const { deps } = depsWith(devices, ctx);
     await expect(startLiveCapture("stream-id", deps)).resolves.toEqual({ tab: false, mic: true });
+  });
+});
+
+describe("adaptAudioContext", () => {
+  it("connects real nodes, never the wrappers (live: 'Overload resolution failed')", () => {
+    const realNodes = new Set<object>();
+    const node = (extra: object = {}) => {
+      const n: Record<string, unknown> = {
+        ...extra,
+        connect: (target: unknown) => {
+          if (!realNodes.has(target as object)) throw new TypeError("Overload resolution failed.");
+        },
+      };
+      realNodes.add(n);
+      return n;
+    };
+    const destination = node();
+    const ctx = {
+      sampleRate: 48000,
+      destination,
+      createMediaStreamSource: () => node(),
+      createScriptProcessor: () => node({ onaudioprocess: null }),
+      createGain: () => node({ gain: { value: 1 } }),
+    } as unknown as AudioContext;
+    const like = adaptAudioContext(ctx);
+    const source = like.createMediaStreamSource({} as MediaStream);
+    const proc = like.createScriptProcessor(4096, 2, 2);
+    const sink = like.createGain();
+    expect(() => {
+      source.connect(like.destination);
+      source.connect(proc);
+      proc.connect(sink);
+      sink.connect(like.destination);
+    }).not.toThrow();
   });
 });
