@@ -401,6 +401,21 @@ describe("left the call", () => {
     expect(ended).toBe(1); // the entrypoint stops the capture here
   });
 
+  it("only the Start's Meet tab can end the meeting or feed the mic", () => {
+    // A second open Meet tab doubled stream 1, and leaving it ended this call.
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "abc-defg-hij", tabId: 7 });
+    hub.sendAudio("mic", new Uint8Array(3200), 1000, 8);
+    hub.onPortMessage({ type: "call.left" }, 8);
+    expect(socket.binary).toHaveLength(0);
+    expect(socket.envelopes().some((e) => e.type === "meeting.ended")).toBe(false);
+    hub.sendAudio("mic", new Uint8Array(3200), 1000, 7);
+    hub.onPortMessage({ type: "call.left" }, 7);
+    expect(socket.binary).toHaveLength(1);
+    expect(socket.envelopes().filter((e) => e.type === "meeting.ended")).toHaveLength(1);
+  });
+
   it("a page reload (Port disconnect) does not end the meeting", () => {
     const { hub, socket } = makeHub();
     openAndPair(hub, socket);
