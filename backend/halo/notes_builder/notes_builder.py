@@ -50,6 +50,13 @@ REBUILD_INSTRUCTIONS = (
 )
 
 
+def action_id_for(point_id: str) -> str:
+    """Stable action id over its point. Must equal notes_service.action_id_for
+    (own copy, lane independence): the page matches ready actions by it, and
+    POST /api/tags resolves an action by it."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{point_id}"))
+
+
 class NotesBuilder:
     """Assemble, validate, once rebuild, emit. Event-driven; no loop."""
 
@@ -284,7 +291,7 @@ class NotesBuilder:
             people.append({"name": name, "role": role, "why": role,
                            "relevant_points": [], "own_points": own})
         actions = [{
-            "action_id": str(uuid.uuid4()), "text": p["text"], "owner": p["speaker_name"],
+            "action_id": action_id_for(p["point_id"]), "text": p["text"], "owner": p["speaker_name"],
             "status": "assigned", "urgency": p["urgency"], "point_id": p["point_id"],
         } for p in points if p["is_action"]]
         lines = [{

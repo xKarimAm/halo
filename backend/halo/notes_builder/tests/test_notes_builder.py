@@ -317,3 +317,17 @@ def test_meeting_ended_does_not_wait_for_the_rebuild(tmp_path):
         assert len(llm.calls) == 1 and len(ready) == 1
 
     asyncio.run(run())
+
+
+def test_action_ids_match_the_notes_service(tmp_path):
+    # The page enriches its actions from notes.ready by action_id and
+    # POST /api/tags resolves actions by it; a uuid4 here never matched.
+    async def run():
+        bus, _, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        layla = next(p for p in ready[0]["data"]["people"] if p["name"] == "Layla")
+        assert layla["actions"][0]["action_id"] == str(
+            uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{P1}"))
+
+    asyncio.run(run())
