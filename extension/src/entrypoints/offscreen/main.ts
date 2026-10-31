@@ -41,17 +41,20 @@ const hubDeps = {
   now: () => Date.now(),
   uuid: () => crypto.randomUUID(),
   toPage: (msg: ToPagePortMessage) => { for (const p of ports) p.postMessage(msg); },
+  // Offscreen documents get only chrome.runtime: the background worker
+  // does every storage write (see entrypoints/background.ts).
   storage: {
-    set: (k: string, v: unknown) => chrome.storage.local.set({ [k]: v }),
-    get: (k: string) => chrome.storage.local.get(k),
+    set: (k: string, v: unknown) => storageSet({ [k]: v }),
+    get: (_k: string) => undefined, // ponytail: the hub only writes; read via the worker if that changes
   },
-  token: "", // filled from chrome.storage.local ("halo.token") at Start
+  token: "", // the worker hands over "halo.token" with the Start
   extVersion: chrome.runtime.getManifest().version,
 };
 const hub = new Hub(hubDeps);
-// Boot stamp: Meet content scripts (re)connect their hub Port when this
-// changes, and the joined rig uses it to detect a hub that never booted.
-chrome.storage.local.set({ "halo.hubBootedAt": Date.now() });
+
+function storageSet(items: Record<string, unknown>): void {
+  chrome.runtime.sendMessage({ type: "halo/storage.set", items });
+}
 
 chrome.runtime.onConnect.addListener((port: any) => {
   if (port.name !== "halo-hub") return;
@@ -59,47 +62,36 @@ chrome.runtime.onConnect.addListener((port: any) => {
   port.onMessage.addListener((msg: unknown) => hub.onPortMessage(msg as never));
   port.onDisconnect.addListener(() => { ports.delete(port); hub.onPagePortDisconnected(); });
 });
-function startFrom(msg: Record<string, unknown>): void {
+type StartHandoff = { start: Record<string, unknown>; token: string } | null | undefined;
+
+function startFrom(handoff: StartHandoff): void {
+  if (!handoff?.start || handoff.start.type !== HUB_START_MESSAGE) return;
+  const msg = handoff.start;
   // Pair with the token the popup stored at pairing time (halo.token).
-  chrome.storage.local.get("halo.token", (items: Record<string, unknown>) => {
-    hubDeps.token = typeof items?.["halo.token"] === "string" ? items["halo.token"] : "";
-    hub.connect();
-    handleHubRuntimeMessage(hub, msg);
-    // Live audio: tab stream 0 (+ local replay) and mic stream 1. Never
-    // blocks the meeting: without a stream id or a grant the hub runs on
-    // without that stream's audio.
-    void startLiveCapture(
-      typeof msg.streamId === "string" ? msg.streamId : undefined,
-      {
-        mediaDevices: navigator.mediaDevices,
-        createContext: () => adaptAudioContext(new AudioContext()),
-        sendAudio: (stream, pcm, tsMs) => hub.sendAudio(stream, pcm, tsMs),
-        setMicState: (state) => chrome.storage.local.set({ "halo.micState": state }),
-        now: () => Date.now(),
-      },
-    );
-  });
+  hubDeps.token = handoff.token;
+  hub.connect();
+  handleHubRuntimeMessage(hub, msg);
+  // Live audio: tab stream 0 (+ local replay) and mic stream 1. Never
+  // blocks the meeting: without a stream id or a grant the hub runs on
+  // without that stream's audio.
+  void startLiveCapture(
+    typeof msg.streamId === "string" ? msg.streamId : undefined,
+    {
+      mediaDevices: navigator.mediaDevices,
+      createContext: () => adaptAudioContext(new AudioContext()),
+      sendAudio: (stream, pcm, tsMs) => hub.sendAudio(stream, pcm, tsMs),
+      setMicState: (state) => storageSet({ "halo.micState": state }),
+      now: () => Date.now(),
+    },
+  );
 }
 
+// The popup's "halo/hub.start" goes to the worker, never straight here:
+// the worker pairs it with the token and pushes it to a running hub.
 chrome.runtime.onMessage.addListener((msg: Record<string, unknown>) => {
-  if (msg.type === HUB_START_MESSAGE) {
-    startFrom(msg);
-    return;
-  }
-  return handleHubRuntimeMessage(hub, msg);
+  if (msg.type === "halo/offscreen.start") startFrom(msg as unknown as StartHandoff);
+  return false;
 });
-
-// Start handoff via storage (background worker records "halo.pendingStart";
-// runtime messages are not reliably delivered to offscreen documents).
-chrome.storage.local.get("halo.pendingStart", (items: Record<string, unknown>) => {
-  const pending = items?.["halo.pendingStart"] as { msg: Record<string, unknown> } | undefined;
-  if (pending?.msg) {
-    chrome.storage.local.remove("halo.pendingStart");
-    startFrom(pending.msg);
-  }
-});
-chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
-  const pending = changes["halo.pendingStart"]?.newValue as { msg: Record<string, unknown> } | undefined;
-  if (pending?.msg) startFrom(pending.msg);
-});
+// Listeners are in place: pull the Start that created this document.
+chrome.runtime.sendMessage({ type: "halo/offscreen.ready" }, (handoff: StartHandoff) => startFrom(handoff));
 setInterval(() => hub.pumpOutbox(), 500);
