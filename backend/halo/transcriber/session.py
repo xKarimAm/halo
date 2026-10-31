@@ -21,10 +21,11 @@ from halo.transcriber.protocol import ENDPOINTING, TurnAssembler, build_handshak
 log = logging.getLogger("halo.transcriber")
 
 FRAME_MS = 100
+SILENCE_SLACK_MS = 300  # browser frame jitter tolerated before padding
 BYTES_PER_MS = 32  # 16 kHz mono PCM16
 ROTATION_AFTER_S = 59 * 60
 SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this counts as silence
-SOFT_CUT_SILENCE_MS = 1000  # pause length that soft-cuts an open turn
+SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
 
 
 class TransportError(RuntimeError):
@@ -229,16 +230,25 @@ class TranscriptionSession:
 
     async def run(self, queue: asyncio.Queue, out: asyncio.Queue) -> None:
         """Pump queued frames until closed; silence keeps ingress real-time."""
+        # Live 2026-10-31: padding silence on every 100 ms queue wait added it
+        # ON TOP of jittery browser frames, so ingress ran faster than real
+        # time and Voice closed with 1008 "Audio backlog too large". Pad only
+        # when the audio sent is really behind the wall clock.
+        started = time.monotonic()
+        sent_ms = 0
         while not self.closed:
             await self.maybe_rotate()
             try:
                 frame = await asyncio.wait_for(queue.get(), timeout=FRAME_MS / 1000)
             except TimeoutError:
-                await self.send_silence()
+                if sent_ms + FRAME_MS <= (time.monotonic() - started) * 1000 - SILENCE_SLACK_MS:
+                    await self.send_silence()
+                    sent_ms += FRAME_MS
                 continue
             # Gateway AudioRouter enqueues (seq, ts_ms, payload) tuples.
             seq, ts_ms, pcm = frame if isinstance(frame, tuple) else (
                 frame["seq"], frame["ts_ms"], frame["pcm"])
+            sent_ms += len(pcm) // BYTES_PER_MS
             for turn in await self.feed_frame(seq, ts_ms, pcm):
                 out.put_nowait(turn)
 
