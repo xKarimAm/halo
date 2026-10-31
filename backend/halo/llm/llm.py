@@ -16,9 +16,10 @@ Rules implemented here:
   again. Each HTTP attempt has a 4 s budget measured from request send to
   validated JSON; a slow-but-valid primary reply is discarded in favour of
   failover. Non-streaming: there are no partials to keep.
-- 400/404 are typed failures, never retried nor failed over. A 401 or a
-  missing key on the PRIMARY fails over to the contributor (no same-engine
-  retry for a deterministic 401); either is logged once. Keys come from the
+- 400/404 are never retried. On the PRIMARY they fail over (a host may
+  reject a field or the model id); on the contributor they are typed
+  failures. A 401 or a missing key on the PRIMARY also fails over (no
+  same-engine retry for a deterministic 401); each is logged once. Keys come from the
   environment (never logged); missing keys fail the call, they never raise.
 """
 
@@ -227,9 +228,10 @@ class LLMClient:
         outcome = self._post_once(engine, cfg["base_url"], key, body, schema)
         if outcome.result.ok or not outcome.failover:
             return outcome
-        if outcome.result.error is not None and outcome.result.error["code"] in ("timeout", "unauthorized"):
-            # A slow engine stays slow and a rejected key stays rejected:
-            # fail over at once, no same-engine retry.
+        if outcome.result.error is not None and outcome.result.error["code"] in (
+                "timeout", "unauthorized", "bad_request", "not_found"):
+            # A slow engine stays slow and a rejected key or request stays
+            # rejected: fail over at once, no same-engine retry.
             return outcome
         if outcome.result.error is not None and outcome.result.error["code"] != "invalid_response":
             self._sleep(_backoff())
@@ -268,12 +270,15 @@ class LLMClient:
             return fail("rate_limited", f"{engine}: HTTP 429", failover=True)
         if status >= 500:
             return fail("server_error", f"{engine}: HTTP {status}", failover=True)
+        # A primary host that rejects a field (reasoning_effort, json_schema)
+        # or the model id fails over; the contributor's 400/404 are final.
+        primary = engine == PRIMARY_ENGINE
         if status == 400:
-            return fail("bad_request", f"{engine}: HTTP 400 {_excerpt(response)}", failover=False)
+            return fail("bad_request", f"{engine}: HTTP 400 {_excerpt(response)}", failover=primary)
         if status == 401:
             return fail("unauthorized", f"{engine}: HTTP 401 {_excerpt(response)}", failover=True)
         if status == 404:
-            return fail("not_found", f"{engine}: HTTP 404 {_excerpt(response)}", failover=False)
+            return fail("not_found", f"{engine}: HTTP 404 {_excerpt(response)}", failover=primary)
         if status != 200:
             return fail("engine_error", f"{engine}: HTTP {status}", failover=True)
 
