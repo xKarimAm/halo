@@ -6,7 +6,7 @@ import {
   type SetupForm,
 } from "./context";
 import { PairingError, pairWithCode } from "./pairing";
-import type { SavedSetup, SetupStorage } from "./storage";
+import type { SavedSetup, SetupStorage, UrgencyStyle } from "./storage";
 
 /** Minimal Port to the hub: the hub wraps the payload in an envelope. */
 export interface PopupPort {
@@ -158,6 +158,22 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   });
   form.append(saveButton, saveState);
   root.appendChild(form);
+
+  // Viewer preference: bubble urgency-mark style. Writes immediately so the
+  // overlay (watching the same key) switches live; restored on every open.
+  const prefs = el("section", { id: "viewer-prefs" });
+  prefs.appendChild(el("span", {}, "Urgency marks"));
+  for (const [value, labelText] of [["words", "Words"], ["symbols", "Symbols"]] as const) {
+    const radio = el("input", { type: "radio", name: "urgency-style", value }) as HTMLInputElement;
+    radio.checked = (saved.urgencyStyle ?? "words") === value;
+    radio.addEventListener("change", () => {
+      if (radio.checked) void deps.storage.saveUrgencyStyle(value as UrgencyStyle);
+    });
+    const option = el("label", {}, labelText);
+    option.prepend(radio);
+    prefs.appendChild(option);
+  }
+  root.appendChild(prefs);
 
   const startButton = el("button", { id: "start-btn", type: "button" }, "Start") as HTMLButtonElement;
   startButton.addEventListener("click", () => {
