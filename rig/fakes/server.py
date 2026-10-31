@@ -5,12 +5,14 @@ fixture dir via HALO_FIXTURE_DIR with asr_script.jsonl / llm_script.jsonl).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocketDisconnected
 
 from rig.fakes.fake_asr import FakeASR, SessionDropped
@@ -18,12 +20,27 @@ from rig.fakes.fake_llm import FakeLLM
 from rig.fakes.scripts import load_asr_script, load_llm_script
 
 
-def create_llm_app(fake: FakeLLM) -> FastAPI:
+def create_llm_app(
+    fake: FakeLLM,
+    errors_by_model: dict[str, int] | None = None,
+    sleep_by_model: dict[str, float] | None = None,
+) -> FastAPI:
+    """OpenAI-compatible stand-in for both Spark engines (the client sends a
+    different model per engine, so gate-7 knobs are keyed by model: fail or
+    slow exactly one engine while the other keeps answering)."""
     app = FastAPI()
+    errors = errors_by_model or {}
+    sleeps = sleep_by_model or {}
 
     @app.post("/v1/chat/completions")
-    async def completions(request: Request) -> dict:
+    async def completions(request: Request):  # type: ignore[no-untyped-def]
         body = await request.json()
+        model = str(body.get("model", ""))
+        if model in sleeps:
+            await asyncio.sleep(sleeps[model])
+        if model in errors:
+            return JSONResponse({"error": f"fake HTTP {errors[model]} for {model}"},
+                                status_code=errors[model])
         prompt = "\n".join(m.get("content", "") for m in body.get("messages", []))
         schema = None
         fmt = body.get("response_format") or {}
@@ -35,21 +52,27 @@ def create_llm_app(fake: FakeLLM) -> FastAPI:
 
 
 def create_asr_app(script: list) -> FastAPI:
-    """One FakeASR per connection (issue #23): the handshake mode routes the
-    session (DIARIZATION -> tab, ENDPOINTING -> mic), and turns go out as
-    real Voice lifecycle shapes on script offsets from the session anchor:
-    int turnIds, `transcript` partials without turnId, the `speaker` label
-    at the END of the turn, and one turn per scripted (speaker-change) turn
-    so the joined gate takes the transcriber's soft-cut path."""
+    """The handshake mode routes the session (DIARIZATION -> tab, ENDPOINTING
+    -> mic), and turns go out as real Voice lifecycle shapes on script
+    offsets from the session anchor: int turnIds, `transcript` partials
+    without turnId, the `speaker` label at the END of the turn, and one turn
+    per scripted (speaker-change) turn so the joined gate takes the
+    transcriber's soft-cut path.
+
+    Gate 7: the script, the open turns and the turn counter live as long as
+    the app, not the connection. A dropped session resumes where it left off
+    on reconnect: the in-flight turn still completes, exactly once, and no
+    turnId is ever reused."""
     app = FastAPI()
+    fake = FakeASR(list(script))
+    open_turns: dict[int, dict] = {}
+    turn_seq = 0
 
     @app.websocket("/v1/voice/realtime")
     async def realtime(ws: WebSocket) -> None:
+        nonlocal turn_seq
         await ws.accept()
-        fake = FakeASR(list(script))
         stream = "tab"
-        turn_seq = 0
-        open_turns: dict[int, dict] = {}
         try:
             while True:
                 msg = await ws.receive()
@@ -80,7 +103,9 @@ def create_asr_app(script: list) -> FastAPI:
                                             "transcript": turn["text"],
                                             "audioProcessedMs": end})
                 elif msg.get("text") == "control.drop":
-                    fake.drop_session()
+                    # Drop this connection only: the script and open turns
+                    # survive for the reconnect (gate 7). A poisoned engine
+                    # is still available via FakeASR.drop_session directly.
                     await ws.close(code=1011)
                     return
                 elif msg.get("text"):
