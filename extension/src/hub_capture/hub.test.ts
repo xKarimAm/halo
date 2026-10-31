@@ -117,6 +117,25 @@ describe("hub lifecycle", () => {
     expect(storage.get("halo/tileNames")).toEqual(["Layla"]);
   });
 
+  // Live 2026-10-31: a second Start minted a new meeting but sent no
+  // tiles (the adapter only re-sends on a DOM change), so the Correlator,
+  // which clears tiles on meeting.started, held and dropped every turn.
+  it("replays the latest tiles and context for every new meeting", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    const tiles = [{ tile_id: "t1", name: "Karim Amer", is_self: true, rect: [0, 0, 1, 1], video_w: 640, video_h: 360, fit: "cover" as const, captions_rect: null }];
+    const context = { subject: "Demo", agenda: [], roles: [], viewer_lang: "en" as const };
+    hub.start(started);
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles } });
+    hub.onPortMessage({ type: "meeting.context", data: context });
+    hub.onPortMessage({ type: "set_viewer_lang", viewer_lang: "ar" });
+    const second = hub.start(started);
+    const forSecond = socket.envelopes().filter((e) => e.meetingid === second);
+    expect(forSecond.map((e) => e.type)).toEqual(["meeting.started", "tiles.snapshot", "meeting.context"]);
+    expect((forSecond[1].data as { tiles: unknown[] }).tiles).toEqual(tiles);
+    expect((forSecond[2].data as { viewer_lang: string }).viewer_lang).toBe("ar");
+  });
+
   // (6) one meeting.ended on Stop; Meet-page reload does not end it
   it("ends once on stop and survives a page reload", () => {
     const { hub, socket } = makeHub();
