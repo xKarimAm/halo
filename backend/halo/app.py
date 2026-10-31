@@ -21,6 +21,8 @@ from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
 from halo.insight import Insight
 from halo.llm import LLMClient
+from halo.notes_service import NotesService
+from halo.notes_service import router as notes_router
 from halo.transcriber import Transcriber
 from halo.transcriber.transport import WsTransport
 from rig.fakes.config import engine_config
@@ -115,6 +117,10 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Insight: live points from attributed turns via the shared model client.
     app.state.insight = Insight(app.state.bus, app.state.llm)
     app.state.bus.register_health("insight", app.state.insight.health)
+    # Notes service: stateless HTTP reads over the store file + notes-page
+    # shell; no background loop, so nothing joins the lifespan.
+    app.state.notes_service = NotesService(app.state.bus, data_dir=_data_dir())
+    app.include_router(notes_router)
 
     @app.get("/healthz")
     async def healthz() -> dict:
