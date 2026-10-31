@@ -40,6 +40,7 @@ class AudioRouter:
         self._rec = rec or asyncio.Queue(maxsize=200)
         self._next: dict[int, int] = {TAB: 0, MIC: 0}
         self._last_ts: dict[int, int] = {TAB: 0, MIC: 0}
+        self._owner: dict[int, int] = {TAB: -1, MIC: -1}  # producer id feeding each stream
         self.gaps = 0
         self.padded = 0
         self.dropped = 0
@@ -48,8 +49,12 @@ class AudioRouter:
     def queues(self) -> dict[str, asyncio.Queue]:
         return {"tab": self._audio[TAB], "mic": self._audio[MIC], "rec": self._rec}
 
-    def handle(self, frame: bytes) -> str:
-        """Route one binary frame. Returns audio|rec|rejected|dropped."""
+    def handle(self, frame: bytes, producer: int = 0) -> str:
+        """Route one binary frame. Returns audio|rec|rejected|dropped.
+
+        `producer` is the sending socket's id, increasing per socket. The
+        newest producer owns each audio stream; older ones are dropped.
+        """
         try:
             head = parse_header(frame)
         except FrameError as exc:
@@ -60,7 +65,7 @@ class AudioRouter:
         if head["kind"] != AUDIO or head["stream"] not in self._audio:
             log.warning("binary frame rejected: unknown audio stream")
             return "rejected"
-        return self._enqueue_audio(head, frame)
+        return self._enqueue_audio(head, frame, producer)
 
     def _enqueue_rec(self, head: dict[str, Any], frame: bytes) -> str:
         try:
@@ -71,9 +76,21 @@ class AudioRouter:
             return "dropped"
         return "rec"
 
-    def _enqueue_audio(self, head: dict[str, Any], frame: bytes) -> str:
+    def _enqueue_audio(self, head: dict[str, Any], frame: bytes, producer: int) -> str:
         stream, seq, ts_ms = head["stream"], head["seq"], head["ts_ms"]
         queue = self._audio[stream]
+        # Live 2026-10-31: repeat Starts left several sockets each sending mic
+        # with its own seq. Interleaved, every frame looked like a gap, the
+        # silence padding flooded Voice ("Audio backlog too large") and no
+        # transcript came out. One producer per stream: the newest socket.
+        if producer < self._owner[stream]:
+            self.dropped += 1  # no log: an old socket sends 10 frames a second
+            return "dropped"
+        if producer > self._owner[stream]:
+            if self._owner[stream] >= 0:  # a newer socket replaces one: its own seq
+                log.warning("audio stream %s taken over by socket %s at seq %s", stream, producer, seq)
+                self._next[stream], self._last_ts[stream] = seq, 0
+            self._owner[stream] = producer
         expected = self._next[stream]
         if expected - seq > RESTART_JUMP_FRAMES:
             # Live 2026-10-31: a reloaded hub restarts at seq 0, and every
