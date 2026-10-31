@@ -39,6 +39,7 @@ export interface AudioContextLike {
   createMediaStreamSource(stream: MediaStream): SourceNode;
   createScriptProcessor(bufferSize: number, inputs: number, outputs: number): ProcessorNode;
   createGain(): GainNode;
+  close?(): Promise<void>;
 }
 
 export interface MediaDevicesLike {
@@ -85,6 +86,7 @@ export function adaptAudioContext(ctx: AudioContext): AudioContextLike {
   return {
     sampleRate: ctx.sampleRate,
     destination: ctx.destination,
+    close: () => ctx.close(),
     createMediaStreamSource: (stream: MediaStream) => {
       const source = ctx.createMediaStreamSource(stream);
       return wrap({ connect: (target: unknown) => source.connect(unwrap(target)) }, source);
@@ -120,15 +122,23 @@ export async function startLiveCapture(
 ): Promise<{ tab: boolean; mic: boolean }> {
   const result = { tab: false, mic: false };
   const tracks: MediaStreamTrack[] = [];
-  // ponytail: tracks only; the AudioContext idles with no live source.
-  const stopAll = (): void => { for (const t of tracks.splice(0)) t.stop(); };
+  const procs: ProcessorNode[] = [];
+  let ctx: AudioContextLike | undefined;
+  // Stopped tracks are not enough: real Chromium keeps firing onaudioprocess
+  // with silent input (46 calls in 2 s), and those zeros reached the next
+  // meeting's tab seq at 2x real time ("Audio backlog too large").
+  const stopAll = (): void => {
+    for (const t of tracks.splice(0)) t.stop();
+    for (const p of procs.splice(0)) p.onaudioprocess = null;
+    ctx?.close?.().catch(() => {});
+  };
   deps.signal?.addEventListener("abort", stopAll);
-  let ctx: AudioContextLike;
   try {
     ctx = deps.createContext();
   } catch {
     return result; // no WebAudio: the meeting proceeds without live audio
   }
+  const audio = ctx;
 
   const tap = (
     stream: MediaStream,
@@ -136,12 +146,16 @@ export async function startLiveCapture(
     replay: boolean,
   ): void => {
     tracks.push(...stream.getAudioTracks());
-    if (deps.signal?.aborted) stopAll(); // the meeting ended while getUserMedia was pending
+    if (deps.signal?.aborted) { // the meeting ended while getUserMedia was pending
+      stopAll();
+      return;
+    }
     const channels = channelCountOf(stream);
-    const source = ctx.createMediaStreamSource(stream);
-    if (replay) source.connect(ctx.destination); // the user keeps hearing the call
-    const proc = ctx.createScriptProcessor(4096, channels, channels);
-    const acc = new CaptureAccumulator(deps.now(), ctx.sampleRate);
+    const source = audio.createMediaStreamSource(stream);
+    if (replay) source.connect(audio.destination); // the user keeps hearing the call
+    const proc = audio.createScriptProcessor(4096, channels, channels);
+    procs.push(proc);
+    const acc = new CaptureAccumulator(deps.now(), audio.sampleRate);
     proc.onaudioprocess = (ev) => {
       const input: Float32Array[] = [];
       for (let c = 0; c < ev.inputBuffer.numberOfChannels; c += 1) {
@@ -152,10 +166,10 @@ export async function startLiveCapture(
       }
     };
     source.connect(proc);
-    const sink = ctx.createGain(); // keeps the processor running, adds no sound
+    const sink = audio.createGain(); // keeps the processor running, adds no sound
     sink.gain.value = 0;
     proc.connect(sink);
-    sink.connect(ctx.destination);
+    sink.connect(audio.destination);
   };
 
   if (streamId !== undefined) {
