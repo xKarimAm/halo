@@ -62,6 +62,11 @@ class Transcriber:
         terms.extend(str(a) for a in data.get("agenda", []))
         terms.extend(str(r.get("name", "")) for r in data.get("roles", []))
         self._keywords = [t for t in terms if t][:20]
+        # The hub sends meeting.context after meeting.started, so the open
+        # sessions handshook without these terms.
+        if envelope.get("meetingid") == self._active:
+            for session in self._sessions.values():
+                session.set_keywords(self._keywords)
 
     async def _on_started(self, envelope: Envelope) -> None:
         meeting_id = str(envelope.get("data", {}).get("meeting_id", ""))
