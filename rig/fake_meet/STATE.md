@@ -25,6 +25,18 @@ Implement rig/fake_meet per its PLAN.md; done ONLY when `npm --prefix rig/fake_m
 ## Current step
 Probe mirror (issue #47, closes #8) on branch `feature/fake-meet-probe-dom`: self/speaking/captions/contain ported; specs assert the probe anchors + captions script + joined-tile anchors. Awaiting Playwright run. Local sandbox note: Playwright's webServer spawn hangs under the Muse sandbox user, so locally the server is started in-session first (`reuseExistingServer`); in CI the config's webServer runs normally.
 
+## Live-shape pass (branch `rig/strict-fakes`)
+Served at any extensionless path (live `/meet/<code>`), assets absolute.
+Self tile's Backgrounds button holds a `span.notranslate` icon span ahead
+of the name (live 2026-10-31 name bug); camera-off tile = no `<video>`,
+initial avatar (probe); level class `HX2H7` flips with `sxlEM` (probe);
+panel-row + fx decoys (seed page); a text-bearing top-bar region (live
+captions-off bug). `extension.spec.js` now loads the real built extension
+headless (channel `chromium`) and asserts the adapter's names via the
+overlay layers. `joined.spec.js` has no hub-as-tab fallback (issue #49:
+the offscreen hub threw on chrome.storage, fixed in #64) and takes the
+extension copy and Fake Meet port from the runner.
+
 ## Open questions
 - (2-person live test, gate 4) If the probe revises any anchor, this page mirrors it in a follow-up.
 

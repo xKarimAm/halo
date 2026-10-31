@@ -23,7 +23,7 @@ FAKE_MODEL = "spark-open"
 def _fake(env: Mapping[str, str]) -> dict:
     port = env.get("HALO_FAKE_PORT", FAKE_PORT_DEFAULT)
     return {
-        "asr_url": f"ws://127.0.0.1:{port}/v1/voice/realtime",
+        "asr_url": f"ws://127.0.0.1:{port}/v1/asr/realtime",
         "llm_url": f"http://127.0.0.1:{port}/v1",
         "llm_model": FAKE_MODEL,
     }

@@ -27,7 +27,36 @@ test("scripted tiles expose id, name and self tile via Meet anchors", async ({ p
 test("canvas-only mode has no video element", async ({ page }) => {
   await page.goto("/index.html?mode=canvas-only");
   await expect(page.locator("video")).toHaveCount(0);
-  await expect(page.locator("canvas.tile")).toHaveCount(3);
+  await expect(page.locator("canvas.tile")).toHaveCount(2); // Sam Lee's camera is off
+});
+
+// Live Meet URLs are /meet/<code> as well as /<code> (start_target.ts).
+test("page serves at the live /meet/<code> and /<code> paths", async ({ page }) => {
+  for (const path of ["/meet/abc-defg-hij", "/abc-defg-hij"]) {
+    await page.goto(path);
+    await expect(page.locator(".t")).toHaveCount(3);
+  }
+});
+
+// Probe + live-run DOM traps the adapter must survive (conventions.md).
+test("probe and live-run DOM traps are present", async ({ page }) => {
+  await page.goto("/meet/abc-defg-hij");
+  // Self tile: the first span.notranslate in DOM order is the
+  // Backgrounds-and-effects icon text, not the name (live 2026-10-31).
+  const self = page.locator('.t[data-participant-id="spaces/x/devices/1"]');
+  await expect(self.locator("span.notranslate").first()).toHaveText("visual_effects");
+  await expect(self.locator("> span.notranslate")).toHaveText("Karim Amer");
+  // Camera off: no <video>, an initial avatar instead (probe).
+  const off = page.locator('[data-participant-id="spaces/x/devices/3"]');
+  await expect(off.locator("video")).toHaveCount(0);
+  await expect(off.locator(".avatar")).toHaveText("S");
+  // Decoys reusing participant ids: a panel row and a tiny fx node.
+  await expect(page.locator('[role="listitem"][data-participant-id]')).toHaveCount(1);
+  await expect(page.locator('[data-participant-id="spaces/x/devices/1"]')).toHaveCount(2);
+  // A text-bearing region in the top bar, as on Meet with captions off.
+  const top = page.locator("#topbar[role=region]");
+  await expect(top).toHaveText("abc-defg-hij");
+  expect((await top.boundingBox()).y).toBeLessThan(100);
 });
 
 // PLAN Done (3): speaking toggles on schedule; join/leave add/remove tiles.
@@ -35,6 +64,7 @@ test("speaking toggles and join/leave follow the script", async ({ page }) => {
   await page.goto("/index.html");
   const signal = page.locator('[data-participant-id="spaces/x/devices/1"] [jsname="QgSmzd"]');
   await expect(signal).toHaveClass(/sxlEM/, { timeout: 2000 });
+  await expect(signal).toHaveClass(/HX2H7/); // level class flips alongside (probe)
   await expect(signal).not.toHaveClass(/sxlEM/, { timeout: 3000 });
   await page.evaluate(() => window.__halo_join(
     { tile_id: "spaces/x/devices/4", media_id: "m4", name: "New Person", is_self: false, face: null }));
