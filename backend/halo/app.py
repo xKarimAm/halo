@@ -21,6 +21,7 @@ from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
 from halo.insight import Insight
 from halo.llm import LLMClient
+from halo.recorder import Recorder
 from halo.transcriber import Transcriber
 from halo.transcriber.transport import WsTransport
 from rig.fakes.config import engine_config
@@ -69,7 +70,9 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # Background loops need a running event loop, so they start here.
     app.state.gateway.start()
     app.state.insight.start()
+    app.state.recorder.start()
     yield
+    app.state.recorder.stop()
     app.state.insight.stop()
     app.state.gateway.stop()
 
@@ -115,6 +118,9 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Insight: live points from attributed turns via the shared model client.
     app.state.insight = Insight(app.state.bus, app.state.llm)
     app.state.bus.register_health("insight", app.state.insight.health)
+    # Recorder: rec queue drain loop; files + index under the data dir.
+    app.state.recorder = Recorder(app.state.bus, data_dir=_data_dir(),
+                                  rec_queue=app.state.rec_queue)
 
     @app.get("/healthz")
     async def healthz() -> dict:
