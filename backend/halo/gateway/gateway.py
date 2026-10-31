@@ -12,6 +12,7 @@ and no hub `meeting.ended`.
 from __future__ import annotations
 
 import asyncio
+import itertools
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -252,6 +253,9 @@ async def pair_redeem(request: Request):  # type: ignore[no-untyped-def]
     return {"token": token}
 
 
+_socket_ids = itertools.count(1)
+
+
 @router.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
     gateway: Gateway = websocket.app.state.gateway
@@ -260,6 +264,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         return
     await websocket.accept()
     session = SocketSession(gateway)
+    producer = next(_socket_ids)  # newest socket owns the audio streams
 
     async def sender(envelope: Envelope) -> None:
         await websocket.send_json(envelope)
@@ -271,7 +276,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             if message.get("text") is not None:
                 await websocket.send_json(await session.handle_text(message["text"]))
             elif message.get("bytes") is not None:
-                gateway.audio.handle(message["bytes"])
+                gateway.audio.handle(message["bytes"], producer)
             else:
                 break
     except WebSocketDisconnect:
