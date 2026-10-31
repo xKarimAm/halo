@@ -24,9 +24,21 @@ Implement rig/replayer per its PLAN.md; done ONLY when `uv run pytest rig/replay
 - `rig/replayer/obs.py`: OBS WAV-pair converter.
 - `rig/replayer/fixtures/synthetic/`: committed CI fixture.
 - `rig/replayer/tests/`: Done-case tests.
+- `rig/replayer/tests/test_gate7.py`: verification gate 7 (resilience rig).
 
 ## Current step
-Done: 6 tests green (`uv run pytest rig/replayer -q`), ruff clean, synthetic fixture committed under `fixtures/synthetic/`. PR open for Karim to merge; it closes issue #3 (format adopted as fakes assumed).
+Gate 7 (branch `module/replayer-gate7`, stacked on fakes/llm gate-7 branches):
+new `tests/test_gate7.py` — socket-drop resend/dedupe, backend-restart token
+continuity, LLM-failover points flow + 30 s recovery, Voice-drop exactly-once —
+4/4 green locally in ~70 s on ephemeral ports (HALO_FAKE_PORT + free backend
+ports; no clash with live dev servers). Browser joined gate relies on CI (fixed
+8765/18777 busy on this box). Known finding filed as #57 (restarted backend is
+deaf without a re-sent meeting.started). Next: push, PR.
+Checker now skips soft-cut extra finals at match time (`_compatible`: ts ±300 ms
++ fuzzy text must agree before an actual fills an expected slot), so a dup/piece
+final never matches as the next turn's final — fixes the #60 joined flake (true
+cause, not two hubs; dup source filed as #62). New `tests/test_checker.py`.
+Local joined e2e still needs CI (npm EPERM installing Chromium on this box).
 
 ## Open questions
 - Real-Gateway L2 (Done case 1 full form) waits on the Gateway module (W1); this lane's golden test runs the identical Mode A + checker against a stub Gateway that validates/dedupes/stores like the ACK kit describes. No contract change needed.
