@@ -131,6 +131,34 @@ describe("popup consent", () => {
   });
 });
 
+describe("popup urgency toggle", () => {
+  it("defaults to Words and writes the choice immediately", async () => {
+    const deps = depsWith();
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const words = root.querySelector('input[name="urgency-style"][value="words"]') as HTMLInputElement;
+    const symbols = root.querySelector('input[name="urgency-style"][value="symbols"]') as HTMLInputElement;
+    expect(words.checked).toBe(true);
+    symbols.click();
+    await flush();
+    expect(await deps.storage.load()).toMatchObject({ urgencyStyle: "symbols" });
+    words.click();
+    await flush();
+    expect(await deps.storage.load()).toMatchObject({ urgencyStyle: "words" });
+  });
+
+  it("restores a saved Symbols choice on reopen", async () => {
+    const deps = depsWith();
+    await deps.storage.saveUrgencyStyle("symbols");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const symbols = root.querySelector('input[name="urgency-style"][value="symbols"]') as HTMLInputElement;
+    expect(symbols.checked).toBe(true);
+  });
+});
+
 describe("popup prefill", () => {
   it("renders one row per participant name", async () => {
     const deps = depsWith({ listParticipants: () => ["Layla", "Omar"] });

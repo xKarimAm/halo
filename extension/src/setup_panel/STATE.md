@@ -37,7 +37,7 @@ Goal: Implement setup_panel per its PLAN.md; done ONLY when `npm --prefix extens
 
 ## Current step
 
-Tasks 2-6 done: 29/29 Vitest green, `tsc --noEmit` clean. Next: file cross-module issues, commit, push, open PR.
+Urgency toggle (DECISIONS: viewer setting `halo.urgencyStyle`): Words|Symbols radio pair in a viewer-prefs section, restored on open, written immediately so the overlay switches live via storage.onChanged. `saveUrgencyStyle` added to both chrome and memory storage. 83/83 extension tests green (5 new), `tsc --noEmit` clean. Next: commit, push, open PR (branch feature/setup-panel-urgency-toggle; module/setup_panel already merged).
 
 ## Open questions
 
