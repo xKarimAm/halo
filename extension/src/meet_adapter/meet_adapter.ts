@@ -360,8 +360,13 @@ function findCaptionsBand(scope: Document | Element): Element | null {
   if (primary) {
     return primary;
   }
+  // Live 2026-10-31: with captions off, a top-bar region matched here and
+  // floored every bubble into "+N". Captions sit in the bottom half only.
+  const viewportH = scope.ownerDocument?.defaultView?.innerHeight
+    ?? (scope as Document).defaultView?.innerHeight ?? 0;
   for (const region of Array.from(scope.querySelectorAll('[role="region"]'))) {
-    if ((region.textContent?.trim() ?? "").length > 0) {
+    if ((region.textContent?.trim() ?? "").length > 0
+        && region.getBoundingClientRect().top >= viewportH / 2) {
       return region;
     }
   }
@@ -379,7 +384,10 @@ function isSpeakingNow(tileRoot: Element): boolean {
  * outside buttons (buttons hold icon text like keep_outline).
  */
 function readName(tileRoot: Element): string {
-  const direct = tileRoot.querySelector(CONVENTIONS.nameSelector);
+  // Live 2026-10-31: the self tile's "Backgrounds and effects" button also
+  // holds a span.notranslate (icon text), so skip spans inside buttons here too.
+  const direct = Array.from(tileRoot.querySelectorAll(CONVENTIONS.nameSelector))
+    .find((span) => span.closest("button") === null);
   const directText = direct?.textContent?.trim() ?? "";
   if (directText.length > 0) {
     return directText;
