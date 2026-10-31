@@ -55,6 +55,9 @@ ENGINES: dict[str, dict[str, str]] = {
 FAKE_BASE_URL = "http://127.0.0.1:18777/v1"
 
 CALL_TIMEOUT_S = 4.0
+# ponytail: the contributor is the last resort; measured live at ~3-4.5 s per
+# Insight call, so a 4 s cut drops most points. Late beats none.
+FAILOVER_TIMEOUT_S = 10.0
 COOLDOWN_S = 30.0
 BACKOFF_BASE_S = 0.5
 BACKOFF_CAP_S = 4.0
@@ -92,6 +95,7 @@ class LLMClient:
         clock: Clock | None = None,
         sleep: Callable[[float], None] | None = None,
         call_timeout_s: float = CALL_TIMEOUT_S,
+        failover_timeout_s: float = FAILOVER_TIMEOUT_S,
         cooldown_s: float = COOLDOWN_S,
         env: Mapping[str, str] | None = None,
     ) -> None:
@@ -104,6 +108,7 @@ class LLMClient:
         self._clock: Clock = clock or time.monotonic
         self._sleep = sleep or time.sleep
         self._timeout = call_timeout_s
+        self._failover_timeout = failover_timeout_s
         self._cooldown = cooldown_s
         self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s))
         self._primary_down_until = 0.0
@@ -212,15 +217,17 @@ class LLMClient:
                                       error={"code": code, "message": message}),
                             failover=failover)
 
+        budget = self._timeout if engine == PRIMARY_ENGINE else self._failover_timeout
         start = self._clock()
         try:
             response = self._http.post(
                 base_url.rstrip("/") + "/chat/completions",
                 headers={"Authorization": f"Bearer {key}"},
                 json=body,
+                timeout=httpx.Timeout(budget),
             )
         except httpx.TimeoutException:
-            return fail("timeout", f"{engine} exceeded {self._timeout:g}s", failover=True)
+            return fail("timeout", f"{engine} exceeded {budget:g}s", failover=True)
         except httpx.HTTPError as exc:
             return fail("connection_error", f"{engine}: {exc!r}"[:200], failover=True)
 
@@ -241,9 +248,9 @@ class LLMClient:
         data = _read_content(response, schema)
         if data is None:
             return fail("invalid_response", f"{engine}: reply failed schema", failover=True)
-        if self._clock() - start > self._timeout:
+        if self._clock() - start > budget:
             # Valid but past the per-call budget: discard, fail over.
-            return fail("timeout", f"{engine} exceeded {self._timeout:g}s", failover=True)
+            return fail("timeout", f"{engine} exceeded {budget:g}s", failover=True)
         return _Outcome(LLMResult(ok=True, engine=engine, data=data), failover=False)
 
 

@@ -122,8 +122,10 @@ class Insight:
         if not isinstance(data, dict) or not isinstance(meetingid, str):
             return
         key = (meetingid, str(data.get("name", "")))
+        # Never await the model here: bus.publish runs subscribers in turn, so a
+        # 4 s call would freeze the transcriber, the correlator and the gateway's
+        # ACKs (found live). The 250 ms flush loop picks the turn up.
         self._held.setdefault(key, []).append(data)
-        await self.flush()
 
     async def _on_context(self, envelope: Envelope) -> None:
         data = envelope.get("data")

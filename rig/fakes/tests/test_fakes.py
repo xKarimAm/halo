@@ -140,7 +140,7 @@ def test_flag_off_real_config_identical():
     assert fakes_enabled({"HALO_FAKES": "1"}) is True
     real = engine_config({})
     assert real == {
-        "asr_url": "wss://api.meta.ai/v1/voice/realtime",
+        "asr_url": "wss://api.meta.ai/v1/asr/realtime",
         "llm_url": "https://inference.baseten.co/v1",
         "llm_model": "spark-open",
     }
