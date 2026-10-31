@@ -18,7 +18,7 @@ const TURN_ID = GOLDEN.transcript_lines[0].turn_id;
 
 function degradedPage() {
   const page = JSON.parse(JSON.stringify(GOLDEN));
-  page.degraded = true;
+  page.meeting.degraded = true;
   return page;
 }
 
@@ -116,14 +116,14 @@ test("(2) meeting view: avatar selects person with why, points, actions, filter 
   await expect(page.locator('[data-cat="all"] em').first()).toHaveText("1");
 });
 
-test("(3) action board groups Urgent/Medium/Later with suggested style", async ({ page }) => {
+test("(3) action board groups Urgent/Medium/Later with assigned style", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
   await expect(page.locator(".ucol.u-urgent h3")).toContainText("Urgent");
   await expect(page.locator(".ucol.u-medium")).toContainText("Launch moves to Nov 12");
   await expect(page.locator(".ucol.u-later .empty")).toBeVisible();
   const action = page.locator(".ucol.u-medium .act").first();
-  await expect(action).toHaveClass(/sug/);
-  await expect(action.locator(".badge.sg")).toHaveText("Suggested");
+  await expect(action).toHaveClass(/asg/);
+  await expect(action.locator(".badge.as")).toHaveText("Assigned");
 });
 
 test("(4) point click jumps to the transcript line and recording position", async ({ page }) => {
@@ -133,6 +133,8 @@ test("(4) point click jumps to the transcript line and recording position", asyn
   await expect(active).toBeVisible();
   await expect(active).toContainText("Launch moves to Nov 12.");
   await expect(page.locator(".recoff")).toContainText("recordings/golden.webm");
+  await expect(page.locator("audio#rec")).toHaveAttribute(
+    "src", "/api/audio?meeting_id=" + MEETING_ID);
 });
 
 test("(5) re-tag posts tags.set fields and re-renders as by you", async ({ page }) => {

@@ -25,9 +25,13 @@ Goal: Implement notes-page per its PLAN.md; done ONLY when `npm --prefix notes-p
 
 ## Current step
 
-Tasks 2-4 done: 7/7 Playwright render tests green in real chromium (headless shell) at real repo depth. Issues filed: #14 (contracts page-JSON gaps, contract-change), #15 (notes_service list/search shapes). Next: commit, push, open PR.
+Aligned to the merged service (branch `align/notes-page-merged-service`): app.js consumes
+meeting.degraded, top-level actions[] with point_id, and people relevant_points/own_points;
+all PROVISIONAL markers and #14 fallbacks dropped. Recording plays via
+`/api/audio?meeting_id=` (recordings/{meeting_id}.webm convention). 9/9 Playwright render
+tests green (7 golden + 2 from the TestClient-generated `tests/fixtures/service-page.json`).
 
 ## Open questions
 
-- (contracts, to file) Page JSON gaps: `degraded`, action owner/status (assigned vs suggested), per-person relevant points.
-- (notes_service, to file) `GET /api/meetings` + `GET /api/search` response shapes.
+None: #14 fields merged (meeting.degraded, actions[]+point_id, relevant/own points);
+#15 shapes confirmed against the merged routes; #37 convention matched. Closes #15, #37.
