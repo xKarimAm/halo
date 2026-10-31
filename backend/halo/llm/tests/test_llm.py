@@ -180,25 +180,50 @@ def test_raised_timeout_fails_over_at_once():
     assert sleeps == []
 
 
-def test_429_fails_over_while_400_is_a_typed_failure():
+def test_429_fails_over_and_primary_4xx_fails_over_without_retry(caplog):
+    """A host that rejects a request field (400) or the model id (404) must
+    degrade to the contributor, not fail every Insight call. No same-engine
+    retry: a rejected request stays rejected."""
     clock = Clock()
     script = Script(clock)
     script.primary.extend([(429, {"error": "busy"}, 0.0), (429, {"error": "busy"}, 0.0)])
-    script.failover.append((200, GOOD, 0.1))
-    script.primary.append((400, {"error": "bad"}, 0.0))
+    script.primary.append((400, {"error": "unknown field reasoning_effort"}, 0.0))
+    script.primary.append((404, {"error": "no such model"}, 0.0))
+    script.failover.extend([(200, GOOD, 0.1)] * 3)
     sleeps: list = []
     client = script.client(clock, sleeps)
     try:
         limited = client.complete_json(prompt=PROMPT, schema=SCHEMA)
         assert limited.ok and limited.engine == FAILOVER_ENGINE
         assert len(sleeps) == 1 and 0 < sleeps[0] <= 4.0
-        clock.advance(30.0)  # cooldown over: the 400 is served by the primary
-        bad = client.complete_json(prompt=PROMPT, schema=SCHEMA)
-        assert not bad.ok and bad.error and bad.error["code"] == "bad_request"
+        for code in ("bad_request", "not_found"):
+            clock.advance(30.0)  # cooldown over: the primary is tried again
+            caplog.clear()
+            with caplog.at_level(logging.WARNING, logger="halo.llm"):
+                result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+            assert result.ok and result.engine == FAILOVER_ENGINE
+            warnings = [r.getMessage() for r in caplog.records]
+            assert len(warnings) == 1 and code in warnings[0]
     finally:
         client.close()
-    # 429s retried once then failed over; the 400 never retried nor failed over.
-    assert len(primary_calls(script)) == 3 and len(failover_calls(script)) == 1
+    # 429s retried once then failed over; each 4xx tried once, then failed over.
+    assert len(primary_calls(script)) == 4 and len(failover_calls(script)) == 3
+    assert len(sleeps) == 1
+
+
+def test_400_on_contributor_is_a_typed_failure():
+    clock = Clock()
+    script = Script(clock)
+    script.primary.append((400, {"error": "bad"}, 0.0))
+    script.failover.append((400, {"error": "bad"}, 0.0))
+    client = script.client(clock, [])
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert not result.ok and result.engine == FAILOVER_ENGINE
+    assert result.error and result.error["code"] == "bad_request"
+    assert len(primary_calls(script)) == 1 and len(failover_calls(script)) == 1
 
 
 def test_request_shape_and_content_parsing():
