@@ -19,7 +19,7 @@ import pytest
 
 from rig.fakes.fake_llm import FakeLLM
 from rig.fakes.scripts import LlmReply
-from rig.replayer.joined import CLASSIFIER_REPLIES, POINTS, TURNS, run_all
+from rig.replayer.joined import CLASSIFIER_REPLIES, POINTS, TURNS, JoinedRun, run_all
 
 needs_node = pytest.mark.skipif(
     shutil.which("node") is None or shutil.which("npm") is None,
@@ -47,6 +47,29 @@ def test_llm_script_scripts_both_llm_consumers() -> None:
             "kind": "point", "urgency": "medium"}
         got = content(fake.complete(f"You turn meeting turns into live points.\n{turn['text']}"))
         assert got["text"] == POINTS[i]["response"]["text"]
+
+
+def test_joined_run_never_uses_the_live_port(tmp_path) -> None:
+    """Issue #74: the joined gate shared 8765 with the user's live backend.
+    Every rig port is free-picked, and the extension copy the spec loads
+    names the rig backend everywhere the build names 8765 (incl. the
+    manifest host_permissions)."""
+    built = tmp_path / "chrome-mv3"
+    (built / "chunks").mkdir(parents=True)
+    (built / "manifest.json").write_text(
+        json.dumps({"host_permissions": ["http://127.0.0.1:8765/*", "ws://127.0.0.1:8765/*"]}))
+    (built / "chunks" / "offscreen.js").write_text('new WebSocket("ws://127.0.0.1:8765/ws")')
+    run = JoinedRun()
+    try:
+        assert 8765 not in (run.backend_port, run.fakes_port, run.meet_port)
+        copy = run.extension_copy(built)
+        rig = f"127.0.0.1:{run.backend_port}"
+        assert json.loads((copy / "manifest.json").read_text())["host_permissions"] == [
+            f"http://{rig}/*", f"ws://{rig}/*"]
+        assert (copy / "chunks" / "offscreen.js").read_text() == f'new WebSocket("ws://{rig}/ws")'
+    finally:
+        run.cleanup()
+        shutil.rmtree(run.work, ignore_errors=True)
 
 
 @needs_node

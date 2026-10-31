@@ -16,7 +16,10 @@ export const HEADERS = {
 
 export function createFakeMeetServer() {
   return createServer(async (req, res) => {
-    const name = (req.url || "/").split("?")[0].replace(/^\/$/, "/index.html");
+    // Meet is one page at any meeting path (/<code> or /meet/<code>, both
+    // seen live): every extensionless path serves the page.
+    const path = (req.url || "/").split("?")[0];
+    const name = extname(path) ? path : "/index.html";
     try {
       const body = await readFile(join(root, name));
       res.writeHead(200, { "content-type": types[extname(name)] || "application/octet-stream", ...HEADERS });
