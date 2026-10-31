@@ -15,13 +15,16 @@ if (typeof chrome === "undefined" || !chrome) {
   throw new Error("Halo setup: chrome APIs unavailable");
 }
 
-const port = chrome.runtime.connect({ name: "halo.setup" });
+const port = chrome.runtime.connect({ name: "halo-hub" });
 
-await initPopup(root, {
+void initPopup(root, {
   storage: chromeSetupStorage(chrome.storage.local),
   port,
   // TODO(module:hub_capture): participant names from adapter tiles via the hub.
   listParticipants: () => [],
-  // TODO(module:hub_capture): Start-click capture handoff (user gesture).
-  onStart: () => {},
+  // Start-click capture handoff (issue #6): the hub mints the meeting id.
+  onStart: () => {
+    const runtime = (chrome as unknown as { runtime: { sendMessage(m: unknown): void } }).runtime;
+    runtime.sendMessage({ type: "halo/hub.start", platform: "meet", meeting_code: "meet", self_name: "" });
+  },
 });

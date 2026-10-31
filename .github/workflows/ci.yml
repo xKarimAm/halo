@@ -40,3 +40,20 @@ jobs:
         run: npm --prefix extension run typecheck
       - name: Unit tests
         run: npm --prefix extension test
+
+  notes-page:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: notes-page
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm install
+      - name: Install chromium headless shell
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Render tests
+        run: npm test
