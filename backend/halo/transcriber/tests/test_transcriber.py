@@ -148,3 +148,35 @@ def test_modes_wired_per_stream():
 
     asyncio.run(go())
     assert seen == {"tab": DIARIZATION, "mic": ENDPOINTING}
+
+
+def test_new_meeting_replaces_the_open_one_never_stacks():
+    """Live 2026-10-31: 5 Starts = 5 meeting.started with new ids. Each opened
+    two more Voice sessions and pump tasks while the old ones kept running,
+    all pulling from the same audio queues. A new meeting must close the open
+    one first: one task per stream, one pump, old sessions closed."""
+    factory, _ = make_factory({"tab": [], "mic": []})
+
+    async def go() -> tuple[dict[str, int], int]:
+        bus = Bus()
+        tr = Transcriber(bus, asyncio.Queue(), asyncio.Queue(), factory, key="fake-key")
+        first = golden("meeting.started")
+        await bus.publish(first)
+        second = copy.deepcopy(first)
+        second["id"] = "00000009-0000-4000-8000-000000000009"
+        second["meetingid"] = second["data"]["meeting_id"] = "33333333-3333-4333-8333-333333333333"
+        await bus.publish(second)
+        await asyncio.sleep(0.3)
+        current = asyncio.current_task()
+        running = [t.get_name() for t in asyncio.all_tasks() if t is not current and not t.done()]
+        counts = {name: running.count(name) for name in
+                  ("halo-transcriber-tab", "halo-transcriber-mic", "halo-transcriber-pump")}
+        for task in asyncio.all_tasks():
+            if task is not current:
+                task.cancel()
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if t is not current], return_exceptions=True)
+        return counts, tr.close_calls
+
+    counts, close_calls = asyncio.run(go())
+    assert counts == {"halo-transcriber-tab": 1, "halo-transcriber-mic": 1, "halo-transcriber-pump": 1}
+    assert close_calls == 2, "the first meeting's tab and mic sessions closed"
