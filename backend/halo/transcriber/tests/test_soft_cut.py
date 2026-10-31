@@ -295,3 +295,29 @@ def test_a_700ms_pause_soft_cuts():
         return out
 
     assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
+
+
+def test_a_pause_cuts_when_its_partial_arrives_after_speech_resumed():
+    """#76, real Voice (Sudanese clip): partials lag the audio by up to
+    1.7 s, so in 34 of 46 pauses of 0.7-1.7 s the partial covering the pause
+    start arrived only after speech resumed, the pause was forgotten, and
+    turns ran 30 s. The pause must still cut once that partial lands."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "first line here", "final": False,
+         "audioProcessedMs": 3200},
+        {"type": "transcript", "transcript": "first line here and more", "final": False,
+         "audioProcessedMs": 4500},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(40):  # speech, a 700 ms pause at 2.0 s, speech
+            pcm = SILENCE if 20 <= seq < 27 else SPEECH
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["first line here"]

@@ -72,6 +72,9 @@ class TranscriptionSession:
         # the current silence run began; None while speech is arriving.
         self._silence_start_ms: int | None = None
         self._cut_this_pause = False
+        # Start of the last long-enough pause whose cut still waits for a
+        # partial covering it (Voice partials lag the audio by up to ~2 s).
+        self._pending_pause_ms: int | None = None
         self.speaker_override: str | None = "you" if mode == ENDPOINTING else None
         self.anchor_ms: int | None = None
         self.expected_seq: int | None = None
@@ -121,12 +124,19 @@ class TranscriptionSession:
         try:
             await self.transport.send_audio(pcm, ts_ms)
             turns = await self._drain()
+            if turns:
+                self._pending_pause_ms = None  # the turn completed: nothing to cut
             # One cut per pause (live check: cutting at every late partial
-            # emitted single-word turns); speech resets the flag.
+            # emitted single-word turns); speech resets the flag. The pause
+            # stays pending after speech resumes (#76: on the Sudanese clip
+            # 34 of 46 pauses ended before their partial arrived).
             if self._silence_run_ms >= self.soft_cut_silence_ms and not self._cut_this_pause:
-                piece = self._assembler.maybe_cut(pause_start_ms=self._silence_start_ms)
+                self._pending_pause_ms = self._silence_start_ms
+            if self._pending_pause_ms is not None:
+                piece = self._assembler.maybe_cut(pause_start_ms=self._pending_pause_ms)
                 if piece is not None:
                     self._cut_this_pause = True
+                    self._pending_pause_ms = None
                     turns.append(self._map(piece))
             self._streak = 0
             self.health = "ok"
