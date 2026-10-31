@@ -118,8 +118,11 @@ export class Hub {
       meeting_code: meta.meeting_code, t0_ms: this.deps.now(),
       self_name: meta.self_name || this.heldSelfName(),
     }, this.meetingId);
-    // Page state captured before Start now has a meeting to attach to.
-    for (const msg of this.preStartPortMsgs.splice(0)) this.onPortMessage(msg);
+    // The latest page state goes out for every new meeting: the Meet
+    // Adapter only re-sends tiles when the DOM changes, and the Correlator
+    // clears its tiles on meeting.started (live 2026-10-31: a second Start
+    // got no tiles, so every turn was held and dropped).
+    for (const msg of [...this.pageState]) this.onPortMessage(msg);
     return this.meetingId;
   }
 
@@ -133,13 +136,13 @@ export class Hub {
   onPagePortDisconnected(): void {}
 
   /**
-   * Best-effort self name: the held pre-Start tiles.snapshot's self tile.
+   * Best-effort self name: the latest tiles.snapshot's self tile.
    * The popup sends self_name "" (it cannot see the Meet DOM), so this
-   * fills it when the snapshot arrived before Start; otherwise "" stands
+   * fills it when a snapshot arrived before Start; otherwise "" stands
    * and the Correlator still maps the mic stream to the self tile.
    */
   private heldSelfName(): string {
-    for (const msg of this.preStartPortMsgs) {
+    for (const msg of this.pageState) {
       if (msg.type !== "tiles.snapshot") continue;
       const self = msg.data.tiles.find((t) => t.is_self);
       if (self && self.name) return self.name;
@@ -147,18 +150,19 @@ export class Hub {
     return "";
   }
 
-  private preStartPortMsgs: ToHubPortMessage[] = [];
+  /** Latest tiles.snapshot and meeting.context, replayed at every Start. */
+  private pageState: ToHubPortMessage[] = [];
 
   onPortMessage(msg: ToHubPortMessage): void {
+    if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
+      this.pageState = this.pageState.filter((m) => m.type !== msg.type);
+      this.pageState.push(msg);
+    }
     if (!this.meetingId && msg.type !== "ack") {
       // No meeting yet: the Gateway drops meetingid=null envelopes, so
-      // forwarding now would lose the page state. Keep the latest
-      // snapshot/context for replay at Start; transient speaker events
-      // are dropped (a fresh one follows within a poll cycle).
-      if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
-        this.preStartPortMsgs = this.preStartPortMsgs.filter((m) => m.type !== msg.type);
-        this.preStartPortMsgs.push(msg);
-      }
+      // forwarding now would lose the page state; start() replays it.
+      // Transient speaker events are dropped (a fresh one follows within
+      // a poll cycle).
       return;
     }
     switch (msg.type) {
@@ -177,6 +181,8 @@ export class Hub {
         if (this.latestContext) {
           const next = { ...this.latestContext, viewer_lang: msg.viewer_lang };
           this.latestContext = next;
+          this.pageState = this.pageState.filter((m) => m.type !== "meeting.context");
+          this.pageState.push({ type: "meeting.context", data: next });
           this.sendEnvelope("meeting.context", next, this.meetingId);
         }
         break;
