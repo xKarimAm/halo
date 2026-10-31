@@ -409,13 +409,15 @@ describe("popup Stop", () => {
     const stop = root.querySelector("#stop-btn") as HTMLButtonElement;
     expect(stop.hasAttribute("hidden")).toBe(false);
     stop.click();
+    await flush(); // Stop is async: busy, await onStop, then hide (#86)
     expect(onStop).toHaveBeenCalledTimes(1);
     expect(stop.hasAttribute("hidden")).toBe(true);
   });
 
   it("appears after a successful Start", async () => {
     const root = document.createElement("div");
-    await initPopup(root, depsWith({ onStart: () => ({ ok: true }) }));
+    // Stop renders only when the worker's stop handler is wired (onStop).
+    await initPopup(root, depsWith({ onStart: () => ({ ok: true }), onStop: vi.fn() }));
     (root.querySelector("#start-btn") as HTMLButtonElement).click();
     await flush();
     expect(root.querySelector("#stop-btn")?.hasAttribute("hidden")).toBe(false);
