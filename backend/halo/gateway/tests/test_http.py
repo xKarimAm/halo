@@ -54,3 +54,12 @@ def test_origin_rule(tmp_path):
     assert gateway.origin_ok("chrome-extension://other-id") is False
     assert gateway.origin_ok(None) is False
     assert gateway.origin_ok("") is False
+
+
+def test_origin_rule_without_pinned_id(tmp_path):
+    _, app = make_client(tmp_path)
+    gateway: Gateway = app.state.gateway
+    gateway.extension_id = ""
+    assert gateway.origin_ok("chrome-extension://anything") is True
+    assert gateway.origin_ok("https://evil.example") is False
+    assert gateway.origin_ok(None) is False

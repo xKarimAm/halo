@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 PRIMARY_ENGINE = "spark-open"
 FAILOVER_ENGINE = "muse-spark-1.3-contributor"
