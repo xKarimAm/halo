@@ -5,6 +5,7 @@ no test-only branches: production differs only by transport and keys."""
 from __future__ import annotations
 
 import json
+import logging
 
 import httpx
 from halo.llm import FAILOVER_ENGINE, PRIMARY_ENGINE, LLMClient
@@ -285,6 +286,68 @@ def test_missing_keys_fail_without_requests():
         client.close()
     assert not result.ok and result.error and result.error["code"] == "missing_key"
     assert script.requests == []
+
+
+def test_primary_401_fails_over_without_retry_and_logs_once(caplog):
+    """Gate 7: a dead/revoked Baseten key must not wedge the meeting on the
+    primary. One doomed primary call (no same-engine retry), then the
+    contributor, one warning, cooldown engaged."""
+    clock = Clock()
+    script = Script(clock)
+    script.primary.append((401, {"error": "bad key"}, 0.0))  # only one: a retry would blow up here
+    script.failover.append((200, GOOD, 0.1))
+    script.failover.append((200, GOOD, 0.1))
+    sleeps: list = []
+    client = script.client(clock, sleeps)
+    try:
+        with caplog.at_level(logging.WARNING, logger="halo.llm"):
+            result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+            assert result.ok and result.engine == FAILOVER_ENGINE
+            assert len(primary_calls(script)) == 1 and len(failover_calls(script)) == 1
+            assert sleeps == []
+            assert client.health() == {"engine": FAILOVER_ENGINE, "failover": True}
+            again = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+            assert again.ok and again.engine == FAILOVER_ENGINE
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert len(warnings) == 1, [r.message for r in warnings]
+    finally:
+        client.close()
+
+
+def test_missing_baseten_key_goes_straight_to_contributor(caplog):
+    clock = Clock()
+    script = Script(clock)
+    script.failover.append((200, GOOD, 0.1))
+    script.failover.append((200, GOOD, 0.1))
+    client = LLMClient(baseten_key=None, meta_key="test-meta",
+                       transport=httpx.MockTransport(script.handler),
+                       clock=clock, sleep=lambda s: None, env={})
+    try:
+        with caplog.at_level(logging.WARNING, logger="halo.llm"):
+            first = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+            assert first.ok and first.engine == FAILOVER_ENGINE
+            second = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+            assert second.ok and second.engine == FAILOVER_ENGINE
+        assert primary_calls(script) == []
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert len(warnings) == 1, [r.message for r in warnings]
+    finally:
+        client.close()
+
+
+def test_401_on_contributor_is_a_typed_failure():
+    clock = Clock()
+    script = Script(clock)
+    script.primary.extend([(500, {"error": "down"}, 0.0), (500, {"error": "down"}, 0.0)])
+    script.failover.append((401, {"error": "bad key"}, 0.0))
+    sleeps: list = []
+    client = script.client(clock, sleeps)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert not result.ok and result.error and result.error["code"] == "unauthorized"
+    assert result.engine == FAILOVER_ENGINE
 
 
 def test_fake_flag_swaps_both_endpoints():
