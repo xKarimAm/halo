@@ -1,1 +1,5 @@
-"""Transcriber: Voice ASR wrapper (Wave 2). Placeholder."""
+"""Transcriber: binary audio in, transcript.final envelopes out."""
+
+from halo.transcriber.transcriber import Transcriber
+
+__all__ = ["Transcriber"]
