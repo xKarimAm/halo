@@ -171,6 +171,36 @@ describe("popup restore", () => {
   });
 });
 
+describe("popup three steps", () => {
+  it("folds finished steps to one line; Change and Edit reopen them", async () => {
+    const deps = depsWith();
+    await deps.storage.saveToken("tok-abc");
+    await deps.storage.saveContext(golden);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    expect(root.querySelector("#step-label")?.textContent).toBe("Step 3 of 3");
+    const form = root.querySelector("#meeting-form") as HTMLElement;
+    expect(form.classList.contains("folded")).toBe(true);
+    expect(form.textContent).toMatch(/Launch readiness/);
+    expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(true);
+    (root.querySelector("#meeting-edit") as HTMLButtonElement).click();
+    expect(form.classList.contains("folded")).toBe(false);
+    (root.querySelector("#pair-change") as HTMLButtonElement).click();
+    expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(false);
+  });
+
+  it("a fresh popup starts on step 1 with the code field open", async () => {
+    const deps = depsWith();
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    expect(root.querySelector("#step-label")?.textContent).toBe("Step 1 of 3");
+    expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(false);
+    expect(root.querySelector("#meeting-form")?.classList.contains("folded")).toBe(false);
+  });
+});
+
 describe("popup consent", () => {
   it("contains no consent control (consent lives in the Overlay)", async () => {
     const deps = depsWith();
