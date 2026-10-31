@@ -209,6 +209,20 @@ describe("binary frames", () => {
     expect(socket.binary[1][1]).toBe(1);
   });
 
+  it("no audio leaves before Start or after the meeting ended", () => {
+    // #86 moved the mic into the Meet tab, so #83's onEnded abort no longer
+    // stops it: its relayed frames keep arriving after Stop or leaving.
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.sendAudio("mic", new Uint8Array(3200), 900);
+    hub.start(started);
+    hub.sendAudio("mic", new Uint8Array(3200), 1000);
+    hub.stop("left");
+    hub.sendAudio("mic", new Uint8Array(3200), 1100);
+    hub.sendAudio("tab", new Uint8Array(3200), 1100);
+    expect(socket.binary).toHaveLength(1);
+  });
+
   it("recorder switch stops kind=3 while audio continues", () => {
     const { hub, socket } = makeHub();
     openAndPair(hub, socket);

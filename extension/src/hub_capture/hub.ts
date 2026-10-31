@@ -243,6 +243,9 @@ export class Hub {
 
   sendAudio(stream: "tab" | "mic", pcm: Uint8Array, tsMs: number): void {
     if (!this.socketOpen || !this.paired) return; // audio held off the wire until pair.ok
+    // Audio belongs to a running meeting: the Meet tab's relayed mic outlives
+    // Stop and leaving the call, and its frames must not reach the Gateway.
+    if (!this.meetingId || this.ended) return;
     const byte = stream === "tab" ? 0 : 1;
     this.deps.socket.sendBinary(packAudioFrame(byte as 0 | 1, this.seq[stream]++, tsMs, pcm));
   }
