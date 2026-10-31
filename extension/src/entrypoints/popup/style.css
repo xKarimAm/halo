@@ -1,0 +1,97 @@
+/* Toolbar popup, "Three steps" (Karim's pick, Planning/ui/drafts/popup draft 2).
+   Sage & Clay tokens from the Notes page (docs/ui/notes-v2.html?palette=2). */
+:root{
+  --font:'Inter','IBM Plex Sans Arabic',system-ui,sans-serif;
+  --bg:#e9e4da; --text:#2a2924; --muted:#57544b; --faint:#625e55; --on-accent:#fbf8f1;
+  --glass:rgba(255,252,246,.55); --glass-hi:rgba(255,252,246,.85);
+  --rim:#d0cabf; --hair:#dbd5cb;
+  --aura-1:rgba(127,154,120,.16); --aura-2:rgba(201,138,104,.13);
+  --dec:#3b6343; --urg-hi:#a23b37; --focus:#3d6079;
+  --knob:#2a2924; --logo-dot:#5f7f62; --sh-logo:0 0 10px 2px rgba(95,127,98,.30);
+  --sage:#5f7f62;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{width:360px;color:var(--text);font:14px/1.45 var(--font);
+  background:radial-gradient(260px 200px at 10% 0%,var(--aura-1),transparent 70%),radial-gradient(260px 220px at 100% 100%,var(--aura-2),transparent 70%),var(--bg)}
+#halo-setup{padding-bottom:6px}
+[hidden]{display:none !important}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.top{display:flex;align-items:center;gap:8px;padding:10px 14px}
+.logo{margin:0;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.logo i{width:10px;height:10px;border-radius:50%;background:var(--logo-dot);box-shadow:var(--sh-logo)}
+.sp{flex:1}
+.tiny{font-size:11.5px;color:var(--faint)}
+.steps{display:flex;gap:6px;padding:0 14px 8px}
+.steps i{flex:1;height:4px;border-radius:4px;background:var(--hair)}
+.steps i.done{background:var(--sage)}
+
+.glass{background:var(--glass);backdrop-filter:blur(20px) saturate(115%);border:1px solid var(--rim);border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
+.card{padding:10px 12px;margin:0 14px 8px;display:flex;flex-direction:column;gap:6px}
+.card.folded>:not(.head){display:none !important}
+.head{display:flex;align-items:center;gap:8px}
+.title{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:13px;font-weight:700}
+.title .tiny{font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.num{width:20px;height:20px;border-radius:50%;flex:none;display:inline-grid;place-items:center;font-size:11px;font-weight:700;background:var(--sage);color:var(--on-accent)}
+.card.todo{opacity:.75}
+.card.todo .num{background:transparent;border:1.5px solid var(--rim);color:var(--muted)}
+
+.f{display:block;font-size:12px;color:var(--muted);font-weight:600}
+label.f .in{margin-top:4px}
+.in,.person input{width:100%;border:1px solid var(--rim);background:var(--glass-hi);border-radius:12px;padding:7px 11px;font:inherit;color:var(--text)}
+.in::placeholder,.person input::placeholder{color:var(--faint)}
+textarea.in{resize:none;height:48px}
+.row{display:flex;gap:8px;align-items:center}
+.row.end{justify-content:flex-end}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+
+#roles{display:flex;flex-direction:column;gap:5px}
+.person{display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;align-items:center;padding:4px 5px;border-radius:999px;border:1px solid var(--rim);background:var(--glass)}
+.person input{padding:4px 9px;border-radius:999px;font-size:13px}
+.person .role-name{font-weight:600}
+.av{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:hsl(var(--h,200) 27% 33%);color:#fdfbf6;font-weight:700;font-size:12px}
+
+.drawer summary{cursor:pointer;font-weight:600;font-size:13px}
+#viewer-prefs{margin-top:8px;justify-content:space-between}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--rim);background:var(--glass)}
+.seg label{position:relative;padding:2px 11px;border-radius:999px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--knob);color:var(--on-accent)}
+.seg label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:1px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:12px;font-weight:600;border:1px solid var(--rim);background:var(--glass-hi)}
+.btn.sage{background:var(--sage);color:var(--on-accent);border-color:var(--sage)}
+.btn.block{width:100%;padding:10px;font-size:15px}
+.link{border:0;background:none;padding:0;font-size:11.5px;color:var(--faint);text-decoration:underline;text-underline-offset:2px}
+.ok{margin:0 auto 0 0;font-size:12.5px;font-weight:600;color:var(--dec)}
+.head .ok{margin:0 6px 0 0}
+.err{margin:0;font-size:12.5px;color:var(--urg-hi)}
+.err.note{color:var(--muted)}
+
+/* Button feedback (data-state set by setButton in setup_panel/popup.ts):
+   pressed = sinks, busy = spinner + dimmed, done = settled success look. */
+.btn{transition:transform .08s,filter .15s,background-color .2s}
+.btn:active:not(:disabled){transform:scale(.97);filter:brightness(.92)}
+.btn:disabled{cursor:default}
+.btn[data-state=busy]{opacity:.85}
+.btn[data-state=busy]::before{content:"";width:13px;height:13px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+.btn.sage[data-state=done]{background:var(--dec);border-color:var(--dec)}
+.btn.sage[data-state=done]::before{content:"";width:8px;height:8px;border-radius:50%;background:#bfe3c4;animation:pulse 1.6s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(191,227,196,.25)}}
+@media (prefers-reduced-motion:reduce){.btn[data-state] ::before,.btn[data-state]::before{animation:none}}
+.in[aria-invalid=true]{border-color:var(--urg-hi);box-shadow:0 0 0 2px rgba(162,59,55,.12)}
+
+/* Readiness line: one dot + one sentence. */
+.mic{display:flex;flex-direction:column;gap:2px}
+.mic p{margin:0}
+.ready{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
+.ready::before{content:"";width:8px;height:8px;border-radius:50%;flex:none;background:var(--rim)}
+.ready[data-tone=ok]::before{background:var(--dec)}
+.ready[data-tone=live]::before{background:var(--dec);animation:pulse 1.6s ease-in-out infinite}
+.ready[data-tone=wait]{color:var(--muted);font-weight:500}
+#mic-state{padding-left:15px}
+#mic-state[data-tone=warn]{color:var(--urg-mid,#77590d)}
+#halo-build{margin:0 14px 12px;font-size:11px;color:var(--faint)}

@@ -1,5 +1,8 @@
 // Live capture orchestration: the tab stream (stream 0) and the mic stream
-// (stream 1) into hub.sendAudio as 100 ms 16 kHz mono PCM16 frames. The tab
+// (stream 1) into hub.sendAudio as 100 ms 16 kHz mono PCM16 frames. In the
+// extension the two run in different places: the offscreen hub taps the tab
+// (`mic: false`), the Meet content script taps the mic (no stream id), since
+// a content script uses meet.google.com's mic grant and needs no prompt. The tab
 // replays through the AudioContext destination so the user still hears the
 // call; the mic never touches the destination (headset, no echo).
 // Degradation is per-stream and silent-safe: no stream id (the Playwright
@@ -113,6 +116,7 @@ function pcmBytes(pcm: Int16Array): Uint8Array {
 export async function startLiveCapture(
   streamId: string | undefined,
   deps: LiveCaptureDeps,
+  opts: { mic: boolean } = { mic: true },
 ): Promise<{ tab: boolean; mic: boolean }> {
   const result = { tab: false, mic: false };
   const tracks: MediaStreamTrack[] = [];
@@ -169,6 +173,7 @@ export async function startLiveCapture(
     }
   }
 
+  if (!opts.mic) return result;
   try {
     const mic = await deps.mediaDevices.getUserMedia({ audio: true });
     tap(mic, "mic", false);
