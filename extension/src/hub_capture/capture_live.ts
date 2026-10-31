@@ -48,6 +48,10 @@ export interface LiveCaptureDeps {
   sendAudio(stream: CaptureStream, pcm: Uint8Array, tsMs: number): void;
   setMicState(state: "granted" | "denied"): void;
   now(): number;
+  /** The tab stream ended on its own (tab closed): the meeting is over. */
+  onTabEnded?(): void;
+  /** Abort = meeting over: stops every captured track (ends the tab capture, frees the mic). */
+  signal?: AbortSignal;
 }
 
 /**
@@ -111,6 +115,10 @@ export async function startLiveCapture(
   deps: LiveCaptureDeps,
 ): Promise<{ tab: boolean; mic: boolean }> {
   const result = { tab: false, mic: false };
+  const tracks: MediaStreamTrack[] = [];
+  // ponytail: tracks only; the AudioContext idles with no live source.
+  const stopAll = (): void => { for (const t of tracks.splice(0)) t.stop(); };
+  deps.signal?.addEventListener("abort", stopAll);
   let ctx: AudioContextLike;
   try {
     ctx = deps.createContext();
@@ -123,6 +131,8 @@ export async function startLiveCapture(
     kind: CaptureStream,
     replay: boolean,
   ): void => {
+    tracks.push(...stream.getAudioTracks());
+    if (deps.signal?.aborted) stopAll(); // the meeting ended while getUserMedia was pending
     const channels = channelCountOf(stream);
     const source = ctx.createMediaStreamSource(stream);
     if (replay) source.connect(ctx.destination); // the user keeps hearing the call
@@ -150,6 +160,8 @@ export async function startLiveCapture(
         audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: streamId } },
       });
       tap(tab, "tab", true);
+      // "ended" fires when the source stops (tab closed), never on our own stop().
+      tab.getAudioTracks()[0]?.addEventListener("ended", () => deps.onTabEnded?.());
       result.tab = true;
     } catch {
       // No tab audio (the Playwright rig has no capture device): the
@@ -161,6 +173,8 @@ export async function startLiveCapture(
     const mic = await deps.mediaDevices.getUserMedia({ audio: true });
     tap(mic, "mic", false);
     deps.setMicState("granted");
+    // Unplugged or revoked mid-meeting: the popup must not keep saying "ready".
+    mic.getAudioTracks()[0]?.addEventListener("ended", () => deps.setMicState("denied"));
     result.mic = true;
   } catch {
     deps.setMicState("denied"); // tab-only meeting; the popup shows it on reopen

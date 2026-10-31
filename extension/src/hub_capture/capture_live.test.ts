@@ -64,10 +64,22 @@ function fakeContext(): FakeCtx {
   return ctx;
 }
 
-function fakeStream(): MediaStream {
-  return {
-    getAudioTracks: () => [{ getSettings: () => ({ channelCount: 2 }) }],
-  } as unknown as MediaStream;
+interface FakeTrack {
+  stopped: boolean;
+  end(): void; // the source stops on its own (tab closed, mic unplugged)
+}
+
+function fakeStream(made: FakeTrack[] = []): MediaStream {
+  const onEnded: (() => void)[] = [];
+  const track = {
+    stopped: false,
+    getSettings: () => ({ channelCount: 2 }),
+    stop: () => { track.stopped = true; },
+    addEventListener: (type: string, fn: () => void) => { if (type === "ended") onEnded.push(fn); },
+    end: () => { for (const fn of onEnded) fn(); },
+  };
+  made.push(track);
+  return { getAudioTracks: () => [track] } as unknown as MediaStream;
 }
 
 function depsWith(devices: MediaDevicesLike, ctx: FakeCtx) {
@@ -139,6 +151,23 @@ describe("startLiveCapture", () => {
     expect(res).toEqual({ tab: false, mic: true });
     expect(getUserMedia).toHaveBeenCalledTimes(1); // mic only
     expect(sent).toHaveLength(0); // nothing processed yet
+  });
+
+  it("abort stops every captured track; a tab closing ends the meeting, a lost mic flips the state", async () => {
+    const ctx = fakeContext();
+    const made: FakeTrack[] = [];
+    const devices: MediaDevicesLike = { getUserMedia: async () => fakeStream(made) };
+    const onTabEnded = vi.fn();
+    const { deps, micStates } = depsWith(devices, ctx);
+    const meeting = new AbortController();
+    await startLiveCapture("stream-id", { ...deps, onTabEnded, signal: meeting.signal });
+    const [tab, mic] = made;
+    mic.end(); // unplugged / revoked mid-meeting
+    expect(micStates).toEqual(["granted", "denied"]);
+    tab.end(); // the Meet tab closed
+    expect(onTabEnded).toHaveBeenCalledTimes(1);
+    meeting.abort();
+    expect(made.every((t) => t.stopped)).toBe(true);
   });
 
   it("tab capture failing (rig): meeting proceeds without audio", async () => {

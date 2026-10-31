@@ -322,3 +322,26 @@ describe("setup_panel handoff (#6)", () => {
   });
 });
 
+
+// Platform audit (real Chrome): Start pressed again while a meeting runs.
+describe("repeat Start", () => {
+  it("opens one socket, keeps the running call, ends it before another call starts", () => {
+    const { hub, socket } = makeHub();
+    hub.connect();
+    hub.connect(); // second Start: no second WebSocket
+    expect(socket.connectCalls).toBe(1);
+    socket.emit("open");
+    pairOk(socket);
+    expect(handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started })).toBe(true);
+    const first = hub.meetingId;
+    expect(handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started })).toBe(false);
+    expect(hub.meetingId).toBe(first); // same call: same meeting, no second capture
+    expect(handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, ...started, meeting_code: "xyz-abcd-efg" })).toBe(true);
+    const lifecycle = socket.envelopes()
+      .filter((e) => e.type === "meeting.started" || e.type === "meeting.ended")
+      .map((e) => `${e.type}:${e.meetingid}`);
+    expect(lifecycle).toEqual([
+      `meeting.started:${first}`, `meeting.ended:${first}`, `meeting.started:${hub.meetingId}`,
+    ]);
+  });
+});

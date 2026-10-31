@@ -118,6 +118,17 @@ describe("popup microphone", () => {
     expect(deps.onRequestMicPermission).toHaveBeenCalledTimes(1);
   });
 
+  it("a revoked grant beats the stale stored 'granted'", async () => {
+    for (const [permission, text] of [["prompt", /not set up yet/], ["denied", /tab audio only/], ["granted", /ready/]] as const) {
+      const deps = depsWith({ micPermission: async () => permission });
+      await deps.storage.saveMicState("granted");
+      const root = document.createElement("div");
+      document.body.appendChild(root);
+      await initPopup(root, deps);
+      expect(root.querySelector("#mic-state")?.textContent).toMatch(text);
+    }
+  });
+
   it("defaults to not set up yet", async () => {
     const deps = depsWith();
     const root = document.createElement("div");
