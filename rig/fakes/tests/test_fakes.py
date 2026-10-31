@@ -195,6 +195,79 @@ def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
             pool.shutdown(wait=False)
 
 
+# Gate 7: a dropped Voice session resumes on reconnect. The script, the
+# open turns and the turn counter live as long as the app, so a turn that
+# started before the drop still completes after it — exactly once, with a
+# turnId no other turn reuses.
+def test_asr_session_resumes_across_reconnect_without_dup(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from rig.fakes.scripts import load_asr_script
+    from rig.fakes.server import create_asr_app
+
+    asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "first turn here", "lang": "en",
+         "ts_start_ms": 0, "ts_end_ms": 2000},
+        {"stream": "tab", "speaker": "A", "text": "second turn here", "lang": "en",
+         "ts_start_ms": 3000, "ts_end_ms": 4000},
+    ])
+    app = create_asr_app(load_asr_script(tmp_path / "asr_script.jsonl"))
+    client = TestClient(app)
+    with client.websocket_connect("/v1/voice/realtime") as ws:
+        ws.send_json({"mode": "DIARIZATION"})
+        ws.send_bytes(PCM_100MS * 5)  # horizon 500: first turn open
+        first = [ws.receive_json() for _ in range(2)]
+        assert [g["type"] for g in first] == ["speechStart", "transcript"]
+        ws.send_text("control.drop")  # server closes the session mid-turn
+    with client.websocket_connect("/v1/voice/realtime") as ws:
+        ws.send_json({"mode": "DIARIZATION"})
+        ws.send_bytes(PCM_100MS * 15)  # horizon 2000: first turn completes
+        end = [ws.receive_json() for _ in range(3)]
+        assert [g["type"] for g in end] == ["speaker", "speechEnd", "speechComplete"]
+        assert end[2]["transcript"] == "first turn here"
+        assert end[2]["turnId"] == first[0]["turnId"] == 0  # same turn, finished late
+        ws.send_bytes(PCM_100MS * 25)  # horizon 4500: second turn due
+        rest = [ws.receive_json() for _ in range(5)]
+    assert [g["type"] for g in rest] == [
+        "speechStart", "transcript", "speaker", "speechEnd", "speechComplete",
+    ]
+    assert rest[4]["transcript"] == "second turn here"
+    assert rest[4]["turnId"] == 1  # no id reuse across the drop
+
+
+# Gate 7: HALO_FAKE_PORT moves the fake rig off 18777 so parallel runs never
+# share one fake server; unset keeps the default URLs.
+def test_fake_port_override():
+    from rig.fakes.config import engine_config
+
+    moved = engine_config({"HALO_FAKES": "1", "HALO_FAKE_PORT": "19999"})
+    assert moved["asr_url"] == "ws://127.0.0.1:19999/v1/voice/realtime"
+    assert moved["llm_url"] == "http://127.0.0.1:19999/v1"
+    default = engine_config({"HALO_FAKES": "1"})
+    assert default["asr_url"] == "ws://127.0.0.1:18777/v1/voice/realtime"
+
+
+# Gate 7: model-keyed failure knobs — fail or slow exactly one Spark engine
+# while the other keeps answering (the client sends a model per engine).
+def test_llm_model_error_knob(tmp_path):
+    from fastapi.testclient import TestClient
+    from halo.llm.llm import ENGINES, FAILOVER_ENGINE, PRIMARY_ENGINE
+
+    from rig.fakes.server import create_llm_app
+
+    script = llm(tmp_path, [{"match": "pricing", "response": {"kind": "point", "text": "t"}}])
+    primary_model = ENGINES[PRIMARY_ENGINE]["model"]
+    client = TestClient(create_llm_app(
+        FakeLLM(script), errors_by_model={primary_model: 500}))
+    bad = client.post("/v1/chat/completions", json={
+        "model": primary_model, "messages": [{"role": "user", "content": "pricing?"}]})
+    assert bad.status_code == 500
+    good = client.post("/v1/chat/completions", json={
+        "model": ENGINES[FAILOVER_ENGINE]["model"],
+        "messages": [{"role": "user", "content": "pricing?"}]})
+    assert good.status_code == 200
+
+
 # Wire shape: OpenAI-compatible HTTP surface the llm client talks to.
 def test_llm_http_wire_shape(tmp_path):
     from fastapi.testclient import TestClient

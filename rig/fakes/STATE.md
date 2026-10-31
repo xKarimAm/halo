@@ -25,12 +25,12 @@ Implement rig/fakes per its PLAN.md; done ONLY when `uv run pytest rig/fakes -q`
 - `rig/fakes/tests/test_fakes.py`: PLAN Done cases (1)-(8).
 
 ## Current step
-Real Voice shapes (branch `module/fakes-realshapes`, worktree `.tmp/wt-fakes-realshapes`):
-10/10 fakes tests green, ruff clean, mypy (report-only) clean. Blocked on #53:
-this server's new shapes need the new transcriber to produce finals, so this
-PR's CI stays red until #53 merges and this branch rebases (verified by a
-post-merge simulation probe instead: new server + new assembler = exactly one
-turn, text/speaker/offsets right). Next: push, open PR, rebase after #53.
+Gate 7 (branch `module/fakes-gate7`, worktree `.tmp/wt-fakes-gate7`, stacked on
+the llm gate-7 branch): 13/13 tests green. New: `HALO_FAKE_PORT` endpoint
+override; LLM app model-keyed `errors_by_model`/`sleep_by_model` knobs; the
+ASR script/open-turns/turn-counter live as long as the app so a dropped
+session resumes on reconnect (control.drop closes only the connection now;
+engine poisoning stays available via `FakeASR.drop_session`). Next: push, PR.
 
 ## Open questions
 - Script-format field names await replayer confirmation (issue #3, non-blocking: building against the assumed format above).
