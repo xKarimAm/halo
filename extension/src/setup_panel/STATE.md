@@ -43,3 +43,8 @@ Live audio capture (popup half): Start comes from the active Meet tab (`start_ta
 
 - (gateway) Confirm `POST /pair` response field (`{token}`?) and wrong-code HTTP status — filed as issue (see PR); coded to PLAN shape meanwhile.
 - Done (live capture): Start → hub/capture handoff is pendingStart `{type, platform, meeting_code, self_name, streamId}`; role prefill reads the hub's `halo/tileNames` storage — no Port change needed.
+
+## Popup redesign + mic in the Meet tab (2026-10-31)
+- Popup is Karim's pick "Three steps" (Planning/ui/drafts/popup draft 2, Sage & Clay): Pair, About this meeting, Start; finished steps fold to one line (Change / Edit reopen). Styles in `entrypoints/popup/style.css`, icons in `src/public/icon/`. Every element id kept.
+- No mic grant UI: the Meet content script opens the mic at Start under meet.google.com's permission (see hub_capture STATE). `#mic-state` is a status only.
+- Button states (Karim, 2026-10-31): every button goes busy (spinner, disabled) then done or error; urgency toggle flashes "Saved". Start is idempotent: Starting, then Running (disabled) until the Meet tab leaves that call or the hub closes (`halo.runningMeeting` + `stillRunning`); popup-main also refuses a live repeat. One readiness line: Pair first / Open your Meet call / Ready for meeting / Running. Stop shows only when `onStop` is wired (after the Stop/leave PR).

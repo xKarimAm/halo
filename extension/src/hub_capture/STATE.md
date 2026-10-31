@@ -29,3 +29,8 @@ Live audio capture (the extension never captured audio; Gate 2 passed only on in
 
 ## Open questions
 - L3 full form (hub opens on the Fake Meet page via `?halo_test=1`) runs once this module's `.output` and meet_adapter coexist on main; the hook and fixture-audio path are unit-tested here.
+
+## Mic moves to the Meet tab (2026-10-31)
+- The mic-permission page is gone. Start sends `halo/mic.start` to the Meet tab; `meet.content.ts` runs `startLiveCapture(undefined, ...)` (mic only) and relays frames over the `halo-mic` Port (`mic_relay.ts`) to the hub, which sends them as stream 1. The offscreen hub taps only the tab (`{ mic: false }`).
+- Verified in Chromium: a content script uses meet.google.com's mic grant (granted: ok, no prompt; none or another origin: NotAllowedError). End to end with the built extension: 3200-byte frames, 100 ms apart.
+- Live audio still needs the open adapter fix (fix/audio-adapter-unwrap): without it `AudioNode.connect` throws on the wrappers and both taps fail.
