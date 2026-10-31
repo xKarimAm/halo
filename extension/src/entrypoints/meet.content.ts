@@ -31,7 +31,9 @@ export async function bootMeetPage(): Promise<void> {
       addListener: (fn: (msg: unknown) => void) => { listeners.add(fn); },
     },
   };
-  const overlay = bootOverlay({ port: portProxy });
+  // bootOverlay returns { overlay, onFacesUpdate }: the Face-mode wiring
+  // (hub_capture lane) feeds faces.update through onFacesUpdate.
+  const { overlay } = bootOverlay({ port: portProxy });
   const adapter = new MeetDomAdapter({});
   overlay.applyTiles({ tiles: adapter.tiles() });
   adapter.onTiles((tiles) => overlay.applyTiles({ tiles }));

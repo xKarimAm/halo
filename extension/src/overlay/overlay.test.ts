@@ -26,6 +26,7 @@ class FakeEl implements El {
   set textContent(v: string) { this.text = v; this.children = []; }
   get textContent(): string { return this.text + this.children.map((c) => c.textContent).join(""); }
   setAttribute(k: string, v: string): void { this.attrs.set(k, v); }
+  removeAttribute(k: string): void { this.attrs.delete(k); }
   appendChild(c: FakeEl): FakeEl { c.parent = this; this.children.push(c); return c; }
   remove(): void { if (this.parent) this.parent.children = this.parent.children.filter((x) => x !== this); }
   find(pred: (e: FakeEl) => boolean): FakeEl[] {
@@ -54,6 +55,7 @@ class RealishEl implements El {
   set textContent(v: string) { this.text = v; this.kids.length = 0; }
   get textContent(): string { return this.text + this.kids.map((c) => c.textContent).join(""); }
   setAttribute(k: string, v: string): void { this.attrs.set(k, v); }
+  removeAttribute(k: string): void { this.attrs.delete(k); }
   appendChild(c: RealishEl): RealishEl { c.parent = this; this.kids.push(c); return c; }
   remove(): void {
     if (this.parent) {
@@ -97,6 +99,70 @@ describe("layout", () => {
     expect(box.y).toBeGreaterThan(50);
     const flipped = projectFaceBox({ ...tile, is_self: true }, [0.25, 0.2, 0.2, 0.4]);
     expect(flipped.x).toBeGreaterThan(box.x); // mirrored self tile flips x
+  });
+});
+
+// Face-mode toggle (`halo.overlayMode`): "frame" pins every tile even with
+// a face, and face-mode offsets are tile-local so the name sits over the
+// head on offset tiles (the layer is positioned at the tile origin).
+describe("overlay mode", () => {
+  const FACE = { tile_id: "tile-2", frame_ts_ms: 0, engine: "mediapipe" as const, space: { frame_w: 640, frame_h: 360 }, face: { box: [0.4, 0.2, 0.22, 0.4], head_anchor: [0.5, 0.3], conf: 0.9 } };
+  function offsetRoom() {
+    const clock = new FakeClock(0);
+    const overlay = new Overlay(clock);
+    overlay.applyTiles({
+      tiles: [
+        { tile_id: "tile-1", name: "Karim", is_self: true, rect: [8, 8, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+        { tile_id: "tile-2", name: "Layla", is_self: false, rect: [416, 8, 400, 225], video_w: 640, video_h: 360, fit: "contain", captions_rect: null },
+      ],
+    });
+    overlay.applyFaces(FACE);
+    return overlay;
+  }
+
+  it("frame mode pins every tile even when a face is tracked", () => {
+    const overlay = offsetRoom();
+    expect(overlay.layout("tile-2").mode).toBe("face");
+    overlay.setOverlayMode("frame");
+    expect(overlay.layout("tile-2").mode).toBe("frame");
+    expect(overlay.layout("tile-2").namePos).toEqual({ x: 10, y: 10 });
+    overlay.setOverlayMode("face");
+    expect(overlay.layout("tile-2").mode).toBe("face");
+  });
+
+  it("ignores garbage modes and defaults to face", () => {
+    const overlay = offsetRoom();
+    expect(overlay.overlayMode).toBe("face");
+    overlay.setOverlayMode("bogus");
+    expect(overlay.overlayMode).toBe("face");
+    expect(overlay.layout("tile-2").mode).toBe("face");
+  });
+
+  it("face-mode offsets are tile-local on offset tiles", () => {
+    const overlay = offsetRoom();
+    const layout = overlay.layout("tile-2");
+    // Projected head centre: 416 + 0.51*640*0.625 = 620 page-x; tile-local 204.
+    expect(layout.mode).toBe("face");
+    expect(layout.namePos.x).toBeCloseTo(204, 0);
+    expect(layout.stackPos.y).toBeCloseTo(45, 0); // (8 + 0.2*360*0.625) - 8
+    expect(layout.namePos.x).toBeLessThan(400); // inside the 400 px tile
+  });
+
+  it("render marks the layer mode and face rect, and clears them on fallback", () => {
+    const overlay = offsetRoom();
+    const root = new FakeEl();
+    overlay.render(doc as never, root as never, 0);
+    const layers = root.find((e) => e.attrs.has("data-tile-id"));
+    const byId = new Map(layers.map((l) => [l.attrs.get("data-tile-id"), l]));
+    expect(byId.get("tile-2")?.attrs.get("data-mode")).toBe("face");
+    expect(byId.get("tile-2")?.attrs.get("data-face-box")).toMatch(/^\d+,\d+,\d+,\d+$/);
+    expect(byId.get("tile-1")?.attrs.get("data-mode")).toBe("frame");
+    expect(byId.get("tile-1")?.attrs.has("data-face-box")).toBe(false);
+    overlay.applyFaces({ ...FACE, face: null }); // >1 s absence ends in Frame
+    overlay.render(doc as never, root as never, 0);
+    const again = root.find((e) => e.attrs.get("data-tile-id") === "tile-2");
+    expect(again[0].attrs.get("data-mode")).toBe("frame");
+    expect(again[0].attrs.has("data-face-box")).toBe(false);
   });
 });
 

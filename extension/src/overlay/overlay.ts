@@ -37,6 +37,7 @@ export class SystemClock {
 export interface El {
   textContent: string;
   setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
   appendChild(child: El): El;
   remove(): void;
   classList: { add(c: string): void; toggle(c: string, on?: boolean): void; contains(c: string): boolean };
@@ -93,12 +94,16 @@ interface StoredPoint extends PointsUpsert {
   el?: El;
 }
 
+export type OverlayMode = "face" | "frame";
+
 export class Overlay {
   points = new Map<string, StoredPoint>();
   hidden = false;
   status: unknown = null;
   notesToast: unknown = null;
   perFace = 3;
+  /** Viewer Face|Frame toggle (`halo.overlayMode`): "frame" pins every tile. */
+  overlayMode: OverlayMode = "face";
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];
   private faces = new Map<string, FacesUpdate["face"]>();
@@ -113,6 +118,11 @@ export class Overlay {
   /** Switch the urgency-mark style; the next render() rebuilds all marks. */
   setUrgencyStyle(style: unknown): void {
     if (style === "words" || style === "symbols") this.urgencyStyle = style;
+  }
+
+  /** Switch the Face|Frame mode; "frame" pins every tile, ignoring faces. */
+  setOverlayMode(mode: unknown): void {
+    if (mode === "face" || mode === "frame") this.overlayMode = mode;
   }
 
   applyTiles(snapshot: TilesSnapshot): void {
@@ -218,17 +228,19 @@ export class Overlay {
     // stackPos (page space for Face mode, tile space for Frame mode).
     // null captions_rect = no floor.
     const captionsTop = tile?.captions_rect ? tile.captions_rect[1] : null;
-    if (tile && face && index >= 0 && index < 6) {
-      const box = projectFaceBox(tile, face.box);
+    if (tile && face && this.overlayMode === "face" && index >= 0 && index < 6) {
+      const box = projectFaceBox(tile, face.box); // page space
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
-      const stackX = roomRight >= box.x - tile.rect[0]
+      const stackPageX = roomRight >= box.x - tile.rect[0]
         ? box.x + box.w + Math.max(10, tile.rect[2] * 0.026)
         : Math.max(tile.rect[0] + 10, box.x - 160);
       return {
         mode: "face",
-        namePos: { x: box.x + box.w / 2, y: Math.max(tile.rect[1] + 21, box.y - 6) },
-        stackPos: { x: stackX, y: box.y },
-        floorY: captionsTop,
+        // The renderer positions each layer at its tile origin, so the name
+        // and stack offsets are tile-local here (exactly like Frame mode).
+        namePos: { x: box.x + box.w / 2 - tile.rect[0], y: Math.max(21, box.y - 6 - tile.rect[1]) },
+        stackPos: { x: stackPageX - tile.rect[0], y: box.y - tile.rect[1] },
+        floorY: captionsTop === null ? null : captionsTop - tile.rect[1],
         faceBox: box,
       };
     }
@@ -295,6 +307,18 @@ export class Overlay {
         layer.style.setProperty("height", `${tileRect[3]}px`);
       }
       const layout = this.layout(tileId);
+      // L3 seam: the spec reads the mode and the projected face rect from
+      // the layer (IoU vs the known box), never from overlay internals.
+      layer.setAttribute("data-mode", layout.mode);
+      if (layout.mode === "face" && layout.faceBox) {
+        const b = layout.faceBox;
+        layer.setAttribute(
+          "data-face-box",
+          [b.x, b.y, b.w, b.h].map((v) => Math.round(v)).join(","),
+        );
+      } else {
+        layer.removeAttribute("data-face-box");
+      }
       const name = doc.createElement("span");
       name.classList.add("halo-name");
       name.textContent = this.tiles.get(tileId)?.name ?? "";

@@ -23,7 +23,7 @@ Implement extension/src/overlay per its PLAN.md (Frame mode first); done ONLY wh
 - `extension/src/overlay/index.ts`: Meet-page boot for the hub content wrapper.
 
 ## Current step
-Urgency mark (DECISIONS: words default + symbols, viewer setting): chip carries a draft-2 word tab (localised EN/AR) or a draft-1 seal at 14px (~25% under the 19px draft); style from `halo.urgencyStyle` with live `storage.onChanged` switch; 21 overlay tests green, `tsc --noEmit` clean. Face-mode projection is unit-tested and activates when face_detector lands; L3 ±4 px runs once hub_capture/meet_adapter merge.
+Face-mode wiring (verification gate 5): viewer Face|Frame toggle (`halo.overlayMode`, default Face, live `storage.onChanged` switch mirroring the urgency style); `boot()` returns `{ overlay, onFacesUpdate }` so the hub wiring feeds faces.update through one seam; face-mode name/stack offsets are tile-local (the layer sits at the tile origin — previously double-counted on offset tiles); layers carry `data-mode` + `data-face-box` for the L3 IoU assert. 30 overlay tests green (8 new), `tsc --noEmit` clean. meet.content.ts call-site sync included (2 lines, flagged for hub_capture).
 
 ## Open questions
 - Urgency-mark look: decided by Karim (both drafts; words default) — implemented here; setup-panel toggle is a separate PR in that lane.
