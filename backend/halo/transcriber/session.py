@@ -25,7 +25,7 @@ SILENCE_SLACK_MS = 300  # browser frame jitter tolerated before padding
 BYTES_PER_MS = 32  # 16 kHz mono PCM16
 ROTATION_AFTER_S = 59 * 60
 SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this counts as silence
-SOFT_CUT_SILENCE_MS = 1000  # pause length that soft-cuts an open turn
+SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
 
 
 class TransportError(RuntimeError):

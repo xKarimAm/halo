@@ -6,7 +6,7 @@ change (a 136 s monologue = ONE turn), with partials shaped as
 NO turnId, an int turnId, the speaker label arriving at the END of the turn,
 and speechComplete carrying the full text under "transcript". The transcriber
 must still emit about one transcript.final per spoken line, so it soft-cuts
-open turns at PCM pauses (>= 1000 ms of RMS silence) and emits only the
+open turns at PCM pauses (>= 600 ms of RMS silence) and emits only the
 uncut remainder on speechComplete.
 
 Fixture: soft_cut_fixture.json = speechStart + the first 45 transcript
@@ -269,3 +269,29 @@ def test_soft_cut_holds_back_the_tail_and_never_repeats():
     ])
     assert turn["text"] == "six seven eight"
     assert turn["speaker"] == "A"
+
+
+def test_a_700ms_pause_soft_cuts():
+    """Live 2026-10-31 (real Voice, Egyptian clip): fluent speech pauses for
+    0.7-1.0 s, so a 1000 ms threshold stopped cutting after 37 s and turns
+    ran 20-30 s (a point 30 s late). A replay of the recorded probe events
+    at 600 ms kept every word and capped turns near 10 s."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "first line here", "final": False,
+         "audioProcessedMs": 2100},
+        {"type": "transcript", "transcript": "first line here and more", "final": False,
+         "audioProcessedMs": 3500},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(36):  # speech, a 700 ms pause at 2.0 s, speech
+            pcm = SILENCE if 20 <= seq < 27 else SPEECH
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
