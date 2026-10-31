@@ -16,7 +16,7 @@ speaking/self logic with it.
 | `span.notranslate` inside the tile | Participant display name (fallback: first `span` with text outside any `button`) | skips icon text (`keep_outline`, `visual_effects`) |
 | Tile containing an `<i>` whose text is `visual_effects` | Self (mirrored) tile: only your tile has the "Backgrounds and effects" button; the ligature is not localized (fallback: mirrored `<video>` transform). Unverified with a 2nd participant | probe |
 | Descendant `[jsname="QgSmzd"]` with class `sxlEM` | Speaking highlight; level classes (`HX2H7` / `gjg47c` / `OgVli`) change alongside it and are ignored. `speaker.active` fires on change only, with a ~300 ms hold on `true` so brief drops do not flicker | probe |
-| `[role="region"][aria-label="Captions"]` | Captions band rect (the Overlay's floor); absent or captions off = `captions_rect: null`. The aria-label is localized: fallback is the first text-bearing `[role="region"]`; the exact Arabic label lands with the 2-person live test | probe |
+| `[role="region"][aria-label="Captions"]` | Captions band rect (the Overlay's floor); absent or captions off = `captions_rect: null`. The aria-label is localized: fallback is the first text-bearing `[role="region"]` whose top is in the bottom half of the viewport (live 2026-10-31: with captions off a top-bar region matched and floored every bubble into "+N"); the exact Arabic label lands with the 2-person live test | probe |
 | `video.videoWidth/Height` | `video_w/h`; `0/0` when no `<video>` (camera off: the tile shows the initial avatar) | — |
 | `object-fit` of the `<video>` | `fit`; real Meet uses `contain`; anything but `cover`/`contain` falls back to `cover` | probe |
 | `getBoundingClientRect()` | `rect` `[x, y, w, h]`, viewport CSS px | — |
