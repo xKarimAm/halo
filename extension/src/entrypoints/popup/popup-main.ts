@@ -7,6 +7,7 @@
  * offscreen hub consumes it with getUserMedia and derives the self name.
  * Tile names come from the hub's `halo/tileNames` storage (issue #6).
  */
+import "./style.css";
 import { initPopup } from "../../setup_panel/popup";
 import { chromeSetupStorage } from "../../setup_panel/storage";
 import { parseMeetTab, type StartResult } from "../../setup_panel/start_target";
