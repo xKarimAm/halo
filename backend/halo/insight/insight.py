@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
+import unicodedata
 import uuid
 from collections import deque
 from datetime import UTC, datetime
+from difflib import SequenceMatcher
 from typing import Any
 
 log = logging.getLogger("halo.insight")
@@ -48,11 +51,37 @@ INSTRUCTIONS = (
     "You turn meeting turns into live points for the viewer. "
     "Reply with ONE JSON object: the single most important NEW point from "
     "the new words below. kind is point|question|decision|pushback. "
-    "quote must be the speaker's own words, verbatim. "
+    "quote is copied character for character from the new words below: one "
+    "contiguous span, same order, same language, nothing translated, "
+    "reordered or fixed. "
     "rank is 1-3 (1 = most important). urgency is urgent|medium|later. "
     "is_action is true when the point asks someone to do something. "
     "Set replaces only when this point supersedes an earlier point id."
 )
+
+
+def _word(token: str) -> str:
+    return "".join(c for c in token if not unicodedata.category(c).startswith("P")).casefold()
+
+
+def verbatim_quote(quote: str, source: str) -> str:
+    """`quote` if it is exact in `source`, else an exact span of `source`.
+
+    Same test as the Notes Builder's quote check (plain substring of the
+    point's joined turns). A miss snaps to the longest run of words both share
+    (compared without punctuation or case, sliced from `source` so it stays
+    exact); under half the quote's words shared, the whole source. Live
+    2026-11-01: a reordered quote made the meeting notes degraded (#92).
+    """
+    if quote and quote in source:
+        return quote
+    spans = [m.span() for m in re.finditer(r"\S+", source)]
+    quote_words = [_word(w) for w in quote.split()]
+    match = SequenceMatcher(None, [_word(source[a:b]) for a, b in spans], quote_words,
+                            autojunk=False).find_longest_match()
+    if match.size == 0 or match.size * 2 < len(quote_words):
+        return source.strip()
+    return source[spans[match.a][0]:spans[match.a + match.size - 1][1]]
 
 
 class Insight:
@@ -206,7 +235,7 @@ class Insight:
             "kind": result.data["kind"],
             "text": result.data["text"],
             "lang": viewer_lang,
-            "quote": result.data["quote"],
+            "quote": verbatim_quote(result.data["quote"], " ".join(t.get("text", "") for t in turns)),
             "turn_ids": [t["turn_id"] for t in turns],
             "rank": result.data["rank"],
             "attribution": latest.get("attribution", "provisional"),
