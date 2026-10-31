@@ -50,8 +50,11 @@ class AudioRouter:
     def audio_age_s(self) -> dict[str, float | None]:
         """Seconds since each stream last queued a frame (None: never)."""
         now = time.monotonic()
-        return {name: None if self._last_at[s] is None else round(now - self._last_at[s], 1)
-                for name, s in (("tab", TAB), ("mic", MIC))}
+        ages: dict[str, float | None] = {}
+        for name, s in (("tab", TAB), ("mic", MIC)):
+            at = self._last_at[s]
+            ages[name] = None if at is None else round(now - at, 1)
+        return ages
 
     @property
     def queues(self) -> dict[str, asyncio.Queue]:
