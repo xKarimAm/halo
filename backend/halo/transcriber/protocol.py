@@ -240,22 +240,30 @@ class TurnAssembler:
         if turn_id in self._done:
             return None
         self._done.add(turn_id)
-        full_words = self._text.get(turn_id, "").split()
-        cut_words = self._emitted.get(turn_id, "").split()
-        if full_words[: len(cut_words)] == cut_words:
-            rest = full_words[len(cut_words):]
+        full = self._text.get(turn_id, "")
+        cut = self._emitted.get(turn_id, "")
+        if not cut:
+            # Nothing soft-cut: the completion carries the full text verbatim.
+            text = full
+            start = self._start.get(turn_id, 0)
         else:
-            # A rewrite touched already-cut words: fall back to the common
-            # word prefix so the remainder never duplicates cut text.
-            shared = 0
-            while (
-                shared < min(len(cut_words), len(full_words))
-                and cut_words[shared] == full_words[shared]
-            ):
-                shared += 1
-            log.warning("transcriber turn rewritten after soft-cut: turn=%s", turn_id)
-            rest = full_words[shared:]
-        start = self._cut_end.get(turn_id, self._start.get(turn_id, 0))
+            full_words = full.split()
+            cut_words = cut.split()
+            if full_words[: len(cut_words)] == cut_words:
+                rest = full_words[len(cut_words):]
+            else:
+                # A rewrite touched already-cut words: fall back to the common
+                # word prefix so the remainder never duplicates cut text.
+                shared = 0
+                while (
+                    shared < min(len(cut_words), len(full_words))
+                    and cut_words[shared] == full_words[shared]
+                ):
+                    shared += 1
+                log.warning("transcriber turn rewritten after soft-cut: turn=%s", turn_id)
+                rest = full_words[shared:]
+            text = " ".join(rest)
+            start = self._cut_end.get(turn_id, self._start.get(turn_id, 0))
         end = self._end.get(turn_id, self._latest.get(turn_id, start))
         speaker = self._speaker.get(turn_id) or "?"
         lang = self._lang.get(turn_id, "mixed")
@@ -264,12 +272,12 @@ class TurnAssembler:
         for store in (self._text, self._speaker, self._lang, self._start,
                       self._end, self._latest, self._emitted, self._cut_end):
             store.pop(turn_id, None)
-        if not rest:
+        if not text.strip():
             return None
         return {
             "turn_id": turn_id,
             "speaker": speaker,
-            "text": " ".join(rest),
+            "text": text,
             "lang": lang,
             "start_offset_ms": start,
             "end_offset_ms": end,
