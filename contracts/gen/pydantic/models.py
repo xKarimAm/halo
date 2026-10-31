@@ -69,6 +69,7 @@ class MeetingPageMeeting(BaseModel):
 
     meeting_id: UUID
     subject: str
+    degraded: bool
     project_id: str | None = None
     t0_ms: int
 
@@ -79,6 +80,19 @@ class MeetingPagePeople(BaseModel):
     name: str
     role: str
     why: str
+    relevant_points: list[UUID]
+    own_points: list[UUID]
+
+
+class MeetingPageActions(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    action_id: UUID
+    text: str
+    owner: str
+    status: Literal["assigned", "suggested"]
+    urgency: Literal["urgent", "medium", "later"]
+    point_id: UUID
 
 
 class MeetingPagePoints(BaseModel):
@@ -119,6 +133,7 @@ class MeetingPage(BaseModel):
 
     meeting: MeetingPageMeeting
     people: list[MeetingPagePeople]
+    actions: list[MeetingPageActions]
     points: list[MeetingPagePoints]
     transcript_lines: list[MeetingPageTranscriptLines]
     recording: MeetingPageRecording

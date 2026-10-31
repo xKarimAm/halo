@@ -1,0 +1,210 @@
+"""One Voice realtime session: pacer, clock map, reconnect, rotation.
+
+A session paces PCM to the engine in real time, anchors the meeting clock on
+the first frame it sees, maps engine turn offsets onto that clock, and pads
+sequence gaps with silence. Transports implement EngineTransport; the fake
+wraps FakeASR core, the real one speaks WebSocket.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+import uuid
+from typing import Any
+
+from halo.transcriber.protocol import ENDPOINTING, TurnAssembler, build_handshake
+
+log = logging.getLogger("halo.transcriber")
+
+FRAME_MS = 100
+BYTES_PER_MS = 32  # 16 kHz mono PCM16
+ROTATION_AFTER_S = 59 * 60
+
+
+class TransportError(RuntimeError):
+    pass
+
+
+class EngineTransport:
+    """Boundary to one ASR engine session (fake or WS)."""
+
+    async def open(self, handshake: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    async def send_audio(self, pcm: bytes, ts_ms: int = 0) -> None:
+        raise NotImplementedError
+
+    async def recv_event(self) -> dict[str, Any] | None:
+        """Next server message, or None when nothing is waiting."""
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        raise NotImplementedError
+
+
+class TranscriptionSession:
+    """Owns one engine session for a single stream (tab or mic)."""
+
+    def __init__(
+        self,
+        stream: str,
+        mode: str,
+        transport: EngineTransport,
+        url: str = "",
+        rotation_after_s: int = ROTATION_AFTER_S,
+    ) -> None:
+        self.stream = stream
+        self.mode = mode
+        self.transport = transport
+        self.url = url
+        self.rotation_after_s = rotation_after_s
+        self.speaker_override: str | None = "you" if mode == ENDPOINTING else None
+        self.anchor_ms: int | None = None
+        self.expected_seq: int | None = None
+        self.position_ms = 0
+        self.pad_ms = 0
+        self.health = "ok"
+        self.closed = False
+        self.rotations = 0
+        self._key = ""
+        self._keywords: list[str] = []
+        self._assembler = TurnAssembler()
+        self._opened_at = 0.0
+        self._streak = 0
+
+    async def open(self, key: str, keywords: list[str] | None = None) -> None:
+        self._key = key
+        self._keywords = list(keywords or [])
+        await self.transport.open(build_handshake(self.mode, key, keywords))
+        self._opened_at = time.monotonic()
+        self.health = "ok"
+
+    async def feed_frame(self, seq: int, ts_ms: int, pcm: bytes) -> list[dict[str, Any]]:
+        """Pace one queued frame through the engine; returns mapped turns."""
+        if self.closed:
+            return []
+        if self.anchor_ms is None:
+            self.anchor_ms = ts_ms
+            self.expected_seq = seq
+        assert self.expected_seq is not None
+        if seq > self.expected_seq:
+            gap = seq - self.expected_seq
+            self.pad_ms += gap * FRAME_MS
+            log.warning("transcriber seq gap: stream=%s expected=%d got=%d pad_ms=%d",
+                        self.stream, self.expected_seq, seq, gap * FRAME_MS)
+            await self._send_silence(gap * FRAME_MS)
+        self.expected_seq = seq + 1
+        self.position_ms += len(pcm) // BYTES_PER_MS
+        try:
+            await self.transport.send_audio(pcm, ts_ms)
+            turns = await self._drain()
+            self._streak = 0
+            self.health = "ok"
+            return turns
+        except Exception as exc:  # noqa: BLE001 -- any engine failure routes to reconnect/down
+            await self._on_transport_error(exc)
+            return []
+
+    async def send_silence(self, ms: int = FRAME_MS) -> None:
+        """Keep ingress real-time while the tab is quiet (no clock change)."""
+        if self.closed or self.anchor_ms is None:
+            return
+        try:
+            await self._send_silence(ms)
+            self._streak = 0
+            self.health = "ok"
+        except Exception as exc:  # noqa: BLE001 -- any engine failure routes to reconnect/down
+            await self._on_transport_error(exc)
+
+    async def _send_silence(self, ms: int) -> None:
+        await self.transport.send_audio(b"\x00" * (ms * BYTES_PER_MS))
+        self.position_ms += ms
+
+    async def _drain(self) -> list[dict[str, Any]]:
+        turns: list[dict[str, Any]] = []
+        assert self.anchor_ms is not None
+        while True:
+            event = await self.transport.recv_event()
+            if event is None:
+                return turns
+            completed = self._assembler.handle(event)
+            if completed is not None:
+                turns.append(self._map(completed))
+
+    def _map(self, turn: dict[str, Any]) -> dict[str, Any]:
+        assert self.anchor_ms is not None
+        if turn.get("relative"):
+            start = self.anchor_ms + int(turn.get("start_offset_ms", 0))
+            end = self.anchor_ms + int(turn.get("end_offset_ms", 0))
+        else:
+            start = int(turn.get("start_offset_ms", 0))
+            end = int(turn.get("end_offset_ms", 0))
+        return {
+            "turn_id": str(uuid.uuid4()),
+            "stream": self.stream,
+            "speaker": self.speaker_override or str(turn.get("speaker") or "A"),
+            "text": str(turn.get("text", "")),
+            "lang": str(turn.get("lang", "mixed")),
+            "ts_start_ms": start,
+            "ts_end_ms": end,
+        }
+
+    async def _on_transport_error(self, exc: Exception) -> None:
+        # First consecutive failure: reconnect once. Any further consecutive
+        # failure (reopen raised, or the next feed fails too): down, audio lost.
+        self._streak += 1
+        if self._streak > 1:
+            self.health = "down"
+            self.closed = True
+            log.warning("transcriber session down: stream=%s error=%r", self.stream, exc)
+            return
+        self.health = "reconnecting"
+        log.warning("transcriber session reconnecting: stream=%s error=%r", self.stream, exc)
+        try:
+            await self.transport.close()
+            await self.transport.open(build_handshake(self.mode, self._key, self._keywords))
+        except Exception as exc2:  # noqa: BLE001 -- reopen failure means the session is down
+            self.health = "down"
+            self.closed = True
+            log.warning("transcriber session down: stream=%s error=%r", self.stream, exc2)
+
+    async def maybe_rotate(self) -> bool:
+        """Rotate to a fresh session before 60 min; labels reset (Correlator re-locks)."""
+        if self.closed or self._opened_at == 0:
+            return False
+        if time.monotonic() - self._opened_at < self.rotation_after_s:
+            return False
+        log.warning("transcriber session rotating: stream=%s position_ms=%d",
+                    self.stream, self.position_ms)
+        try:
+            await self.transport.close()
+            await self.transport.open(build_handshake(self.mode, self._key, self._keywords))
+        except Exception as exc:  # noqa: BLE001 -- rotation failure routes to reconnect/down
+            await self._on_transport_error(exc)
+            return False
+        self._opened_at = time.monotonic()
+        self.rotations += 1
+        return True
+
+    async def run(self, queue: asyncio.Queue, out: asyncio.Queue) -> None:
+        """Pump queued frames until closed; silence keeps ingress real-time."""
+        while not self.closed:
+            await self.maybe_rotate()
+            try:
+                frame = await asyncio.wait_for(queue.get(), timeout=FRAME_MS / 1000)
+            except TimeoutError:
+                await self.send_silence()
+                continue
+            for turn in await self.feed_frame(frame["seq"], frame["ts_ms"], frame["pcm"]):
+                out.put_nowait(turn)
+
+    async def close(self) -> None:
+        if self.closed:
+            return
+        self.closed = True
+        try:
+            await self.transport.close()
+        except Exception:
+            log.exception("transcriber session close failed: stream=%s", self.stream)

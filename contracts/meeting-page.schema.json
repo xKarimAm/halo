@@ -14,6 +14,9 @@
         "subject": {
           "type": "string"
         },
+        "degraded": {
+          "type": "boolean"
+        },
         "project_id": {
           "type": "string"
         },
@@ -25,6 +28,7 @@
       "required": [
         "meeting_id",
         "subject",
+        "degraded",
         "t0_ms"
       ],
       "additionalProperties": false
@@ -42,12 +46,74 @@
           },
           "why": {
             "type": "string"
+          },
+          "relevant_points": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "own_points": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "required": [
           "name",
           "role",
-          "why"
+          "why",
+          "relevant_points",
+          "own_points"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "assigned",
+              "suggested"
+            ]
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "medium",
+              "later"
+            ]
+          },
+          "point_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "action_id",
+          "text",
+          "owner",
+          "status",
+          "urgency",
+          "point_id"
         ],
         "additionalProperties": false
       }
@@ -181,6 +247,7 @@
     "meeting",
     "people",
     "points",
+    "actions",
     "transcript_lines",
     "recording"
   ],
