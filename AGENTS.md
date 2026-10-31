@@ -29,3 +29,11 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 ## Git inside the Muse sandbox
 
 Muse runs shell commands as a separate sandbox user, so plain `git` stops with "detected dubious ownership". Run every git command as `git -c safe.directory=* <command>`. `gh` works only when Karim started Muse with `GH_TOKEN` and `GH_CONFIG_DIR=E:\halo-gh` set; if `gh` says "Access is denied", stop and tell Karim.
+
+## Live backend: read these first when something breaks
+
+The backend writes three files under its data dir (`data/` in the folder it runs from, or `HALO_DATA_DIR`). Read them; never call port 8765 to find out.
+
+- `backend.log`: the full log (INFO and up, rotating).
+- `alerts.jsonl`: one JSON line per warning or error; the same message writes at most once a minute and counts the repeats (`suppressed_before`).
+- `health.json`: rewritten every 5 s: each module's health, sockets open, seconds since the last tab and mic frame, queue depths, and `problems`.

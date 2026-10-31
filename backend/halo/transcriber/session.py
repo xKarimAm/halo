@@ -26,6 +26,7 @@ BYTES_PER_MS = 32  # 16 kHz mono PCM16
 ROTATION_AFTER_S = 59 * 60
 SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this counts as silence
 SOFT_CUT_SILENCE_MS = 1000  # pause length that soft-cuts an open turn
+MIC_SILENT_ALERT_MS = 60_000  # one warning per silent run this long on the mic
 
 
 class TransportError(RuntimeError):
@@ -113,6 +114,9 @@ class TranscriptionSession:
             if self._silence_run_ms == 0:
                 self._silence_start_ms = self.position_ms
             self._silence_run_ms += frame_ms
+            # Live 2026-10-31: Chrome used the wrong mic and nothing said so.
+            if self.stream == "mic" and self._silence_run_ms - frame_ms < MIC_SILENT_ALERT_MS <= self._silence_run_ms:
+                log.warning("transcriber mic silent for %d s (muted, or the wrong mic?)", MIC_SILENT_ALERT_MS // 1000)
         else:
             self._silence_run_ms = 0
             self._silence_start_ms = None
