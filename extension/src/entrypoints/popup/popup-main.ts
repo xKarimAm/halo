@@ -18,6 +18,7 @@ import {
   type StartResult,
 } from "../../setup_panel/start_target";
 import { MIC_START_MESSAGE } from "../../hub_capture/mic_relay";
+import { MEETING_RUNNING_KEY } from "../../hub_capture/hub";
 
 declare const chrome: any;
 
@@ -35,13 +36,13 @@ function getMediaStreamId(targetTabId: number): Promise<string> {
 
 /** The Start recorded at RUNNING_KEY is still live (see stillRunning). */
 async function meetingRunning(): Promise<boolean> {
-  const items = await chrome.storage.local.get(RUNNING_KEY);
+  const items = await chrome.storage.local.get([RUNNING_KEY, MEETING_RUNNING_KEY]);
   const rec = items?.[RUNNING_KEY] as RunningMeeting | undefined;
   if (!rec) return false;
   const tab = await chrome.tabs.get(rec.tabId).catch(() => undefined);
   // runtime.getContexts (Chrome 116+): the hub's offscreen document is open.
   const hubs = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] }).catch(() => []);
-  return stillRunning(rec, tab?.url, hubs.length > 0);
+  return stillRunning(rec, tab?.url, hubs.length > 0, items?.[MEETING_RUNNING_KEY] === true);
 }
 
 async function activeTab(): Promise<{ id?: number; url?: string } | undefined> {

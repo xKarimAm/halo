@@ -21,15 +21,16 @@ export interface RunningMeeting {
 /**
  * A Start stays running while the hub is open and its tab is still on the
  * same call: leaving the call (or closing the tab) frees Start for the next
- * one; anything else makes a repeat press a no-op instead of a second
- * capture.
+ * one, and so does the hub ending the meeting (Stop, left, tab closed);
+ * anything else makes a repeat press a no-op instead of a second capture.
  */
 export function stillRunning(
   rec: RunningMeeting | undefined,
   tabUrl: string | undefined,
   hubOpen: boolean,
+  hubMeetingRunning: boolean, // the hub's halo.meetingRunning: false after any meeting.ended
 ): boolean {
-  if (!rec || !hubOpen) return false;
+  if (!rec || !hubOpen || !hubMeetingRunning) return false;
   const tab = parseMeetTab(tabUrl);
   return tab.ok && tab.meetingCode === rec.meetingCode;
 }
