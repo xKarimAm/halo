@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Popup draft 2: Sage paper</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Draft 2: the Notes page's Sage & Clay palette (palette 2), light frosted
+   cards on a warm paper wash. Same tokens as notes-v2.html?palette=2. */
+:root{
+  --r:22px; --blur:blur(20px) saturate(115%);
+  --bg:#e9e4da; --text:#2a2924; --muted:#57544b; --faint:#625e55; --on-accent:#fbf8f1;
+  --glass:rgba(255,252,246,.55); --glass-hi:rgba(255,252,246,.85);
+  --rim:#d0cabf; --hair:#dbd5cb; --dec:#3b6343; --q:#3d6079; --push:#9a4526; --pt:#6f5468;
+  --focus:#3d6079; --logo-dot:#5f7f62; --sh-glass:inset 0 1px 0 rgba(255,255,255,.75);
+  --sh-logo:0 0 10px 2px rgba(95,127,98,.30);
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{width:360px;min-height:100vh;color:var(--text);font:400 13px/1.4 'Inter',system-ui,sans-serif;
+  background:radial-gradient(260px 220px at 0% 0%,rgba(127,154,120,.38),transparent 70%),
+             radial-gradient(240px 220px at 100% 60%,rgba(190,140,110,.30),transparent 70%),var(--bg)}
+.wrap{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+header{display:flex;align-items:center;gap:9px}
+.logo{width:10px;height:10px;border-radius:50%;background:var(--logo-dot);box-shadow:var(--sh-logo)}
+h1{margin:0;font:700 17px/1 'Inter',sans-serif;letter-spacing:-.02em}
+.pill{margin-inline-start:auto;font-size:11.5px;font-weight:600;color:var(--dec);background:rgba(59,99,67,.12);padding:4px 10px;border-radius:999px}
+.card{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--rim);border-radius:var(--r);box-shadow:var(--sh-glass);padding:10px 12px}
+.lbl{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin:0 0 5px}
+.f+.f{margin-top:7px}
+input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(--glass-hi);border:1px solid var(--hair);border-radius:12px;padding:6px 10px}
+textarea{resize:none;height:40px}
+input::placeholder{color:var(--faint)}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--focus);outline-offset:1px}
+.row{display:flex;gap:8px;align-items:center}
+.person{display:grid;grid-template-columns:26px 1fr 1fr;gap:6px;align-items:center}
+.person+.person{margin-top:6px}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11px;color:var(--on-accent);background:hsl(var(--h) 27% 33%)}
+.btn{font:600 13px/1 'Inter',sans-serif;border-radius:999px;padding:9px 16px;cursor:pointer;color:var(--text);background:var(--glass-hi);border:1px solid var(--rim)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg{display:inline-flex;background:rgba(74,64,48,.10);border-radius:999px;padding:3px}
+.seg span{padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted);border-radius:999px} .seg .on{background:var(--glass-hi);color:var(--text);box-shadow:0 1px 2px rgba(60,48,30,.15)}
+.start{width:100%;padding:14px;border-radius:999px;border:0;font:700 15px/1 'Inter',sans-serif;color:var(--on-accent);background:var(--dec);cursor:pointer}
+.foot{display:flex;justify-content:space-between;font-size:11.5px;color:var(--faint)}
+.ok{color:var(--dec);font-weight:600}
+</style></head><body><div class="wrap">
+<header><span class="logo"></span><h1>Halo</h1><span class="pill">Paired</span></header>
+
+<section class="card"><span class="lbl">Pair with the Halo app</span>
+  <div class="row"><input placeholder="6-digit code" inputmode="numeric"><button class="btn">Pair</button></div></section>
+
+<section class="card">
+  <div class="f"><span class="lbl">Subject</span><input value="Checkout v2: launch readiness"></div>
+  <div class="f"><span class="lbl">Agenda <span style="font-weight:400">(one item per line)</span></span><textarea>Launch date
+Payments QA owner</textarea></div>
+  <div class="f"><span class="lbl">People and roles</span>
+    <div class="person"><span class="av" style="--h:285">L</span><input value="Layla"><input value="Product lead"></div>
+    <div class="person"><span class="av" style="--h:190">O</span><input value="Omar"><input placeholder="Role (optional)"></div></div>
+  <div class="f two"><div><span class="lbl">My points language</span><select><option>English</option><option>Arabic</option></select></div>
+    <div><span class="lbl">Project</span><input placeholder="Optional"></div></div>
+  <div class="f row" style="justify-content:flex-end"><span class="ok" style="margin-inline-end:auto">Saved</span><button class="btn">Save</button></div>
+</section>
+
+<section class="card row" style="justify-content:space-between;padding:10px 14px"><span class="lbl" style="margin:0">Urgency marks</span>
+  <span class="seg"><span>Words</span><span class="on">Symbols</span></span></section>
+
+<button class="start">Start</button>
+<div class="foot"><span>Microphone: <span class="ok">ready</span></span><span>Build 0.1.0 (5e4445b)</span></div>
+</div></body></html>

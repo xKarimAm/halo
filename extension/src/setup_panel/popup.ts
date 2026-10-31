@@ -26,8 +26,6 @@ export interface PopupDeps {
    * comes back as the result and is shown under the Start button.
    */
   onStart: () => StartResult | Promise<StartResult> | void;
-  /** Opens the one-time microphone-permission page. */
-  onRequestMicPermission: () => void;
   pairFn?: (code: string) => Promise<string>;
 }
 
@@ -57,8 +55,8 @@ function labeledInput(
  */
 export function micStatusText(state: SavedSetup["micState"]): string {
   if (state === "granted") return "Microphone: ready";
-  if (state === "denied") return "Microphone: blocked — tab audio only";
-  return "Microphone: not set up yet";
+  if (state === "denied") return "Microphone: blocked in Meet, tab audio only";
+  return "Microphone: starts with Start";
 }
 
 export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<void> {
@@ -185,15 +183,10 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   }
   root.appendChild(prefs);
 
-  // One-time microphone grant: the offscreen document cannot prompt, so a
-  // dedicated extension page calls getUserMedia once and keeps the grant.
+  // Status only: the Meet tab captures the mic at Start under Meet's own
+  // permission, so there is nothing to grant here.
   const micSection = el("section", { id: "mic-section" });
-  const micState = el("p", { id: "mic-state" }, micStatusText(saved.micState));
-  const micButton = el("button", { id: "mic-btn", type: "button" }, "Allow microphone") as HTMLButtonElement;
-  micButton.addEventListener("click", () => {
-    deps.onRequestMicPermission();
-  });
-  micSection.append(micState, micButton);
+  micSection.appendChild(el("p", { id: "mic-state" }, micStatusText(saved.micState)));
   root.appendChild(micSection);
 
   const startButton = el("button", { id: "start-btn", type: "button" }, "Start") as HTMLButtonElement;

@@ -10,6 +10,7 @@
 import { initPopup } from "../../setup_panel/popup";
 import { chromeSetupStorage } from "../../setup_panel/storage";
 import { parseMeetTab, type StartResult } from "../../setup_panel/start_target";
+import { MIC_START_MESSAGE } from "../../hub_capture/mic_relay";
 
 declare const chrome: any;
 
@@ -53,6 +54,10 @@ async function handleStart(): Promise<StartResult> {
     self_name: "",
     streamId,
   });
+  // Mic stream 1: the Meet tab's content script opens it under Meet's own
+  // mic permission (no prompt, no extra page). No content script (a Meet
+  // tab opened before the extension loaded): tab audio only.
+  chrome.tabs.sendMessage(tab.id, { type: MIC_START_MESSAGE }).catch(() => {});
   return warning ? { ok: true, warning } : { ok: true };
 }
 
@@ -75,7 +80,4 @@ void initPopup(root, {
     return Array.isArray(names) ? names.filter((n) => typeof n === "string") : [];
   },
   onStart: () => handleStart(),
-  onRequestMicPermission: () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL("mic-permission.html") });
-  },
 });

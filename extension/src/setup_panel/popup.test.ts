@@ -13,13 +13,11 @@ const golden = goldenContext.data as unknown as MeetingContext;
 function depsWith(overrides: Partial<PopupDeps> = {}) {
   const posted: PortMeetingContext[] = [];
   const onStart = vi.fn();
-  const onRequestMicPermission = vi.fn();
   const deps: PopupDeps = {
     storage: memorySetupStorage(),
     port: { postMessage: (message) => posted.push(message) },
     listParticipants: () => [],
     onStart,
-    onRequestMicPermission,
     ...overrides,
   };
   // NB: no re-spread of the spies after overrides: an overridden onStart
@@ -107,23 +105,22 @@ describe("popup Start", () => {
 });
 
 describe("popup microphone", () => {
-  it("shows the mic grant state and opens the permission page on click", async () => {
+  it("shows the mic state as a status only, with no grant button", async () => {
     const deps = depsWith();
     await deps.storage.saveMicState("denied");
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
     expect(root.querySelector("#mic-state")?.textContent).toMatch(/tab audio only/);
-    (root.querySelector("#mic-btn") as HTMLButtonElement).click();
-    expect(deps.onRequestMicPermission).toHaveBeenCalledTimes(1);
+    expect(root.querySelector("#mic-btn")).toBeNull();
   });
 
-  it("defaults to not set up yet", async () => {
+  it("defaults to starting with Start", async () => {
     const deps = depsWith();
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
-    expect(root.querySelector("#mic-state")?.textContent).toMatch(/not set up yet/);
+    expect(root.querySelector("#mic-state")?.textContent).toMatch(/starts with Start/);
   });
 });
 
