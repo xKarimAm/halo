@@ -47,7 +47,10 @@ class SocketSession:
         if not isinstance(msg, dict):
             return _ack("", "error", "invalid_schema", "not an object")
         if msg.get("type") == "pair.hello":
-            return self._hello(msg)
+            answer = self._hello(msg)
+            if self.paired:
+                await self._gateway.replay_open_meeting()
+            return answer
         if not self.paired:
             return _ack(msg.get("id"), "error", "unpaired", "pair first")
         mtype = msg.get("type")

@@ -167,3 +167,15 @@ def test_background_loop_drains_queue(tmp_path):
         return (data / "recordings" / f"{MEETING}.webm").read_bytes()
 
     assert asyncio.run(drive()) == b"aaabb"
+
+
+def test_replayed_started_keeps_live_meeting(tmp_path):
+    """Issue #57: a repeated meeting.started for a live meeting keeps it
+    live with its first t0 (no second meeting, no finalize)."""
+    rec, bus, _ = make_rec(tmp_path)
+    started = _started()
+    pub(bus, started)
+    pub(bus, {**started, "data": {**started["data"], "t0_ms": T0 + 999}})
+    assert list(rec._meetings) == [MEETING]
+    assert rec._meetings[MEETING].t0_ms == T0
+    assert not rec._meetings[MEETING].finalized

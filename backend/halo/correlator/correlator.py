@@ -71,7 +71,10 @@ class Correlator:
 
     async def _on_lifecycle(self, envelope: Envelope) -> None:
         if envelope.get("type") == "meeting.started":
-            self._meetingid = str(envelope.get("data", {}).get("meeting_id", ""))
+            meeting_id = str(envelope.get("data", {}).get("meeting_id", ""))
+            if meeting_id and meeting_id == self._meetingid:
+                return  # a replayed started (issue #57) keeps tiles and locks
+            self._meetingid = meeting_id
         self._reset()
 
     def _reset(self) -> None:
