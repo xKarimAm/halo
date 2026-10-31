@@ -115,7 +115,8 @@ export class Hub {
     this.ended = false;
     this.sendEnvelope("meeting.started", {
       meeting_id: this.meetingId, platform: meta.platform,
-      meeting_code: meta.meeting_code, t0_ms: this.deps.now(), self_name: meta.self_name,
+      meeting_code: meta.meeting_code, t0_ms: this.deps.now(),
+      self_name: meta.self_name || this.heldSelfName(),
     }, this.meetingId);
     // Page state captured before Start now has a meeting to attach to.
     for (const msg of this.preStartPortMsgs.splice(0)) this.onPortMessage(msg);
@@ -130,6 +131,21 @@ export class Hub {
 
   /** A Meet-page reload must not end the meeting (60 s grace): no-op. */
   onPagePortDisconnected(): void {}
+
+  /**
+   * Best-effort self name: the held pre-Start tiles.snapshot's self tile.
+   * The popup sends self_name "" (it cannot see the Meet DOM), so this
+   * fills it when the snapshot arrived before Start; otherwise "" stands
+   * and the Correlator still maps the mic stream to the self tile.
+   */
+  private heldSelfName(): string {
+    for (const msg of this.preStartPortMsgs) {
+      if (msg.type !== "tiles.snapshot") continue;
+      const self = msg.data.tiles.find((t) => t.is_self);
+      if (self && self.name) return self.name;
+    }
+    return "";
+  }
 
   private preStartPortMsgs: ToHubPortMessage[] = [];
 

@@ -13,14 +13,18 @@ const golden = goldenContext.data as unknown as MeetingContext;
 function depsWith(overrides: Partial<PopupDeps> = {}) {
   const posted: PortMeetingContext[] = [];
   const onStart = vi.fn();
+  const onRequestMicPermission = vi.fn();
   const deps: PopupDeps = {
     storage: memorySetupStorage(),
     port: { postMessage: (message) => posted.push(message) },
     listParticipants: () => [],
     onStart,
+    onRequestMicPermission,
     ...overrides,
   };
-  return { ...deps, posted, onStart };
+  // NB: no re-spread of the spies after overrides: an overridden onStart
+  // must reach initPopup, while the bare vi.fn stays visible as deps.onStart.
+  return { ...deps, posted };
 }
 
 function flush(): Promise<void> {
@@ -71,6 +75,55 @@ describe("popup Start", () => {
     (root.querySelector("#start-btn") as HTMLButtonElement).click();
     (root.querySelector("#start-btn") as HTMLButtonElement).click();
     expect(deps.onStart).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a refusal message and starts nothing on a refused Start", async () => {
+    const deps = depsWith({
+      onStart: async () => ({ ok: false as const, message: "Open a Google Meet call, then press Start." }),
+    });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    (root.querySelector("#start-btn") as HTMLButtonElement).click();
+    await flush();
+    const error = root.querySelector("#start-error") as HTMLElement;
+    expect(error.hasAttribute("hidden")).toBe(false);
+    expect(error.textContent).toMatch(/Google Meet call/);
+  });
+
+  it("shows a capture warning but still starts on a degraded Start", async () => {
+    const deps = depsWith({
+      onStart: async () => ({ ok: true as const, warning: "Audio capture failed. Started without audio." }),
+    });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    (root.querySelector("#start-btn") as HTMLButtonElement).click();
+    await flush();
+    const error = root.querySelector("#start-error") as HTMLElement;
+    expect(error.hasAttribute("hidden")).toBe(false);
+    expect(error.textContent).toMatch(/without audio/);
+  });
+});
+
+describe("popup microphone", () => {
+  it("shows the mic grant state and opens the permission page on click", async () => {
+    const deps = depsWith();
+    await deps.storage.saveMicState("denied");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    expect(root.querySelector("#mic-state")?.textContent).toMatch(/tab audio only/);
+    (root.querySelector("#mic-btn") as HTMLButtonElement).click();
+    expect(deps.onRequestMicPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults to not set up yet", async () => {
+    const deps = depsWith();
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    expect(root.querySelector("#mic-state")?.textContent).toMatch(/not set up yet/);
   });
 });
 
@@ -160,6 +213,17 @@ describe("popup urgency toggle", () => {
 });
 
 describe("popup prefill", () => {
+  it("awaits async participant names from the hub storage", async () => {
+    const deps = depsWith({ listParticipants: async () => ["Layla", "Omar"] });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const names = [...root.querySelectorAll(".role-name")].map(
+      (input) => (input as HTMLInputElement).value,
+    );
+    expect(names).toEqual(["Layla", "Omar"]);
+  });
+
   it("renders one row per participant name", async () => {
     const deps = depsWith({ listParticipants: () => ["Layla", "Omar"] });
     const root = document.createElement("div");

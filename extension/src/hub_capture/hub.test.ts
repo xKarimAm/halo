@@ -267,6 +267,43 @@ describe("socket reconnect", () => {
   });
 });
 
+// Self name: best-effort from the held pre-Start snapshot, else ""
+describe("self name derivation", () => {
+  const tiles = (name: string) => ({
+    type: "tiles.snapshot" as const,
+    data: {
+      tiles: [
+        { tile_id: "t1", name, is_self: true, rect: [0, 0, 1, 1], video_w: 640, video_h: 360, fit: "cover" as const, captions_rect: null },
+        { tile_id: "t2", name: "Layla", is_self: false, rect: [0, 0, 1, 1], video_w: 640, video_h: 360, fit: "cover" as const, captions_rect: null },
+      ],
+    },
+  });
+
+  it("fills an empty self_name from the held snapshot's self tile", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.onPortMessage(tiles("Karim Amer"));
+    hub.start({ ...started, self_name: "" });
+    const data = socket.envelopes().find((e) => e.type === "meeting.started")?.data as Record<string, unknown>;
+    expect(data.self_name).toBe("Karim Amer");
+  });
+
+  it("an explicit self_name wins; no snapshot means empty", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.onPortMessage(tiles("Karim Amer"));
+    hub.start(started); // self_name "Karim Amer" already set
+    const data = socket.envelopes().find((e) => e.type === "meeting.started")?.data as Record<string, unknown>;
+    expect(data.self_name).toBe("Karim Amer");
+
+    const fresh = makeHub();
+    openAndPair(fresh.hub, fresh.socket);
+    fresh.hub.start({ ...started, self_name: "" });
+    const data2 = fresh.socket.envelopes().find((e) => e.type === "meeting.started")?.data as Record<string, unknown>;
+    expect(data2.self_name).toBe("");
+  });
+});
+
 // Issue #6: start handoff + tile-names storage convention
 describe("setup_panel handoff (#6)", () => {
   it("runtime start message mints and sends meeting.started; tiles persist names", () => {

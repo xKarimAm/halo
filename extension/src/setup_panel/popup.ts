@@ -7,6 +7,7 @@ import {
 } from "./context";
 import { PairingError, pairWithCode } from "./pairing";
 import type { SavedSetup, SetupStorage, UrgencyStyle } from "./storage";
+import type { StartResult } from "./start_target";
 
 /** Minimal Port to the hub: the hub wraps the payload in an envelope. */
 export interface PopupPort {
@@ -17,13 +18,16 @@ export interface PopupDeps {
   storage: SetupStorage;
   /** Port to the hub; Save posts one `meeting.context` on it. */
   port: PopupPort;
+  /** Current participant names for role prefill (hub's `halo/tileNames`). */
+  listParticipants: () => string[] | Promise<string[]>;
   /**
-   * Current participant names for role prefill. Returns [] until the hub
-   * delivers adapter tile names to the panel (open hub_capture/contracts issue).
+   * Hub_capture's capture handoff, called once per Start click (the user
+   * gesture Chrome needs for tabCapture). A refusal or capture warning
+   * comes back as the result and is shown under the Start button.
    */
-  listParticipants: () => string[];
-  /** Hub_capture's capture handoff, called once per Start click (user gesture). */
-  onStart: () => void;
+  onStart: () => StartResult | Promise<StartResult> | void;
+  /** Opens the one-time microphone-permission page. */
+  onRequestMicPermission: () => void;
   pairFn?: (code: string) => Promise<string>;
 }
 
@@ -51,13 +55,19 @@ function labeledInput(
  * rows from participant names, and wires Pair / Save / Start. Contains no
  * consent UI: consent lives in the Overlay lane only.
  */
+export function micStatusText(state: SavedSetup["micState"]): string {
+  if (state === "granted") return "Microphone: ready";
+  if (state === "denied") return "Microphone: blocked — tab audio only";
+  return "Microphone: not set up yet";
+}
+
 export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<void> {
   const saved: SavedSetup = await deps.storage.load();
   const pairFn = deps.pairFn ?? pairWithCode;
 
   let rows: RoleRow[] = mergeTileNames(
     (saved.context?.roles ?? []).map((role) => ({ name: role.name, role: role.role ?? "" })),
-    deps.listParticipants(),
+    await deps.listParticipants(),
   );
   if (rows.length === 0) {
     rows = [{ name: "", role: "" }];
@@ -175,9 +185,34 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   }
   root.appendChild(prefs);
 
-  const startButton = el("button", { id: "start-btn", type: "button" }, "Start") as HTMLButtonElement;
-  startButton.addEventListener("click", () => {
-    deps.onStart();
+  // One-time microphone grant: the offscreen document cannot prompt, so a
+  // dedicated extension page calls getUserMedia once and keeps the grant.
+  const micSection = el("section", { id: "mic-section" });
+  const micState = el("p", { id: "mic-state" }, micStatusText(saved.micState));
+  const micButton = el("button", { id: "mic-btn", type: "button" }, "Allow microphone") as HTMLButtonElement;
+  micButton.addEventListener("click", () => {
+    deps.onRequestMicPermission();
   });
-  root.appendChild(startButton);
+  micSection.append(micState, micButton);
+  root.appendChild(micSection);
+
+  const startButton = el("button", { id: "start-btn", type: "button" }, "Start") as HTMLButtonElement;
+  const startMessage = el("p", { id: "start-error", hidden: "true" });
+  const showStartMessage = (text: string): void => {
+    startMessage.textContent = text;
+    startMessage.removeAttribute("hidden");
+  };
+  startButton.addEventListener("click", () => {
+    void (async () => {
+      const result = (await deps.onStart()) as StartResult | undefined;
+      if (!result) return; // legacy void handoff: started, nothing to show
+      startMessage.setAttribute("hidden", "true");
+      if (result.ok) {
+        if (result.warning) showStartMessage(result.warning);
+      } else {
+        showStartMessage(result.message);
+      }
+    })();
+  });
+  root.append(startButton, startMessage);
 }

@@ -37,10 +37,9 @@ Goal: Implement setup_panel per its PLAN.md; done ONLY when `npm --prefix extens
 
 ## Current step
 
-Urgency toggle (DECISIONS: viewer setting `halo.urgencyStyle`): Words|Symbols radio pair in a viewer-prefs section, restored on open, written immediately so the overlay switches live via storage.onChanged. `saveUrgencyStyle` added to both chrome and memory storage. 83/83 extension tests green (5 new), `tsc --noEmit` clean. Next: commit, push, open PR (branch feature/setup-panel-urgency-toggle; module/setup_panel already merged).
+Live audio capture (popup half): Start comes from the active Meet tab (`start_target.ts` gate with refusal message), mints the tab stream id via tabCapture, and sends meeting_code + streamId through pendingStart; role prefill reads the hub's `halo/tileNames` (closes the prefill TODO — no Port change); mic section shows `halo.micState` with a one-time permission page (`entrypoints/mic-permission/`). StartResult refusal/warning display covered; async participants supported.
 
 ## Open questions
 
 - (gateway) Confirm `POST /pair` response field (`{token}`?) and wrong-code HTTP status — filed as issue (see PR); coded to PLAN shape meanwhile.
-- (hub_capture) Define the Start-click → hub/capture handoff the popup must invoke — filed as issue (see PR); popup takes injected `onStart` meanwhile.
-- (hub_capture/contracts) How do adapter tile names reach the panel for role prefill (no hub→panel Port message exists)? May need a Port addition (`contract-change`, waits for Karim); popup takes injected `listParticipants` meanwhile.
+- Done (live capture): Start → hub/capture handoff is pendingStart `{type, platform, meeting_code, self_name, streamId}`; role prefill reads the hub's `halo/tileNames` storage — no Port change needed.

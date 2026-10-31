@@ -65,6 +65,10 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     const token = await popup.evaluate(
       () => new Promise((resolve) => chrome.storage.local.get("halo.token", (items) => resolve(items["halo.token"]))));
     writeFileSync(`${JOINED_DIR}/token.json`, JSON.stringify({ token }));
+    // Start is a user gesture on the Meet tab: opening the popup page above
+    // made the popup the active tab, so bring the Meet page back forward or
+    // the popup refuses Start (it must target the Meet tab for tabCapture).
+    await page.bringToFront();
     await popup.click("#start-btn");
     writeFileSync(`${JOINED_DIR}/started.flag`, "started");
 

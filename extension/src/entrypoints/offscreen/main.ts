@@ -2,6 +2,7 @@
 // Thin wrapper; all behaviour (incl. reconnect/backoff/pairing gate) lives
 // in hub_capture/hub.ts (unit-tested).
 import { HUB_START_MESSAGE, Hub, handleHubRuntimeMessage } from "../../hub_capture/hub";
+import { adaptAudioContext, startLiveCapture } from "../../hub_capture/capture_live";
 import type { ToPagePortMessage } from "../../../../contracts/ext/port";
 
 declare const chrome: any;
@@ -64,6 +65,19 @@ function startFrom(msg: Record<string, unknown>): void {
     hubDeps.token = typeof items?.["halo.token"] === "string" ? items["halo.token"] : "";
     hub.connect();
     handleHubRuntimeMessage(hub, msg);
+    // Live audio: tab stream 0 (+ local replay) and mic stream 1. Never
+    // blocks the meeting: without a stream id or a grant the hub runs on
+    // without that stream's audio.
+    void startLiveCapture(
+      typeof msg.streamId === "string" ? msg.streamId : undefined,
+      {
+        mediaDevices: navigator.mediaDevices,
+        createContext: () => adaptAudioContext(new AudioContext()),
+        sendAudio: (stream, pcm, tsMs) => hub.sendAudio(stream, pcm, tsMs),
+        setMicState: (state) => chrome.storage.local.set({ "halo.micState": state }),
+        now: () => Date.now(),
+      },
+    );
   });
 }
 

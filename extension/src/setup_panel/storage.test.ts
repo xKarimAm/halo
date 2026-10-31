@@ -42,6 +42,12 @@ describe("memorySetupStorage", () => {
     await storage.saveUrgencyStyle("words");
     expect(await storage.load()).toMatchObject({ urgencyStyle: "words" });
   });
+
+  it("round-trips the mic grant state", async () => {
+    const storage = memorySetupStorage();
+    await storage.saveMicState("denied");
+    expect(await storage.load()).toMatchObject({ micState: "denied" });
+  });
 });
 
 function fakeArea(seed: Record<string, unknown> = {}): StorageArea & { written: Record<string, unknown>[] } {
