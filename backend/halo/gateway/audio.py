@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from contracts.binary import AUDIO, MIC, REC, TAB, FrameError, parse_header
@@ -41,9 +42,16 @@ class AudioRouter:
         self._next: dict[int, int] = {TAB: 0, MIC: 0}
         self._last_ts: dict[int, int] = {TAB: 0, MIC: 0}
         self._owner: dict[int, int] = {TAB: -1, MIC: -1}  # producer id feeding each stream
+        self._last_at: dict[int, float | None] = {TAB: None, MIC: None}  # monotonic, last frame queued
         self.gaps = 0
         self.padded = 0
         self.dropped = 0
+
+    def audio_age_s(self) -> dict[str, float | None]:
+        """Seconds since each stream last queued a frame (None: never)."""
+        now = time.monotonic()
+        return {name: None if self._last_at[s] is None else round(now - self._last_at[s], 1)
+                for name, s in (("tab", TAB), ("mic", MIC))}
 
     @property
     def queues(self) -> dict[str, asyncio.Queue]:
@@ -113,6 +121,7 @@ class AudioRouter:
             return "dropped"
         self._next[stream] = seq + 1
         self._last_ts[stream] = ts_ms
+        self._last_at[stream] = time.monotonic()
         return "audio"
 
     def _pad_gap(self, queue: asyncio.Queue, stream: int, expected: int, seq: int, ts_ms: int) -> None:
