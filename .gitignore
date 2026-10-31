@@ -26,3 +26,9 @@ recordings/
 # recorded test calls stay local
 rig/fixtures/*/
 !rig/fixtures/synthetic/
+
+# local caches and test output
+.pw-browsers/
+test-results/
+.npm-cache/
+pytest-of-*/

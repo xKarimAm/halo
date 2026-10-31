@@ -1,6 +1,28 @@
 # Agent instructions
 
-**Start here:** read `docs/DECISIONS.md` (every locked decision; it wins over older docs), then `docs/PLAN.md` (the build plan) and your module's `PLAN.md`. Architecture: `docs/architecture/halo-v2-final.drawio`.
+**Start here:** read `docs/DECISIONS.md` (every locked decision; it wins over older docs), then the map for your area below, then your module's `PLAN.md` and `STATE.md`. Master build plan: `docs/PLAN.md`.
+
+## Repo map
+
+| Area | Map | Lanes (folder = lane, label = `module:<folder>`) |
+|---|---|---|
+| `backend/` | `backend/AGENTS.md` | bus, llm, gateway, transcriber, correlator, insight, classifier, event_store, notes_builder, notes_service, recorder |
+| `extension/` | `extension/AGENTS.md` | hub_capture, setup_panel, meet_adapter, frame_source, face_detector, overlay |
+| `notes-page/` | `notes-page/AGENTS.md` | notes-page |
+| `rig/` | `rig/AGENTS.md` | fakes, replayer, fake_meet |
+| `contracts/` | `contracts/AGENTS.md` | contracts |
+| `packaging/`, root files, `backend/halo/app.py` | `packaging/PLAN.md` | packaging |
+| `docs/` | `docs/DECISIONS.md` | none (Karim + Claude) |
+
+Which window (W1-W3) owns which lane: DECISIONS §6. Rules for calling Meta models: `.agents/skills/meta-model-api/`.
+
+## Finding things
+
+1. A module's `STATE.md` has a **File map** of every file it owns. Read it before searching, then open only the files it names.
+2. Search inside the area or module folder you work in rather than the repo root. In the main checkout, `.tmp/` holds about 50 full worktrees (git-ignored): work and search inside your own.
+3. Read large files by line range: find the symbol first, then read around it.
+4. Searches skip lockfiles and the architecture diagram (root `.ignore`). The diagram is one 70-90 KB line of XML and DECISIONS §3 summarises it; open `docs/architecture/halo-v2-final.drawio` only to edit it.
+5. Locked dependency versions: `npm --prefix extension ls <pkg>` or `uv tree --package <pkg>`. Claude cannot read lockfiles or `.env`, and its Glob skips git-ignored paths (`.claude/settings.json`).
 
 ## Agent skills
 
@@ -24,7 +46,7 @@ Five default labels: needs-triage, needs-info, ready-for-agent, ready-for-human,
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+`GLOSSARY.md` and `docs/adr/` are not written yet; DECISIONS.md holds the terms. Their format: `docs/agents/domain.md`.
 
 ## Git inside the Muse sandbox
 
