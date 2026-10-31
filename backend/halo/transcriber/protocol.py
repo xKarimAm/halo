@@ -22,8 +22,11 @@ until the fake is updated.
 
 Because Voice closes a turn only on a speaker change, a long monologue is
 one wire turn. The session soft-cuts open turns at PCM pauses: maybe_cut()
-emits the new words since the last cut (fresh turn_id downstream), holding
-back the last SOFT_CUT_TAIL_WORDS because Voice rewrites the frontier;
+emits the new words since the last cut (fresh turn_id downstream). When the
+latest partial already covers the speech before the pause (its
+audioProcessedMs is at/after the pause start) the frontier is stable and
+every new word goes out, keeping sentences whole; otherwise the last
+SOFT_CUT_TAIL_WORDS are held back because Voice rewrites the frontier.
 speechComplete then emits only the uncut remainder, so text is never
 duplicated or lost (whitespace-normalised prefix match).
 """
@@ -202,12 +205,16 @@ class TurnAssembler:
             return self._complete(key)
         return None
 
-    def maybe_cut(self) -> dict[str, Any] | None:
+    def maybe_cut(self, pause_start_ms: int | None = None) -> dict[str, Any] | None:
         """Emit the open turn's new words since the last cut, or None.
 
-        The session calls this once a pause has lasted long enough. Cuts at
-        a word boundary and holds back the last SOFT_CUT_TAIL_WORDS: Voice
-        rewrites the frontier, and the final remainder carries any tail fix.
+        The session calls this once a pause has lasted long enough, passing
+        the audio position where the silence run began. Cuts at a word
+        boundary. When the latest partial already covers the speech before
+        the pause (stable frontier) every new word goes out, keeping
+        sentences whole; otherwise the last SOFT_CUT_TAIL_WORDS are held
+        back (Voice rewrites the frontier) and the final remainder carries
+        any tail fix.
         """
         key = self._open
         if key is None or key in self._done:
@@ -219,9 +226,19 @@ class TurnAssembler:
         if turn_words[: len(cut_words)] != cut_words:
             return None  # frontier rewrite touched cut text; wait for the fix
         extra = turn_words[len(cut_words):]
-        if len(extra) <= SOFT_CUT_TAIL_WORDS:
+        latest = self._latest.get(key)
+        if (
+            pause_start_ms is not None
+            and latest is not None
+            and latest >= pause_start_ms
+        ):
+            new_words = extra
+        elif len(extra) <= SOFT_CUT_TAIL_WORDS:
             return None
-        new_words = extra[: -SOFT_CUT_TAIL_WORDS]
+        else:
+            new_words = extra[: -SOFT_CUT_TAIL_WORDS]
+        if not new_words:
+            return None
         start = self._cut_end.get(key, self._start.get(key, 0))
         end = self._latest.get(key, start)
         self._emitted[key] = " ".join(cut_words + new_words)

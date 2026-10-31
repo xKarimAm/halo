@@ -24,7 +24,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from halo.transcriber.protocol import DIARIZATION, TurnAssembler
+from halo.transcriber.protocol import (
+    DIARIZATION,
+    SOFT_CUT_TAIL_WORDS,
+    TurnAssembler,
+)
 from halo.transcriber.session import EngineTransport, TranscriptionSession
 
 FIXTURE = json.loads(
@@ -167,6 +171,78 @@ def test_unknown_speaker_is_question_mark():
          "audioProcessedMs": 400},
     ])
     assert turn["speaker"] == "?"
+
+
+def fixture_partial(n: int) -> dict:
+    partials = [e for e in FIXTURE
+                if e.get("type") == "transcript" and e.get("transcript")]
+    return partials[n]
+
+
+def open_with_partial(assembler: TurnAssembler, text: str, ms: int) -> None:
+    assert feed(assembler, [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": text, "final": False,
+         "audioProcessedMs": ms},
+    ]) == []
+
+
+def test_pause_after_stable_partial_emits_full_sentence():
+    """The partial already covers the speech before the pause: the frontier
+    is stable, so the cut carries every new word and sentences stay whole."""
+    p = fixture_partial(11)
+    words = p["transcript"].split()
+    assert len(words) > SOFT_CUT_TAIL_WORDS + 1
+    assembler = TurnAssembler()
+    open_with_partial(assembler, p["transcript"], p["audioProcessedMs"])
+    piece = assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"] - 200)
+    assert piece is not None and piece["text"].split() == words
+    assert assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"] - 200) is None
+
+
+def test_stale_partial_at_pause_holds_tail():
+    """The partial predates the pause: the frontier may still be rewritten,
+    so the last words stay uncut for the remainder to fix."""
+    p = fixture_partial(11)
+    words = p["transcript"].split()
+    assembler = TurnAssembler()
+    open_with_partial(assembler, p["transcript"], p["audioProcessedMs"])
+    piece = assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"] + 5000)
+    assert piece is not None
+    assert piece["text"].split() == words[: -SOFT_CUT_TAIL_WORDS]
+
+
+def test_session_stale_partial_holds_tail():
+    """Session wiring: the pause start passed to maybe_cut is the audio
+    position where the silence run began."""
+    text = "one two three four five six seven"
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": text, "final": False,
+         "audioProcessedMs": 500},
+        {"type": "speaker", "label": "A", "audioProcessedMs": 3100},
+        {"type": "speechEnd", "turnId": 0, "audioProcessedMs": 3200},
+        {"type": "speechComplete", "turnId": 0, "transcript": text,
+         "audioProcessedMs": 3200},
+        {"type": "transcript", "transcript": "", "final": True,
+         "audioProcessedMs": 3400},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(42):  # 4.2 s of audio; silence from 2.0 s
+            pcm = SILENCE if seq >= 20 else SPEECH
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    turns = asyncio.run(go())
+    # The only partial (audio ms 500) predates the pause at 2000: the tail
+    # is held, and the completion carries just the remainder.
+    assert [t["text"] for t in turns] == ["one two three four", "five six seven"]
+    assert turns[0]["speaker"] == "?" and turns[1]["speaker"] == "A"
 
 
 def test_soft_cut_holds_back_the_tail_and_never_repeats():
