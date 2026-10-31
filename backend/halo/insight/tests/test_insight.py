@@ -114,6 +114,9 @@ def setup(replies):
     bus = Bus()
     llm = FakeLLM(clock, replies)
     insight = Insight(bus, llm, clock=clock)
+    # Production flushes from the 250 ms loop (the handler never awaits the
+    # model); here a flush right after each turn keeps the timing deterministic.
+    bus.subscribe("turn.attributed", lambda _e: insight.flush())
     points, health = [], []
     bus.subscribe("points.upsert", points.append)
     bus.subscribe("llm.health", health.append)
@@ -265,5 +268,19 @@ def test_failed_call_requeues_turns():
         await bus.publish(turn_envelope(tid2, "more words", ts=4000))
         assert len(llm.calls) == 2
         assert points[0]["data"]["turn_ids"] == [tid, tid2]
+
+    asyncio.run(run())
+
+
+def test_turn_handler_never_awaits_the_model():
+    # Found live: a 4 s model call inside the turn handler froze bus.publish
+    # (transcriber, correlator and gateway ACKs) for every turn.
+    async def run():
+        clock = Clock()
+        bus = Bus()
+        llm = FakeLLM(clock, [point_reply("Launch moves")])
+        Insight(bus, llm, clock=clock)
+        await bus.publish(turn_envelope("00000030-0000-4000-8000-000000000030", "Launch moves"))
+        assert llm.calls == []
 
     asyncio.run(run())
