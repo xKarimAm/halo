@@ -15,13 +15,14 @@ export const PENDING_START_KEY = "halo.pendingStart";
 const TOKEN_KEY = "halo.token";
 
 /** Consume the pending Start (once) together with the pairing token. */
-async function takeStart(): Promise<{ start: unknown; token: string } | null> {
+async function takeStart(): Promise<{ start: unknown; token: string; extVersion: string } | null> {
   const items = await chrome.storage.local.get([PENDING_START_KEY, TOKEN_KEY]);
   const pending = items?.[PENDING_START_KEY] as { msg?: unknown } | undefined;
   if (!pending?.msg) return null;
   await chrome.storage.local.remove(PENDING_START_KEY);
   const token = typeof items?.[TOKEN_KEY] === "string" ? items[TOKEN_KEY] : "";
-  return { start: pending.msg, token };
+  // getManifest is not available in the offscreen document either.
+  return { start: pending.msg, token, extVersion: chrome.runtime.getManifest().version };
 }
 
 export default defineBackground(() => {
