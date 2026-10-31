@@ -25,6 +25,8 @@ Implement extension/src/overlay per its PLAN.md (Frame mode first); done ONLY wh
 ## Current step
 Urgency mark (DECISIONS: words default + symbols, viewer setting): chip carries a draft-2 word tab (localised EN/AR) or a draft-1 seal at 14px (~25% under the 19px draft); style from `halo.urgencyStyle` with live `storage.onChanged` switch; 21 overlay tests green, `tsc --noEmit` clean. Face-mode projection is unit-tested and activates when face_detector lands; L3 ±4 px runs once hub_capture/meet_adapter merge.
 
+Issue #73: `mountControls` (index.ts) adds the badge (top-left, `Halo` / `Halo · hidden`), a "Consent notice" button opening the editable consent dialog ("Copy notice" copies the textarea via `copyConsentNotice`, confirms in a status line), and the notes-ready toast (link to `http://127.0.0.1:8765` + `notes.ready.url`, new tab, dismissible). Tests: `controls.test.ts` (happy-dom). Badge menu, REC dot and AR UI labels are not built yet.
+
 ## Open questions
 - Urgency-mark look: decided by Karim (both drafts; words default) — implemented here; setup-panel toggle is a separate PR in that lane.
 - L3 ±4 px asserts wait on hub_capture + meet_adapter merging (both have open PRs); unit geometry here is the same math the L3 spec will assert.
