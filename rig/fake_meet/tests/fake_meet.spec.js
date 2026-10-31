@@ -27,7 +27,9 @@ test("speaking toggles and join/leave follow the script", async ({ page }) => {
   await page.goto("/index.html");
   const self = page.locator('[data-participant-id="spaces/x/devices/1"]');
   await expect(self).toHaveClass(/speaking/, { timeout: 2000 });
+  await expect(self).toHaveAttribute("data-speaking", "true");
   await expect(self).not.toHaveClass(/speaking/, { timeout: 3000 });
+  await expect(self).toHaveAttribute("data-speaking", "false");
   await page.evaluate(() => window.__halo_join(
     { tile_id: "spaces/x/devices/4", media_id: "m4", name: "New Person", is_self: false, face: null }));
   await expect(page.locator(".t")).toHaveCount(4);
@@ -44,6 +46,20 @@ test("painted faces carry ground-truth boxes", async ({ page }) => {
     expect(f.box).toHaveLength(4);
     for (const v of f.box) expect(v).toBeGreaterThanOrEqual(0), expect(v).toBeLessThanOrEqual(1);
   }
+});
+
+// meet_adapter CONVENTIONS: self marker, speaking attr and captions band.
+test("tiles expose the adapter anchors (self, speaking, captions)", async ({ page }) => {
+  await page.goto("/index.html");
+  await expect(page.locator('[data-participant-id="spaces/x/devices/1"]'))
+    .toHaveAttribute("data-self", "true");
+  await expect(page.locator('[data-participant-id="spaces/x/devices/2"][data-self]'))
+    .toHaveCount(0);
+  await page.evaluate(() => window.__halo_captions("hello captions"));
+  const band = page.locator("[data-captions-band]");
+  await expect(band).toContainText("hello captions");
+  await page.evaluate(() => window.__halo_captions(null));
+  await expect(band).toHaveCount(0);
 });
 
 // PLAN Done (5): CSP + Trusted Types headers are served.
