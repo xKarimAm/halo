@@ -26,6 +26,7 @@ class FakeTransport(EngineTransport):
 
     async def open(self, handshake: dict[str, Any]) -> None:
         self.handshakes.append(handshake)
+        self._anchor = None  # like Voice: a new session counts audio from 0
 
     async def send_audio(self, pcm: bytes, ts_ms: int = 0) -> None:
         if self._anchor is None:

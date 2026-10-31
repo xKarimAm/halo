@@ -86,6 +86,10 @@ class TranscriptionSession:
         self.anchor_ms: int | None = None
         self.expected_seq: int | None = None
         self.position_ms = 0
+        # position_ms where the current Voice session began: a reopened
+        # session counts audioProcessedMs from 0 again.
+        self._session_ms = 0
+        self._rekey = False
         self.pad_ms = 0
         self.health = "ok"
         self.closed = False
@@ -102,6 +106,14 @@ class TranscriptionSession:
         await self.transport.open(build_handshake(self.mode, key, keywords))
         self._opened_at = time.monotonic()
         self.health = "ok"
+
+    def set_keywords(self, keywords: list[str]) -> None:
+        """Voice fixes keywords at the handshake: new ones reopen the session
+        from the run loop (maybe_rotate). Words of a turn open at that moment
+        are lost, as at the 59 min rotation."""
+        if list(keywords) != self._keywords:
+            self._keywords = list(keywords)
+            self._rekey = True
 
     async def feed_frame(self, seq: int, ts_ms: int, pcm: bytes) -> list[dict[str, Any]]:
         """Pace one queued frame through the engine; returns mapped turns."""
@@ -143,7 +155,8 @@ class TranscriptionSession:
             if self._silence_run_ms >= self.soft_cut_silence_ms and not self._cut_this_pause:
                 self._pending_pause_ms = self._silence_start_ms
             if self._pending_pause_ms is not None:
-                piece = self._assembler.maybe_cut(pause_start_ms=self._pending_pause_ms)
+                piece = self._assembler.maybe_cut(
+                    pause_start_ms=self._pending_pause_ms - self._session_ms)
                 if piece is not None:
                     self._cut_this_pause = True
                     self._pending_pause_ms = None
@@ -196,8 +209,9 @@ class TranscriptionSession:
     def _map(self, turn: dict[str, Any]) -> dict[str, Any]:
         assert self.anchor_ms is not None
         if turn.get("relative"):
-            start = self.anchor_ms + int(turn.get("start_offset_ms", 0))
-            end = self.anchor_ms + int(turn.get("end_offset_ms", 0))
+            base = self.anchor_ms + self._session_ms
+            start = base + int(turn.get("start_offset_ms", 0))
+            end = base + int(turn.get("end_offset_ms", 0))
         else:
             start = int(turn.get("start_offset_ms", 0))
             end = int(turn.get("end_offset_ms", 0))
@@ -225,6 +239,7 @@ class TranscriptionSession:
         try:
             await self.transport.close()
             await self.transport.open(build_handshake(self.mode, self._key, self._keywords))
+            self._new_engine_session()
         except Exception as exc2:  # noqa: BLE001 -- reopen failure means the session is down
             self.health = "down"
             self.closed = True
@@ -234,9 +249,10 @@ class TranscriptionSession:
         """Rotate to a fresh session before 60 min; labels reset (Correlator re-locks)."""
         if self.closed or self._opened_at == 0:
             return False
-        if time.monotonic() - self._opened_at < self.rotation_after_s:
+        if not self._rekey and time.monotonic() - self._opened_at < self.rotation_after_s:
             return False
-        log.warning("transcriber session rotating: stream=%s position_ms=%d",
+        log.warning("transcriber session reopening (%s): stream=%s position_ms=%d",
+                    "keywords" if self._rekey else "rotation",
                     self.stream, self.position_ms)
         try:
             await self.transport.close()
@@ -244,9 +260,16 @@ class TranscriptionSession:
         except Exception as exc:  # noqa: BLE001 -- rotation failure routes to reconnect/down
             await self._on_transport_error(exc)
             return False
+        self._new_engine_session()
         self._opened_at = time.monotonic()
         self.rotations += 1
         return True
+
+    def _new_engine_session(self) -> None:
+        self._session_ms = self.position_ms
+        self._assembler = TurnAssembler()
+        self._pending_pause_ms = None
+        self._rekey = False
 
     async def run(self, queue: asyncio.Queue, out: asyncio.Queue) -> None:
         """Pump queued frames until closed; silence keeps ingress real-time."""

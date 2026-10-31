@@ -124,3 +124,17 @@ def test_rotation_reopens_at_position():
     assert session.rotations == 1
     assert transport.handshakes and transport.handshakes[0]["mode"] == DIARIZATION
     assert session.position_ms == 200
+
+
+def test_reopen_keeps_turns_on_the_meeting_clock():
+    """A reopened Voice session counts audio from 0 again, so its offsets
+    start at the audio already sent, not at the first frame's anchor."""
+    fake = script(turn("tab", "A", "After the reopen.", 1500, 1900))
+    session, _ = make_session(fake, "tab", DIARIZATION)
+    asyncio.run(session.open("key"))
+    feed(session, 10)
+    session.set_keywords(["Halo"])
+    assert asyncio.run(session.maybe_rotate()) is True
+    turns = feed(session, 15, start_seq=10, anchor=ANCHOR + 1000)
+    assert len(turns) == 1
+    assert abs(turns[0]["ts_start_ms"] - (ANCHOR + 1500)) <= 200
