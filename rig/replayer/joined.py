@@ -250,6 +250,44 @@ class JoinedRun:
         except (OSError, ValueError):  # not up yet / not JSON yet
             return False
 
+    def dump_debug(self) -> None:
+        """On timeout: what reached the store, and what the servers said.
+
+        API keys and the pairing code are masked before printing.
+        """
+        secrets = [v for k in ("BASETEN_API_KEY", "META_API_KEY")
+                   if (v := os.environ.get(k))]
+        try:
+            code = self._pairing_code()
+        except Exception:  # noqa: BLE001 -- debug dump must never mask the real failure
+            code = None
+        if code:
+            secrets.append(code)
+
+        def mask(text: str) -> str:
+            text = re.sub(r"pairing code: \d{6}", "pairing code: <MASKED>", text)
+            for secret in secrets:
+                if secret:
+                    text = text.replace(secret, "<MASKED>")
+            return text
+
+        try:
+            counts: dict[str, int] = {}
+            for event in read_events(self.data_dir):
+                counts[event["type"]] = counts.get(event["type"], 0) + 1
+            print(f"joined debug: events.sqlite type counts: {counts}")
+        except Exception as exc:  # noqa: BLE001 -- debug dump must never mask the real failure
+            print(f"joined debug: events.sqlite unreadable: {exc}")
+        for name in ("backend", "fakes"):
+            log = self.logs.get(name)
+            if not log or not log.exists():
+                print(f"joined debug: {name}.log missing")
+                continue
+            tail = log.read_text(errors="replace").splitlines()[-60:]
+            print(f"joined debug: last {len(tail)} lines of {name}.log (masked):")
+            for line in tail:
+                print(f"  {name}: {mask(line)}")
+
     def build_extension(self) -> None:
         npm = shutil.which("npm") or "npm"
         ext = ROOT / "extension"
@@ -403,6 +441,9 @@ def run_all(backend_only: bool = False) -> dict:
     run = JoinedRun()
     try:
         return run.run(backend_only=backend_only)
+    except (TimeoutError, subprocess.TimeoutExpired):
+        run.dump_debug()
+        raise
     finally:
         run.cleanup()
 
