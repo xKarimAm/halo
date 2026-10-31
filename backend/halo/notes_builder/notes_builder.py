@@ -50,6 +50,13 @@ REBUILD_INSTRUCTIONS = (
 )
 
 
+def action_id_for(point_id: str) -> str:
+    """Stable action id over its point. Must equal notes_service.action_id_for
+    (own copy, lane independence): the page matches ready actions by it, and
+    POST /api/tags resolves an action by it."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{point_id}"))
+
+
 class NotesBuilder:
     """Assemble, validate, once rebuild, emit. Event-driven; no loop."""
 
@@ -60,14 +67,29 @@ class NotesBuilder:
         self._lock = asyncio.Lock()
         self._emitted: set[str] = set()
         self._lkg: dict[str, dict[str, Any]] = {}
+        self.pending: set[asyncio.Task] = set()
         bus.subscribe("meeting.ended", self._on_ended)
 
     async def _on_ended(self, envelope: Envelope) -> None:
         meetingid = envelope.get("meetingid")
         if not isinstance(meetingid, str):
             return
+        # Never await the rebuild here: bus.publish runs subscribers in turn,
+        # and the Gateway ACKs meeting.ended only after publish returns, so a
+        # model rebuild blocked the hub's socket (live 2026-10-31: no ACK for
+        # over 5 s, audio and resends stuck behind it).
+        task = asyncio.get_running_loop().create_task(self._run(meetingid))
+        self.pending.add(task)
+        task.add_done_callback(self.pending.discard)
+
+    async def _run(self, meeting_id: str) -> None:
         async with self._lock:
-            await self._process(meetingid)
+            await self._process(meeting_id)
+
+    async def settle(self) -> None:
+        """Wait for every in-flight pipeline (tests and shutdown)."""
+        while self.pending:
+            await asyncio.gather(*list(self.pending))
 
     async def _process(self, meeting_id: str) -> None:
         store = self._read_store(meeting_id)
@@ -269,7 +291,7 @@ class NotesBuilder:
             people.append({"name": name, "role": role, "why": role,
                            "relevant_points": [], "own_points": own})
         actions = [{
-            "action_id": str(uuid.uuid4()), "text": p["text"], "owner": p["speaker_name"],
+            "action_id": action_id_for(p["point_id"]), "text": p["text"], "owner": p["speaker_name"],
             "status": "assigned", "urgency": p["urgency"], "point_id": p["point_id"],
         } for p in points if p["is_action"]]
         lines = [{
@@ -331,7 +353,12 @@ def validate_page(page: dict[str, Any], store: dict[str, Any]) -> list[str]:
                 problems.append(f"point {pid} turn_ids mismatch")
             if not claimed.get("turn_ids") or not set(claimed["turn_ids"]) <= set(page_turns):
                 problems.append(f"point {pid} traces to no turn")
-            if not any(claimed.get("quote", "") in text for text in turn_texts):
+            # Insight coalesces held turns into one call, so a quote may span
+            # the point's own consecutive turns (live 2026-10-31: soft-cut
+            # pieces split one sentence across 3 turns).
+            quote = claimed.get("quote", "")
+            own = " ".join(t["text"] for t in store["turns"] if t["turn_id"] in set(row["turn_ids"]))
+            if quote not in own and not any(quote in text for text in turn_texts):
                 problems.append(f"point {pid} quote not verbatim in turns")
         for tid, line in page_turns.items():
             row = store_turns.get(tid)
