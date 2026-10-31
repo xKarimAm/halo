@@ -26,8 +26,13 @@ export function parseMeetTab(url: string | undefined): MeetTabTarget {
       message: "Start from inside a Google Meet call: this tab is not a Meet tab.",
     };
   }
-  const segment = parsed.pathname.split("/").filter((s) => s.length > 0)[0];
-  if (!segment || !CODE_SEGMENT.test(segment)) {
+  // Live Meet URLs can be /meet/<code> as well as /<code> (seen 2026-10-31),
+  // so take the last segment that looks like a meeting code.
+  const segment = parsed.pathname
+    .split("/")
+    .filter((s) => CODE_SEGMENT.test(s))
+    .pop();
+  if (!segment) {
     return {
       ok: false,
       message: "Start from inside a Meet call, not the Meet homepage.",

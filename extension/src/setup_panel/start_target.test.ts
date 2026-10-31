@@ -8,6 +8,12 @@ describe("parseMeetTab", () => {
     });
   });
 
+  it("accepts the live /meet/<code> URL form", () => {
+    expect(parseMeetTab("https://meet.google.com/meet/pft-kcbx-bxv")).toEqual({
+      ok: true, meetingCode: "pft-kcbx-bxv",
+    });
+  });
+
   it("strips query strings and trailing slashes", () => {
     expect(parseMeetTab("https://meet.google.com/abc-defg-hij?authuser=0")).toEqual({
       ok: true, meetingCode: "abc-defg-hij",
