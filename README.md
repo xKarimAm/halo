@@ -83,15 +83,15 @@ Leave that window open. Quick check: http://127.0.0.1:8765/healthz should say `"
 
 **3. Pair (once).** Click the Halo icon in the toolbar, type the 6-digit code from the backend window and press **Pair**. It should say "Paired". The pairing sticks across backend restarts.
 
-**4. Allow the mic (once).** In the same popup press **Allow microphone** and accept Chrome's prompt in the tab that opens. If you skip this, Halo still runs on the call audio only.
+**4. The mic.** Nothing to set up: at Start, Halo opens your mic inside the Meet tab under the permission you already gave Meet. If Meet has no mic permission, Halo runs on the call audio only.
 
 **5. Start in a call.** Join a Google Meet call, open the Halo popup, fill in the subject, the agenda (one item per line) and people's roles if you like, pick your language, then press **Start**. Start only works on a `meet.google.com` call tab.
 
-Please tell everyone in the call that Halo is recording and transcribing before you start. There's no button for that yet, so just say it or post it in the Meet chat yourself.
+Please tell everyone in the call that Halo is recording and transcribing before you start. The **Consent notice** button next to the Halo badge (top left of the Meet page) copies a bilingual notice for you to paste into the Meet chat.
 
 **6. Notes.** Open http://127.0.0.1:8765/api/meetings, copy the `meeting_id` of your call and open `http://127.0.0.1:8765/notes/<meeting_id>`. The page shows the live points while the call runs, and the full notes once the meeting has ended.
 
-There's no Stop button yet. A meeting ends when the extension's connection to the backend has been gone for 60 seconds, so after the call turn Halo off in `chrome://extensions` (or quit Chrome), wait a minute, and refresh the notes page.
+The meeting ends when you press **Stop** in the popup, leave the call, or close the Meet tab. A "notes are ready" toast with a link then shows on the Meet page.
 
 Everything Halo saves (transcripts, notes, recordings) lives in the `data` folder next to the code. Delete that folder to wipe it.
 
