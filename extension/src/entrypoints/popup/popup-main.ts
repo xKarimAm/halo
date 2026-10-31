@@ -66,6 +66,13 @@ if (typeof chrome === "undefined" || !chrome) {
 
 const port = chrome.runtime.connect({ name: "halo-hub" });
 
+// Build stamp (wxt.config.ts version_name): which build is loaded.
+const manifest = chrome.runtime.getManifest();
+const build = document.createElement("p");
+build.id = "halo-build";
+build.textContent = `Build ${manifest.version_name ?? manifest.version}`;
+root.after(build);
+
 void initPopup(root, {
   storage: chromeSetupStorage(chrome.storage.local),
   port,
