@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium, expect, test } from "@playwright/test";
 
 // Issue #72: the meeting ends when the user leaves the call (tab stays open)
@@ -15,16 +17,44 @@ function extensionId(manifestPath) {
   return digest.slice(0, 32).replace(/[0-9a-f]/g, (c) => String.fromCharCode(97 + parseInt(c, 16)));
 }
 
+// A port nothing listens on: bind an ephemeral one, then free it.
+function closedPort() {
+  return new Promise((resolve) => {
+    const srv = createServer().listen(0, "127.0.0.1", () => {
+      const { port } = srv.address();
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
+// The build dials the user's LIVE backend (127.0.0.1:8765) once Start boots
+// the hub. This spec needs no backend, so it loads a copy pointed at a
+// closed port: the rig never touches 8765 (same rule as rig/replayer/joined.py).
+async function offlineCopy(src) {
+  const dst = mkdtempSync(`${tmpdir()}/halo-leave-ext-`);
+  cpSync(src, dst, { recursive: true });
+  const dead = `127.0.0.1:${await closedPort()}`;
+  for (const rel of readdirSync(dst, { recursive: true })) {
+    if (!/\.(js|json|html)$/.test(rel)) continue;
+    const file = join(dst, rel);
+    const text = readFileSync(file, "utf-8");
+    if (text.includes("8765")) writeFileSync(file, text.replaceAll("127.0.0.1:8765", dead));
+    if (readFileSync(file, "utf-8").includes("8765")) throw new Error(`copy still names 8765: ${rel}`);
+  }
+  return dst;
+}
+
 test("leaving the call or pressing Stop ends the meeting", async () => {
   test.skip(!existsSync(extPath), "no unpacked extension: run npm --prefix extension run build");
   test.setTimeout(60_000);
   const extId = extensionId(`${extPath}/manifest.json`);
+  const ext = await offlineCopy(extPath);
   const context = await chromium.launchPersistentContext(
     mkdtempSync(`${tmpdir()}/halo-leave-profile-`), {
       channel: "chromium", // full Chromium: its headless mode loads extensions
       args: [
-        `--disable-extensions-except=${extPath}`,
-        `--load-extension=${extPath}`,
+        `--disable-extensions-except=${ext}`,
+        `--load-extension=${ext}`,
         "--no-sandbox", "--disable-dev-shm-usage",
       ],
     });
