@@ -1,0 +1,71 @@
+"""Binary routing tests (PLAN case 5): stream queues, rec queue, kind=2
+rejection, gap padding with the 30 s bound. Synchronous: no loop needed."""
+
+from __future__ import annotations
+
+import asyncio
+
+from halo.gateway.audio import MAX_PAD_FRAMES, AudioRouter
+
+from contracts.binary import MIC, TAB, pack_audio, pack_rec
+
+PCM = bytes(range(256)) * 12 + bytes(128)  # 3200 bytes: one 100 ms frame
+
+
+def drain(queue: asyncio.Queue) -> list:
+    out = []
+    while True:
+        try:
+            out.append(queue.get_nowait())
+        except asyncio.QueueEmpty:
+            return out
+
+
+def test_audio_routes_streams_and_rec_in_order():
+    router = AudioRouter()
+    assert router.handle(pack_audio(TAB, 0, 1000, PCM)) == "audio"
+    assert router.handle(pack_audio(MIC, 0, 1000, PCM)) == "audio"
+    assert router.handle(pack_rec(0, 1000, b"webm")) == "rec"
+    tab, mic, rec = (drain(router.queues[name]) for name in ("tab", "mic", "rec"))
+    assert tab == [(0, 1000, PCM)] and mic == [(0, 1000, PCM)]
+    assert rec == [(0, 1000, b"webm")]
+
+
+def test_seq_gap_pads_silence_and_logs():
+    router = AudioRouter()
+    router.handle(pack_audio(TAB, 0, 1000, PCM))
+    assert router.handle(pack_audio(TAB, 2, 1200, PCM)) == "audio"
+    got = drain(router.queues["tab"])
+    assert [seq for seq, _, _ in got] == [0, 1, 2]
+    assert got[1][2] == bytes(3200) and got[1][2] != PCM
+    assert router.gaps == 1 and router.padded == 1
+
+
+def test_gap_over_30s_bound_pads_300_and_resyncs():
+    router = AudioRouter(audio_mic=asyncio.Queue(maxsize=1000))
+    router.handle(pack_audio(MIC, 0, 0, PCM))
+    assert router.handle(pack_audio(MIC, 10 + MAX_PAD_FRAMES, 99999, PCM)) == "audio"
+    got = drain(router.queues["mic"])
+    assert len(got) == 1 + MAX_PAD_FRAMES + 1
+    assert [seq for seq, _, _ in got][-1] == 10 + MAX_PAD_FRAMES
+    assert router.padded == MAX_PAD_FRAMES
+    assert router.handle(pack_audio(MIC, 11 + MAX_PAD_FRAMES, 100999, PCM)) == "audio"
+
+
+def test_kind2_rejected_and_late_frame_dropped():
+    router = AudioRouter()
+    assert router.handle(bytes([2, 0, 0, 0, 0]) + b"cut-frames") == "rejected"
+    assert router.handle(b"") == "rejected"
+    assert router.handle(pack_audio(TAB, 5, 5000, PCM)) == "audio"
+    assert router.handle(pack_audio(TAB, 3, 3000, PCM)) == "dropped"
+    assert router.dropped == 1
+    got = drain(router.queues["tab"])
+    assert [seq for seq, _, _ in got] == [0, 1, 2, 3, 4, 5]  # padded from stream start
+    assert got[-1] == (5, 5000, PCM)
+
+
+def test_full_queue_drops_newest():
+    router = AudioRouter(audio_tab=asyncio.Queue(maxsize=1))
+    assert router.handle(pack_audio(TAB, 0, 0, PCM)) == "audio"
+    assert router.handle(pack_audio(TAB, 1, 100, PCM)) == "dropped"
+    assert router.dropped == 1

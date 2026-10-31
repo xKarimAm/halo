@@ -8,6 +8,7 @@ Implement contracts per its PLAN.md; done ONLY when `uv run pytest contracts -q`
 - Binary framing lives in `contracts/binary.py` (little-endian pack/parse helpers) and is documented in `catalog.md`.
 - Codegen (`contracts/codegen.py`) generates one committed pydantic module and one committed TS types file from the schemas; `--check` compares without writing.
 - Wave 0 root scaffolding (pyproject, CI, PR template, .env.example, extension/package.json) was created here; packaging owns those files from now on. `backend/halo/app.py` is the one allowed lane exception.
+- Page JSON issue #14 (approved 2026-10-31; decided from the issue approval while unattended): `meeting.degraded` required bool (mirrors `notes.ready.degraded`); top-level `actions[]` required (notes.ready action shape + required `point_id` uuid); `people[].relevant_points` / `own_points` required uuid arrays into `points[]`. Assumption: `point_id` is required on every action (every action traces to a live point; the live fallback builds actions from `is_action` points) and `actions` is required top-level (empty when none). Golden `page.json` + codegen regenerated; notes-page drops its PROVISIONAL fallbacks on merge.
 
 ## Task graph
 1. [x] Schemas + catalog + validate/binary helpers -> commit 83b9147
@@ -31,7 +32,7 @@ Implement contracts per its PLAN.md; done ONLY when `uv run pytest contracts -q`
 - `backend/halo/app.py`, `backend/halo/bus/` — Wave 0 composition-root skeleton (Bus + FastAPI; `uv run halo` boots)
 
 ## Current step
-Done. Wave 0 complete; PR open for Karim to merge. Next lanes build against these contracts.
+Wave 0 merged. Issue #14 page-JSON change implemented on this branch (schema + golden + codegen + tests green); PR open for Karim to merge. Next lanes build against these contracts.
 
 ## Open questions
-None.
+None. (Assumption above — `point_id` required on every action — is recorded for the reviewer rather than left open; the approval text says "plus point_id" with no optionality noted.)
