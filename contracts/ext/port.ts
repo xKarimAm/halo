@@ -53,6 +53,14 @@ export interface PortParticipantLeft {
   tile_id: string;
 }
 
+/**
+ * Meet Adapter -> hub: the user left the call while the tab stays open
+ * (every tile gone). The hub sends meeting.ended with reason "left".
+ */
+export interface PortCallLeft {
+  type: "call.left";
+}
+
 /** Overlay -> hub: ACK for a backend envelope, forwarded on the socket path. */
 export interface PortAck {
   type: "ack";
@@ -79,6 +87,7 @@ export type ToHubPortMessage =
   | PortSpeakerActive
   | PortParticipantJoined
   | PortParticipantLeft
+  | PortCallLeft
   | PortAck;
 
 /** Messages the hub sends to Meet-page modules. */
