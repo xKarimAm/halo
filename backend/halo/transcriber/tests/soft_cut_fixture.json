@@ -1,0 +1,352 @@
+{
+ "source": "results-karim.json (DIARIZATION): speechStart + first 45 transcript partials verbatim (t dropped), then turn-end events with audioProcessedMs shifted to the slice end; speechComplete transcript = last partial text",
+ "events": [
+  {
+   "t": 5.2673,
+   "type": "speechStart",
+   "audioProcessedMs": 1180,
+   "turnId": 0
+  },
+  {
+   "t": 5.8305,
+   "type": "transcript",
+   "transcript": " صباح",
+   "final": false,
+   "audioProcessedMs": 2240
+  },
+  {
+   "t": 6.5613,
+   "type": "transcript",
+   "transcript": " صباح الخير",
+   "final": false,
+   "audioProcessedMs": 2960
+  },
+  {
+   "t": 7.6622,
+   "type": "transcript",
+   "transcript": " صباح الخير يا",
+   "final": false,
+   "audioProcessedMs": 4080
+  },
+  {
+   "t": 7.9184,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة",
+   "final": false,
+   "audioProcessedMs": 4320
+  },
+  {
+   "t": 8.5558,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا",
+   "final": false,
+   "audioProcessedMs": 4960
+  },
+  {
+   "t": 8.8814,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ",
+   "final": false,
+   "audioProcessedMs": 5280
+  },
+  {
+   "t": 9.7551,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good",
+   "final": false,
+   "audioProcessedMs": 6160
+  },
+  {
+   "t": 10.0844,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning",
+   "final": false,
+   "audioProcessedMs": 6480
+  },
+  {
+   "t": 10.5552,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone",
+   "final": false,
+   "audioProcessedMs": 6960
+  },
+  {
+   "t": 10.7899,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's",
+   "final": false,
+   "audioProcessedMs": 7200
+  },
+  {
+   "t": 11.3706,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started",
+   "final": false,
+   "audioProcessedMs": 7760
+  },
+  {
+   "t": 12.5758,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة",
+   "final": false,
+   "audioProcessedMs": 8960
+  },
+  {
+   "t": 13.2146,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين",
+   "final": false,
+   "audioProcessedMs": 9600
+  },
+  {
+   "t": 14.095,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص",
+   "final": false,
+   "audioProcessedMs": 10480
+  },
+  {
+   "t": 14.7254,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال",
+   "final": false,
+   "audioProcessedMs": 11120
+  },
+  {
+   "t": 15.0497,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map",
+   "final": false,
+   "audioProcessedMs": 11440
+  },
+  {
+   "t": 15.6899,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت",
+   "final": false,
+   "audioProcessedMs": 12080
+  },
+  {
+   "t": 15.9244,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع",
+   "final": false,
+   "audioProcessedMs": 12320
+  },
+  {
+   "t": 16.0139,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي",
+   "final": false,
+   "audioProcessedMs": 12400
+  },
+  {
+   "t": 17.2912,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول",
+   "final": false,
+   "audioProcessedMs": 13680
+  },
+  {
+   "t": 17.3696,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة",
+   "final": false,
+   "audioProcessedMs": 13760
+  },
+  {
+   "t": 18.0641,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال",
+   "final": false,
+   "audioProcessedMs": 14480
+  },
+  {
+   "t": 18.2454,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch",
+   "final": false,
+   "audioProcessedMs": 14640
+  },
+  {
+   "t": 18.409,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل",
+   "final": false,
+   "audioProcessedMs": 14800
+  },
+  {
+   "t": 18.8873,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع",
+   "final": false,
+   "audioProcessedMs": 15280
+  },
+  {
+   "t": 19.9286,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه",
+   "final": false,
+   "audioProcessedMs": 16320
+  },
+  {
+   "t": 20.335,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل",
+   "final": false,
+   "audioProcessedMs": 16720
+  },
+  {
+   "t": 20.887,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان",
+   "final": false,
+   "audioProcessedMs": 17280
+  },
+  {
+   "t": 21.514,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA",
+   "final": false,
+   "audioProcessedMs": 17920
+  },
+  {
+   "t": 22.1009,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما",
+   "final": false,
+   "audioProcessedMs": 18480
+  },
+  {
+   "t": 22.6482,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص",
+   "final": false,
+   "audioProcessedMs": 19040
+  },
+  {
+   "t": 23.1118,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال",
+   "final": false,
+   "audioProcessedMs": 19520
+  },
+  {
+   "t": 23.5413,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing",
+   "final": false,
+   "audioProcessedMs": 19920
+  },
+  {
+   "t": 24.4002,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think",
+   "final": false,
+   "audioProcessedMs": 20800
+  },
+  {
+   "t": 24.4703,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we",
+   "final": false,
+   "audioProcessedMs": 20880
+  },
+  {
+   "t": 24.8798,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need",
+   "final": false,
+   "audioProcessedMs": 21280
+  },
+  {
+   "t": 26.7087,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two",
+   "final": false,
+   "audioProcessedMs": 23120
+  },
+  {
+   "t": 26.951,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more",
+   "final": false,
+   "audioProcessedMs": 23360
+  },
+  {
+   "t": 27.7475,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers",
+   "final": false,
+   "audioProcessedMs": 24160
+  },
+  {
+   "t": 27.9188,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this",
+   "final": false,
+   "audioProcessedMs": 24320
+  },
+  {
+   "t": 29.0385,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this احنا",
+   "final": false,
+   "audioProcessedMs": 25440
+  },
+  {
+   "t": 29.3744,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this احنا محتاجين",
+   "final": false,
+   "audioProcessedMs": 25760
+  },
+  {
+   "t": 30.0061,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this احنا محتاجين نقرر",
+   "final": false,
+   "audioProcessedMs": 26400
+  },
+  {
+   "t": 30.4181,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this احنا محتاجين نقرر النهاردة",
+   "final": false,
+   "audioProcessedMs": 26800
+  },
+  {
+   "t": 30.8649,
+   "type": "transcript",
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this احنا محتاجين نقرر النهاردة مش",
+   "final": false,
+   "audioProcessedMs": 27280
+  },
+  {
+   "t": 0.0,
+   "type": "speaker",
+   "label": "A",
+   "audioProcessedMs": 27580
+  },
+  {
+   "t": 0.0,
+   "type": "speechEnd",
+   "audioProcessedMs": 27680,
+   "turnId": 0
+  },
+  {
+   "t": 0.0,
+   "type": "speechComplete",
+   "audioProcessedMs": 27680,
+   "turnId": 0,
+   "transcript": " صباح الخير يا جماعة يلا نبدأ good morning everyone let's get started النهاردة عايزين نخلص ال road map بتاعت الربع الجاي اول حاجة ال launch تأجل اسبوع ليه تأجل علشان ال QA لسه ما خلص ال testing I think we need two more engineers on this احنا محتاجين نقرر النهاردة مش"
+  },
+  {
+   "t": 0.0,
+   "type": "transcript",
+   "transcript": "",
+   "final": true,
+   "audioProcessedMs": 27980
+  }
+ ]
+}

@@ -32,6 +32,11 @@ class FakeASR:
         """Meeting-clock anchor: ts_ms of the first frame fed (0 before)."""
         return self._anchor or 0
 
+    @property
+    def position_ms(self) -> int:
+        """Audio consumed since the anchor (the completion horizon)."""
+        return self._position_ms
+
     def drop_session(self) -> None:
         self.dropped = True
 

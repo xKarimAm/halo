@@ -36,9 +36,11 @@ Goal: Implement transcriber per its PLAN.md; done ONLY when `uv run pytest backe
 
 ## Current step
 
-Tasks 2-3 done: 14/14 module tests green, full suite 45 passed, ruff/lint-imports/mypy clean. Issues filed: #23 (fakes WS server), #24 (rotation event proposal). Next: commit per piece, push, open PR.
+Real-shapes + soft-cut (branch `module/transcriber-softcut`, worktree `.tmp/wt-transcriber-softcut`): 20/20 module tests green (15 old + 5 new), full suite 150 passed, ruff/lint-imports/mypy clean. Recorded-shape replay: 1 wire turn -> 7 transcript.finals, 51/51 words, no dup/loss. Next: push, open PR.
 
 ## Open questions
 
 - (fakes, to file) WS server hardcodes tab stream + wall-clock ts; needs session-routed stream/anchor for mic + L2 timing.
 - (contracts, to file?) Rotation event for Correlator re-map (skill asks, contracts has no such type). File as proposal; proceed with log+health.
+- (meta-model-api skill, note only) live Voice wire disagrees with `.agents/skills/meta-model-api/voice.md`: partials are `transcript` with NO turnId (attach to open turn), turnId is int, `speaker` arrives at turn END under `label`, speechComplete carries `transcript` + `audioProcessedMs` (no startMs/endMs/lang). Per the skill's own rule the API wins; the skill doc needs updating (skill files are read-only to this lane).
+- Pre-existing, not this lane: `JOINED_BACKEND_ONLY=1` smoke fails with 401 at `/pair` redeem on pristine main too (verified on b245498); full browser joined gate unaffected (uses the popup token path). To file as `module:replayer` or `module:gateway` issue.

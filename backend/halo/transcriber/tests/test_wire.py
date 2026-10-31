@@ -53,10 +53,19 @@ def test_ws_roundtrip_plumbing():
         events = asyncio.run(client())
         types = [e.get("type") for e in events]
         assert "speechComplete" in types, f"no speechComplete from the fake server: {types}"
-        assert next(e for e in events if e["type"] == "speaker")["speaker"] == "A"
-        assert next(e for e in events if e["type"] == "partial")["text"] == "Hello there."
-        complete = next(e for e in events if e["type"] == "speechComplete")
-        assert complete["startMs"] == 100 and complete["endMs"] == 500
+        # Wire-shape tolerant: the old fake sends "partial"/turnId/"speaker",
+        # the real Voice shapes send "transcript" without turnId and the
+        # label under "label" at the end of the turn.
+        texts = [
+            e.get("text", e.get("transcript"))
+            for e in events if e.get("type") in ("partial", "transcript")
+        ]
+        assert "Hello there." in texts, f"full text not on the wire: {types}"
+        labels = [
+            e.get("speaker", e.get("label"))
+            for e in events if e.get("type") == "speaker"
+        ]
+        assert "A" in labels, f"no speaker label on the wire: {types}"
     finally:
         server.should_exit = True
         thread.join(timeout=15)

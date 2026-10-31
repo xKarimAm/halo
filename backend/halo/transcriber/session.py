@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
+import struct
 import time
 import uuid
 from typing import Any
@@ -21,6 +23,8 @@ log = logging.getLogger("halo.transcriber")
 FRAME_MS = 100
 BYTES_PER_MS = 32  # 16 kHz mono PCM16
 ROTATION_AFTER_S = 59 * 60
+SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this counts as silence
+SOFT_CUT_SILENCE_MS = 1000  # pause length that soft-cuts an open turn
 
 
 class TransportError(RuntimeError):
@@ -54,12 +58,18 @@ class TranscriptionSession:
         transport: EngineTransport,
         url: str = "",
         rotation_after_s: int = ROTATION_AFTER_S,
+        soft_cut_silence_ms: int = SOFT_CUT_SILENCE_MS,
     ) -> None:
         self.stream = stream
         self.mode = mode
         self.transport = transport
         self.url = url
         self.rotation_after_s = rotation_after_s
+        self.soft_cut_silence_ms = soft_cut_silence_ms
+        self._silence_run_ms = 0
+        # Audio position (position_ms scale, ≈ engine audioProcessedMs) where
+        # the current silence run began; None while speech is arriving.
+        self._silence_start_ms: int | None = None
         self.speaker_override: str | None = "you" if mode == ENDPOINTING else None
         self.anchor_ms: int | None = None
         self.expected_seq: int | None = None
@@ -96,10 +106,22 @@ class TranscriptionSession:
                         self.stream, self.expected_seq, seq, gap * FRAME_MS)
             await self._send_silence(gap * FRAME_MS)
         self.expected_seq = seq + 1
-        self.position_ms += len(pcm) // BYTES_PER_MS
+        frame_ms = len(pcm) // BYTES_PER_MS
+        if self._rms(pcm) < SILENCE_RMS_THRESHOLD:
+            if self._silence_run_ms == 0:
+                self._silence_start_ms = self.position_ms
+            self._silence_run_ms += frame_ms
+        else:
+            self._silence_run_ms = 0
+            self._silence_start_ms = None
+        self.position_ms += frame_ms
         try:
             await self.transport.send_audio(pcm, ts_ms)
             turns = await self._drain()
+            if self._silence_run_ms >= self.soft_cut_silence_ms:
+                piece = self._assembler.maybe_cut(pause_start_ms=self._silence_start_ms)
+                if piece is not None:
+                    turns.append(self._map(piece))
             self._streak = 0
             self.health = "ok"
             return turns
@@ -120,7 +142,19 @@ class TranscriptionSession:
 
     async def _send_silence(self, ms: int) -> None:
         await self.transport.send_audio(b"\x00" * (ms * BYTES_PER_MS))
+        if self._silence_run_ms == 0:
+            self._silence_start_ms = self.position_ms
         self.position_ms += ms
+        self._silence_run_ms += ms
+
+    @staticmethod
+    def _rms(pcm: bytes) -> float:
+        """RMS amplitude of PCM16 mono bytes (empty frame = silence)."""
+        n = len(pcm) // 2
+        if n == 0:
+            return 0.0
+        total = sum(s * s for s in struct.unpack("<" + "h" * n, pcm[: n * 2]))
+        return math.sqrt(total / n)
 
     async def _drain(self) -> list[dict[str, Any]]:
         turns: list[dict[str, Any]] = []
@@ -144,7 +178,7 @@ class TranscriptionSession:
         return {
             "turn_id": str(uuid.uuid4()),
             "stream": self.stream,
-            "speaker": self.speaker_override or str(turn.get("speaker") or "A"),
+            "speaker": self.speaker_override or str(turn.get("speaker") or "?"),
             "text": str(turn.get("text", "")),
             "lang": str(turn.get("lang", "mixed")),
             "ts_start_ms": start,

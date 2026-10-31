@@ -149,8 +149,10 @@ def test_flag_off_real_config_identical():
     assert fake["llm_model"] == real["llm_model"]  # only endpoints switch
 
 
-# Wire shape (joined gate, issue #23): the ASR WebSocket speaks the Voice
-# lifecycle per connection, routed by the handshake mode, on script offsets.
+# Wire shape (joined gate, issue #23): the ASR WebSocket speaks the real Voice
+# lifecycle per connection, routed by the handshake mode, on script offsets:
+# int turnIds, transcript partials without turnId, the speaker label at the
+# END of the turn, completion when the audio horizon passes ts_end.
 def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
     import shutil
 
@@ -169,11 +171,16 @@ def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
     client = TestClient(create_app(fixture_dir))
     with client.websocket_connect("/v1/voice/realtime") as ws:
         ws.send_json({"mode": "DIARIZATION", "keywords": []})
-        ws.send_bytes(PCM_100MS * 5)
-        got = [ws.receive_json() for _ in range(4)]
-    assert [g["type"] for g in got] == ["speechStart", "speaker", "partial", "speechComplete"]
-    assert got[2]["text"] == "hello world"
-    assert got[3]["startMs"] == 0 and got[3]["endMs"] == 900
+        ws.send_bytes(PCM_100MS * 5)  # horizon 500: turn open, not complete
+        first = [ws.receive_json() for _ in range(2)]
+        assert [g["type"] for g in first] == ["speechStart", "transcript"]
+        assert first[0]["turnId"] == 0 and first[0]["audioProcessedMs"] == 0
+        assert first[1]["transcript"] == "hello world" and "turnId" not in first[1]
+        ws.send_bytes(PCM_100MS * 5)  # horizon 1000: completion due
+        last = [ws.receive_json() for _ in range(3)]
+    assert [g["type"] for g in last] == ["speaker", "speechEnd", "speechComplete"]
+    assert last[0]["label"] == "A" and "turnId" not in last[0]
+    assert last[2]["transcript"] == "hello world" and last[2]["audioProcessedMs"] == 900
     # A mic (ENDPOINTING) connection gets no tab turns (receive times out).
     import concurrent.futures
 
