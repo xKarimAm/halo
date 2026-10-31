@@ -64,7 +64,7 @@ if (typeof chrome === "undefined" || !chrome) {
   throw new Error("Halo setup: chrome APIs unavailable");
 }
 
-const port = chrome.runtime.connect({ name: "halo-hub" });
+const port = { postMessage: (msg: unknown) => chrome.runtime.connect({ name: "halo-hub" }).postMessage(msg) }; // fresh per Save: a Port opened before the hub existed is dead
 
 void initPopup(root, {
   storage: chromeSetupStorage(chrome.storage.local),
@@ -78,4 +78,6 @@ void initPopup(root, {
   onRequestMicPermission: () => {
     void chrome.tabs.create({ url: chrome.runtime.getURL("mic-permission.html") });
   },
+  micPermission: async () =>
+    (await navigator.permissions.query({ name: "microphone" as PermissionName })).state,
 });
