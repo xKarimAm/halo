@@ -2,6 +2,7 @@
 // Thin wrapper; all behaviour (incl. reconnect/backoff/pairing gate) lives
 // in hub_capture/hub.ts (unit-tested).
 import { HUB_START_MESSAGE, Hub, handleHubRuntimeMessage } from "../../hub_capture/hub";
+import type { ToPagePortMessage } from "../../../../contracts/ext/port";
 
 declare const chrome: any;
 
@@ -34,18 +35,22 @@ const socket = {
   },
 };
 
-const hub = new Hub({
+const hubDeps = {
   socket,
   now: () => Date.now(),
   uuid: () => crypto.randomUUID(),
-  toPage: (msg) => { for (const p of ports) p.postMessage(msg); },
+  toPage: (msg: ToPagePortMessage) => { for (const p of ports) p.postMessage(msg); },
   storage: {
-    set: (k, v) => chrome.storage.local.set({ [k]: v }),
-    get: (k) => chrome.storage.local.get(k),
+    set: (k: string, v: unknown) => chrome.storage.local.set({ [k]: v }),
+    get: (k: string) => chrome.storage.local.get(k),
   },
-  token: "",
+  token: "", // filled from chrome.storage.local ("halo.token") at Start
   extVersion: chrome.runtime.getManifest().version,
-});
+};
+const hub = new Hub(hubDeps);
+// Boot stamp: Meet content scripts (re)connect their hub Port when this
+// changes, and the joined rig uses it to detect a hub that never booted.
+chrome.storage.local.set({ "halo.hubBootedAt": Date.now() });
 
 chrome.runtime.onConnect.addListener((port: any) => {
   if (port.name !== "halo-hub") return;
@@ -53,8 +58,34 @@ chrome.runtime.onConnect.addListener((port: any) => {
   port.onMessage.addListener((msg: unknown) => hub.onPortMessage(msg as never));
   port.onDisconnect.addListener(() => { ports.delete(port); hub.onPagePortDisconnected(); });
 });
+function startFrom(msg: Record<string, unknown>): void {
+  // Pair with the token the popup stored at pairing time (halo.token).
+  chrome.storage.local.get("halo.token", (items: Record<string, unknown>) => {
+    hubDeps.token = typeof items?.["halo.token"] === "string" ? items["halo.token"] : "";
+    hub.connect();
+    handleHubRuntimeMessage(hub, msg);
+  });
+}
+
 chrome.runtime.onMessage.addListener((msg: Record<string, unknown>) => {
-  if (msg.type === HUB_START_MESSAGE) hub.connect();
+  if (msg.type === HUB_START_MESSAGE) {
+    startFrom(msg);
+    return;
+  }
   return handleHubRuntimeMessage(hub, msg);
+});
+
+// Start handoff via storage (background worker records "halo.pendingStart";
+// runtime messages are not reliably delivered to offscreen documents).
+chrome.storage.local.get("halo.pendingStart", (items: Record<string, unknown>) => {
+  const pending = items?.["halo.pendingStart"] as { msg: Record<string, unknown> } | undefined;
+  if (pending?.msg) {
+    chrome.storage.local.remove("halo.pendingStart");
+    startFrom(pending.msg);
+  }
+});
+chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
+  const pending = changes["halo.pendingStart"]?.newValue as { msg: Record<string, unknown> } | undefined;
+  if (pending?.msg) startFrom(pending.msg);
 });
 setInterval(() => hub.pumpOutbox(), 500);

@@ -117,6 +117,8 @@ export class Hub {
       meeting_id: this.meetingId, platform: meta.platform,
       meeting_code: meta.meeting_code, t0_ms: this.deps.now(), self_name: meta.self_name,
     }, this.meetingId);
+    // Page state captured before Start now has a meeting to attach to.
+    for (const msg of this.preStartPortMsgs.splice(0)) this.onPortMessage(msg);
     return this.meetingId;
   }
 
@@ -129,7 +131,20 @@ export class Hub {
   /** A Meet-page reload must not end the meeting (60 s grace): no-op. */
   onPagePortDisconnected(): void {}
 
+  private preStartPortMsgs: ToHubPortMessage[] = [];
+
   onPortMessage(msg: ToHubPortMessage): void {
+    if (!this.meetingId && msg.type !== "ack") {
+      // No meeting yet: the Gateway drops meetingid=null envelopes, so
+      // forwarding now would lose the page state. Keep the latest
+      // snapshot/context for replay at Start; transient speaker events
+      // are dropped (a fresh one follows within a poll cycle).
+      if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
+        this.preStartPortMsgs = this.preStartPortMsgs.filter((m) => m.type !== msg.type);
+        this.preStartPortMsgs.push(msg);
+      }
+      return;
+    }
     switch (msg.type) {
       case "meeting.context":
         this.latestContext = msg.data;

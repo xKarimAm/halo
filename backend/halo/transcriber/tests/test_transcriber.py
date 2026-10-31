@@ -92,6 +92,38 @@ def test_turns_published_valid_and_ended_once():
     assert out["health"] == "ok"
 
 
+def test_gateway_tuple_frames_flow():
+    """Gateway AudioRouter enqueues (seq, ts_ms, payload) tuples, not dicts:
+    the session pump must consume that shape (joined gate regression)."""
+    scripts = {"tab": [tab_turn("Launch moves to Nov 12.", 300, 900)], "mic": []}
+    factory, _ = make_factory(scripts)
+
+    async def go() -> list[dict]:
+        bus = Bus()
+        received: list[dict] = []
+        bus.subscribe("transcript.final", received.append)
+        qtab: asyncio.Queue = asyncio.Queue()
+        qmic: asyncio.Queue = asyncio.Queue()
+        Transcriber(bus, qtab, qmic, factory, key="fake-key")
+        await bus.publish(golden("meeting.started"))
+        for i in range(12):
+            qtab.put_nowait((i, ANCHOR + i * 100, FRAME))  # Gateway tuple shape
+        for _ in range(100):
+            if received:
+                break
+            await asyncio.sleep(0.05)
+        current = asyncio.current_task()
+        for task in asyncio.all_tasks():
+            if task is not current:
+                task.cancel()
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if t is not current],
+                             return_exceptions=True)
+        return received
+
+    received = asyncio.run(go())
+    assert received and received[0]["data"]["text"] == "Launch moves to Nov 12."
+
+
 def test_modes_wired_per_stream():
     seen: dict[str, str] = {}
 

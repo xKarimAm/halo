@@ -149,6 +149,45 @@ def test_flag_off_real_config_identical():
     assert fake["llm_model"] == real["llm_model"]  # only endpoints switch
 
 
+# Wire shape (joined gate, issue #23): the ASR WebSocket speaks the Voice
+# lifecycle per connection, routed by the handshake mode, on script offsets.
+def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
+    import shutil
+
+    from fastapi.testclient import TestClient
+
+    from rig.fakes.server import create_app
+
+    asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "hello world", "lang": "en",
+         "ts_start_ms": 0, "ts_end_ms": 900},
+    ])
+    fixture_dir = tmp_path / "fx"
+    fixture_dir.mkdir()
+    shutil.copy(tmp_path / "asr_script.jsonl", fixture_dir / "asr_script.jsonl")
+    (fixture_dir / "llm_script.jsonl").write_text("", encoding="utf-8")
+    client = TestClient(create_app(fixture_dir))
+    with client.websocket_connect("/v1/voice/realtime") as ws:
+        ws.send_json({"mode": "DIARIZATION", "keywords": []})
+        ws.send_bytes(PCM_100MS * 5)
+        got = [ws.receive_json() for _ in range(4)]
+    assert [g["type"] for g in got] == ["speechStart", "speaker", "partial", "speechComplete"]
+    assert got[2]["text"] == "hello world"
+    assert got[3]["startMs"] == 0 and got[3]["endMs"] == 900
+    # A mic (ENDPOINTING) connection gets no tab turns (receive times out).
+    import concurrent.futures
+
+    with client.websocket_connect("/v1/voice/realtime") as ws:
+        ws.send_json({"mode": "ENDPOINTING"})
+        ws.send_bytes(PCM_100MS * 5)
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            with pytest.raises(concurrent.futures.TimeoutError):
+                pool.submit(ws.receive_json).result(timeout=1.5)
+        finally:
+            pool.shutdown(wait=False)
+
+
 # Wire shape: OpenAI-compatible HTTP surface the llm client talks to.
 def test_llm_http_wire_shape(tmp_path):
     from fastapi.testclient import TestClient
