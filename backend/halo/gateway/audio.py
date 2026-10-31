@@ -23,6 +23,9 @@ MAX_PAD_FRAMES = 300  # the 30 s bound: 300 x 100 ms
 FRAME_MS = 100
 
 
+RESTART_JUMP_FRAMES = 50  # 5 s back = a new stream (hub restart), not a late frame
+
+
 class AudioRouter:
     def __init__(
         self,
@@ -72,6 +75,12 @@ class AudioRouter:
         stream, seq, ts_ms = head["stream"], head["seq"], head["ts_ms"]
         queue = self._audio[stream]
         expected = self._next[stream]
+        if expected - seq > RESTART_JUMP_FRAMES:
+            # Live 2026-10-31: a reloaded hub restarts at seq 0, and every
+            # frame of the new meeting was dropped as "late". A big jump back
+            # is a restarted stream, not a late frame: resync to it.
+            log.warning("audio seq restarted (stream=%s seq=%s expected=%s), resyncing", stream, seq, expected)
+            expected = self._next[stream] = seq
         if seq < expected:
             self.dropped += 1
             log.warning("late audio frame dropped (stream=%s seq=%s expected=%s)", stream, seq, expected)
