@@ -12,6 +12,7 @@ Implement llm per its PLAN.md; done ONLY when `uv run pytest backend/halo/llm -q
 - `health()` returns the last-used engine plus the in-cooldown flag: `{"engine", "failover"}`. Registered on the bus by `app.py`, not here (lane rule: only `app.py` imports every module).
 - `missing_key` fails over to the next engine (it may hold its key); only 400/404 stop the whole call. A 401 on the contributor is still a terminal typed failure.
 - `HALO_FAKES=1` (or `HALO_ENGINES` containing `fake`, mirroring `rig/fakes/config.py` without importing it) swaps both engines' base URLs to the FakeLLM server, which stands in for both. Real defaults: Baseten `meta-models/muse-spark-open-1026` with `reasoning_effort: low`; Meta API `muse-spark-1.3-contributor` with `reasoning_effort: minimal`.
+- Primary host is configurable (2026-11-01, Baseten key unavailable): `HALO_PRIMARY_BASE_URL`, `HALO_PRIMARY_MODEL`, `HALO_PRIMARY_KEY_VAR` (name of the env var holding the key). Blank keeps the Baseten defaults. The engine label stays `spark-open` (notes_builder compares against it); a Glimmer host would still be labelled `spark-open`.
 - `prompt_cache_key` is forwarded verbatim when provided. Only `message.content` is ever read; `reasoning_content` is ignored.
 - `app.py::main()` loads the repo-root `.env` first (minimal parser, never overrides real env, never prints values); this PR is the first that needs keys.
 

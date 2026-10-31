@@ -111,8 +111,17 @@ class LLMClient:
         env: Mapping[str, str] | None = None,
     ) -> None:
         environ = os.environ if env is None else env
+        # The primary host (Baseten by default; Modal or a local server) is
+        # set from env. Blank or unset keeps the default.
+        primary = ENGINES[PRIMARY_ENGINE]
+        self._primary = {
+            "base_url": environ.get("HALO_PRIMARY_BASE_URL") or primary["base_url"],
+            "model": environ.get("HALO_PRIMARY_MODEL") or primary["model"],
+            "key_var": environ.get("HALO_PRIMARY_KEY_VAR") or primary["key_var"],
+        }
         self._keys = {
-            PRIMARY_ENGINE: baseten_key if baseten_key is not None else environ.get("BASETEN_API_KEY"),
+            PRIMARY_ENGINE: baseten_key if baseten_key is not None
+            else environ.get(self._primary["key_var"]),
             FAILOVER_ENGINE: meta_key if meta_key is not None else environ.get("META_API_KEY"),
         }
         self._fakes = _fakes_on(environ)
@@ -132,6 +141,8 @@ class LLMClient:
 
     def _config(self, engine: str) -> dict[str, str]:
         cfg = dict(ENGINES[engine])
+        if engine == PRIMARY_ENGINE:
+            cfg.update(self._primary)
         if self._fakes:
             cfg["base_url"] = self._fake_base
         return cfg
