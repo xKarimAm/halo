@@ -234,11 +234,12 @@ class TurnAssembler:
             return None  # frontier rewrite touched cut text; wait for the fix
         extra = turn_words[len(cut_words):]
         latest = self._latest.get(key)
-        if (
-            pause_start_ms is not None
-            and latest is not None
-            and latest >= pause_start_ms
-        ):
+        if pause_start_ms is not None:
+            # Partials lag the audio by 1-2 s (live check): until one covers
+            # the pause start, the words before the pause are still arriving
+            # one by one. Wait for that, then cut them all at once.
+            if latest is None or latest < pause_start_ms:
+                return None
             new_words = extra
         elif len(extra) <= SOFT_CUT_TAIL_WORDS:
             return None

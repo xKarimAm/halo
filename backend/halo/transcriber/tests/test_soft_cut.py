@@ -200,19 +200,19 @@ def test_pause_after_stable_partial_emits_full_sentence():
     assert assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"] - 200) is None
 
 
-def test_stale_partial_at_pause_holds_tail():
-    """The partial predates the pause: the frontier may still be rewritten,
-    so the last words stay uncut for the remainder to fix."""
+def test_stale_partial_at_pause_waits():
+    """The partial predates the pause: Voice is still catching up (partials
+    lag 1-2 s live), so nothing is cut until a partial covers the pause."""
     p = fixture_partial(11)
     words = p["transcript"].split()
     assembler = TurnAssembler()
     open_with_partial(assembler, p["transcript"], p["audioProcessedMs"])
-    piece = assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"] + 5000)
-    assert piece is not None
-    assert piece["text"].split() == words[: -SOFT_CUT_TAIL_WORDS]
+    assert assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"] + 5000) is None
+    piece = assembler.maybe_cut(pause_start_ms=p["audioProcessedMs"])
+    assert piece is not None and piece["text"].split() == words
 
 
-def test_session_stale_partial_holds_tail():
+def test_session_stale_partial_leaves_it_to_the_completion():
     """Session wiring: the pause start passed to maybe_cut is the audio
     position where the silence run began."""
     text = "one two three four five six seven"
@@ -239,10 +239,10 @@ def test_session_stale_partial_holds_tail():
         return out
 
     turns = asyncio.run(go())
-    # The only partial (audio ms 500) predates the pause at 2000: the tail
-    # is held, and the completion carries just the remainder.
-    assert [t["text"] for t in turns] == ["one two three four", "five six seven"]
-    assert turns[0]["speaker"] == "?" and turns[1]["speaker"] == "A"
+    # The only partial (audio ms 500) predates the pause at 2000, so no cut
+    # fires; the completion carries the whole turn once, never duplicated.
+    assert [t["text"] for t in turns] == ["one two three four five six seven"]
+    assert turns[0]["speaker"] == "A"
 
 
 def test_soft_cut_holds_back_the_tail_and_never_repeats():
