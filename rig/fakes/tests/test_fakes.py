@@ -149,73 +149,44 @@ def test_flag_off_real_config_identical():
     assert fake["llm_model"] == real["llm_model"]  # only endpoints switch
 
 
-# Voice wire: first JSON frame sets stream + meeting-clock anchor per connection.
-# Served over real localhost TCP (TestClient's WS teardown races with an open
-# socket); ports are per-test to avoid clashes.
-def _serve_and_talk(script, first_frame, port):
-    import asyncio
-    import threading
-    import time
+# Wire shape (joined gate, issue #23): the ASR WebSocket speaks the Voice
+# lifecycle per connection, routed by the handshake mode, on script offsets.
+def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
+    import shutil
 
-    import uvicorn
-    import websockets
+    from fastapi.testclient import TestClient
 
-    from rig.fakes.server import create_asr_app
+    from rig.fakes.server import create_app
 
-    config = uvicorn.Config(create_asr_app(FakeASR(script)), host="127.0.0.1",
-                            port=port, log_level="error")
-    server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    try:
-        deadline = time.monotonic() + 15
-        while not server.started and time.monotonic() < deadline:
-            time.sleep(0.05)
-        assert server.started, "fake voice server did not start"
-
-        async def collect():
-            got = []
-            async with websockets.connect(f"ws://127.0.0.1:{port}/v1/voice/realtime") as ws:
-                if first_frame is not None:
-                    await ws.send(json.dumps(first_frame))
-                for _ in range(8):
-                    await ws.send(PCM_100MS)
-                end = time.monotonic() + 10
-                while time.monotonic() < end:
-                    try:
-                        message = await asyncio.wait_for(ws.recv(), timeout=0.5)
-                    except TimeoutError:
-                        break
-                    if isinstance(message, str):
-                        got.append(json.loads(message))
-                        break
-            return got
-
-        return asyncio.run(collect())
-    finally:
-        server.should_exit = True
-        thread.join(timeout=15)
-
-
-def test_asr_ws_handshake_sets_stream_and_clock(tmp_path):
-    script = asr(tmp_path, [
-        {"stream": "mic", "speaker": "you", "text": "my note", "lang": "en",
-         "ts_start_ms": 100, "ts_end_ms": 500},
+    asr(tmp_path, [
+        {"stream": "tab", "speaker": "A", "text": "hello world", "lang": "en",
+         "ts_start_ms": 0, "ts_end_ms": 900},
     ])
-    [got] = _serve_and_talk(script, {"stream": "mic", "t0_ms": T0}, 18798)
-    assert got["type"] == "transcript.final"
-    assert got["speaker"] == "you"
-    assert abs(got["ts_start_ms"] - (T0 + 100)) <= 200
+    fixture_dir = tmp_path / "fx"
+    fixture_dir.mkdir()
+    shutil.copy(tmp_path / "asr_script.jsonl", fixture_dir / "asr_script.jsonl")
+    (fixture_dir / "llm_script.jsonl").write_text("", encoding="utf-8")
+    client = TestClient(create_app(fixture_dir))
+    with client.websocket_connect("/v1/voice/realtime") as ws:
+        ws.send_json({"mode": "DIARIZATION", "keywords": []})
+        ws.send_bytes(PCM_100MS * 5)
+        got = [ws.receive_json() for _ in range(4)]
+    assert [g["type"] for g in got] == ["speechStart", "speaker", "partial", "speechComplete"]
+    assert got[2]["text"] == "hello world"
+    assert got[3]["startMs"] == 0 and got[3]["endMs"] == 900
+    # A mic (ENDPOINTING) connection gets no tab turns (receive times out).
+    import concurrent.futures
 
+    with client.websocket_connect("/v1/voice/realtime") as ws:
+        ws.send_json({"mode": "ENDPOINTING"})
+        ws.send_bytes(PCM_100MS * 5)
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            with pytest.raises(concurrent.futures.TimeoutError):
+                pool.submit(ws.receive_json).result(timeout=1.5)
+        finally:
+            pool.shutdown(wait=False)
 
-def test_asr_ws_default_stays_tab_wall_clock(tmp_path):
-    script = asr(tmp_path, [
-        {"stream": "tab", "speaker": "A", "text": "hello", "lang": "en",
-         "ts_start_ms": 0, "ts_end_ms": 400},
-    ])
-    [got] = _serve_and_talk(script, None, 18797)
-    assert got["speaker"] == "A"
-    assert got["text"] == "hello"
 
 # Wire shape: OpenAI-compatible HTTP surface the llm client talks to.
 def test_llm_http_wire_shape(tmp_path):

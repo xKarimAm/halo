@@ -1,11 +1,6 @@
 """Wire adapters: FakeLLM as an OpenAI-compatible HTTP app, FakeASR as a
 Voice-shaped WebSocket. Run: `uv run python -m rig.fakes.server` (needs a
 fixture dir via HALO_FIXTURE_DIR with asr_script.jsonl / llm_script.jsonl).
-
-Voice session handshake: the first JSON frame per connection may carry
-``stream`` ("tab"|"mic") and ``t0_ms`` (meeting-clock anchor). Other keys
-(auth, mode, hints) pass through untouched. Without them the connection
-behaves as before (tab stream, wall-clock stamps).
 """
 
 from __future__ import annotations
@@ -16,6 +11,7 @@ import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnected
 
 from rig.fakes.fake_asr import FakeASR, SessionDropped
 from rig.fakes.fake_llm import FakeLLM
@@ -38,44 +34,48 @@ def create_llm_app(fake: FakeLLM) -> FastAPI:
     return app
 
 
-def create_asr_app(fake: FakeASR) -> FastAPI:
+def create_asr_app(script: list) -> FastAPI:
+    """One FakeASR per connection (issue #23): the handshake mode routes the
+    session (DIARIZATION -> tab, ENDPOINTING -> mic), and turns go out as
+    Voice lifecycle events on script offsets from the session anchor."""
     app = FastAPI()
 
     @app.websocket("/v1/voice/realtime")
     async def realtime(ws: WebSocket) -> None:
         await ws.accept()
+        fake = FakeASR(list(script))
         stream = "tab"
-        t0_ms: int | None = None
-        position_ms = 0
-        configured = False
         try:
             while True:
                 msg = await ws.receive()
+                if msg.get("type") == "websocket.disconnect":
+                    return
                 if msg.get("bytes") is not None:
-                    pcm = msg["bytes"]
-                    if t0_ms is None:
-                        stamp = int(time.time() * 1000)
-                    else:
-                        stamp = t0_ms + position_ms
-                    position_ms += len(pcm) // 32
-                    for turn in fake.feed_audio(stream, stamp, pcm):
-                        await ws.send_json({"type": "transcript.final", **turn})
+                    for turn in fake.feed_audio(stream, int(time.time() * 1000), msg["bytes"]):
+                        anchor = fake.anchor_ms
+                        tid = turn["turn_id"]
+                        await ws.send_json({"type": "speechStart", "turnId": tid})
+                        await ws.send_json({"type": "speaker", "turnId": tid, "speaker": turn["speaker"]})
+                        await ws.send_json({"type": "partial", "turnId": tid, "text": turn["text"]})
+                        await ws.send_json({
+                            "type": "speechComplete", "turnId": tid,
+                            "startMs": turn["ts_start_ms"] - anchor,
+                            "endMs": turn["ts_end_ms"] - anchor, "lang": turn["lang"],
+                        })
                 elif msg.get("text") == "control.drop":
                     fake.drop_session()
                     await ws.close(code=1011)
                     return
-                elif msg.get("text") is not None and not configured:
-                    configured = True
+                elif msg.get("text"):
                     try:
-                        first = json.loads(msg["text"])
-                    except ValueError:
-                        first = None
-                    if isinstance(first, dict):
-                        if first.get("stream") in ("tab", "mic"):
-                            stream = first["stream"]
-                        if isinstance(first.get("t0_ms"), int):
-                            t0_ms = first["t0_ms"]
-        except (WebSocketDisconnect, SessionDropped):
+                        mode = json.loads(msg["text"]).get("mode")
+                    except (ValueError, AttributeError):
+                        mode = None
+                    if mode == "ENDPOINTING":
+                        stream = "mic"
+                    elif mode == "DIARIZATION":
+                        stream = "tab"
+        except (WebSocketDisconnect, WebSocketDisconnected, SessionDropped):
             return
 
     return app
@@ -87,7 +87,7 @@ def create_app(fixture_dir: str | Path) -> FastAPI:
         load_llm_script(root / "llm_script.jsonl"),
         sleep_fn=lambda ms: time.sleep(ms / 1000),
     ))
-    asr = create_asr_app(FakeASR(load_asr_script(root / "asr_script.jsonl")))
+    asr = create_asr_app(load_asr_script(root / "asr_script.jsonl"))
     llm.router.routes.extend(asr.router.routes)
     return llm
 
