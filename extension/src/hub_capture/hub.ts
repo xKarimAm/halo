@@ -7,6 +7,10 @@ import type { ToHubPortMessage, ToPagePortMessage } from "../../../contracts/ext
 import { Outbox } from "./outbox";
 
 export const HUB_START_MESSAGE = "halo/hub.start";
+/** Popup -> hub: the Stop button. */
+export const HUB_STOP_MESSAGE = "halo/hub.stop";
+/** True while a meeting runs: the popup shows Stop only then. */
+export const MEETING_RUNNING_KEY = "halo.meetingRunning";
 export const TILE_NAMES_KEY = "halo/tileNames";
 
 export interface SocketLike {
@@ -26,6 +30,8 @@ export interface HubDeps {
   token: string;
   extVersion: string;
   schedule?: (fn: () => void, ms: number) => void;
+  /** Called once when the running meeting ends (stop the capture). */
+  onEnded?: () => void;
 }
 
 /** Reconnect backoff: 1 s, 2 s, 4 s, capped at 5 s. */
@@ -64,6 +70,8 @@ export interface StartMeta {
   platform: "meet" | "zoom" | "teams";
   meeting_code: string;
   self_name: string;
+  /** The Meet tab the Start came from; undefined (rig, old popup) trusts every tab. */
+  tabId?: number;
 }
 
 export class Hub {
@@ -77,6 +85,8 @@ export class Hub {
   private seq: Record<"tab" | "mic", number> = { tab: 0, mic: 0 };
   private recSeq = 0;
   private socketOpen = false;
+  private connected = false;
+  private meetingCode = "";
   private reconnectAttempt = 0;
   private schedule: (fn: () => void, ms: number) => void;
 
@@ -106,20 +116,34 @@ export class Hub {
     });
   }
 
+  /** One socket per hub: a repeat Start must not open a second one (the close handler owns reconnects). */
   connect(): void {
+    if (this.connected) return;
+    this.connected = true;
     this.deps.socket.connect();
   }
 
+  /** True while a meeting for this call runs (a repeat Start click). */
+  isRunning(meetingCode: string): boolean {
+    return this.meetingId !== null && !this.ended && this.meetingCode === meetingCode;
+  }
+
   start(meta: StartMeta): string {
+    this.meetingTab = meta.tabId;
     this.meetingId = this.deps.uuid();
+    this.meetingCode = meta.meeting_code;
     this.ended = false;
+    this.deps.storage.set(MEETING_RUNNING_KEY, true);
     this.sendEnvelope("meeting.started", {
       meeting_id: this.meetingId, platform: meta.platform,
       meeting_code: meta.meeting_code, t0_ms: this.deps.now(),
       self_name: meta.self_name || this.heldSelfName(),
     }, this.meetingId);
-    // Page state captured before Start now has a meeting to attach to.
-    for (const msg of this.preStartPortMsgs.splice(0)) this.onPortMessage(msg);
+    // The latest page state goes out for every new meeting: the Meet
+    // Adapter only re-sends tiles when the DOM changes, and the Correlator
+    // clears its tiles on meeting.started (live 2026-10-31: a second Start
+    // got no tiles, so every turn was held and dropped).
+    for (const msg of [...this.pageState]) this.onPortMessage(msg);
     return this.meetingId;
   }
 
@@ -127,19 +151,21 @@ export class Hub {
     if (!this.meetingId || this.ended) return;
     this.ended = true;
     this.sendEnvelope("meeting.ended", { reason }, this.meetingId);
+    this.deps.storage.set(MEETING_RUNNING_KEY, false);
+    this.deps.onEnded?.();
   }
 
   /** A Meet-page reload must not end the meeting (60 s grace): no-op. */
   onPagePortDisconnected(): void {}
 
   /**
-   * Best-effort self name: the held pre-Start tiles.snapshot's self tile.
+   * Best-effort self name: the latest tiles.snapshot's self tile.
    * The popup sends self_name "" (it cannot see the Meet DOM), so this
-   * fills it when the snapshot arrived before Start; otherwise "" stands
+   * fills it when a snapshot arrived before Start; otherwise "" stands
    * and the Correlator still maps the mic stream to the self tile.
    */
   private heldSelfName(): string {
-    for (const msg of this.preStartPortMsgs) {
+    for (const msg of this.pageState) {
       if (msg.type !== "tiles.snapshot") continue;
       const self = msg.data.tiles.find((t) => t.is_self);
       if (self && self.name) return self.name;
@@ -147,18 +173,26 @@ export class Hub {
     return "";
   }
 
-  private preStartPortMsgs: ToHubPortMessage[] = [];
+  private meetingTab: number | undefined;
 
-  onPortMessage(msg: ToHubPortMessage): void {
+  /** A second open Meet tab must not feed the mic or end this call. */
+  private fromMeetingTab(tabId: number | undefined): boolean {
+    return this.meetingTab === undefined || tabId === undefined || tabId === this.meetingTab;
+  }
+
+  /** Latest tiles.snapshot and meeting.context, replayed at every Start. */
+  private pageState: ToHubPortMessage[] = [];
+
+  onPortMessage(msg: ToHubPortMessage, senderTabId?: number): void {
+    if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
+      this.pageState = this.pageState.filter((m) => m.type !== msg.type);
+      this.pageState.push(msg);
+    }
     if (!this.meetingId && msg.type !== "ack") {
       // No meeting yet: the Gateway drops meetingid=null envelopes, so
-      // forwarding now would lose the page state. Keep the latest
-      // snapshot/context for replay at Start; transient speaker events
-      // are dropped (a fresh one follows within a poll cycle).
-      if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
-        this.preStartPortMsgs = this.preStartPortMsgs.filter((m) => m.type !== msg.type);
-        this.preStartPortMsgs.push(msg);
-      }
+      // forwarding now would lose the page state; start() replays it.
+      // Transient speaker events are dropped (a fresh one follows within
+      // a poll cycle).
       return;
     }
     switch (msg.type) {
@@ -177,11 +211,16 @@ export class Hub {
         if (this.latestContext) {
           const next = { ...this.latestContext, viewer_lang: msg.viewer_lang };
           this.latestContext = next;
+          this.pageState = this.pageState.filter((m) => m.type !== "meeting.context");
+          this.pageState.push({ type: "meeting.context", data: next });
           this.sendEnvelope("meeting.context", next, this.meetingId);
         }
         break;
       case "ack":
         this.outbox.ack(msg.ack.ack_of);
+        break;
+      case "call.left":
+        if (this.fromMeetingTab(senderTabId)) this.stop("left");
         break;
       default:
         break; // participant.joined/left are hub-local bookkeeping only
@@ -212,8 +251,12 @@ export class Hub {
     this.pushStatus();
   }
 
-  sendAudio(stream: "tab" | "mic", pcm: Uint8Array, tsMs: number): void {
+  sendAudio(stream: "tab" | "mic", pcm: Uint8Array, tsMs: number, senderTabId?: number): void {
     if (!this.socketOpen || !this.paired) return; // audio held off the wire until pair.ok
+    if (!this.fromMeetingTab(senderTabId)) return;
+    // Audio belongs to a running meeting: the Meet tab's relayed mic outlives
+    // Stop and leaving the call, and its frames must not reach the Gateway.
+    if (!this.meetingId || this.ended) return;
     const byte = stream === "tab" ? 0 : 1;
     this.deps.socket.sendBinary(packAudioFrame(byte as 0 | 1, this.seq[stream]++, tsMs, pcm));
   }
@@ -257,13 +300,22 @@ export class Hub {
   }
 }
 
-/** Runtime-message handler for the Start gesture (#6): popup -> hub. */
+/**
+ * Runtime-message handler for the Start gesture (#6): popup -> hub.
+ * Returns true when a meeting started. A repeat Start for the running call
+ * is a no-op (false); a Start for another call ends the running one first,
+ * so every meeting.started gets its meeting.ended.
+ */
 export function handleHubRuntimeMessage(hub: Hub, msg: Record<string, unknown>): boolean {
   if (msg.type !== HUB_START_MESSAGE) return false;
+  const meetingCode = String(msg.meeting_code ?? "");
+  if (hub.isRunning(meetingCode)) return false;
+  hub.stop("left");
   hub.start({
     platform: (msg.platform as StartMeta["platform"]) ?? "meet",
-    meeting_code: String(msg.meeting_code ?? ""),
+    meeting_code: meetingCode,
     self_name: String(msg.self_name ?? ""),
+    tabId: typeof msg.tabId === "number" ? msg.tabId : undefined,
   });
   return true;
 }

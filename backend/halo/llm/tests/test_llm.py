@@ -180,25 +180,50 @@ def test_raised_timeout_fails_over_at_once():
     assert sleeps == []
 
 
-def test_429_fails_over_while_400_is_a_typed_failure():
+def test_429_fails_over_and_primary_4xx_fails_over_without_retry(caplog):
+    """A host that rejects a request field (400) or the model id (404) must
+    degrade to the contributor, not fail every Insight call. No same-engine
+    retry: a rejected request stays rejected."""
     clock = Clock()
     script = Script(clock)
     script.primary.extend([(429, {"error": "busy"}, 0.0), (429, {"error": "busy"}, 0.0)])
-    script.failover.append((200, GOOD, 0.1))
-    script.primary.append((400, {"error": "bad"}, 0.0))
+    script.primary.append((400, {"error": "unknown field reasoning_effort"}, 0.0))
+    script.primary.append((404, {"error": "no such model"}, 0.0))
+    script.failover.extend([(200, GOOD, 0.1)] * 3)
     sleeps: list = []
     client = script.client(clock, sleeps)
     try:
         limited = client.complete_json(prompt=PROMPT, schema=SCHEMA)
         assert limited.ok and limited.engine == FAILOVER_ENGINE
         assert len(sleeps) == 1 and 0 < sleeps[0] <= 4.0
-        clock.advance(30.0)  # cooldown over: the 400 is served by the primary
-        bad = client.complete_json(prompt=PROMPT, schema=SCHEMA)
-        assert not bad.ok and bad.error and bad.error["code"] == "bad_request"
+        for code in ("bad_request", "not_found"):
+            clock.advance(30.0)  # cooldown over: the primary is tried again
+            caplog.clear()
+            with caplog.at_level(logging.WARNING, logger="halo.llm"):
+                result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+            assert result.ok and result.engine == FAILOVER_ENGINE
+            warnings = [r.getMessage() for r in caplog.records]
+            assert len(warnings) == 1 and code in warnings[0]
     finally:
         client.close()
-    # 429s retried once then failed over; the 400 never retried nor failed over.
-    assert len(primary_calls(script)) == 3 and len(failover_calls(script)) == 1
+    # 429s retried once then failed over; each 4xx tried once, then failed over.
+    assert len(primary_calls(script)) == 4 and len(failover_calls(script)) == 3
+    assert len(sleeps) == 1
+
+
+def test_400_on_contributor_is_a_typed_failure():
+    clock = Clock()
+    script = Script(clock)
+    script.primary.append((400, {"error": "bad"}, 0.0))
+    script.failover.append((400, {"error": "bad"}, 0.0))
+    client = script.client(clock, [])
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert not result.ok and result.engine == FAILOVER_ENGINE
+    assert result.error and result.error["code"] == "bad_request"
+    assert len(primary_calls(script)) == 1 and len(failover_calls(script)) == 1
 
 
 def test_request_shape_and_content_parsing():
@@ -378,3 +403,77 @@ def test_failover_engine_gets_the_longer_budget():
     finally:
         client.close()
     assert result.ok and result.engine == FAILOVER_ENGINE
+
+
+MODAL_ENV = {
+    "HALO_PRIMARY_BASE_URL": "https://example-workspace--muse.modal.run/v1",
+    "HALO_PRIMARY_MODEL": "meta-models/Muse-Spark-Open-816B-A42B",
+    "HALO_PRIMARY_KEY_VAR": "MODAL_PROXY_TOKEN",
+}
+
+
+def _recording_client(env: dict, seen: list, *, meta_status: int = 200) -> LLMClient:
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode())
+        seen.append({"url": str(request.url), "model": body["model"],
+                     "effort": body.get("reasoning_effort"),
+                     "auth": request.headers.get("authorization")})
+        return httpx.Response(meta_status if "api.meta.ai" in request.url.host else 200, json=GOOD)
+
+    return LLMClient(transport=httpx.MockTransport(handler), clock=Clock(),
+                     sleep=lambda s: None, env=env)
+
+
+def test_env_overrides_primary_host_model_and_key():
+    seen: list = []
+    client = _recording_client({**MODAL_ENV, "MODAL_PROXY_TOKEN": "wk-1.ws-2"}, seen)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == PRIMARY_ENGINE
+    assert seen == [{"url": "https://example-workspace--muse.modal.run/v1/chat/completions",
+                     "model": "meta-models/Muse-Spark-Open-816B-A42B",
+                     "effort": "low", "auth": "Bearer wk-1.ws-2"}]
+
+
+def test_primary_defaults_unchanged_without_overrides():
+    seen: list = []
+    # Blank overrides (an untouched .env.example copy) keep the Baseten defaults.
+    blank = {k: "" for k in MODAL_ENV}
+    client = _recording_client({**blank, "BASETEN_API_KEY": "b-key"}, seen)
+    try:
+        assert client.complete_json(prompt=PROMPT, schema=SCHEMA).ok
+    finally:
+        client.close()
+    assert seen == [{"url": "https://inference.baseten.co/v1/chat/completions",
+                     "model": "meta-models/muse-spark-open-1026",
+                     "effort": "low", "auth": "Bearer b-key"}]
+
+
+def test_missing_override_key_fails_over_to_contributor():
+    seen: list = []
+    # Key var points at MODAL_PROXY_TOKEN, which is unset: BASETEN_API_KEY is not used.
+    client = _recording_client({**MODAL_ENV, "BASETEN_API_KEY": "b-key",
+                                "META_API_KEY": "m-key"}, seen)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE
+    assert [s["url"] for s in seen] == ["https://api.meta.ai/v1/chat/completions"]
+
+
+def test_overridden_host_without_key_var_never_gets_the_baseten_key():
+    """HALO_PRIMARY_BASE_URL set, HALO_PRIMARY_KEY_VAR blank: the Baseten key
+    went to the new host. No key var for a custom host means no key."""
+    seen: list = []
+    env = {**MODAL_ENV, "HALO_PRIMARY_KEY_VAR": "", "BASETEN_API_KEY": "b-key", "META_API_KEY": "m-key"}
+    client = _recording_client(env, seen)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE
+    assert all(s["auth"] != "Bearer b-key" for s in seen)
+    assert all("modal.run" not in s["url"] for s in seen)

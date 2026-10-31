@@ -13,6 +13,9 @@ import { chromium, expect, test } from "@playwright/test";
 const JOINED_DIR = process.env.HALO_JOINED_DIR;
 const TILE_ID = process.env.HALO_SPEAKER_TILE || "spaces/x/devices/2";
 const POINT_TEXT = process.env.HALO_POINT_TEXT || "Launch moves";
+// The orchestrator hands over a copy of the built extension that talks to
+// its own backend port (never the live 8765) and its Fake Meet port.
+const MEET_PORT = process.env.HALO_MEET_PORT || "18778";
 
 function extensionId(manifestPath) {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
@@ -23,9 +26,8 @@ function extensionId(manifestPath) {
 test("thin joined run: pair, Start, bubble on the right tile", async () => {
   test.skip(!JOINED_DIR, "driven by rig.replayer.joined (sets HALO_JOINED_DIR)");
   test.setTimeout(300_000);
-  const extPath = new URL("../../../extension/.output/chrome-mv3", import.meta.url).pathname
-    .replace(/^\/([A-Za-z]:)/, "$1");
-  expect(existsSync(extPath), "extension .output missing (joined runner builds it)").toBe(true);
+  const extPath = process.env.HALO_EXT_PATH || "";
+  expect(existsSync(extPath), "HALO_EXT_PATH missing (joined runner builds it)").toBe(true);
   const extId = extensionId(`${extPath}/manifest.json`);
   const context = await chromium.launchPersistentContext(
     mkdtempSync(`${tmpdir()}/halo-joined-profile-`), {
@@ -43,7 +45,7 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
       const url = new URL(route.request().url());
       const path = url.pathname === "/" || !url.pathname.includes(".")
         ? "/index.html" : url.pathname;
-      const res = await fetch(`http://127.0.0.1:18778${path}`);
+      const res = await fetch(`http://127.0.0.1:${MEET_PORT}${path}`);
       await route.fulfill({
         status: res.status,
         contentType: res.headers.get("content-type") || "text/html",
@@ -52,7 +54,7 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     });
 
     const page = await context.newPage();
-    await page.goto("https://meet.google.com/joined-room?halo_test=1");
+    await page.goto("https://meet.google.com/meet/abc-defg-hij?halo_test=1"); // live URL form
     await expect(page.locator(".t")).toHaveCount(3);
 
     const popup = await context.newPage();
@@ -72,23 +74,17 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     await popup.click("#start-btn");
     writeFileSync(`${JOINED_DIR}/started.flag`, "started");
 
-    // Rig stub (see PR body): chrome.offscreen documents are created but
-    // never execute under Playwright's Chromium (headless or headed in
-    // this sandbox; hubBootedAt stays unset). If the hub page has not
-    // booted via the offscreen document, host the same hub page as a tab
-    // so the identical hub code runs. Real Chrome executes offscreen
-    // documents normally; nothing in the extension depends on this.
-    let bootedAt = null;
-    for (let i = 0; i < 10 && !bootedAt; i += 1) {
-      bootedAt = await popup.evaluate(
-        () => chrome.storage.local.get("halo.hubBootedAt").then((items) => items["halo.hubBootedAt"] ?? null),
-      ).catch(() => null);
-      if (!bootedAt) await page.waitForTimeout(500);
-    }
-    if (!bootedAt) {
-      const hubPage = await context.newPage();
-      await hubPage.goto(`chrome-extension://${extId}/offscreen.html`);
-    }
+    // The hub must boot in the real offscreen document. Issue #49 blamed
+    // Playwright, but the offscreen hub was throwing on chrome.storage
+    // (offscreen documents get only chrome.runtime; fixed in #64). New
+    // headless Chromium (channel "chromium") runs offscreen documents, so
+    // no hub-as-tab fallback: a hub that never boots fails this spec.
+    await expect.poll(() => popup.evaluate(
+      () => chrome.storage.local.get("halo.hubBootedAt").then((items) => items["halo.hubBootedAt"] ?? null),
+    ), { timeout: 10000, message: "offscreen hub never booted (halo.hubBootedAt unset)" }).not.toBeNull();
+    const offscreen = await popup.evaluate(
+      () => chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] }).then((c) => c.length));
+    expect(offscreen, "the hub runs in the offscreen document").toBe(1);
 
     // The orchestrator replays the fixture through the real backend now.
     const deadline = Date.now() + 240_000;

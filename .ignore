@@ -1,0 +1,6 @@
+# Search noise: ripgrep (and Claude Code's Grep, which runs on it) skips these.
+# Files stay readable by path. Untracked noise belongs in .gitignore instead.
+uv.lock
+package-lock.json
+docs/architecture/halo-v2-final.drawio
+docs/architecture/halo-v2-final.html

@@ -10,6 +10,31 @@ const CODE_SEGMENT = /^[a-z0-9]+(-[a-z0-9]+)+$/i;
 /** Outcome of the popup's Start handoff: refusal blocks, warning degrades. */
 export type StartResult = { ok: true; warning?: string } | { ok: false; message: string };
 
+/** Storage key: the Start that is running (written by the popup at Start). */
+export const RUNNING_KEY = "halo.runningMeeting";
+
+export interface RunningMeeting {
+  tabId: number;
+  meetingCode: string;
+}
+
+/**
+ * A Start stays running while the hub is open and its tab is still on the
+ * same call: leaving the call (or closing the tab) frees Start for the next
+ * one, and so does the hub ending the meeting (Stop, left, tab closed);
+ * anything else makes a repeat press a no-op instead of a second capture.
+ */
+export function stillRunning(
+  rec: RunningMeeting | undefined,
+  tabUrl: string | undefined,
+  hubOpen: boolean,
+  hubMeetingRunning: boolean, // the hub's halo.meetingRunning: false after any meeting.ended
+): boolean {
+  if (!rec || !hubOpen || !hubMeetingRunning) return false;
+  const tab = parseMeetTab(tabUrl);
+  return tab.ok && tab.meetingCode === rec.meetingCode;
+}
+
 export function parseMeetTab(url: string | undefined): MeetTabTarget {
   if (!url) {
     return { ok: false, message: "Open a Google Meet call, then press Start." };
