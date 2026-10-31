@@ -6,7 +6,7 @@ import {
   type SetupForm,
 } from "./context";
 import { PairingError, pairWithCode } from "./pairing";
-import type { SavedSetup, SetupStorage, UrgencyStyle } from "./storage";
+import type { MicState, SavedSetup, SetupStorage, UrgencyStyle } from "./storage";
 import type { StartResult } from "./start_target";
 
 /** Minimal Port to the hub: the hub wraps the payload in an envelope. */
@@ -21,11 +21,19 @@ export interface PopupDeps {
   /** Current participant names for role prefill (hub's `halo/tileNames`). */
   listParticipants: () => string[] | Promise<string[]>;
   /**
-   * Hub_capture's capture handoff, called once per Start click (the user
-   * gesture Chrome needs for tabCapture). A refusal or capture warning
-   * comes back as the result and is shown under the Start button.
+   * Hub_capture's capture handoff, called once per Start (the user gesture
+   * Chrome needs for tabCapture). A refusal or capture warning comes back
+   * as the result and is shown under the Start button.
    */
   onStart: () => StartResult | Promise<StartResult> | void;
+  /** True while a Start is still live: Start then shows Running and ignores presses. */
+  meetingRunning?: () => Promise<boolean>;
+  /** True when the active tab is a Meet call (drives "Ready for meeting"). */
+  onMeetCall?: () => Promise<boolean>;
+  /** Live `halo.micState` updates (the Meet tab writes it when the mic opens). */
+  watchMicState?: (onChange: (state: MicState) => void) => void;
+  /** Ends the running meeting; the Stop button exists only when this is given. */
+  onStop?: () => void | Promise<void>;
   pairFn?: (code: string) => Promise<string>;
 }
 
@@ -61,6 +69,26 @@ function hueOf(name: string): number {
   return h;
 }
 
+/**
+ * Button feedback, one shape for every button: "busy" shows a spinner and
+ * ignores presses, "done" shows the success look, "idle" is pressable.
+ * The state lives in data-state (styled in entrypoints/popup/style.css).
+ */
+type ButtonState = "idle" | "busy" | "done";
+function setButton(button: HTMLButtonElement, state: ButtonState, label: string): void {
+  button.dataset.state = state;
+  button.textContent = label;
+  button.disabled = state !== "idle";
+  button.setAttribute("aria-busy", String(state === "busy"));
+}
+
+/** Shows a short-lived confirmation ("Saved ✓") on an element, then hides it. */
+function flash(node: HTMLElement, text: string, ms = 1500): void {
+  node.textContent = text;
+  node.removeAttribute("hidden");
+  setTimeout(() => node.setAttribute("hidden", "true"), ms);
+}
+
 export function micStatusText(state: SavedSetup["micState"]): string {
   if (state === "granted") return "Microphone: ready";
   if (state === "denied") return "Microphone: blocked in Meet, tab audio only";
@@ -71,16 +99,22 @@ export function micStatusText(state: SavedSetup["micState"]): string {
  * Boot the toolbar popup ("Three steps": Pair, About this meeting, Start;
  * Sage & Clay tokens in entrypoints/popup/style.css). Restores the saved
  * token + context, prefills role rows from participant names, and wires
- * Pair / Save / Start. Contains no consent UI: consent lives in the Overlay
- * lane only.
+ * Pair / Save / Start with busy, done and error states. Start is
+ * idempotent: once running it shows Running and further presses do
+ * nothing. Contains no consent UI: consent lives in the Overlay lane only.
  */
 export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<void> {
   const saved: SavedSetup = await deps.storage.load();
   const pairFn = deps.pairFn ?? pairWithCode;
+  const [participants, runningAtOpen, onMeetCall] = await Promise.all([
+    deps.listParticipants(),
+    deps.meetingRunning?.().catch(() => false) ?? false,
+    deps.onMeetCall?.().catch(() => true) ?? true,
+  ]);
 
   let rows: RoleRow[] = mergeTileNames(
     (saved.context?.roles ?? []).map((role) => ({ name: role.name, role: role.role ?? "" })),
-    await deps.listParticipants(),
+    participants,
   );
   if (rows.length === 0) {
     rows = [{ name: "", role: "" }];
@@ -89,6 +123,8 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   // Header + progress strip. The step shown is the first unfinished one.
   let paired = Boolean(saved.token);
   let savedOnce = Boolean(saved.context);
+  let running = runningAtOpen;
+  let micState = saved.micState;
   const header = el("header", { class: "top" });
   const logo = el("h1", { class: "logo" }, "Halo");
   logo.prepend(el("i"));
@@ -115,27 +151,36 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
     placeholder: "6-digit code",
     "aria-label": "Pairing code",
   }) as HTMLInputElement;
-  const pairButton = el("button", { id: "pair-btn", type: "button", class: "btn" }, "Pair") as HTMLButtonElement;
+  const pairButton = el("button", { id: "pair-btn", type: "button", class: "btn" }) as HTMLButtonElement;
+  setButton(pairButton, "idle", "Pair");
   pairForm.append(codeInput, pairButton);
-  const pairError = el("p", { id: "pair-error", class: "err", hidden: "true" });
+  const pairError = el("p", { id: "pair-error", class: "err", role: "alert", hidden: "true" });
   pairSection.append(pairForm, pairError);
   root.appendChild(pairSection);
 
-  // Step 2: About this meeting. Step 3: Start (with the mic status).
-  // A saved meeting folds to one line (its subject) so Start stays in view.
+  // Step 2: About this meeting. A saved meeting folds to one line (its
+  // subject) so Start stays in view; Edit reopens it.
   const formTitle = el("div", { class: "title" });
   const formSummary = el("span", { class: "tiny" });
   formTitle.append(el("b", {}, "About this meeting"), formSummary);
   const { card: form, head: formHead, disc: formDisc } = stepCard("meeting-form", "2", formTitle);
+  const saveState = el("span", { id: "save-state", class: "ok", role: "status", hidden: "true" });
   const editButton = el("button", { id: "meeting-edit", type: "button", class: "link" }, "Edit") as HTMLButtonElement;
-  formHead.append(el("span", { class: "sp" }), editButton);
+  formHead.append(el("span", { class: "sp" }), saveState, editButton);
   let editing = false;
+
+  // Step 3: Start, with one readiness line and the mic detail under it.
   const { card: startSection } = stepCard("start-section", "3", el("b", { class: "title" }, "Start"));
+  const readyState = el("p", { id: "ready-state", class: "ready", role: "status" });
+  const micLine = el("p", { id: "mic-state", class: "tiny" });
+
+  const subjectInput = el("input", { id: "subject", class: "in" }) as HTMLInputElement;
+  subjectInput.value = saved.context?.subject ?? "";
 
   const renderSteps = (): void => {
     const step = !paired ? 1 : !savedOnce ? 2 : 3;
-    stepLabel.textContent = `Step ${step} of 3`;
-    bars.querySelectorAll("i").forEach((bar, i) => bar.classList.toggle("done", i < step));
+    stepLabel.textContent = running ? "Running" : `Step ${step} of 3`;
+    bars.querySelectorAll("i").forEach((bar, i) => bar.classList.toggle("done", running || i < step));
     pairState.textContent = paired ? "Paired" : "Not paired";
     pairHint.textContent = paired ? "with this computer" : "enter the code from the Halo app";
     pairDisc.textContent = paired ? "✓" : "1";
@@ -146,21 +191,36 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
     formDisc.textContent = savedOnce ? "✓" : "2";
     formSummary.textContent = folded ? subjectInput.value : "";
     editButton.hidden = !folded;
-    startSection.classList.toggle("todo", step < 3);
+    startSection.classList.toggle("todo", !paired);
+    // One readiness line: what Start will do, or what is missing first.
+    const ready = running
+      ? { text: "Running: Halo is listening to the call", tone: "live" }
+      : !paired
+        ? { text: "Pair first", tone: "wait" }
+        : !onMeetCall
+          ? { text: "Open your Meet call, then press Start", tone: "wait" }
+          : { text: "Ready for meeting", tone: "ok" };
+    readyState.textContent = ready.text;
+    readyState.dataset.tone = ready.tone;
+    micLine.textContent = micStatusText(micState);
+    micLine.dataset.tone = micState === "denied" ? "warn" : "";
   };
+  changeButton.addEventListener("click", () => {
+    pairForm.hidden = !pairForm.hidden;
+    if (!pairForm.hidden) codeInput.focus();
+  });
   editButton.addEventListener("click", () => {
     editing = true;
     renderSteps();
     subjectInput.focus();
   });
-  changeButton.addEventListener("click", () => {
-    pairForm.hidden = !pairForm.hidden;
-    if (!pairForm.hidden) codeInput.focus();
-  });
 
   pairButton.addEventListener("click", () => {
+    if (pairButton.dataset.state !== "idle") return;
     void (async () => {
       pairError.setAttribute("hidden", "true");
+      codeInput.removeAttribute("aria-invalid");
+      setButton(pairButton, "busy", "Pairing");
       try {
         const token = await pairFn(codeInput.value);
         await deps.storage.saveToken(token);
@@ -171,12 +231,16 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
           error instanceof PairingError ? error.message : "Pairing failed. Try again.";
         pairError.textContent = message;
         pairError.removeAttribute("hidden");
+        codeInput.setAttribute("aria-invalid", "true");
+      } finally {
+        setButton(pairButton, "idle", "Pair");
       }
     })();
   });
+  codeInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") pairButton.click();
+  });
 
-  const subjectInput = el("input", { id: "subject", class: "in" }) as HTMLInputElement;
-  subjectInput.value = saved.context?.subject ?? "";
   const agendaInput = el("textarea", { id: "agenda", class: "in", placeholder: "One item per line" }) as HTMLTextAreaElement;
   agendaInput.value = (saved.context?.agenda ?? []).join("\n");
   const langSelect = el("select", { id: "viewer-lang", class: "in" }) as HTMLSelectElement;
@@ -234,72 +298,126 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   // overlay (watching the same key) switches live; restored on every open.
   const prefs = el("div", { id: "viewer-prefs", class: "row" });
   prefs.appendChild(el("span", { class: "f" }, "Urgency marks"));
+  const urgencySaved = el("span", { id: "urgency-saved", class: "ok", role: "status", hidden: "true" });
   const seg = el("span", { class: "seg", role: "radiogroup", "aria-label": "Urgency marks" });
   for (const [value, labelText] of [["words", "Words"], ["symbols", "Symbols"]] as const) {
     const radio = el("input", { type: "radio", name: "urgency-style", value }) as HTMLInputElement;
     radio.checked = (saved.urgencyStyle ?? "words") === value;
     radio.addEventListener("change", () => {
-      if (radio.checked) void deps.storage.saveUrgencyStyle(value as UrgencyStyle);
+      if (!radio.checked) return;
+      void deps.storage.saveUrgencyStyle(value as UrgencyStyle).then(
+        () => flash(urgencySaved, "Saved ✓"),
+        () => flash(urgencySaved, "Not saved", 3000),
+      );
     });
     const option = el("label", {}, labelText);
     option.prepend(radio);
     seg.appendChild(option);
   }
-  prefs.appendChild(seg);
+  prefs.append(urgencySaved, seg);
   drawer.appendChild(prefs);
   form.appendChild(drawer);
 
   const saveRow = el("div", { class: "row end" });
-  const saveButton = el("button", { id: "save-btn", type: "button", class: "btn" }, "Save") as HTMLButtonElement;
-  const saveState = el("p", { id: "save-state", class: "ok", hidden: "true" });
+  const saveError = el("p", { id: "save-error", class: "err", role: "alert", hidden: "true" });
+  const saveButton = el("button", { id: "save-btn", type: "button", class: "btn" }) as HTMLButtonElement;
+  setButton(saveButton, "idle", "Save");
   saveButton.addEventListener("click", () => {
+    if (saveButton.dataset.state !== "idle") return;
     void (async () => {
-      const formState: SetupForm = {
-        subject: subjectInput.value,
-        agendaText: agendaInput.value,
-        rows,
-        viewerLang: langSelect.value === "ar" ? "ar" : "en",
-        projectId: projectInput.value,
-      };
-      const data = buildMeetingContext(formState);
-      await deps.storage.saveContext(data);
-      deps.port.postMessage({ type: "meeting.context", data });
-      saveState.textContent = "Saved";
-      saveState.removeAttribute("hidden");
-      savedOnce = true;
-      editing = false;
-      renderSteps();
-    })();
-  });
-  saveRow.append(saveState, saveButton);
-  form.appendChild(saveRow);
-  root.appendChild(form);
-
-  // Status only: the Meet tab captures the mic at Start under Meet's own
-  // permission, so there is nothing to grant here.
-  const micSection = el("div", { id: "mic-section", class: "mic" });
-  micSection.appendChild(el("p", { id: "mic-state" }, micStatusText(saved.micState)));
-  startSection.appendChild(micSection);
-
-  const startButton = el("button", { id: "start-btn", type: "button", class: "btn sage block" }, "Start") as HTMLButtonElement;
-  const startMessage = el("p", { id: "start-error", class: "err", hidden: "true" });
-  const showStartMessage = (text: string): void => {
-    startMessage.textContent = text;
-    startMessage.removeAttribute("hidden");
-  };
-  startButton.addEventListener("click", () => {
-    void (async () => {
-      const result = (await deps.onStart()) as StartResult | undefined;
-      if (!result) return; // legacy void handoff: started, nothing to show
-      startMessage.setAttribute("hidden", "true");
-      if (result.ok) {
-        if (result.warning) showStartMessage(result.warning);
-      } else {
-        showStartMessage(result.message);
+      saveError.setAttribute("hidden", "true");
+      setButton(saveButton, "busy", "Saving");
+      try {
+        const formState: SetupForm = {
+          subject: subjectInput.value,
+          agendaText: agendaInput.value,
+          rows,
+          viewerLang: langSelect.value === "ar" ? "ar" : "en",
+          projectId: projectInput.value,
+        };
+        const data = buildMeetingContext(formState);
+        await deps.storage.saveContext(data);
+        deps.port.postMessage({ type: "meeting.context", data });
+        flash(saveState, "Saved ✓");
+        savedOnce = true;
+        editing = false;
+        renderSteps();
+      } catch {
+        saveError.textContent = "Could not save. Try again.";
+        saveError.removeAttribute("hidden");
+      } finally {
+        setButton(saveButton, "idle", "Save");
       }
     })();
   });
-  startSection.append(startButton, startMessage);
+  saveRow.append(saveError, saveButton);
+  form.appendChild(saveRow);
+  root.appendChild(form);
+
+  // The mic is opened by the Meet tab at Start under Meet's own permission,
+  // so there is nothing to grant here; the line follows it live.
+  const micSection = el("div", { id: "mic-section", class: "mic" });
+  micSection.append(readyState, micLine);
+  startSection.appendChild(micSection);
+  deps.watchMicState?.((state) => {
+    micState = state;
+    renderSteps();
+  });
+
+  const startButton = el("button", { id: "start-btn", type: "button", class: "btn sage block" }) as HTMLButtonElement;
+  const stopButton = el("button", { id: "stop-btn", type: "button", class: "btn block" }) as HTMLButtonElement;
+  const startMessage = el("p", { id: "start-error", class: "err", role: "alert", hidden: "true" });
+  const showStartMessage = (text: string): void => {
+    startMessage.textContent = text;
+    startMessage.classList.remove("note");
+    startMessage.removeAttribute("hidden");
+  };
+  const renderStart = (): void => {
+    if (running) setButton(startButton, "done", "Running");
+    else setButton(startButton, "idle", "Start");
+    stopButton.hidden = !running || !deps.onStop;
+    if (stopButton.hidden || stopButton.dataset.state !== "busy") setButton(stopButton, "idle", "Stop");
+    renderSteps();
+  };
+  startButton.addEventListener("click", () => {
+    // Idempotent: busy or running ignores the press (the button is disabled
+    // too; this guard covers a click queued before the disable lands).
+    if (startButton.dataset.state !== "idle") return;
+    void (async () => {
+      startMessage.setAttribute("hidden", "true");
+      setButton(startButton, "busy", "Starting");
+      let result: StartResult | undefined;
+      try {
+        result = (await deps.onStart()) as StartResult | undefined;
+      } catch (error) {
+        result = { ok: false, message: `Start failed: ${error instanceof Error ? error.message : error}` };
+      }
+      if (!result || result.ok) {
+        running = true;
+        if (result?.warning) showStartMessage(result.warning);
+      } else {
+        showStartMessage(result.message);
+      }
+      renderStart();
+    })();
+  });
+  stopButton.addEventListener("click", () => {
+    if (stopButton.dataset.state !== "idle" || !deps.onStop) return;
+    void (async () => {
+      setButton(stopButton, "busy", "Stopping");
+      try {
+        await deps.onStop?.();
+        running = false;
+        showStartMessage("Meeting ended. Your notes are being built.");
+        startMessage.classList.add("note");
+      } catch {
+        showStartMessage("Could not stop. Try again.");
+      }
+      setButton(stopButton, "idle", "Stop");
+      renderStart();
+    })();
+  });
+  startSection.append(startButton, stopButton, startMessage);
   root.appendChild(startSection);
-  renderSteps();
+  renderStart();
 }

@@ -65,7 +65,33 @@ textarea.in{resize:none;height:48px}
 .btn.sage{background:var(--sage);color:var(--on-accent);border-color:var(--sage)}
 .btn.block{width:100%;padding:10px;font-size:15px}
 .link{border:0;background:none;padding:0;font-size:11.5px;color:var(--faint);text-decoration:underline;text-underline-offset:2px}
-.mic p{margin:0;font-size:12.5px;color:var(--muted)}
 .ok{margin:0 auto 0 0;font-size:12.5px;font-weight:600;color:var(--dec)}
+.head .ok{margin:0 6px 0 0}
 .err{margin:0;font-size:12.5px;color:var(--urg-hi)}
+.err.note{color:var(--muted)}
+
+/* Button feedback (data-state set by setButton in setup_panel/popup.ts):
+   pressed = sinks, busy = spinner + dimmed, done = settled success look. */
+.btn{transition:transform .08s,filter .15s,background-color .2s}
+.btn:active:not(:disabled){transform:scale(.97);filter:brightness(.92)}
+.btn:disabled{cursor:default}
+.btn[data-state=busy]{opacity:.85}
+.btn[data-state=busy]::before{content:"";width:13px;height:13px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+.btn.sage[data-state=done]{background:var(--dec);border-color:var(--dec)}
+.btn.sage[data-state=done]::before{content:"";width:8px;height:8px;border-radius:50%;background:#bfe3c4;animation:pulse 1.6s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(191,227,196,.25)}}
+@media (prefers-reduced-motion:reduce){.btn[data-state] ::before,.btn[data-state]::before{animation:none}}
+.in[aria-invalid=true]{border-color:var(--urg-hi);box-shadow:0 0 0 2px rgba(162,59,55,.12)}
+
+/* Readiness line: one dot + one sentence. */
+.mic{display:flex;flex-direction:column;gap:2px}
+.mic p{margin:0}
+.ready{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
+.ready::before{content:"";width:8px;height:8px;border-radius:50%;flex:none;background:var(--rim)}
+.ready[data-tone=ok]::before{background:var(--dec)}
+.ready[data-tone=live]::before{background:var(--dec);animation:pulse 1.6s ease-in-out infinite}
+.ready[data-tone=wait]{color:var(--muted);font-weight:500}
+#mic-state{padding-left:15px}
+#mic-state[data-tone=warn]{color:var(--urg-mid,#77590d)}
 #halo-build{margin:0 14px 12px;font-size:11px;color:var(--faint)}

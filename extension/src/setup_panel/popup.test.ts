@@ -64,15 +64,70 @@ describe("popup Save", () => {
 });
 
 describe("popup Start", () => {
-  it("calls onStart once per click and never without a click", async () => {
-    const deps = depsWith();
+  it("is idempotent: Starting, then Running, and repeat presses do nothing", async () => {
+    let finish: (r: { ok: true }) => void = () => {};
+    const onStart = vi.fn(() => new Promise<{ ok: true }>((resolve) => { finish = resolve; }));
+    const deps = depsWith({ onStart });
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
+    const start = root.querySelector("#start-btn") as HTMLButtonElement;
+    expect(onStart).not.toHaveBeenCalled();
+    for (let i = 0; i < 5; i += 1) start.click(); // tonight's 5 presses
+    expect(start.dataset.state).toBe("busy");
+    expect(start.textContent).toBe("Starting");
+    finish({ ok: true });
+    await flush();
+    expect(start.dataset.state).toBe("done");
+    expect(start.textContent).toBe("Running");
+    expect(start.disabled).toBe(true);
+    start.click();
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(root.querySelector("#ready-state")?.textContent).toMatch(/Running/);
+  });
+
+  it("opens as Running when a Start is still live, and never calls onStart", async () => {
+    const deps = depsWith({ meetingRunning: async () => true });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const start = root.querySelector("#start-btn") as HTMLButtonElement;
+    expect(start.textContent).toBe("Running");
+    start.click();
     expect(deps.onStart).not.toHaveBeenCalled();
-    (root.querySelector("#start-btn") as HTMLButtonElement).click();
-    (root.querySelector("#start-btn") as HTMLButtonElement).click();
-    expect(deps.onStart).toHaveBeenCalledTimes(2);
+  });
+
+  it("a thrown Start comes back pressable with the reason", async () => {
+    const deps = depsWith({ onStart: async () => { throw new Error("no tab"); } });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const start = root.querySelector("#start-btn") as HTMLButtonElement;
+    start.click();
+    await flush();
+    expect(start.dataset.state).toBe("idle");
+    expect(root.querySelector("#start-error")?.textContent).toMatch(/no tab/);
+  });
+
+  it("Stop exists only with onStop; it ends the meeting and frees Start", async () => {
+    const without = depsWith({ meetingRunning: async () => true });
+    const a = document.createElement("div");
+    await initPopup(a, without);
+    expect((a.querySelector("#stop-btn") as HTMLElement).hidden).toBe(true);
+
+    const onStop = vi.fn(async () => {});
+    const deps = depsWith({ meetingRunning: async () => true, onStop });
+    const root = document.createElement("div");
+    await initPopup(root, deps);
+    const stop = root.querySelector("#stop-btn") as HTMLButtonElement;
+    expect(stop.hidden).toBe(false);
+    stop.click();
+    expect(stop.textContent).toBe("Stopping");
+    await flush();
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(stop.hidden).toBe(true);
+    expect((root.querySelector("#start-btn") as HTMLButtonElement).textContent).toBe("Start");
+    expect(root.querySelector("#start-error")?.textContent).toMatch(/Meeting ended/);
   });
 
   it("shows a refusal message and starts nothing on a refused Start", async () => {
@@ -168,6 +223,65 @@ describe("popup restore", () => {
     expect((root.querySelector("#agenda") as HTMLTextAreaElement).value).toBe("Pricing\nRTL");
     expect((root.querySelector("#project") as HTMLInputElement).value).toBe("halo-q4");
     expect(root.querySelector("#pair-state")?.textContent).toBe("Paired");
+  });
+});
+
+describe("popup readiness and feedback", () => {
+  it("reads Pair first, then Open your Meet call, then Ready for meeting", async () => {
+    const r1 = document.createElement("div");
+    await initPopup(r1, depsWith());
+    expect(r1.querySelector("#ready-state")?.textContent).toBe("Pair first");
+
+    const off = depsWith({ onMeetCall: async () => false });
+    await off.storage.saveToken("t");
+    const r2 = document.createElement("div");
+    await initPopup(r2, off);
+    expect(r2.querySelector("#ready-state")?.textContent).toMatch(/Open your Meet call/);
+
+    const on = depsWith({ onMeetCall: async () => true });
+    await on.storage.saveToken("t");
+    const r3 = document.createElement("div");
+    await initPopup(r3, on);
+    expect(r3.querySelector("#ready-state")?.textContent).toBe("Ready for meeting");
+  });
+
+  it("follows the mic state live once the Meet tab opens it", async () => {
+    let push: (s: "granted" | "denied") => void = () => {};
+    const deps = depsWith({ watchMicState: (fn) => { push = fn; } });
+    const root = document.createElement("div");
+    await initPopup(root, deps);
+    expect(root.querySelector("#mic-state")?.textContent).toMatch(/starts with Start/);
+    push("granted");
+    expect(root.querySelector("#mic-state")?.textContent).toBe("Microphone: ready");
+  });
+
+  it("Pair shows Pairing while it works and marks a wrong code", async () => {
+    let fail: (e: Error) => void = () => {};
+    const deps = depsWith({ pairFn: () => new Promise<string>((_r, reject) => { fail = reject; }) });
+    const root = document.createElement("div");
+    await initPopup(root, deps);
+    const pair = root.querySelector("#pair-btn") as HTMLButtonElement;
+    pair.click();
+    expect(pair.textContent).toBe("Pairing");
+    expect(pair.disabled).toBe(true);
+    fail(new PairingError("Wrong code"));
+    await flush();
+    expect(pair.textContent).toBe("Pair");
+    expect(pair.disabled).toBe(false);
+    expect(root.querySelector("#pair-code")?.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("Save confirms with Saved and folds the card", async () => {
+    const deps = depsWith();
+    const root = document.createElement("div");
+    await initPopup(root, deps);
+    (root.querySelector("#save-btn") as HTMLButtonElement).click();
+    expect((root.querySelector("#save-btn") as HTMLButtonElement).textContent).toBe("Saving");
+    await flush();
+    const state = root.querySelector("#save-state") as HTMLElement;
+    expect(state.hidden).toBe(false);
+    expect(state.textContent).toMatch(/Saved/);
+    expect(root.querySelector("#meeting-form")?.classList.contains("folded")).toBe(true);
   });
 });
 
