@@ -35,7 +35,7 @@ def test_ws_roundtrip_plumbing():
         assert server.started, "fake voice server did not start"
 
         async def client() -> list[dict]:
-            transport = WsTransport(f"ws://127.0.0.1:{PORT}/v1/voice/realtime")
+            transport = WsTransport(f"ws://127.0.0.1:{PORT}/v1/asr/realtime")
             await transport.open(build_handshake(DIARIZATION, "fake-key"))
             for _ in range(8):
                 await transport.send_audio(FRAME)
