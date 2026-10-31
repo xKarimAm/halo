@@ -16,7 +16,7 @@ Implement packaging per its PLAN.md; done ONLY when the release checks pass: the
 2. [x] `packaging/release_check.py` + ran as evidence (PASS twice)
 3. [x] `packaging/tests/test_env_example.py` + `testpaths`
 4. [x] `.env.example` (+`HALO_EXTENSION_ID`, `HALO_ENGINES`, `HALO_FIXTURE_DIR`), README refresh
-5. [x] CI extension build step
+5. [x] CI extension build step ATTEMPTED, reverted: `wxt build` fails on setup_panel's top-level await (filed as #46 to module:setup_panel); build step returns when #46 lands
 6. [x] Full gates + PR #45 open for Karim to merge
 
 ## Evidence notes
