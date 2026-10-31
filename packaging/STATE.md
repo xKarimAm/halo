@@ -17,7 +17,7 @@ Implement packaging per its PLAN.md; done ONLY when the release checks pass: the
 3. [x] `packaging/tests/test_env_example.py` + `testpaths`
 4. [x] `.env.example` (+`HALO_EXTENSION_ID`, `HALO_ENGINES`, `HALO_FIXTURE_DIR`), README refresh
 5. [x] CI extension build step
-6. [ ] Full gates + PR open for Karim to merge
+6. [x] Full gates + PR #45 open for Karim to merge
 
 ## Evidence notes
 - `release_check.py`: PASS (boot + pairing code + `/pair` 200 + foreign-Host 400). One transient FAIL observed when another process held the fixed :8765 (fails closed — intended for a release check).
