@@ -488,11 +488,11 @@ async def api_tags(request: Request):  # type: ignore[no-untyped-def]
     target, target_id = body.get("target"), body.get("target_id")
     kind, urgency = body.get("kind"), body.get("urgency")
     if target not in ("point", "action") or not isinstance(target_id, str):
-        return JSONResponse({"detail": "target/target_id required"}, status_code=400)
+        return JSONResponse({"detail": "target/target_id required"}, status_code=422)
     if (kind is not None and kind not in KINDS) or (urgency is not None and urgency not in URGENCIES):
-        return JSONResponse({"detail": "bad kind/urgency"}, status_code=400)
+        return JSONResponse({"detail": "bad kind/urgency"}, status_code=422)
     if kind is None and urgency is None:
-        return JSONResponse({"detail": "kind or urgency required"}, status_code=400)
+        return JSONResponse({"detail": "kind or urgency required"}, status_code=422)
     meeting_id = service.resolve_target(target, target_id)
     if meeting_id is None:
         return JSONResponse({"detail": "unknown target"}, status_code=404)
