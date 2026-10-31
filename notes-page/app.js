@@ -1,8 +1,11 @@
 /* Halo Notes page: static shell served by the Notes Service.
  * Vanilla JS, no build step. All HTTP goes through the injected seams
  * (fetchJson/postTag) so the render test drives it with fixtures.
- * Provisional shapes (pending notes_service/contracts answers) are marked
- * PROVISIONAL and filed as issues; the golden page JSON is the oracle.
+ * Shapes match the merged service (contracts/meeting-page.schema.json):
+ * meeting.degraded, top-level actions[] with point_id, and per-person
+ * relevant_points/own_points id lists. Recording playback goes through the
+ * service audio endpoint for recordings/{meeting_id}.webm (multi-file
+ * covering sets resolve server-side via recordings/{meeting_id}.index.json).
  */
 "use strict";
 
@@ -133,24 +136,34 @@
     return point.urgency || "later";
   }
 
-  function actionsOf(points) {
-    return points.filter(function (p) { return p.is_action; });
-  }
-
   function byUrg(actions) {
     return URG_ORDER.map(function (u) {
       return [u, actions.filter(function (a) { return urgOf(a) === u; })];
     });
   }
 
-  function ownOf(points, name) {
-    return points.filter(function (p) { return p.speaker_name === name; });
+  function pointById(page, id) {
+    for (var i = 0; i < page.points.length; i++) {
+      if (page.points[i].point_id === id) return page.points[i];
+    }
+    return null;
   }
 
-  // PROVISIONAL (contracts issue): page JSON has no per-person relevant list,
-  // so relevance = points said by others in the same meeting.
-  function relOf(points, name) {
-    return points.filter(function (p) { return p.speaker_name !== name; });
+  // Per-person lists are id references into page.points (#14 shape).
+  function pointsByIds(page, ids) {
+    var out = [];
+    (ids || []).forEach(function (id) {
+      var p = pointById(page, id);
+      if (p) out.push(p);
+    });
+    return out;
+  }
+
+  function actionById(page, id) {
+    for (var i = 0; i < page.actions.length; i++) {
+      if (page.actions[i].action_id === id) return page.actions[i];
+    }
+    return null;
   }
 
   function lineByTurn(page, turnId) {
@@ -200,8 +213,7 @@
   }
 
   // One-click re-tag: quiet "by Halo / by you" provenance opening a tiny menu.
-  function retagControl(item, isAction, lang, userTags) {
-    var id = isAction ? item.point_id : item.point_id;
+  function retagControl(item, id, isAction, lang, userTags) {
     var cur = isAction ? urgOf(item) : kindKey(item.kind);
     var options = isAction ? URG_ORDER : KIND_KEYS;
     var mine = !!userTags[id];
@@ -281,7 +293,7 @@
     origBtn.dataset.orig = point.point_id;
     origBtn.setAttribute("aria-expanded", app.openQuote[point.point_id] ? "true" : "false");
     meta.appendChild(origBtn);
-    meta.appendChild(retagControl(point, false, lang, app.userTags));
+    meta.appendChild(retagControl(point, point.point_id, false, lang, app.userTags));
     li.appendChild(meta);
     if (app.openQuote[point.point_id]) {
       var quote = el("blockquote", null, "\u201C" + point.quote + "\u201D");
@@ -290,21 +302,22 @@
     return li;
   }
 
-  // PROVISIONAL (contracts issue): page JSON carries no action owner/status,
-  // so every is_action point renders as Suggested (the documented live fallback).
-  function actionItem(app, point, lang, showWho) {
-    var page = app.page;
-    var line = lineByTurn(page, point.turn_ids[0]);
-    var li = el("li", "act sug u-" + urgOf(point));
-    var badge = el("span", "badge sg", t(lang, "suggested"));
+  // Top-level actions[] carry owner/status/urgency plus the linked point_id.
+  function actionItem(app, action, lang, showWho) {
+    var linked = pointById(app.page, action.point_id);
+    var line = linked ? lineByTurn(app.page, linked.turn_ids[0]) : null;
+    var assigned = action.status === "assigned";
+    var li = el("li", "act" + (assigned ? " asg" : " sug") + " u-" + urgOf(action));
+    var badge = el("span", "badge " + (assigned ? "as" : "sg"),
+      t(lang, assigned ? "assigned" : "suggested"));
     li.appendChild(badge);
-    var body = el("div", "body", point.text);
-    var small = el("small", null, t(lang, "sgNote"));
+    var body = el("div", "body", action.text);
+    var small = el("small", null, t(lang, assigned ? "asNote" : "sgNote"));
     body.appendChild(small);
     var ameta = el("div", "ameta");
-    if (showWho !== false) ameta.appendChild(personChip(point.speaker_name, lang));
+    if (showWho !== false) ameta.appendChild(personChip(action.owner, lang));
     if (line) ameta.appendChild(lineChip(app, line, lang));
-    ameta.appendChild(retagControl(point, true, lang, app.userTags));
+    ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
     body.appendChild(ameta);
     li.appendChild(body);
     return li;
@@ -366,14 +379,14 @@
   }
 
   function summaryBoard(app, lang) {
-    var points = app.page.points;
+    var actions = app.page.actions;
     var section = el("section", "board glass");
     var head = el("div", "bhead");
     head.appendChild(el("h2", null, t(lang, "actions")));
     head.appendChild(el("p", "prov", t(lang, "prov")));
     section.appendChild(head);
     var grid = el("div", "ugrid");
-    byUrg(actionsOf(points)).forEach(function (pair) {
+    byUrg(actions).forEach(function (pair) {
       var u = pair[0], list = pair[1];
       var col = el("section", "ucol u-" + u);
       var h3 = el("h3");
@@ -409,10 +422,9 @@
   }
 
   function personPanel(app, person, lang) {
-    var points = app.page.points;
-    var own = ownOf(points, person.name);
-    var rel = relOf(points, person.name);
-    var acts = byUrg(actionsOf(points).filter(function (a) { return a.speaker_name === person.name; }))
+    var own = pointsByIds(app.page, person.own_points);
+    var rel = pointsByIds(app.page, person.relevant_points);
+    var acts = byUrg(app.page.actions.filter(function (a) { return a.owner === person.name; }))
       .filter(function (pair) { return pair[1].length > 0; });
     var section = el("section", "panel glass");
     section.setAttribute("aria-label", person.name);
@@ -485,6 +497,15 @@
     time.setAttribute("dir", "ltr");
     row.appendChild(time);
     player.appendChild(row);
+    // Recording file served by the Notes Service audio endpoint, using the
+    // recorder's recordings/{meeting_id}.webm convention from the page JSON.
+    var audio = app.doc.createElement("audio");
+    audio.id = "rec";
+    audio.className = "rec";
+    audio.controls = true;
+    audio.preload = "none";
+    audio.src = "/api/audio?meeting_id=" + encodeURIComponent(page.meeting.meeting_id);
+    player.appendChild(audio);
     player.appendChild(el("div", "keep", t(lang, "keep")));
     if (cur) {
       player.appendChild(el("div", "recoff", t(lang, "recAt", {
@@ -520,7 +541,7 @@
 
   function renderMeeting(app, view, lang) {
     var page = app.page;
-    if (page.degraded) {
+    if (page.meeting.degraded) {
       view.appendChild(el("div", "degraded", t(lang, "degraded")));
     }
     var wrap = el("div", "mtg");
@@ -651,13 +672,15 @@
       lines.push("## " + person.name + ": " + person.role);
       lines.push(person.why);
       lines.push("");
-      var acts = actionsOf(page.points).filter(function (a) { return a.speaker_name === person.name; });
+      var acts = page.actions.filter(function (a) { return a.owner === person.name; });
       byUrg(acts).forEach(function (pair) {
         if (pair[1].length === 0) return;
         lines.push("### " + t(lang, pair[0]));
         pair[1].forEach(function (a) {
-          var ln = lineByTurn(page, a.turn_ids[0]);
-          lines.push("- [ ] **" + a.text + "** (" + t(lang, "suggested") +
+          var linked = pointById(page, a.point_id);
+          var ln = linked ? lineByTurn(page, linked.turn_ids[0]) : null;
+          lines.push("- [ ] **" + a.text + "** (" +
+            t(lang, a.status === "assigned" ? "assigned" : "suggested") +
             (ln ? ", [" + fmtMs(ln.ts_start_ms) + "](#t=" + Math.floor(ln.ts_start_ms / 1000) + ")" : "") + ")");
         });
         lines.push("");
@@ -681,10 +704,30 @@
 
   function findPoint(app, id) {
     if (!app.page) return null;
-    for (var i = 0; i < app.page.points.length; i++) {
-      if (app.page.points[i].point_id === id) return app.page.points[i];
+    return pointById(app.page, id);
+  }
+
+  function findAction(app, id) {
+    if (!app.page) return null;
+    return actionById(app.page, id);
+  }
+
+  // Jump the service-served recording to a transcript line's recording moment
+  // (offset = line ts minus the covering file's start ts, per the page JSON).
+  function seekAudio(app, turnId) {
+    var line = app.page ? lineByTurn(app.page, turnId) : null;
+    if (!line) return;
+    var node = app.doc.getElementById("rec");
+    if (!node) return;
+    try {
+      node.currentTime = line.recording_offset_ms / 1000;
+    } catch (e) { /* no media loaded yet */ }
+    if (node.play) {
+      try {
+        var started = node.play();
+        if (started && started.catch) started.catch(function () {});
+      } catch (e2) { /* autoplay blocked: the moment is still cued */ }
     }
-    return null;
   }
 
   function closest(node, doc, selector) {
@@ -760,14 +803,14 @@
     };
 
     function onRetag(id, val, isAction) {
-      var point = findPoint(app, id);
-      if (!point) return Promise.resolve();
+      var target = isAction ? findAction(app, id) : findPoint(app, id);
+      if (!target) return Promise.resolve();
       var body = isAction
         ? { target: "action", target_id: id, urgency: val }
         : { target: "point", target_id: id, kind: val };
       return app.postTag(body).then(function () {
-        if (isAction) point.urgency = val;
-        else point.kind = val;
+        if (isAction) target.urgency = val;
+        else target.kind = val;
         app.userTags[id] = val;
         render(app);
         toast(app, t(app.lang, "retagged"));
@@ -813,10 +856,11 @@
             for (var i = 0; i < others.length; i++) {
               if (others[i].turn_id === turn) {
                 app.lineIndex = i;
-                render(app);
                 break;
               }
             }
+            render(app);
+            if (turn) seekAudio(app, turn);
           }
         });
         return;
@@ -839,10 +883,11 @@
           for (var j = 0; j < lines.length; j++) {
             if (lines[j].turn_id === turnId) {
               app.lineIndex = j;
-              render(app);
               break;
             }
           }
+          render(app);
+          seekAudio(app, turnId);
         }
         return;
       }

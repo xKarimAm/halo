@@ -1,0 +1,68 @@
+{
+  "actions": [
+    {
+      "action_id": "b273a9a4-3993-5301-be18-49554c2c24df",
+      "owner": "Layla",
+      "point_id": "00000040-0000-4000-8000-000000000040",
+      "status": "assigned",
+      "text": "Launch moves to Nov 12",
+      "urgency": "medium"
+    }
+  ],
+  "meeting": {
+    "degraded": false,
+    "meeting_id": "22222222-2222-4222-8222-222222222222",
+    "project_id": "halo-q4",
+    "subject": "Launch readiness",
+    "t0_ms": 1760000000000
+  },
+  "people": [
+    {
+      "name": "Layla",
+      "own_points": [
+        "00000040-0000-4000-8000-000000000040"
+      ],
+      "relevant_points": [],
+      "role": "Engineering lead",
+      "why": "Owns RTL."
+    }
+  ],
+  "points": [
+    {
+      "is_action": true,
+      "kind": "decision",
+      "point_id": "00000040-0000-4000-8000-000000000040",
+      "quote": "Launch moves to Nov 12.",
+      "rank": 1,
+      "speaker_name": "Layla",
+      "text": "Launch moves to Nov 12",
+      "tile_id": "t1",
+      "turn_ids": [
+        "00000030-0000-4000-8000-000000000030"
+      ],
+      "urgency": "medium"
+    }
+  ],
+  "recording": {
+    "path": "recordings/22222222-2222-4222-8222-222222222222.webm",
+    "start_ts_ms": 1760000000000
+  },
+  "transcript_lines": [
+    {
+      "recording_offset_ms": 1000,
+      "speaker_name": "Layla",
+      "text": "Launch moves to Nov 12.",
+      "ts_end_ms": 1760000004000,
+      "ts_start_ms": 1760000001000,
+      "turn_id": "00000030-0000-4000-8000-000000000030"
+    },
+    {
+      "recording_offset_ms": 4000,
+      "speaker_name": "Omar",
+      "text": "Noted, thanks.",
+      "ts_end_ms": 1760000007000,
+      "ts_start_ms": 1760000004000,
+      "turn_id": "00000031-0000-4000-8000-000000000031"
+    }
+  ]
+}
