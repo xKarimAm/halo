@@ -40,3 +40,5 @@ jobs:
         run: npm --prefix extension run typecheck
       - name: Unit tests
         run: npm --prefix extension test
+      - name: Build
+        run: npm --prefix extension run build
