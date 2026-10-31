@@ -7,5 +7,8 @@
       "Read(./uv.lock)",
       "Read(./**/package-lock.json)"
     ]
+  },
+  "env": {
+    "CLAUDE_CODE_GLOB_NO_IGNORE": "false"
   }
 }
