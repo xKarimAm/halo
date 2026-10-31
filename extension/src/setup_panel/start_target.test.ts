@@ -41,13 +41,18 @@ describe("parseMeetTab", () => {
 describe("stillRunning", () => {
   const rec = { tabId: 7, meetingCode: "abc-defg-hij" };
   it("is running while the hub is open and the tab is on the same call", () => {
-    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij?authuser=0", true)).toBe(true);
+    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij?authuser=0", true, true)).toBe(true);
   });
   it("frees Start when the call changed, the tab left Meet, or the hub is gone", () => {
-    expect(stillRunning(rec, "https://meet.google.com/xyz-abcd-efg", true)).toBe(false);
-    expect(stillRunning(rec, "https://meet.google.com/", true)).toBe(false);
-    expect(stillRunning(rec, undefined, true)).toBe(false);
-    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij", false)).toBe(false);
-    expect(stillRunning(undefined, "https://meet.google.com/abc-defg-hij", true)).toBe(false);
+    expect(stillRunning(rec, "https://meet.google.com/xyz-abcd-efg", true, true)).toBe(false);
+    expect(stillRunning(rec, "https://meet.google.com/", true, true)).toBe(false);
+    expect(stillRunning(rec, undefined, true, true)).toBe(false);
+    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij", false, true)).toBe(false);
+    expect(stillRunning(undefined, "https://meet.google.com/abc-defg-hij", true, true)).toBe(false);
+  });
+  it("frees Start once the hub ended the meeting (Stop, left the call, tab closed)", () => {
+    // #83: the hub writes halo.meetingRunning=false on every meeting.ended,
+    // while #86's running record and the hub document both outlive it.
+    expect(stillRunning(rec, "https://meet.google.com/abc-defg-hij", true, false)).toBe(false);
   });
 });
