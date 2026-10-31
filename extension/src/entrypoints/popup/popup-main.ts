@@ -82,6 +82,7 @@ async function handleStart(): Promise<StartResult> {
     meeting_code: target.meetingCode,
     self_name: "",
     streamId,
+    tabId: tab.id, // the hub trusts call.left and mic frames from this tab only
   });
   // Mic stream 1: the Meet tab's content script opens it under Meet's own
   // mic permission (no prompt, no extra page). No content script (a Meet

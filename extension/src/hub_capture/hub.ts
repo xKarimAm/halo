@@ -70,6 +70,8 @@ export interface StartMeta {
   platform: "meet" | "zoom" | "teams";
   meeting_code: string;
   self_name: string;
+  /** The Meet tab the Start came from; undefined (rig, old popup) trusts every tab. */
+  tabId?: number;
 }
 
 export class Hub {
@@ -127,6 +129,7 @@ export class Hub {
   }
 
   start(meta: StartMeta): string {
+    this.meetingTab = meta.tabId;
     this.meetingId = this.deps.uuid();
     this.meetingCode = meta.meeting_code;
     this.ended = false;
@@ -170,10 +173,17 @@ export class Hub {
     return "";
   }
 
+  private meetingTab: number | undefined;
+
+  /** A second open Meet tab must not feed the mic or end this call. */
+  private fromMeetingTab(tabId: number | undefined): boolean {
+    return this.meetingTab === undefined || tabId === undefined || tabId === this.meetingTab;
+  }
+
   /** Latest tiles.snapshot and meeting.context, replayed at every Start. */
   private pageState: ToHubPortMessage[] = [];
 
-  onPortMessage(msg: ToHubPortMessage): void {
+  onPortMessage(msg: ToHubPortMessage, senderTabId?: number): void {
     if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
       this.pageState = this.pageState.filter((m) => m.type !== msg.type);
       this.pageState.push(msg);
@@ -210,7 +220,7 @@ export class Hub {
         this.outbox.ack(msg.ack.ack_of);
         break;
       case "call.left":
-        this.stop("left");
+        if (this.fromMeetingTab(senderTabId)) this.stop("left");
         break;
       default:
         break; // participant.joined/left are hub-local bookkeeping only
@@ -241,8 +251,9 @@ export class Hub {
     this.pushStatus();
   }
 
-  sendAudio(stream: "tab" | "mic", pcm: Uint8Array, tsMs: number): void {
+  sendAudio(stream: "tab" | "mic", pcm: Uint8Array, tsMs: number, senderTabId?: number): void {
     if (!this.socketOpen || !this.paired) return; // audio held off the wire until pair.ok
+    if (!this.fromMeetingTab(senderTabId)) return;
     // Audio belongs to a running meeting: the Meet tab's relayed mic outlives
     // Stop and leaving the call, and its frames must not reach the Gateway.
     if (!this.meetingId || this.ended) return;
@@ -304,6 +315,7 @@ export function handleHubRuntimeMessage(hub: Hub, msg: Record<string, unknown>):
     platform: (msg.platform as StartMeta["platform"]) ?? "meet",
     meeting_code: meetingCode,
     self_name: String(msg.self_name ?? ""),
+    tabId: typeof msg.tabId === "number" ? msg.tabId : undefined,
   });
   return true;
 }

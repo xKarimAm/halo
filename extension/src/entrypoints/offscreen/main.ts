@@ -68,13 +68,13 @@ chrome.runtime.onConnect.addListener((port: any) => {
     // Mic stream 1, captured by the Meet content script (see mic_relay.ts).
     port.onMessage.addListener((msg: unknown) => {
       const frame = readMicFrame(msg);
-      if (frame) hub.sendAudio("mic", frame.pcm, frame.ts);
+      if (frame) hub.sendAudio("mic", frame.pcm, frame.ts, port.sender?.tab?.id);
     });
     return;
   }
   if (port.name !== "halo-hub") return;
   ports.add(port);
-  port.onMessage.addListener((msg: unknown) => hub.onPortMessage(msg as never));
+  port.onMessage.addListener((msg: unknown) => hub.onPortMessage(msg as never, port.sender?.tab?.id));
   port.onDisconnect.addListener(() => { ports.delete(port); hub.onPagePortDisconnected(); });
 });
 type StartHandoff = {
