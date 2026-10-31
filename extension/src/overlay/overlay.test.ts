@@ -172,7 +172,7 @@ describe("thinking, hide, language", () => {
 
 // (7) popover model; (8) consent copy touches only the clipboard
 describe("popover and consent", () => {
-  it("urgent shows plain-text Urgent in the popover, no mark on the bubble", () => {
+  it("urgent shows plain-text Urgent in the popover (bubble marks are covered below)", () => {
     const { overlay } = make();
     const p = point({ urgency: "urgent", kind: "decision" });
     overlay.applyPointsUpsert(p, "env-1");
@@ -191,5 +191,94 @@ describe("popover and consent", () => {
     expect(text).toBe(CONSENT_NOTICE);
     expect(written).toEqual([CONSENT_NOTICE]);
     expect(CONSENT_NOTICE).toMatch(/record/i);
+  });
+});
+
+// Urgency mark (DECISIONS: draft-2 word tabs by default, draft-1 shape seals
+// via the `halo.urgencyStyle` viewer setting). Tabs carry the word in the
+// bubble's language; seals carry ! (urgent), = (medium), or nothing (later).
+function marksOf(root: FakeEl): FakeEl[] {
+  return root.find((e) => e.classes.has("halo-utab") || e.classes.has("halo-useal"));
+}
+
+describe("urgency mark", () => {
+  it("words style (default): tab words per urgency in English", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    const ids = ["urgent", "medium", "later"] as const;
+    const words = ["URGENT", "MEDIUM", "LATER"];
+    ids.forEach((urgency, i) => overlay.applyPointsUpsert(point({ urgency, rank: i + 1 }), `env-u${i}`));
+    overlay.render(doc as never, root as never, 0);
+    const marks = marksOf(root);
+    expect(marks).toHaveLength(3);
+    marks.forEach((m, i) => {
+      expect(m.classes.has("halo-utab")).toBe(true);
+      expect(m.classes.has(`halo-u-${ids[i]}`)).toBe(true);
+      expect(m.textContent).toBe(words[i]);
+    });
+  });
+
+  it("words style: Arabic bubble gets the Arabic word", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point({ urgency: "urgent", lang: "ar", rank: 1 }), "env-a");
+    overlay.applyPointsUpsert(point({ urgency: "later", lang: "en", rank: 2 }), "env-m");
+    overlay.render(doc as never, root as never, 0);
+    const marks = marksOf(root);
+    expect(marks.map((m) => m.textContent)).toEqual(["عاجل", "LATER"]);
+  });
+
+  it("symbols style: seals with glyphs, later seal empty", () => {
+    const { overlay } = make();
+    overlay.setUrgencyStyle("symbols");
+    const root = new FakeEl();
+    (["urgent", "medium", "later"] as const).forEach((urgency, i) =>
+      overlay.applyPointsUpsert(point({ urgency, rank: i + 1 }), `env-s${i}`));
+    overlay.render(doc as never, root as never, 0);
+    const marks = marksOf(root);
+    expect(marks).toHaveLength(3);
+    expect(marks.map((m) => m.textContent)).toEqual(["!", "=", ""]);
+    marks.forEach((m) => expect(m.classes.has("halo-useal")).toBe(true));
+    expect(marks[2].classes.has("halo-u-later")).toBe(true);
+  });
+
+  it("live switch: setUrgencyStyle swaps tabs for seals on re-render", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point({ urgency: "medium" }), "env-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(marksOf(root)[0].textContent).toBe("MEDIUM");
+    overlay.setUrgencyStyle("symbols");
+    overlay.render(doc as never, root as never, 0);
+    const marks = marksOf(root);
+    expect(marks).toHaveLength(1);
+    expect(marks[0].classes.has("halo-useal")).toBe(true);
+    expect(marks[0].textContent).toBe("=");
+    overlay.setUrgencyStyle("words");
+    overlay.render(doc as never, root as never, 0);
+    expect(marksOf(root)[0].textContent).toBe("MEDIUM");
+  });
+
+  it("RTL: an Arabic bubble carries its mark with dir=rtl", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point({ urgency: "urgent", lang: "ar" }), "env-1");
+    overlay.render(doc as never, root as never, 0);
+    const chip = root.find((e) => e.attrs.has("data-point-id"))[0];
+    expect(chip.attrs.get("dir")).toBe("rtl");
+    expect(marksOf(chip as unknown as FakeEl)).toHaveLength(1);
+    overlay.setUrgencyStyle("symbols");
+    overlay.render(doc as never, root as never, 0);
+    expect(marksOf(root)[0].classes.has("halo-useal")).toBe(true);
+  });
+
+  it("points without urgency render no mark; bad styles are ignored", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point(), "env-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(marksOf(root)).toHaveLength(0);
+    overlay.setUrgencyStyle("bogus");
+    expect(overlay.urgencyStyle).toBe("words");
   });
 });
