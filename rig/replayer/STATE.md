@@ -34,6 +34,11 @@ continuity, LLM-failover points flow + 30 s recovery, Voice-drop exactly-once �
 ports; no clash with live dev servers). Browser joined gate relies on CI (fixed
 8765/18777 busy on this box). Known finding filed as #57 (restarted backend is
 deaf without a re-sent meeting.started). Next: push, PR.
+Checker now skips soft-cut extra finals at match time (`_compatible`: ts ±300 ms
++ fuzzy text must agree before an actual fills an expected slot), so a dup/piece
+final never matches as the next turn's final — fixes the #60 joined flake (true
+cause, not two hubs; dup source filed as #62). New `tests/test_checker.py`.
+Local joined e2e still needs CI (npm EPERM installing Chromium on this box).
 
 ## Open questions
 - Real-Gateway L2 (Done case 1 full form) waits on the Gateway module (W1); this lane's golden test runs the identical Mode A + checker against a stub Gateway that validates/dedupes/stores like the ACK kit describes. No contract change needed.
