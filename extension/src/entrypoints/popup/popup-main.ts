@@ -64,7 +64,7 @@ if (typeof chrome === "undefined" || !chrome) {
   throw new Error("Halo setup: chrome APIs unavailable");
 }
 
-const port = chrome.runtime.connect({ name: "halo-hub" });
+const port = { postMessage: (msg: unknown) => chrome.runtime.connect({ name: "halo-hub" }).postMessage(msg) }; // fresh per Save: a Port opened before the hub existed is dead
 
 void initPopup(root, {
   storage: chromeSetupStorage(chrome.storage.local),
@@ -75,7 +75,18 @@ void initPopup(root, {
     return Array.isArray(names) ? names.filter((n) => typeof n === "string") : [];
   },
   onStart: () => handleStart(),
+  onStop: () => { chrome.runtime.sendMessage({ type: "halo/hub.stop" }).catch(() => {}); },
+  // The hub's flag alone can go stale (Chrome quit mid-meeting): a meeting
+  // runs only while the offscreen hub exists too.
+  meetingRunning: async () => {
+    const items = await chrome.storage.local.get("halo.meetingRunning");
+    if (items?.["halo.meetingRunning"] !== true) return false;
+    const hubs = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] });
+    return hubs.length > 0;
+  },
   onRequestMicPermission: () => {
     void chrome.tabs.create({ url: chrome.runtime.getURL("mic-permission.html") });
   },
+  micPermission: async () =>
+    (await navigator.permissions.query({ name: "microphone" as PermissionName })).state,
 });

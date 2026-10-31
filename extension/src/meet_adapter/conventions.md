@@ -21,6 +21,7 @@ speaking/self logic with it.
 | `object-fit` of the `<video>` | `fit`; real Meet uses `contain`; anything but `cover`/`contain` falls back to `cover` | probe |
 | `getBoundingClientRect()` | `rect` `[x, y, w, h]`, viewport CSS px | — |
 | Any tile-root node, incl. share surfaces | Reported as a tile (presenter points stay on the camera tile downstream) | share tile |
+| No tile-root node for 5 s after tiles were seen in this page | "Left the call" (tab still open): `createPortSync` posts `call.left`, the hub ends the meeting with reason `left`. A reload never fires it (the new page has seen no tiles). Unverified on live Meet: needs the leave check (issue #72) | inference from the tile anchor |
 
 Emission: `MutationObserver` (structure + `class` on the speaking
 descendant) + 500 ms safety poll (which also reconciles speaking, but never

@@ -7,6 +7,10 @@ import type { ToHubPortMessage, ToPagePortMessage } from "../../../contracts/ext
 import { Outbox } from "./outbox";
 
 export const HUB_START_MESSAGE = "halo/hub.start";
+/** Popup -> hub: the Stop button. */
+export const HUB_STOP_MESSAGE = "halo/hub.stop";
+/** True while a meeting runs: the popup shows Stop only then. */
+export const MEETING_RUNNING_KEY = "halo.meetingRunning";
 export const TILE_NAMES_KEY = "halo/tileNames";
 
 export interface SocketLike {
@@ -26,6 +30,8 @@ export interface HubDeps {
   token: string;
   extVersion: string;
   schedule?: (fn: () => void, ms: number) => void;
+  /** Called once when the running meeting ends (stop the capture). */
+  onEnded?: () => void;
 }
 
 /** Reconnect backoff: 1 s, 2 s, 4 s, capped at 5 s. */
@@ -77,6 +83,8 @@ export class Hub {
   private seq: Record<"tab" | "mic", number> = { tab: 0, mic: 0 };
   private recSeq = 0;
   private socketOpen = false;
+  private connected = false;
+  private meetingCode = "";
   private reconnectAttempt = 0;
   private schedule: (fn: () => void, ms: number) => void;
 
@@ -106,13 +114,23 @@ export class Hub {
     });
   }
 
+  /** One socket per hub: a repeat Start must not open a second one (the close handler owns reconnects). */
   connect(): void {
+    if (this.connected) return;
+    this.connected = true;
     this.deps.socket.connect();
+  }
+
+  /** True while a meeting for this call runs (a repeat Start click). */
+  isRunning(meetingCode: string): boolean {
+    return this.meetingId !== null && !this.ended && this.meetingCode === meetingCode;
   }
 
   start(meta: StartMeta): string {
     this.meetingId = this.deps.uuid();
+    this.meetingCode = meta.meeting_code;
     this.ended = false;
+    this.deps.storage.set(MEETING_RUNNING_KEY, true);
     this.sendEnvelope("meeting.started", {
       meeting_id: this.meetingId, platform: meta.platform,
       meeting_code: meta.meeting_code, t0_ms: this.deps.now(),
@@ -127,6 +145,8 @@ export class Hub {
     if (!this.meetingId || this.ended) return;
     this.ended = true;
     this.sendEnvelope("meeting.ended", { reason }, this.meetingId);
+    this.deps.storage.set(MEETING_RUNNING_KEY, false);
+    this.deps.onEnded?.();
   }
 
   /** A Meet-page reload must not end the meeting (60 s grace): no-op. */
@@ -182,6 +202,9 @@ export class Hub {
         break;
       case "ack":
         this.outbox.ack(msg.ack.ack_of);
+        break;
+      case "call.left":
+        this.stop("left");
         break;
       default:
         break; // participant.joined/left are hub-local bookkeeping only
@@ -257,12 +280,20 @@ export class Hub {
   }
 }
 
-/** Runtime-message handler for the Start gesture (#6): popup -> hub. */
+/**
+ * Runtime-message handler for the Start gesture (#6): popup -> hub.
+ * Returns true when a meeting started. A repeat Start for the running call
+ * is a no-op (false); a Start for another call ends the running one first,
+ * so every meeting.started gets its meeting.ended.
+ */
 export function handleHubRuntimeMessage(hub: Hub, msg: Record<string, unknown>): boolean {
   if (msg.type !== HUB_START_MESSAGE) return false;
+  const meetingCode = String(msg.meeting_code ?? "");
+  if (hub.isRunning(meetingCode)) return false;
+  hub.stop("left");
   hub.start({
     platform: (msg.platform as StartMeta["platform"]) ?? "meet",
-    meeting_code: String(msg.meeting_code ?? ""),
+    meeting_code: meetingCode,
     self_name: String(msg.self_name ?? ""),
   });
   return true;
