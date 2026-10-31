@@ -37,6 +37,7 @@ _ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 #: pinned manifest `key` in `wxt.config.ts` (published via issue #27, also in
 #: `extension/README`). An explicit `HALO_EXTENSION_ID` overrides this.
 PINNED_EXTENSION_ID = "dbngpodihegmipdmikpbkflahdkfpgif"
+REPLAY_MAX_AGE_S = 2 * 3600  # an open meeting idle longer was orphaned by a crash
 
 PAIR_PAGE_HTML = (
     "<!doctype html><title>Halo pairing</title>"
@@ -213,6 +214,12 @@ class Gateway:
                 " AND meetingid IS NOT NULL) ORDER BY seq DESC LIMIT 1").fetchone()
             if started is None:
                 return []
+            last = db.execute("SELECT time FROM events WHERE meetingid = ? ORDER BY seq DESC LIMIT 1",
+                              (started["meetingid"],)).fetchone()
+            if not _recent(last["time"]):
+                log.warning("open-meeting replay: %s idle over %d h, not replayed",
+                            started["meetingid"], REPLAY_MAX_AGE_S // 3600)
+                return []
             context = db.execute(
                 f"SELECT {cols} FROM events WHERE type = 'meeting.context' AND meetingid = ?"
                 " ORDER BY seq DESC LIMIT 1", (started["meetingid"],)).fetchone()
@@ -341,3 +348,14 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         pass
     finally:
         gateway.detach(session)
+
+
+def _recent(iso_time: str) -> bool:
+    """True when an event's envelope time is under REPLAY_MAX_AGE_S old."""
+    try:
+        at = datetime.fromisoformat(iso_time)
+    except ValueError:
+        return False
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - at).total_seconds() < REPLAY_MAX_AGE_S
