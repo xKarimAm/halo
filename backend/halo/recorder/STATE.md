@@ -18,7 +18,7 @@ Implement recorder per its PLAN.md; done ONLY when `uv run pytest backend/halo/r
 2. [x] `tests/test_recorder.py`: 8 tests covering the 5 PLAN cases
 3. [x] `app.py` wiring (construct + lifespan start/stop)
 4. [x] Comment on #37 confirming the path convention + sidecar
-5. [ ] PR open for Karim to merge
+5. [x] PR #44 open for Karim to merge
 
 ## Assumptions (for the reviewer)
 - Lazy file open on first chunk (PLAN says open on `started`): avoids empty files for unrecorded meetings and makes file-start coverage exact.
