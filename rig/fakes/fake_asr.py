@@ -27,6 +27,11 @@ class FakeASR:
         self._anchor: int | None = None  # ts_ms of the first frame seen
         self._position_ms = 0  # audio consumed since the anchor
 
+    @property
+    def anchor_ms(self) -> int:
+        """Meeting-clock anchor: ts_ms of the first frame fed (0 before)."""
+        return self._anchor or 0
+
     def drop_session(self) -> None:
         self.dropped = True
 

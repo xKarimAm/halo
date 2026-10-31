@@ -34,6 +34,39 @@ class FakeEl implements El {
 }
 const doc = { createElement: () => new FakeEl() };
 
+// Real-DOM-shaped element: `children` is a getter-only accessor (as on a
+// real Element), so assigning `el.children = []` throws in strict mode.
+// Regression seam for the joined gate: render() must clear a layer by
+// removing child nodes, never by assigning children.
+class RealishEl implements El {
+  private kids: RealishEl[] = [];
+  attrs = new Map<string, string>();
+  classes = new Set<string>();
+  text = "";
+  parent: RealishEl | null = null;
+  style = { setProperty: (k: string, v: string) => this.attrs.set(`style:${k}`, v) };
+  classList = {
+    add: (c: string) => this.classes.add(c),
+    toggle: (c: string, on?: boolean) => (on === false ? this.classes.delete(c) : this.classes.add(c)),
+    contains: (c: string) => this.classes.has(c),
+  };
+  get children(): RealishEl[] { return this.kids; }
+  set textContent(v: string) { this.text = v; this.kids.length = 0; }
+  get textContent(): string { return this.text + this.kids.map((c) => c.textContent).join(""); }
+  setAttribute(k: string, v: string): void { this.attrs.set(k, v); }
+  appendChild(c: RealishEl): RealishEl { c.parent = this; this.kids.push(c); return c; }
+  remove(): void {
+    if (this.parent) {
+      const i = this.parent.kids.indexOf(this);
+      if (i >= 0) this.parent.kids.splice(i, 1);
+    }
+  }
+  find(pred: (e: RealishEl) => boolean): RealishEl[] {
+    return [...(pred(this) ? [this] : []), ...this.kids.flatMap((c) => c.find(pred))];
+  }
+}
+const realishDoc = { createElement: () => new RealishEl() };
+
 let n = 0;
 function point(over: Partial<PointUpsert> = {}): PointUpsert {
   n += 1;
@@ -64,6 +97,30 @@ describe("layout", () => {
     expect(box.y).toBeGreaterThan(50);
     const flipped = projectFaceBox({ ...tile, is_self: true }, [0.25, 0.2, 0.2, 0.4]);
     expect(flipped.x).toBeGreaterThan(box.x); // mirrored self tile flips x
+  });
+});
+
+// Joined-gate regression: render against a real-DOM-shaped tree (getter-
+// only children) must not throw and must render every tile's chip.
+describe("render on a real-DOM-shaped tree", () => {
+  it("renders layers and chips for all tiles without assigning children", () => {
+    const clock = new FakeClock(0);
+    const overlay = new Overlay(clock);
+    overlay.applyTiles({
+      tiles: [
+        { tile_id: "tile-1", name: "Karim", is_self: true, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+        { tile_id: "tile-2", name: "Layla", is_self: false, rect: [408, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+      ],
+    });
+    overlay.applyPointsUpsert(point({ tile_id: "tile-2", text: "Launch moves to Nov 12" }), "env-1");
+    const root = new RealishEl();
+    overlay.render(realishDoc as never, root as never);
+    overlay.render(realishDoc as never, root as never); // second render clears, not throws
+    const layers = root.find((e) => e.attrs.has("data-tile-id"));
+    expect(layers.map((l) => l.attrs.get("data-tile-id"))).toEqual(["tile-1", "tile-2"]);
+    const chips = root.find((e) => e.attrs.has("data-point-id"));
+    expect(chips).toHaveLength(1);
+    expect(chips[0].textContent).toContain("Launch moves to Nov 12");
   });
 });
 
