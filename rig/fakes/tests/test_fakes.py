@@ -14,6 +14,26 @@ from rig.fakes.fake_llm import FakeLLM
 from rig.fakes.scripts import load_asr_script, load_llm_script
 
 T0 = 1_000_000
+VOICE = "/v1/asr/realtime"
+
+
+def handshake(mode):
+    """The handshake the real Transcriber sends (verified live, PR #63)."""
+    from halo.transcriber.protocol import build_handshake
+
+    return build_handshake(mode, "fake-key")
+
+
+def chat(model, content="pricing?"):
+    """A request shaped like backend/halo/llm's (Bearer key + json_schema)."""
+    from halo.llm.llm import ENGINES
+
+    effort = next(e["reasoning_effort"] for e in ENGINES.values() if e["model"] == model)
+    return {"headers": {"Authorization": "Bearer fake-key"}, "json": {
+        "model": model, "messages": [{"role": "user", "content": content}],
+        "response_format": {"type": "json_schema",
+                            "json_schema": {"name": "t", "schema": {"type": "object"}}},
+        "reasoning_effort": effort}}
 FRAME_MS = 100
 PCM_100MS = b"\x00\x00" * 1600  # 1600 samples * 2 bytes = 100 ms at 16 kHz mono PCM16
 
@@ -169,8 +189,8 @@ def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
     shutil.copy(tmp_path / "asr_script.jsonl", fixture_dir / "asr_script.jsonl")
     (fixture_dir / "llm_script.jsonl").write_text("", encoding="utf-8")
     client = TestClient(create_app(fixture_dir))
-    with client.websocket_connect("/v1/voice/realtime") as ws:
-        ws.send_json({"mode": "DIARIZATION", "keywords": []})
+    with client.websocket_connect(VOICE) as ws:
+        ws.send_json(handshake("DIARIZATION"))
         ws.send_bytes(PCM_100MS * 5)  # horizon 500: turn open, not complete
         first = [ws.receive_json() for _ in range(2)]
         assert [g["type"] for g in first] == ["speechStart", "transcript"]
@@ -184,8 +204,8 @@ def test_asr_ws_voice_lifecycle_per_connection(tmp_path):
     # A mic (ENDPOINTING) connection gets no tab turns (receive times out).
     import concurrent.futures
 
-    with client.websocket_connect("/v1/voice/realtime") as ws:
-        ws.send_json({"mode": "ENDPOINTING"})
+    with client.websocket_connect(VOICE) as ws:
+        ws.send_json(handshake("ENDPOINTING"))
         ws.send_bytes(PCM_100MS * 5)
         pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
@@ -213,14 +233,14 @@ def test_asr_session_resumes_across_reconnect_without_dup(tmp_path):
     ])
     app = create_asr_app(load_asr_script(tmp_path / "asr_script.jsonl"))
     client = TestClient(app)
-    with client.websocket_connect("/v1/voice/realtime") as ws:
-        ws.send_json({"mode": "DIARIZATION"})
+    with client.websocket_connect(VOICE) as ws:
+        ws.send_json(handshake("DIARIZATION"))
         ws.send_bytes(PCM_100MS * 5)  # horizon 500: first turn open
         first = [ws.receive_json() for _ in range(2)]
         assert [g["type"] for g in first] == ["speechStart", "transcript"]
         ws.send_text("control.drop")  # server closes the session mid-turn
-    with client.websocket_connect("/v1/voice/realtime") as ws:
-        ws.send_json({"mode": "DIARIZATION"})
+    with client.websocket_connect(VOICE) as ws:
+        ws.send_json(handshake("DIARIZATION"))
         ws.send_bytes(PCM_100MS * 15)  # horizon 2000: first turn completes
         end = [ws.receive_json() for _ in range(3)]
         assert [g["type"] for g in end] == ["speaker", "speechEnd", "speechComplete"]
@@ -241,10 +261,10 @@ def test_fake_port_override():
     from rig.fakes.config import engine_config
 
     moved = engine_config({"HALO_FAKES": "1", "HALO_FAKE_PORT": "19999"})
-    assert moved["asr_url"] == "ws://127.0.0.1:19999/v1/voice/realtime"
+    assert moved["asr_url"] == "ws://127.0.0.1:19999/v1/asr/realtime"
     assert moved["llm_url"] == "http://127.0.0.1:19999/v1"
     default = engine_config({"HALO_FAKES": "1"})
-    assert default["asr_url"] == "ws://127.0.0.1:18777/v1/voice/realtime"
+    assert default["asr_url"] == "ws://127.0.0.1:18777/v1/asr/realtime"
 
 
 # Gate 7: model-keyed failure knobs — fail or slow exactly one Spark engine
@@ -259,12 +279,10 @@ def test_llm_model_error_knob(tmp_path):
     primary_model = ENGINES[PRIMARY_ENGINE]["model"]
     client = TestClient(create_llm_app(
         FakeLLM(script), errors_by_model={primary_model: 500}))
-    bad = client.post("/v1/chat/completions", json={
-        "model": primary_model, "messages": [{"role": "user", "content": "pricing?"}]})
+    bad = client.post("/v1/chat/completions", **chat(primary_model))
     assert bad.status_code == 500
-    good = client.post("/v1/chat/completions", json={
-        "model": ENGINES[FAILOVER_ENGINE]["model"],
-        "messages": [{"role": "user", "content": "pricing?"}]})
+    assert bad.json()["error"]["type"] == "server_error"  # OpenAI error shape
+    good = client.post("/v1/chat/completions", **chat(ENGINES[FAILOVER_ENGINE]["model"]))
     assert good.status_code == 200
 
 
@@ -276,9 +294,6 @@ def test_llm_http_wire_shape(tmp_path):
 
     script = llm(tmp_path, [{"match": "pricing", "response": {"kind": "point", "text": "t"}}])
     client = TestClient(create_llm_app(FakeLLM(script)))
-    r = client.post("/v1/chat/completions", json={
-        "model": "spark-open",
-        "messages": [{"role": "user", "content": "pricing?"}],
-    })
+    r = client.post("/v1/chat/completions", **chat("meta-models/muse-spark-open-1026"))
     assert r.status_code == 200
     assert json.loads(r.json()["choices"][0]["message"]["content"])["text"] == "t"
