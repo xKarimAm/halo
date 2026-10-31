@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Tile } from "../../../contracts/ext/meeting-adapter";
-import type { PortSpeakerActive, PortTilesSnapshot } from "../../../contracts/ext/port";
-import { createPortSync } from "./port_sync";
+import type { PortCallLeft, PortSpeakerActive, PortTilesSnapshot } from "../../../contracts/ext/port";
+import { CALL_LEFT_GRACE_MS, createPortSync } from "./port_sync";
 
 const tile: Tile = {
   tile_id: "id-1",
@@ -15,7 +15,7 @@ const tile: Tile = {
   captions_rect: null,
 };
 
-function fakeAdapter() {
+function fakeAdapter(initial: Tile[] = [tile]) {
   const tileCbs: ((tiles: Tile[]) => void)[] = [];
   const speakingCbs: ((event: { tile_id: string; speaking: boolean; ts_ms: number }) => void)[] =
     [];
@@ -26,7 +26,7 @@ function fakeAdapter() {
     }
   };
   return {
-    tiles: () => [tile],
+    tiles: () => initial,
     onTiles: (cb: (tiles: Tile[]) => void) => {
       tileCbs.push(cb);
       return remove(tileCbs, cb);
@@ -43,7 +43,7 @@ function fakeAdapter() {
 
 describe("createPortSync", () => {
   it("posts tiles.snapshot and speaker.active Port messages to the hub", () => {
-    const posted: (PortTilesSnapshot | PortSpeakerActive)[] = [];
+    const posted: (PortTilesSnapshot | PortSpeakerActive | PortCallLeft)[] = [];
     const adapter = fakeAdapter();
     const stop = createPortSync({ postMessage: (message) => posted.push(message) }, adapter);
     adapter.emitTiles([tile]);
@@ -63,5 +63,54 @@ describe("createPortSync", () => {
     adapter.emitTiles([tile]);
     adapter.emitSpeaking("id-1", true, 1);
     expect(postMessage).not.toHaveBeenCalled();
+  });
+});
+
+// Issue #72: the user leaves the call while the tab stays open.
+describe("call.left", () => {
+  const leftPosts = (post: ReturnType<typeof vi.fn>) =>
+    post.mock.calls.filter(([m]) => m.type === "call.left").length;
+
+  it("posts call.left once after every tile stays gone for the grace", () => {
+    vi.useFakeTimers();
+    const postMessage = vi.fn();
+    const adapter = fakeAdapter();
+    const stop = createPortSync({ postMessage }, adapter);
+    adapter.emitTiles([]);
+    vi.advanceTimersByTime(CALL_LEFT_GRACE_MS - 1);
+    expect(leftPosts(postMessage)).toBe(0);
+    vi.advanceTimersByTime(1);
+    expect(leftPosts(postMessage)).toBe(1);
+    adapter.emitTiles([]);
+    vi.advanceTimersByTime(CALL_LEFT_GRACE_MS * 2);
+    expect(leftPosts(postMessage)).toBe(1); // once per call
+    stop();
+    vi.useRealTimers();
+  });
+
+  it("tiles back inside the grace (a re-render) post nothing", () => {
+    vi.useFakeTimers();
+    const postMessage = vi.fn();
+    const adapter = fakeAdapter();
+    const stop = createPortSync({ postMessage }, adapter);
+    adapter.emitTiles([]);
+    vi.advanceTimersByTime(CALL_LEFT_GRACE_MS - 100);
+    adapter.emitTiles([tile]);
+    vi.advanceTimersByTime(CALL_LEFT_GRACE_MS * 2);
+    expect(leftPosts(postMessage)).toBe(0);
+    stop();
+    vi.useRealTimers();
+  });
+
+  it("a freshly loaded page with no tiles yet (reload) posts nothing", () => {
+    vi.useFakeTimers();
+    const postMessage = vi.fn();
+    const adapter = fakeAdapter([]);
+    const stop = createPortSync({ postMessage }, adapter);
+    adapter.emitTiles([]);
+    vi.advanceTimersByTime(CALL_LEFT_GRACE_MS * 2);
+    expect(leftPosts(postMessage)).toBe(0);
+    stop();
+    vi.useRealTimers();
   });
 });
