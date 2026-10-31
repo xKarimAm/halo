@@ -28,6 +28,9 @@
     tile.setAttribute("data-participant-id", p.tile_id);
     tile.setAttribute("data-requested-participant-id", p.tile_id);
     if (p.media_id) tile.setAttribute("data-tile-media-id", p.media_id);
+    // meet_adapter CONVENTIONS: self marker the adapter reads (placeholder
+    // until the day-0 probe names Meet's real one).
+    if (p.is_self) tile.setAttribute("data-self", "true");
     const canvas = document.createElement("canvas");
     canvas.className = "tile";
     canvas.width = 640; canvas.height = 360; // mismatched aspect vs 400x225 tile: cover crops
@@ -63,7 +66,27 @@
 
   window.__halo_set_speaking = (tileId, speaking) => {
     const tile = tiles.get(tileId);
-    if (tile) tile.classList.toggle("speaking", !!speaking);
+    if (tile) {
+      tile.classList.toggle("speaking", !!speaking);
+      // meet_adapter CONVENTIONS: speaking highlight the adapter reads.
+      tile.setAttribute("data-speaking", speaking ? "true" : "false");
+    }
+  };
+
+  // meet_adapter CONVENTIONS: captions band the adapter reads for
+  // captions_rect (null when captions are off or absent).
+  window.__halo_captions = (text) => {
+    let band = document.querySelector("[data-captions-band]");
+    if (!text) {
+      if (band) band.remove();
+      return;
+    }
+    if (!band) {
+      band = document.createElement("div");
+      band.setAttribute("data-captions-band", "true");
+      document.body.appendChild(band);
+    }
+    band.textContent = text;
   };
   window.__halo_join = (p) => { tiles.set(p.tile_id, addTile(p)); };
   window.__halo_leave = (tileId) => {
