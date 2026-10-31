@@ -98,9 +98,11 @@ class AudioRouter:
             self.dropped += 1  # no log: an old socket sends 10 frames a second
             return "dropped"
         if producer > self._owner[stream]:
-            if self._owner[stream] >= 0:  # a newer socket replaces one: its own seq
+            # A new owner brings its own seq. The first one too: after a
+            # backend restart it arrives mid-stream (seq 6000, not 0).
+            if self._owner[stream] >= 0:
                 log.warning("audio stream %s taken over by socket %s at seq %s", stream, producer, seq)
-                self._next[stream], self._last_ts[stream] = seq, 0
+            self._next[stream], self._last_ts[stream] = seq, 0
             self._owner[stream] = producer
         expected = self._next[stream]
         if expected - seq > RESTART_JUMP_FRAMES:

@@ -138,3 +138,12 @@ def test_reopen_keeps_turns_on_the_meeting_clock():
     turns = feed(session, 15, start_seq=10, anchor=ANCHOR + 1000)
     assert len(turns) == 1
     assert abs(turns[0]["ts_start_ms"] - (ANCHOR + 1500)) <= 200
+
+
+def test_seq_gap_pad_capped_at_30_s():
+    """A 5700-frame gap (570 s) was padded in one go; cap it like the Gateway."""
+    session, _ = make_session(script(), "tab", DIARIZATION)
+    asyncio.run(session.open("key"))
+    asyncio.run(session.feed_frame(300, ANCHOR, FRAME))
+    asyncio.run(session.feed_frame(6000, ANCHOR + 570_000, FRAME))
+    assert session.pad_ms == 30_000

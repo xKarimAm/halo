@@ -60,8 +60,7 @@ def test_kind2_rejected_and_late_frame_dropped():
     assert router.handle(pack_audio(TAB, 3, 3000, PCM)) == "dropped"
     assert router.dropped == 1
     got = drain(router.queues["tab"])
-    assert [seq for seq, _, _ in got] == [0, 1, 2, 3, 4, 5]  # padded from stream start
-    assert got[-1] == (5, 5000, PCM)
+    assert got == [(5, 5000, PCM)]  # the first frame sets the seq, no padding
 
 
 def test_full_queue_drops_newest():
@@ -97,3 +96,13 @@ def test_newest_socket_owns_a_stream_and_older_ones_are_ignored():
     assert router.handle(pack_audio(TAB, 1, 1100, PCM), producer=1) == "audio"  # still owns tab
     assert router.gaps == 0 and router.padded == 0
     assert [f[0] for f in drain(router.queues["mic"])] == [0, 1, 2, 40, 41]
+
+
+def test_first_socket_after_a_backend_restart_resyncs_without_padding():
+    """A restarted backend's first socket arrives mid-stream (hub seq 6000):
+    padding from 0 sent 300 silent frames, then the Transcriber saw a 570 s gap."""
+    router = AudioRouter()
+    assert router.handle(pack_audio(TAB, 6000, 900_000, PCM), producer=1) == "audio"
+    assert router.handle(pack_audio(TAB, 6001, 900_100, PCM), producer=1) == "audio"
+    assert router.gaps == 0 and router.padded == 0
+    assert [f[0] for f in drain(router.queues["tab"])] == [6000, 6001]

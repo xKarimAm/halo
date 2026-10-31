@@ -32,6 +32,7 @@ SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this always counts as silence
 # frame RMS over the last LEVEL_WINDOW_FRAMES (10 s). Tuned on the 3 test clips.
 SILENCE_LEVEL_FRACTION = 0.4
 LEVEL_WINDOW_FRAMES = 100
+MAX_GAP_PAD_FRAMES = 300  # 30 s, the Gateway's bound; a longer gap pads no more
 SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
 MIC_SILENT_ALERT_MS = 60_000  # one warning per silent run this long on the mic
 
@@ -132,7 +133,7 @@ class TranscriptionSession:
             self.expected_seq = seq
         assert self.expected_seq is not None
         if seq > self.expected_seq:
-            gap = seq - self.expected_seq
+            gap = min(seq - self.expected_seq, MAX_GAP_PAD_FRAMES)
             self.pad_ms += gap * FRAME_MS
             log.warning("transcriber seq gap: stream=%s expected=%d got=%d pad_ms=%d",
                         self.stream, self.expected_seq, seq, gap * FRAME_MS)
