@@ -1,13 +1,18 @@
 // Meet-page boot (called by the hub content wrapper): wires Port envelopes
 // and in-tab feeds into the overlay and renders into the Meet page.
 import type { ToPagePortMessage } from "../../../contracts/ext/port";
-import { Overlay, SystemClock, type DocLike, type El, type UrgencyStyle } from "./overlay";
+import type { FacesUpdate } from "../../../contracts/ext/gen/types";
+import { Overlay, SystemClock, type DocLike, type El, type OverlayMode, type UrgencyStyle } from "./overlay";
 import { OVERLAY_CSS } from "./tokens";
 
 // Viewer urgency-mark setting, shared with the setup panel (no ambient
 // chrome types in this lane: structural access keeps the two lanes' globals
 // from colliding).
 export const URGENCY_STYLE_KEY = "halo.urgencyStyle";
+// Viewer Face|Frame toggle, shared with the setup panel the same way:
+// "face" (default) anchors bubbles over detected faces, "frame" pins every
+// tile. The hub wiring reads it through the Overlay, never the Port.
+export const OVERLAY_MODE_KEY = "halo.overlayMode";
 interface LocalStore {
   get(keys: string[]): Promise<Record<string, unknown>>;
 }
@@ -51,7 +56,41 @@ export function watchUrgencyStyle(
   }
 }
 
-export function boot(context: { port: { onMessage: { addListener(fn: (msg: unknown) => void): void } } }): Overlay {
+export async function readOverlayMode(): Promise<OverlayMode> {
+  try {
+    const v = (await chromeApi()?.storage?.local?.get([OVERLAY_MODE_KEY]))?.[OVERLAY_MODE_KEY];
+    return v === "frame" ? "frame" : "face"; // default: Face mode
+  } catch {
+    return "face";
+  }
+}
+
+/** Apply the stored mode now, then switch live on storage.onChanged. */
+export function watchOverlayMode(
+  overlay: Overlay,
+  rerender: () => void,
+): void {
+  readOverlayMode().then((mode) => {
+    overlay.setOverlayMode(mode);
+    rerender();
+  });
+  try {
+    chromeApi()?.storage?.onChanged?.addListener((changes) => {
+      if (OVERLAY_MODE_KEY in changes) {
+        overlay.setOverlayMode(changes[OVERLAY_MODE_KEY].newValue);
+        rerender();
+      }
+    });
+  } catch {
+    // storage events unavailable (tests): the initial read still applies.
+  }
+}
+
+export function boot(context: { port: { onMessage: { addListener(fn: (msg: unknown) => void): void } } }): {
+  overlay: Overlay;
+  /** faces.update + Bridge policy output lands here (re-renders the layer). */
+  onFacesUpdate: (update: FacesUpdate) => void;
+} {
   const overlay = new Overlay(new SystemClock());
   const doc = document as unknown as DocLike;
   const style = document.createElement("style");
@@ -70,5 +109,10 @@ export function boot(context: { port: { onMessage: { addListener(fn: (msg: unkno
     }
   });
   watchUrgencyStyle(overlay, rerender);
-  return overlay;
+  watchOverlayMode(overlay, rerender);
+  const onFacesUpdate = (update: FacesUpdate): void => {
+    overlay.applyFaces(update);
+    rerender();
+  };
+  return { overlay, onFacesUpdate };
 }

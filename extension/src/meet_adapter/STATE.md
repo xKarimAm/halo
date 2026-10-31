@@ -31,7 +31,7 @@ Goal: Implement meet_adapter per its PLAN.md; done ONLY when `npm --prefix exten
 
 ## Current step
 
-Probe port (issue #47) on branch `feature/meet-adapter-probe-selectors`: CONVENTIONS + conventions.md carry the real selectors; speaking moved to the `sxlEM` class on the `QgSmzd` descendant (change-only, 300 ms hold); self moved to the `visual_effects` icon; names to `span.notranslate`; captions to the region band with a text-region fallback. 19/19 Vitest green, `tsc` clean. Next: commit, push, open PR.
+Face-mode wiring (verification gate 5): `videoForTile(tileId)` returns the tile's `<video>` for Frame Source's in-tab capture (null for canvas-only tiles and unknown ids, which the Overlay keeps in Frame mode). 21 Vitest cases green (2 new), `tsc` clean. Next: commit, push, open PR.
 
 ## Open questions
 

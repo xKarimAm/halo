@@ -167,6 +167,24 @@ describe("tiles()", () => {
   });
 });
 
+describe("videoForTile()", () => {
+  it("returns the tile's video element for capture", () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    const video = adapter.videoForTile("id-1");
+    adapter.dispose();
+    expect(video).toBeInstanceOf(HTMLVideoElement);
+  });
+
+  it("returns null for canvas-only tiles and unknown ids", () => {
+    buildRoom();
+    const adapter = new MeetDomAdapter({ root: document.body, pollIntervalMs: 0 });
+    expect(adapter.videoForTile("id-3")).toBeNull(); // Sam Lee: no <video>
+    expect(adapter.videoForTile("no-such-tile")).toBeNull();
+    adapter.dispose();
+  });
+});
+
 describe("captions_rect", () => {
   it("is set when the captions band is present and null when absent", () => {
     const room = buildRoom();

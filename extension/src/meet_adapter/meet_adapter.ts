@@ -109,6 +109,19 @@ export class MeetDomAdapter implements MeetingAdapter {
     return matchesMeetUrl(url);
   }
 
+  /**
+   * The tile's `<video>` for frame capture (Frame Source's in-tab call).
+   * Null for canvas-only tiles or unknown ids: the caller skips those
+   * tiles, and the Overlay keeps them in Frame mode.
+   */
+  videoForTile(tileId: string): HTMLVideoElement | null {
+    const root = this.findTileRoot(tileId);
+    if (!root) {
+      return null;
+    }
+    return root.querySelector("video");
+  }
+
   tiles(): Tile[] {
     const scopeDoc = this.scope;
     const seen = new Map<string, Element[]>();
