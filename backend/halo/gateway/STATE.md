@@ -31,8 +31,8 @@ Implement gateway per its PLAN.md; done ONLY when `uv run pytest backend/halo/ga
 - `backend/halo/app.py` — composition-root mount lines (allowed exception)
 
 ## Current step
-Building; branch `module/gateway`.
+Follow-up on branch `module/gateway-origin`: #27 resolved with the pinned id, now the default.
 
 ## Open questions
-- Issue #27 (module:hub_capture): pinned extension id for the Origin default. Not blocking (env-configured, closed default).
+- Resolved #27: pinned id `dbngpodihegmipdmikpbkflahdkfpgif` (Karim's comment; source of truth stays the manifest key in `wxt.config.ts`) is now `PINNED_EXTENSION_ID` and the default when `HALO_EXTENSION_ID` is unset; explicit env still overrides. The temporary any-origin fallback is removed — the check is exact-match only. Assumption for Karim: no any-origin fallback retained; say so if a dev-mode escape hatch is wanted.
 - Audio-gap warn has no `system.status` schema slot; surfaced via logs + health counters until Karim says otherwise.

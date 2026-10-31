@@ -9,6 +9,19 @@ import { AGEING_FRACTION, KIND_COLORS, POINT_LIFETIME_MS } from "./tokens";
 
 export type PointUpsert = PointsUpsert;
 
+// Urgency-mark style (viewer setting, storage key `halo.urgencyStyle`):
+// "words" renders draft-2 word tabs (the default), "symbols" renders
+// draft-1 shape seals scaled ~25% down. Tab words are localised to the
+// bubble language (Arabic bubbles get Arabic words, English bubbles
+// English; point lang is en|ar per contract).
+export type UrgencyStyle = "words" | "symbols";
+type Urgency = NonNullable<PointsUpsert["urgency"]>;
+const URGENCY_WORDS: Record<"en" | "ar", Record<Urgency, string>> = {
+  en: { urgent: "URGENT", medium: "MEDIUM", later: "LATER" },
+  ar: { urgent: "عاجل", medium: "متوسط", later: "لاحقاً" },
+};
+const URGENCY_GLYPHS: Record<Urgency, string> = { urgent: "!", medium: "=", later: "" };
+
 /** Summed chip geometry for the fit rule (OVERLAY-UX section 5: fit is
  * measured from summed chip heights, never live offsets). */
 export const CHIP_HEIGHT_PX = 28;
@@ -93,8 +106,14 @@ export class Overlay {
   private thinkingStart = new Map<string, number>();
   private layers = new Map<string, El>();
   private overflowEls = new Map<string, El>();
+  urgencyStyle: UrgencyStyle = "words";
 
   constructor(private clock: { now: number }) {}
+
+  /** Switch the urgency-mark style; the next render() rebuilds all marks. */
+  setUrgencyStyle(style: unknown): void {
+    if (style === "words" || style === "symbols") this.urgencyStyle = style;
+  }
 
   applyTiles(snapshot: TilesSnapshot): void {
     this.tiles.clear();
@@ -260,8 +279,21 @@ export class Overlay {
         this.layers.set(tileId, layer);
         root.appendChild(layer);
       }
-      const detach = (el: El & { children?: El[] }) => { el.children = []; };
+      // Clear by removing nodes: on a real Element, `children` is a
+      // getter-only HTMLCollection, so assigning it throws (strict mode).
+      const detach = (el: El & { children?: El[] }) => {
+        while (el.children && el.children.length > 0) el.children[0].remove();
+      };
       detach(layer as El & { children?: El[] });
+      const tileRect = this.tiles.get(tileId)?.rect;
+      if (tileRect) {
+        // The layer sits on its tile; stack/name offsets are tile-local.
+        layer.style.setProperty("position", "absolute");
+        layer.style.setProperty("left", `${tileRect[0]}px`);
+        layer.style.setProperty("top", `${tileRect[1]}px`);
+        layer.style.setProperty("width", `${tileRect[2]}px`);
+        layer.style.setProperty("height", `${tileRect[3]}px`);
+      }
       const layout = this.layout(tileId);
       const name = doc.createElement("span");
       name.classList.add("halo-name");
@@ -289,6 +321,16 @@ export class Overlay {
         mark.classList.add("halo-kind");
         mark.style.setProperty("background", KIND_COLORS[stored.kind]);
         chip.appendChild(mark);
+        if (stored.urgency) {
+          const urg = doc.createElement("span");
+          const words = this.urgencyStyle === "words";
+          urg.classList.add(words ? "halo-utab" : "halo-useal");
+          urg.classList.add(`halo-u-${stored.urgency}`);
+          urg.textContent = words
+            ? URGENCY_WORDS[stored.lang === "ar" ? "ar" : "en"][stored.urgency]
+            : URGENCY_GLYPHS[stored.urgency];
+          chip.appendChild(urg);
+        }
         const label = doc.createElement("span");
         label.textContent = stored.text;
         chip.appendChild(label);

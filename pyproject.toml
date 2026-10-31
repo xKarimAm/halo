@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 packages = ["backend/halo", "contracts"]
 
 [tool.pytest.ini_options]
-testpaths = ["contracts/tests", "backend", "rig"]
+testpaths = ["contracts/tests", "backend", "rig", "packaging"]
 
 [tool.ruff]
 line-length = 120

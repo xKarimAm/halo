@@ -14,22 +14,28 @@ export interface MeetAdapterOptions {
 }
 
 /**
- * DOM anchors this adapter reads. Keyed on `data-participant-id`, never on
- * class names. The real-Meet values for these anchors land with the day-0
- * `meet-overlay` probe; see conventions.md. Probe results change the table
- * below, not the logic.
+ * DOM anchors this adapter reads, from the day-0 `meet-overlay` probe
+ * (issue #47); see conventions.md. Keyed on `data-participant-id` plus the
+ * probe's `jsname` hook — never on obfuscated class names (those can change
+ * on any Meet release, so both probe strings stay in this table).
  */
 export const CONVENTIONS = {
-  /** Tile roots carry the stable participant id. */
+  /** Tile roots carry the stable participant id (`spaces/<id>/devices/<n>`). */
   tileAttr: "data-participant-id",
   /** Non-tile rows (e.g. the participant panel list) are never tiles. */
   excludedRole: "listitem",
-  /** Speaking highlight: "true"/"false" on the tile root. */
-  speakingAttr: "data-speaking",
-  /** Fake/placeholder self-tile marker until the probe names the real one. */
-  selfAttr: "data-self",
-  /** Captions band; absent (or captions off) means null. */
-  captionsSelector: "[data-captions-band]",
+  /** Participant display name. */
+  nameSelector: "span.notranslate",
+  /** Self tile: contains the "Backgrounds and effects" `<i>` (ligature not localized). */
+  selfIconText: "visual_effects",
+  /** Speaking highlight: this descendant gains `speakingClass` while audio is active. */
+  speakingJsname: "QgSmzd",
+  speakingClass: "sxlEM",
+  /** Hold `speaking: true` this long after the class drops, against flicker. */
+  speakingHoldMs: 300,
+  /** Captions band; absent (or captions off) means null. The aria-label is
+   * localized, so a text-bearing region is the fallback. */
+  captionsSelector: '[role="region"][aria-label="Captions"]',
 } as const;
 
 type Unsubscribe = () => void;
@@ -62,6 +68,8 @@ export class MeetDomAdapter implements MeetingAdapter {
   private prevIds: string[] | null = null;
   private prevById = new Map<string, Tile>();
   private prevSnapshot: string | null = null;
+  private speakingState = new Map<string, boolean>();
+  private holdTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private resizeTarget: Window | null = null;
   private readonly onResize = (): void => {
     this.rescan();
@@ -89,7 +97,7 @@ export class MeetDomAdapter implements MeetingAdapter {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: [CONVENTIONS.speakingAttr],
+        attributeFilter: ["class"],
       });
     }
     if (this.pollIntervalMs > 0) {
@@ -190,6 +198,17 @@ export class MeetDomAdapter implements MeetingAdapter {
     this.prevIds = ids;
     this.prevById = new Map(current.map((tile) => [tile.tile_id, tile]));
     this.prevSnapshot = serialized;
+    // Reconcile speaking from the poll too (a node may arrive already lit),
+    // but never while a hold is pending: the poll must not re-arm the hold.
+    for (const id of ids) {
+      if (this.holdTimers.has(id)) {
+        continue;
+      }
+      const root = this.findTileRoot(id);
+      if (root) {
+        this.reportSpeaking(id, isSpeakingNow(root));
+      }
+    }
   }
 
   dispose(): void {
@@ -199,6 +218,11 @@ export class MeetDomAdapter implements MeetingAdapter {
       clearInterval(this.timer);
       this.timer = null;
     }
+    for (const timer of this.holdTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.holdTimers.clear();
+    this.speakingState.clear();
     this.resizeTarget?.removeEventListener("resize", this.onResize);
     this.resizeTarget = null;
     this.tileCbs.clear();
@@ -211,7 +235,11 @@ export class MeetDomAdapter implements MeetingAdapter {
     let structureChanged = false;
     for (const record of records) {
       if (record.type === "attributes") {
-        this.emitSpeaking(record.target as Element);
+        const tileEl = (record.target as Element).closest?.(TILE_SELECTOR) ?? null;
+        const id = tileEl?.getAttribute(CONVENTIONS.tileAttr) ?? "";
+        if (id.length > 0 && tileEl) {
+          this.reportSpeaking(id, isSpeakingNow(tileEl));
+        }
       } else {
         structureChanged = true;
       }
@@ -221,18 +249,58 @@ export class MeetDomAdapter implements MeetingAdapter {
     }
   }
 
-  private emitSpeaking(target: Element): void {
-    const tileEl = target.closest?.(TILE_SELECTOR) ?? null;
-    const id = tileEl?.getAttribute(CONVENTIONS.tileAttr) ?? "";
-    if (id.length === 0) {
+  /**
+   * Change-only speaking reporter with a flicker hold: class on → true
+   * immediately; class off → false after `speakingHoldMs`, cancelled if the
+   * class returns inside the hold. Level-class churn never emits.
+   */
+  private reportSpeaking(id: string, observed: boolean): void {
+    const last = this.speakingState.get(id) ?? false;
+    const pending = this.holdTimers.get(id);
+    if (observed) {
+      if (pending !== undefined) {
+        clearTimeout(pending);
+        this.holdTimers.delete(id);
+      }
+      if (!last) {
+        this.speakingState.set(id, true);
+        this.emitSpeaking({ tile_id: id, speaking: true });
+      }
       return;
     }
-    const event: SpeakingEvent = {
-      tile_id: id,
-      speaking: tileEl?.getAttribute(CONVENTIONS.speakingAttr) === "true",
-      ts_ms: this.now(),
-    };
-    this.speakingCbs.forEach((cb) => cb(event));
+    if (!last || pending !== undefined) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      this.holdTimers.delete(id);
+      const root = this.findTileRoot(id);
+      if (!root) {
+        this.speakingState.delete(id); // tile left; leave already fired
+        return;
+      }
+      if (!isSpeakingNow(root)) {
+        this.speakingState.set(id, false);
+        this.emitSpeaking({ tile_id: id, speaking: false });
+      }
+    }, CONVENTIONS.speakingHoldMs);
+    this.holdTimers.set(id, timer);
+  }
+
+  private emitSpeaking(event: Omit<SpeakingEvent, "ts_ms">): void {
+    const full: SpeakingEvent = { ...event, ts_ms: this.now() };
+    this.speakingCbs.forEach((cb) => cb(full));
+  }
+
+  private findTileRoot(id: string): Element | null {
+    for (const el of Array.from(this.scope.querySelectorAll(TILE_SELECTOR))) {
+      if (el.getAttribute("role") === CONVENTIONS.excludedRole) {
+        continue;
+      }
+      if ((el.getAttribute(CONVENTIONS.tileAttr) ?? "") === id) {
+        return el;
+      }
+    }
+    return null;
   }
 
   /**
@@ -262,7 +330,7 @@ export class MeetDomAdapter implements MeetingAdapter {
     }
     const video = root.querySelector("video");
     const rect = root.getBoundingClientRect();
-    const captions = this.scope.querySelector(CONVENTIONS.captionsSelector);
+    const captions = findCaptionsBand(this.scope);
     const captionsRect = captions ? rectOf(captions) : null;
     return {
       tile_id: id,
@@ -282,8 +350,40 @@ function rectOf(el: Element): [number, number, number, number] {
   return [rect.x, rect.y, rect.width, rect.height];
 }
 
-/** First named span outside buttons (buttons hold icon text like keep_outline). */
+/**
+ * Captions band: the English-labelled region first, then any text-bearing
+ * region (the aria-label is localized; the exact Arabic label is still open
+ * and lands with the 2-person live test). Absent = null.
+ */
+function findCaptionsBand(scope: Document | Element): Element | null {
+  const primary = scope.querySelector(CONVENTIONS.captionsSelector);
+  if (primary) {
+    return primary;
+  }
+  for (const region of Array.from(scope.querySelectorAll('[role="region"]'))) {
+    if ((region.textContent?.trim() ?? "").length > 0) {
+      return region;
+    }
+  }
+  return null;
+}
+
+/** Speaking predicate: the probe's jsname descendant carries the lit class. */
+function isSpeakingNow(tileRoot: Element): boolean {
+  const node = tileRoot.querySelector(`[jsname="${CONVENTIONS.speakingJsname}"]`);
+  return node?.classList.contains(CONVENTIONS.speakingClass) ?? false;
+}
+
+/**
+ * Display name: `span.notranslate` first; fallback to the first named span
+ * outside buttons (buttons hold icon text like keep_outline).
+ */
 function readName(tileRoot: Element): string {
+  const direct = tileRoot.querySelector(CONVENTIONS.nameSelector);
+  const directText = direct?.textContent?.trim() ?? "";
+  if (directText.length > 0) {
+    return directText;
+  }
   for (const span of Array.from(tileRoot.querySelectorAll("span"))) {
     const text = span.textContent?.trim() ?? "";
     if (text.length === 0 || span.closest("button") !== null) {
@@ -294,9 +394,15 @@ function readName(tileRoot: Element): string {
   return "";
 }
 
+/**
+ * Self tile: contains the "Backgrounds and effects" icon (only your tile
+ * has it; the ligature is not localized). Mirrored-video check is fallback.
+ */
 function isSelfTile(tileRoot: Element, video: HTMLVideoElement | null): boolean {
-  if (tileRoot.hasAttribute(CONVENTIONS.selfAttr)) {
-    return tileRoot.getAttribute(CONVENTIONS.selfAttr) === "true";
+  for (const icon of Array.from(tileRoot.querySelectorAll("i"))) {
+    if ((icon.textContent?.trim() ?? "") === CONVENTIONS.selfIconText) {
+      return true;
+    }
   }
   const transform = video?.style.transform ?? "";
   return transform.includes("scaleX(-1)");

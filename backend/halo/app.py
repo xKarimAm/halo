@@ -16,11 +16,16 @@ import uvicorn
 from fastapi import FastAPI
 
 from halo.bus import Bus
+from halo.classifier import Classifier
 from halo.correlator import Correlator
 from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
 from halo.insight import Insight
 from halo.llm import LLMClient
+from halo.notes_builder import NotesBuilder
+from halo.notes_service import NotesService
+from halo.notes_service import router as notes_router
+from halo.recorder import Recorder
 from halo.transcriber import Transcriber
 from halo.transcriber.transport import WsTransport
 from rig.fakes.config import engine_config
@@ -69,7 +74,11 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # Background loops need a running event loop, so they start here.
     app.state.gateway.start()
     app.state.insight.start()
+    app.state.classifier.start()
+    app.state.recorder.start()
     yield
+    app.state.recorder.stop()
+    app.state.classifier.stop()
     app.state.insight.stop()
     app.state.gateway.stop()
 
@@ -96,7 +105,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
         audio_tab=app.state.audio_tab_queue,
         audio_mic=app.state.audio_mic_queue,
         rec=app.state.rec_queue,
-        extension_id=os.environ.get("HALO_EXTENSION_ID", ""),
+        extension_id=os.environ.get("HALO_EXTENSION_ID"),
     )
     app.include_router(router)
     app.middleware("http")(host_check)
@@ -115,6 +124,20 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Insight: live points from attributed turns via the shared model client.
     app.state.insight = Insight(app.state.bus, app.state.llm)
     app.state.bus.register_health("insight", app.state.insight.health)
+    # Classifier: post-hoc kind/urgency tags via the shared model client.
+    app.state.classifier = Classifier(app.state.bus, app.state.llm)
+    app.state.bus.register_health("tagger", app.state.classifier.health)
+    # Notes Builder: meeting.ended in, one validated notes.ready out.
+    # The store file is the Event Store's own; this lane only ever reads it.
+    app.state.notes_builder = NotesBuilder(
+        app.state.bus, app.state.llm, db_path=_data_dir() / "events.sqlite")
+    # Notes service: stateless HTTP reads over the store file + notes-page
+    # shell; no background loop, so nothing joins the lifespan.
+    app.state.notes_service = NotesService(app.state.bus, data_dir=_data_dir())
+    app.include_router(notes_router)
+    # Recorder: rec queue drain loop; files + index under the data dir.
+    app.state.recorder = Recorder(app.state.bus, data_dir=_data_dir(),
+                                  rec_queue=app.state.rec_queue)
 
     @app.get("/healthz")
     async def healthz() -> dict:

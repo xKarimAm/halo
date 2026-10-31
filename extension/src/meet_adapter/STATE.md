@@ -5,7 +5,7 @@ Goal: Implement meet_adapter per its PLAN.md; done ONLY when `npm --prefix exten
 ## Key decisions
 
 - `MeetAdapter` implemented in `meet_adapter.ts` over an injectable root (default `document`); pure DOM readers separated for tests. Keyed on `data-participant-id`, never class names.
-- DOM conventions (documented in `conventions.md`, proposed to `rig/fake_meet` via issue since the rig has not landed): tile roots, name span, self marker, speaking attr, captions band. Real-Meet selector confirmation waits on the day-0 `meet-overlay` probe (outside repo); the module reads through one overridable convention table so probe results change constants, not logic.
+- DOM conventions (documented in `conventions.md`, mirrored by `rig/fake_meet` per #8): tile roots, `span.notranslate` names, `visual_effects` self icon, `[jsname="QgSmzd"]`+`sxlEM` speaking class with a 300 ms hold, `[role="region"][aria-label="Captions"]` band. Day-0 probe results (issue #47) are ported; the module still reads through one convention table.
 - Dual delivery: in-tab direct (content-script wrapper reads the adapter) + Port leg via `createPortSync` (posts `tiles.snapshot` / `speaker.active` Port messages to the hub).
 - Snapshot emission event-driven (MutationObserver) + 500 ms safety poll (overridable interval); `speaker.active` on highlight change only, no heartbeats.
 - Canvas-only tiles snapshot with `video_w/h = 0`, `fit = "cover"` (schema requires the fields).
@@ -31,9 +31,8 @@ Goal: Implement meet_adapter per its PLAN.md; done ONLY when `npm --prefix exten
 
 ## Current step
 
-Fix pushed to PR #9: rescan() re-emits on any tile field change (serialized compare) + window resize listener; 15/15 Vitest green, `tsc` clean. Cross-module issue filed: #8 (fake_meet conventions).
+Probe port (issue #47) on branch `feature/meet-adapter-probe-selectors`: CONVENTIONS + conventions.md carry the real selectors; speaking moved to the `sxlEM` class on the `QgSmzd` descendant (change-only, 300 ms hold); self moved to the `visual_effects` icon; names to `span.notranslate`; captions to the region band with a text-region fallback. 19/19 Vitest green, `tsc` clean. Next: commit, push, open PR.
 
 ## Open questions
 
-- (fake_meet, to file) Confirm/align DOM conventions: speaking toggle anchor, captions band marker, self-tile marker, canvas-only tile shape. Module reads via one convention table; fake page must implement the same anchors.
-- (probe, Karim) Day-0 `meet-overlay` results (real Meet selectors) live outside the repo; porting constants to real Meet waits on them. Stop-rule applies: unreadable rects/highlight on real Meet = stop, back to Karim.
+- (2-person live test, gate 4) Still to confirm on real Meet: self marker on the other tile, speaking class on a remote tile, multi-tile ids, pinning/resizing, and the Arabic captions aria-label (fallback covers it meanwhile).
