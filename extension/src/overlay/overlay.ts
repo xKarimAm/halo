@@ -52,11 +52,27 @@ export const CONSENT_NOTICE =
   "يقوم Halo بتسجيل هذا الاجتماع ونسخه على هذا الجهاز لعرض النقاط والملاحظات المباشرة. " +
   "تبقى التسجيلات والملاحظات على هذا الجهاز حتى يتم حذفها.";
 
+/** Copy the (possibly user-edited) notice; the user pastes it into Meet chat. */
 export async function copyConsentNotice(
   clipboard: { writeText(text: string): unknown },
+  text: string = CONSENT_NOTICE,
 ): Promise<string> {
-  await clipboard.writeText(CONSENT_NOTICE); // clipboard only; Meet chat DOM is never touched
-  return CONSENT_NOTICE;
+  await clipboard.writeText(text); // clipboard only; Meet chat DOM is never touched
+  return text;
+}
+
+// ponytail: the backend is always local (DECISIONS 10: one app on 127.0.0.1:8765).
+export const NOTES_ORIGIN = "http://127.0.0.1:8765";
+
+/** Absolute http(s) link for notes.ready `url` (the backend sends `/notes/{id}`); null otherwise. */
+export function notesHref(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  try {
+    const u = new URL(url, NOTES_ORIGIN);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
 }
 
 export function quoteDirection(quote: string): "rtl" | "ltr" {
