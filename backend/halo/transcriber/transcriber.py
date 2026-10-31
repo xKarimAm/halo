@@ -43,6 +43,8 @@ class Transcriber:
         self._key = key
         self._keywords = list(keywords or [])
         self._sessions: dict[str, TranscriptionSession] = {}
+        self._runs: list[asyncio.Task] = []  # the open meeting's session.run tasks
+        self._pump_task: asyncio.Task | None = None  # one pump for the Transcriber's life
         self._out: asyncio.Queue = asyncio.Queue()
         self._active: str | None = None
         self._closed: set[str] = set()
@@ -65,25 +67,36 @@ class Transcriber:
         meeting_id = str(envelope.get("data", {}).get("meeting_id", ""))
         if not meeting_id or meeting_id == self._active or meeting_id in self._closed:
             return
+        # Live 2026-10-31: a new meeting while one is open stacked a second
+        # pair of Voice sessions on the same queues. Replace, never stack.
+        if self._active is not None:
+            self._closed.add(self._active)
+            await self._close_active()
         self._active = meeting_id
         self._sessions = {
             "tab": TranscriptionSession("tab", DIARIZATION, self._make_transport("tab", DIARIZATION)),
             "mic": TranscriptionSession("mic", ENDPOINTING, self._make_transport("mic", ENDPOINTING)),
         }
+        loop = asyncio.get_running_loop()
         for stream, session in self._sessions.items():
             await session.open(self._key, self._keywords)
-            asyncio.get_running_loop().create_task(
-                session.run(self._queues[stream], self._out), name=f"halo-transcriber-{stream}"
-            )
-        asyncio.get_running_loop().create_task(self._pump(), name="halo-transcriber-pump")
+            self._runs.append(loop.create_task(
+                session.run(self._queues[stream], self._out), name=f"halo-transcriber-{stream}"))
+        if self._pump_task is None:
+            self._pump_task = loop.create_task(self._pump(), name="halo-transcriber-pump")
 
     async def _on_ended(self, envelope: Envelope) -> None:
         meeting_id = str(envelope.get("meetingid") or "")
         if not meeting_id or meeting_id in self._closed:
             return
         self._closed.add(meeting_id)
-        if meeting_id != self._active:
-            return
+        if meeting_id == self._active:
+            await self._close_active()
+
+    async def _close_active(self) -> None:
+        for task in self._runs:  # a run parked on queue.get would eat the next meeting's frame
+            task.cancel()
+        self._runs = []
         for session in self._sessions.values():
             await session.close()
             self.close_calls += 1
