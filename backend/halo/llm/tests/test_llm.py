@@ -378,3 +378,62 @@ def test_failover_engine_gets_the_longer_budget():
     finally:
         client.close()
     assert result.ok and result.engine == FAILOVER_ENGINE
+
+
+MODAL_ENV = {
+    "HALO_PRIMARY_BASE_URL": "https://example-workspace--muse.modal.run/v1",
+    "HALO_PRIMARY_MODEL": "meta-models/Muse-Spark-Open-816B-A42B",
+    "HALO_PRIMARY_KEY_VAR": "MODAL_PROXY_TOKEN",
+}
+
+
+def _recording_client(env: dict, seen: list, *, meta_status: int = 200) -> LLMClient:
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode())
+        seen.append({"url": str(request.url), "model": body["model"],
+                     "effort": body.get("reasoning_effort"),
+                     "auth": request.headers.get("authorization")})
+        return httpx.Response(meta_status if "api.meta.ai" in request.url.host else 200, json=GOOD)
+
+    return LLMClient(transport=httpx.MockTransport(handler), clock=Clock(),
+                     sleep=lambda s: None, env=env)
+
+
+def test_env_overrides_primary_host_model_and_key():
+    seen: list = []
+    client = _recording_client({**MODAL_ENV, "MODAL_PROXY_TOKEN": "wk-1.ws-2"}, seen)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == PRIMARY_ENGINE
+    assert seen == [{"url": "https://example-workspace--muse.modal.run/v1/chat/completions",
+                     "model": "meta-models/Muse-Spark-Open-816B-A42B",
+                     "effort": "low", "auth": "Bearer wk-1.ws-2"}]
+
+
+def test_primary_defaults_unchanged_without_overrides():
+    seen: list = []
+    # Blank overrides (an untouched .env.example copy) keep the Baseten defaults.
+    blank = {k: "" for k in MODAL_ENV}
+    client = _recording_client({**blank, "BASETEN_API_KEY": "b-key"}, seen)
+    try:
+        assert client.complete_json(prompt=PROMPT, schema=SCHEMA).ok
+    finally:
+        client.close()
+    assert seen == [{"url": "https://inference.baseten.co/v1/chat/completions",
+                     "model": "meta-models/muse-spark-open-1026",
+                     "effort": "low", "auth": "Bearer b-key"}]
+
+
+def test_missing_override_key_fails_over_to_contributor():
+    seen: list = []
+    # Key var points at MODAL_PROXY_TOKEN, which is unset: BASETEN_API_KEY is not used.
+    client = _recording_client({**MODAL_ENV, "BASETEN_API_KEY": "b-key",
+                                "META_API_KEY": "m-key"}, seen)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE
+    assert [s["url"] for s in seen] == ["https://api.meta.ai/v1/chat/completions"]
