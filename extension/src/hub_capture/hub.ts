@@ -77,6 +77,8 @@ export class Hub {
   private seq: Record<"tab" | "mic", number> = { tab: 0, mic: 0 };
   private recSeq = 0;
   private socketOpen = false;
+  private connected = false;
+  private meetingCode = "";
   private reconnectAttempt = 0;
   private schedule: (fn: () => void, ms: number) => void;
 
@@ -106,12 +108,21 @@ export class Hub {
     });
   }
 
+  /** One socket per hub: a repeat Start must not open a second one (the close handler owns reconnects). */
   connect(): void {
+    if (this.connected) return;
+    this.connected = true;
     this.deps.socket.connect();
+  }
+
+  /** True while a meeting for this call runs (a repeat Start click). */
+  isRunning(meetingCode: string): boolean {
+    return this.meetingId !== null && !this.ended && this.meetingCode === meetingCode;
   }
 
   start(meta: StartMeta): string {
     this.meetingId = this.deps.uuid();
+    this.meetingCode = meta.meeting_code;
     this.ended = false;
     this.sendEnvelope("meeting.started", {
       meeting_id: this.meetingId, platform: meta.platform,
@@ -257,12 +268,20 @@ export class Hub {
   }
 }
 
-/** Runtime-message handler for the Start gesture (#6): popup -> hub. */
+/**
+ * Runtime-message handler for the Start gesture (#6): popup -> hub.
+ * Returns true when a meeting started. A repeat Start for the running call
+ * is a no-op (false); a Start for another call ends the running one first,
+ * so every meeting.started gets its meeting.ended.
+ */
 export function handleHubRuntimeMessage(hub: Hub, msg: Record<string, unknown>): boolean {
   if (msg.type !== HUB_START_MESSAGE) return false;
+  const meetingCode = String(msg.meeting_code ?? "");
+  if (hub.isRunning(meetingCode)) return false;
+  hub.stop("left");
   hub.start({
     platform: (msg.platform as StartMeta["platform"]) ?? "meet",
-    meeting_code: String(msg.meeting_code ?? ""),
+    meeting_code: meetingCode,
     self_name: String(msg.self_name ?? ""),
   });
   return true;

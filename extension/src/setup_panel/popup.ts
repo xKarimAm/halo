@@ -28,6 +28,8 @@ export interface PopupDeps {
   onStart: () => StartResult | Promise<StartResult> | void;
   /** Opens the one-time microphone-permission page. */
   onRequestMicPermission: () => void;
+  /** Live mic permission of the extension origin (Permissions API state). */
+  micPermission?: () => Promise<string>;
   pairFn?: (code: string) => Promise<string>;
 }
 
@@ -188,7 +190,11 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   // One-time microphone grant: the offscreen document cannot prompt, so a
   // dedicated extension page calls getUserMedia once and keeps the grant.
   const micSection = el("section", { id: "mic-section" });
-  const micState = el("p", { id: "mic-state" }, micStatusText(saved.micState));
+  // halo.micState goes stale when the grant is revoked in site settings;
+  // the live permission state wins whenever it is not "granted".
+  const permission = await deps.micPermission?.().catch(() => undefined);
+  const shownMic = permission === "denied" ? "denied" : permission === "prompt" ? undefined : saved.micState;
+  const micState = el("p", { id: "mic-state" }, micStatusText(shownMic));
   const micButton = el("button", { id: "mic-btn", type: "button" }, "Allow microphone") as HTMLButtonElement;
   micButton.addEventListener("click", () => {
     deps.onRequestMicPermission();
