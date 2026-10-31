@@ -19,10 +19,10 @@ Which window (W1-W3) owns which lane: DECISIONS §6. Rules for calling Meta mode
 ## Finding things
 
 1. A module's `STATE.md` has a **File map** of every file it owns. Read it before searching, then open only the files it names.
-2. Search inside the area or module folder you work in rather than the repo root.
+2. Search inside the area or module folder you work in rather than the repo root. In the main checkout, `.tmp/` holds about 50 full worktrees (git-ignored): work and search inside your own.
 3. Read large files by line range: find the symbol first, then read around it.
 4. Searches skip lockfiles and the architecture diagram (root `.ignore`). The diagram is one 70-90 KB line of XML and DECISIONS §3 summarises it; open `docs/architecture/halo-v2-final.drawio` only to edit it.
-5. Locked dependency versions: `npm --prefix extension ls <pkg>` or `uv tree --package <pkg>`. Claude cannot read lockfiles or `.env` (`.claude/settings.json`).
+5. Locked dependency versions: `npm --prefix extension ls <pkg>` or `uv tree --package <pkg>`. Claude cannot read lockfiles or `.env`, and its Glob skips git-ignored paths (`.claude/settings.json`).
 
 ## Agent skills
 

@@ -27,6 +27,8 @@ recordings/
 rig/fixtures/*/
 !rig/fixtures/synthetic/
 
-# playwright browser cache and test output
+# local caches and test output
 .pw-browsers/
 test-results/
+.npm-cache/
+pytest-of-*/
