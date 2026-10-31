@@ -27,5 +27,8 @@ Implement extension/src/hub_capture per its PLAN.md; done ONLY when `npm --prefi
 ## Current step
 Review fix pushed: socket reconnects with backoff (1 s, 2 s, 4 s, cap 5 s), no resend on close, nothing sent on a non-open socket, `pair.hello` direct on open (not via outbox), everything else held until `pair.ok` then resent once with the same ids. 10 Vitest cases green, typecheck clean. Then rebased on main.
 
+## Stopped work (2026-10-31, Face mode verification gate 5)
+STOPPED by Karim to prioritize live audio capture. Branch `feature/face-mode-5-wiring` (pushed, unmerged) stacks three finished lane branches — `feature/face-mode-1-detector` (FaceBridge 500 ms hold / 1 s fallback, iframe host, stub engine), `feature/face-mode-2-adapter` (`videoForTile`), `feature/face-mode-3-overlay` (`halo.overlayMode`, tile-local face layout, `data-mode`/`data-face-box`, boot returns `{ overlay, onFacesUpdate }`) — plus `feature/face-mode-4-setup` (Face|Frame popup toggle) and the meet.content.ts call-site sync. No wiring edits were made on the wiring branch itself; resume by implementing meet.content.ts wiring + wxt WAR/wasm copy + L3 spec on top of it.
+
 ## Open questions
 - L3 full form (hub opens on the Fake Meet page via `?halo_test=1`) runs once this module's `.output` and meet_adapter coexist on main; the hook and fixture-audio path are unit-tested here.
