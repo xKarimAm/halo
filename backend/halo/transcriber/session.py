@@ -11,9 +11,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import statistics
 import struct
 import time
 import uuid
+from collections import deque
 from typing import Any
 
 from halo.transcriber.protocol import ENDPOINTING, TurnAssembler, build_handshake
@@ -24,7 +26,11 @@ FRAME_MS = 100
 SILENCE_SLACK_MS = 300  # browser frame jitter tolerated before padding
 BYTES_PER_MS = 32  # 16 kHz mono PCM16
 ROTATION_AFTER_S = 59 * 60
-SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this counts as silence
+SILENCE_RMS_THRESHOLD = 300.0  # PCM16 RMS below this always counts as silence
+# Louder audio (#76): a frame is also silence below this share of the median
+# frame RMS over the last LEVEL_WINDOW_FRAMES (10 s). Tuned on the 3 test clips.
+SILENCE_LEVEL_FRACTION = 0.4
+LEVEL_WINDOW_FRAMES = 100
 SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
 
 
@@ -75,6 +81,7 @@ class TranscriptionSession:
         # Start of the last long-enough pause whose cut still waits for a
         # partial covering it (Voice partials lag the audio by up to ~2 s).
         self._pending_pause_ms: int | None = None
+        self._levels: deque[float] = deque(maxlen=LEVEL_WINDOW_FRAMES)
         self.speaker_override: str | None = "you" if mode == ENDPOINTING else None
         self.anchor_ms: int | None = None
         self.expected_seq: int | None = None
@@ -112,7 +119,10 @@ class TranscriptionSession:
             await self._send_silence(gap * FRAME_MS)
         self.expected_seq = seq + 1
         frame_ms = len(pcm) // BYTES_PER_MS
-        if self._rms(pcm) < SILENCE_RMS_THRESHOLD:
+        rms = self._rms(pcm)
+        self._levels.append(rms)
+        floor = max(SILENCE_RMS_THRESHOLD, SILENCE_LEVEL_FRACTION * statistics.median(self._levels))
+        if rms < floor:
             if self._silence_run_ms == 0:
                 self._silence_start_ms = self.position_ms
             self._silence_run_ms += frame_ms

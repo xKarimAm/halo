@@ -321,3 +321,30 @@ def test_a_pause_cuts_when_its_partial_arrives_after_speech_resumed():
         return out
 
     assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
+
+
+def test_a_pause_on_loud_audio_cuts_above_the_fixed_floor():
+    """#76, Sudanese clip: speech runs at RMS 2000-17000 and its pauses sit
+    at RMS 400-700, never under the fixed 300 floor, so turns ran 14-30 s.
+    A pause is quiet relative to the recent level, not to one number."""
+    loud = b"\x00\x10" * 1600  # RMS 4096
+    murmur = b"\x58\x02" * 1600  # RMS 600: a pause on this recording
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "first line here", "final": False,
+         "audioProcessedMs": 2100},
+        {"type": "transcript", "transcript": "first line here and more", "final": False,
+         "audioProcessedMs": 3500},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(36):  # loud speech, a 700 ms murmur pause at 2.0 s, speech
+            pcm = murmur if 20 <= seq < 27 else loud
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["first line here"]
