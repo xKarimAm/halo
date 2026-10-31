@@ -115,14 +115,18 @@ class LLMClient:
         # The primary host (Baseten by default; Modal or a local server) is
         # set from env. Blank or unset keeps the default.
         primary = ENGINES[PRIMARY_ENGINE]
+        base_url = environ.get("HALO_PRIMARY_BASE_URL")
         self._primary = {
-            "base_url": environ.get("HALO_PRIMARY_BASE_URL") or primary["base_url"],
+            "base_url": base_url or primary["base_url"],
             "model": environ.get("HALO_PRIMARY_MODEL") or primary["model"],
-            "key_var": environ.get("HALO_PRIMARY_KEY_VAR") or primary["key_var"],
+            # A custom host with no key var gets no key (fails over), never
+            # the Baseten key.
+            "key_var": environ.get("HALO_PRIMARY_KEY_VAR") or ("" if base_url else primary["key_var"]),
         }
+        key_var = self._primary["key_var"]
         self._keys = {
             PRIMARY_ENGINE: baseten_key if baseten_key is not None
-            else environ.get(self._primary["key_var"]),
+            else environ.get(key_var) if key_var else None,
             FAILOVER_ENGINE: meta_key if meta_key is not None else environ.get("META_API_KEY"),
         }
         self._fakes = _fakes_on(environ)
@@ -207,11 +211,12 @@ class LLMClient:
         if not key:
             if engine not in self._key_warned:
                 self._key_warned.add(engine)
-                log.warning("llm %s has no key in %s; failing over", engine, cfg["key_var"])
+                log.warning("llm %s has no key in %s; failing over", engine,
+                            cfg["key_var"] or "HALO_PRIMARY_KEY_VAR (unset)")
             return _Outcome(
                 LLMResult(ok=False, engine=engine,
                           error={"code": "missing_key",
-                                 "message": f"no key in {cfg['key_var']}"}),
+                                 "message": f"no key in {cfg['key_var'] or 'HALO_PRIMARY_KEY_VAR (unset)'}"}),
                 failover=True,
             )
         body: dict[str, Any] = {

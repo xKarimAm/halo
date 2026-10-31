@@ -462,3 +462,18 @@ def test_missing_override_key_fails_over_to_contributor():
         client.close()
     assert result.ok and result.engine == FAILOVER_ENGINE
     assert [s["url"] for s in seen] == ["https://api.meta.ai/v1/chat/completions"]
+
+
+def test_overridden_host_without_key_var_never_gets_the_baseten_key():
+    """HALO_PRIMARY_BASE_URL set, HALO_PRIMARY_KEY_VAR blank: the Baseten key
+    went to the new host. No key var for a custom host means no key."""
+    seen: list = []
+    env = {**MODAL_ENV, "HALO_PRIMARY_KEY_VAR": "", "BASETEN_API_KEY": "b-key", "META_API_KEY": "m-key"}
+    client = _recording_client(env, seen)
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE
+    assert all(s["auth"] != "Bearer b-key" for s in seen)
+    assert all("modal.run" not in s["url"] for s in seen)
