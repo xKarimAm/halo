@@ -140,6 +140,16 @@ describe("startLiveCapture", () => {
     expect(sent).toHaveLength(0); // nothing processed yet
   });
 
+  it("hub side (mic: false): taps only the tab, never asks for the mic", async () => {
+    const ctx = fakeContext();
+    const getUserMedia = vi.fn(async () => fakeStream());
+    const { deps, micStates } = depsWith({ getUserMedia }, ctx);
+    const res = await startLiveCapture("stream-id", deps, { mic: false });
+    expect(res).toEqual({ tab: true, mic: false });
+    expect(getUserMedia).toHaveBeenCalledTimes(1); // tab only
+    expect(micStates).toEqual([]);
+  });
+
   it("tab capture failing (rig): meeting proceeds without audio", async () => {
     const ctx = fakeContext();
     const devices: MediaDevicesLike = {

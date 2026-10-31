@@ -3,6 +3,7 @@
 // in hub_capture/hub.ts (unit-tested).
 import { HUB_START_MESSAGE, Hub, handleHubRuntimeMessage } from "../../hub_capture/hub";
 import { adaptAudioContext, startLiveCapture } from "../../hub_capture/capture_live";
+import { MIC_PORT_NAME, readMicFrame } from "../../hub_capture/mic_relay";
 import type { ToPagePortMessage } from "../../../../contracts/ext/port";
 
 declare const chrome: any;
@@ -57,6 +58,14 @@ function storageSet(items: Record<string, unknown>): void {
 }
 
 chrome.runtime.onConnect.addListener((port: any) => {
+  if (port.name === MIC_PORT_NAME) {
+    // Mic stream 1, captured by the Meet content script (see mic_relay.ts).
+    port.onMessage.addListener((msg: unknown) => {
+      const frame = readMicFrame(msg);
+      if (frame) hub.sendAudio("mic", frame.pcm, frame.ts);
+    });
+    return;
+  }
   if (port.name !== "halo-hub") return;
   ports.add(port);
   port.onMessage.addListener((msg: unknown) => hub.onPortMessage(msg as never));
@@ -71,18 +80,20 @@ function startFrom(handoff: StartHandoff): void {
   hubDeps.token = handoff.token;
   hub.connect();
   handleHubRuntimeMessage(hub, msg);
-  // Live audio: tab stream 0 (+ local replay) and mic stream 1. Never
-  // blocks the meeting: without a stream id or a grant the hub runs on
-  // without that stream's audio.
+  // Live audio: tab stream 0 (+ local replay). The mic (stream 1) comes
+  // from the Meet content script over the "halo-mic" Port: this document
+  // cannot show a permission prompt. Never blocks the meeting: without a
+  // stream id the hub runs on without tab audio.
   void startLiveCapture(
     typeof msg.streamId === "string" ? msg.streamId : undefined,
     {
       mediaDevices: navigator.mediaDevices,
       createContext: () => adaptAudioContext(new AudioContext()),
       sendAudio: (stream, pcm, tsMs) => hub.sendAudio(stream, pcm, tsMs),
-      setMicState: (state) => storageSet({ "halo.micState": state }),
+      setMicState: () => {}, // the mic is captured in the Meet tab
       now: () => Date.now(),
     },
+    { mic: false },
   );
 }
 
