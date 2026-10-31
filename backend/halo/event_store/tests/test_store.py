@@ -204,3 +204,17 @@ def test_fixture_replay_lands_once(tmp_path):
 
 def test_health(tmp_path):
     assert make_store(tmp_path).health_status() == "ok"
+
+
+def test_replayed_started_and_context_are_no_ops(tmp_path):
+    """Issue #57: the Gateway republishes the stored started + context under
+    their original ids after a restart; the tap must store nothing new."""
+    store = make_store(tmp_path)
+    bus = Bus()
+    bus.set_tap(store.tap)
+    started, context = golden("meeting.started"), golden("meeting.context")
+    publish_all(bus, [started, context])
+    before = (store.count(), store.get_meeting(MID))
+    acks = publish_all(bus, [started, context])
+    assert [a["status"] for a in acks] == ["ok", "ok"]
+    assert (store.count(), store.get_meeting(MID)) == before
