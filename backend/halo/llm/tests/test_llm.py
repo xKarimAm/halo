@@ -297,3 +297,21 @@ def test_fake_flag_swaps_both_endpoints():
         assert client.complete_json(prompt=PROMPT, schema=SCHEMA).ok
     finally:
         client.close()
+
+
+def test_failover_engine_gets_the_longer_budget():
+    # Found live: the contributor answers Insight in ~3-4.5 s; with no
+    # Baseten key every point rides on it, so 4 s dropped most points.
+    now = [0.0]
+
+    def handler(request):
+        now[0] += 5.0  # 5 s reply: over the 4 s primary budget, under 10 s
+        return httpx.Response(200, json=GOOD)
+
+    client = LLMClient(baseten_key="", meta_key="k2", transport=httpx.MockTransport(handler),
+                       clock=lambda: now[0], sleep=lambda s: None, env={})
+    try:
+        result = client.complete_json(prompt=PROMPT, schema=SCHEMA)
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE

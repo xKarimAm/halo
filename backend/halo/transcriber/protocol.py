@@ -41,7 +41,10 @@ log = logging.getLogger("halo.transcriber")
 DIARIZATION = "DIARIZATION"
 ENDPOINTING = "ENDPOINTING"
 
-LANGUAGE_BIAS = ["arabic", "english"]
+# Verified live 2026-10-31 (day-0 asr probe + halo transport): the endpoint
+# rejects a handshake without model/audioEncoding (1008 Bad Request).
+VOICE_MODEL = "muse-voice-transcribe-1.0"
+LANGUAGE_BIAS = ["Arabic", "English"]
 
 SOFT_CUT_TAIL_WORDS = 3
 
@@ -51,6 +54,10 @@ def build_handshake(mode: str, key: str, keywords: list[str] | None = None) -> d
     return {
         "authorization": {"accessToken": f"Bearer {key}"},
         "mode": mode,
+        "model": VOICE_MODEL,
+        "audioEncoding": "PCM_16KHZ",
+        "partialMode": "CUMULATIVE",
+        "emitAudioProgress": False,
         "languageBias": list(LANGUAGE_BIAS),
         "keywords": list(keywords or []),
     }
@@ -227,11 +234,12 @@ class TurnAssembler:
             return None  # frontier rewrite touched cut text; wait for the fix
         extra = turn_words[len(cut_words):]
         latest = self._latest.get(key)
-        if (
-            pause_start_ms is not None
-            and latest is not None
-            and latest >= pause_start_ms
-        ):
+        if pause_start_ms is not None:
+            # Partials lag the audio by 1-2 s (live check): until one covers
+            # the pause start, the words before the pause are still arriving
+            # one by one. Wait for that, then cut them all at once.
+            if latest is None or latest < pause_start_ms:
+                return None
             new_words = extra
         elif len(extra) <= SOFT_CUT_TAIL_WORDS:
             return None

@@ -13,7 +13,11 @@ def test_handshake_carries_bearer_mode_bias_keywords():
     hs = build_handshake(DIARIZATION, "key-123", ["Pricing", "RTL"])
     assert hs["authorization"] == {"accessToken": "Bearer key-123"}
     assert hs["mode"] == DIARIZATION
-    assert hs["languageBias"] == ["arabic", "english"]
+    assert hs["languageBias"] == ["Arabic", "English"]
+    # Without these the real endpoint closes with 1008 Bad Request (live probe).
+    assert hs["model"] == "muse-voice-transcribe-1.0"
+    assert hs["audioEncoding"] == "PCM_16KHZ"
+    assert hs["partialMode"] == "CUMULATIVE"
     assert hs["keywords"] == ["Pricing", "RTL"]
     hs2 = build_handshake(ENDPOINTING, "key-123")
     assert hs2["mode"] == ENDPOINTING
