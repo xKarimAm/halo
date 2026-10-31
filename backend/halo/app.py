@@ -21,6 +21,7 @@ from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
 from halo.insight import Insight
 from halo.llm import LLMClient
+from halo.notes_builder import NotesBuilder
 from halo.transcriber import Transcriber
 from halo.transcriber.transport import WsTransport
 from rig.fakes.config import engine_config
@@ -115,6 +116,10 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Insight: live points from attributed turns via the shared model client.
     app.state.insight = Insight(app.state.bus, app.state.llm)
     app.state.bus.register_health("insight", app.state.insight.health)
+    # Notes Builder: meeting.ended in, one validated notes.ready out.
+    # The store file is the Event Store's own; this lane only ever reads it.
+    app.state.notes_builder = NotesBuilder(
+        app.state.bus, app.state.llm, db_path=_data_dir() / "events.sqlite")
 
     @app.get("/healthz")
     async def healthz() -> dict:
