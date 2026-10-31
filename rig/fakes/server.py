@@ -1,10 +1,16 @@
 """Wire adapters: FakeLLM as an OpenAI-compatible HTTP app, FakeASR as a
 Voice-shaped WebSocket. Run: `uv run python -m rig.fakes.server` (needs a
 fixture dir via HALO_FIXTURE_DIR with asr_script.jsonl / llm_script.jsonl).
+
+Voice session handshake: the first JSON frame per connection may carry
+``stream`` ("tab"|"mic") and ``t0_ms`` (meeting-clock anchor). Other keys
+(auth, mode, hints) pass through untouched. Without them the connection
+behaves as before (tab stream, wall-clock stamps).
 """
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from pathlib import Path
@@ -38,16 +44,37 @@ def create_asr_app(fake: FakeASR) -> FastAPI:
     @app.websocket("/v1/voice/realtime")
     async def realtime(ws: WebSocket) -> None:
         await ws.accept()
+        stream = "tab"
+        t0_ms: int | None = None
+        position_ms = 0
+        configured = False
         try:
             while True:
                 msg = await ws.receive()
                 if msg.get("bytes") is not None:
-                    for turn in fake.feed_audio("tab", int(time.time() * 1000), msg["bytes"]):
+                    pcm = msg["bytes"]
+                    if t0_ms is None:
+                        stamp = int(time.time() * 1000)
+                    else:
+                        stamp = t0_ms + position_ms
+                    position_ms += len(pcm) // 32
+                    for turn in fake.feed_audio(stream, stamp, pcm):
                         await ws.send_json({"type": "transcript.final", **turn})
                 elif msg.get("text") == "control.drop":
                     fake.drop_session()
                     await ws.close(code=1011)
                     return
+                elif msg.get("text") is not None and not configured:
+                    configured = True
+                    try:
+                        first = json.loads(msg["text"])
+                    except ValueError:
+                        first = None
+                    if isinstance(first, dict):
+                        if first.get("stream") in ("tab", "mic"):
+                            stream = first["stream"]
+                        if isinstance(first.get("t0_ms"), int):
+                            t0_ms = first["t0_ms"]
         except (WebSocketDisconnect, SessionDropped):
             return
 
