@@ -96,7 +96,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
         audio_tab=app.state.audio_tab_queue,
         audio_mic=app.state.audio_mic_queue,
         rec=app.state.rec_queue,
-        extension_id=os.environ.get("HALO_EXTENSION_ID", ""),
+        extension_id=os.environ.get("HALO_EXTENSION_ID"),
     )
     app.include_router(router)
     app.middleware("http")(host_check)
