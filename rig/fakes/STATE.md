@@ -25,7 +25,12 @@ Implement rig/fakes per its PLAN.md; done ONLY when `uv run pytest rig/fakes -q`
 - `rig/fakes/tests/test_fakes.py`: PLAN Done cases (1)-(8).
 
 ## Current step
-Done: all 9 tests green (`uv run pytest rig/fakes -q`), ruff clean. PR open for Karim to merge.
+Real Voice shapes (branch `module/fakes-realshapes`, worktree `.tmp/wt-fakes-realshapes`):
+10/10 fakes tests green, ruff clean, mypy (report-only) clean. Blocked on #53:
+this server's new shapes need the new transcriber to produce finals, so this
+PR's CI stays red until #53 merges and this branch rebases (verified by a
+post-merge simulation probe instead: new server + new assembler = exactly one
+turn, text/speaker/offsets right). Next: push, open PR, rebase after #53.
 
 ## Open questions
 - Script-format field names await replayer confirmation (issue #3, non-blocking: building against the assumed format above).

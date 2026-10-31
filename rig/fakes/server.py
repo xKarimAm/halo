@@ -37,7 +37,10 @@ def create_llm_app(fake: FakeLLM) -> FastAPI:
 def create_asr_app(script: list) -> FastAPI:
     """One FakeASR per connection (issue #23): the handshake mode routes the
     session (DIARIZATION -> tab, ENDPOINTING -> mic), and turns go out as
-    Voice lifecycle events on script offsets from the session anchor."""
+    real Voice lifecycle shapes on script offsets from the session anchor:
+    int turnIds, `transcript` partials without turnId, the `speaker` label
+    at the END of the turn, and one turn per scripted (speaker-change) turn
+    so the joined gate takes the transcriber's soft-cut path."""
     app = FastAPI()
 
     @app.websocket("/v1/voice/realtime")
@@ -45,6 +48,8 @@ def create_asr_app(script: list) -> FastAPI:
         await ws.accept()
         fake = FakeASR(list(script))
         stream = "tab"
+        turn_seq = 0
+        open_turns: dict[int, dict] = {}
         try:
             while True:
                 msg = await ws.receive()
@@ -53,15 +58,27 @@ def create_asr_app(script: list) -> FastAPI:
                 if msg.get("bytes") is not None:
                     for turn in fake.feed_audio(stream, int(time.time() * 1000), msg["bytes"]):
                         anchor = fake.anchor_ms
-                        tid = turn["turn_id"]
-                        await ws.send_json({"type": "speechStart", "turnId": tid})
-                        await ws.send_json({"type": "speaker", "turnId": tid, "speaker": turn["speaker"]})
-                        await ws.send_json({"type": "partial", "turnId": tid, "text": turn["text"]})
-                        await ws.send_json({
-                            "type": "speechComplete", "turnId": tid,
-                            "startMs": turn["ts_start_ms"] - anchor,
-                            "endMs": turn["ts_end_ms"] - anchor, "lang": turn["lang"],
-                        })
+                        tid = turn_seq
+                        turn_seq += 1
+                        open_turns[tid] = turn
+                        await ws.send_json({"type": "speechStart", "turnId": tid,
+                                            "audioProcessedMs": turn["ts_start_ms"] - anchor})
+                        await ws.send_json({"type": "transcript", "transcript": turn["text"],
+                                            "final": False,
+                                            "audioProcessedMs": turn["ts_end_ms"] - anchor})
+                    anchor = fake.anchor_ms
+                    horizon = fake.position_ms - fake.latency_ms
+                    for tid in [tid for tid, turn in open_turns.items()
+                                if turn["ts_end_ms"] - anchor <= horizon]:
+                        turn = open_turns.pop(tid)
+                        end = turn["ts_end_ms"] - anchor
+                        await ws.send_json({"type": "speaker", "label": turn["speaker"],
+                                            "audioProcessedMs": end})
+                        await ws.send_json({"type": "speechEnd", "turnId": tid,
+                                            "audioProcessedMs": end})
+                        await ws.send_json({"type": "speechComplete", "turnId": tid,
+                                            "transcript": turn["text"],
+                                            "audioProcessedMs": end})
                 elif msg.get("text") == "control.drop":
                     fake.drop_session()
                     await ws.close(code=1011)
