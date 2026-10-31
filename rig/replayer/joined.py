@@ -35,9 +35,11 @@ from rig.replayer.fixture import load_fixture
 from rig.replayer.mode_a import ModeA
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKEND_PORT = 8765
-FAKES_PORT = 18777
-MEET_PORT = 18778
+# The extension is built for 127.0.0.1:8765, which is the user's LIVE
+# backend. The rig never binds or calls it: the backend, fakes and Fake
+# Meet run on free ports, and the spec loads a copy of the built extension
+# with every "127.0.0.1:8765" rewritten to the rig backend's port.
+LIVE_BACKEND = "127.0.0.1:8765"
 SPEAKER_TILE = "spaces/x/devices/2"  # Layla in the Fake Meet fixture
 
 TURNS = [
@@ -148,10 +150,10 @@ def p90(values: list[float]) -> float:
 class SyncTransport:
     """Mode A transport over a real paired Gateway WebSocket."""
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, port: int):
         from websockets.sync.client import connect
 
-        self.ws = connect(f"ws://127.0.0.1:{BACKEND_PORT}/ws",
+        self.ws = connect(f"ws://127.0.0.1:{port}/ws",
                           additional_headers={"Origin": f"chrome-extension://{PINNED_EXTENSION_ID}"})
         hello = {
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "pair.hello",
@@ -206,6 +208,7 @@ class JoinedRun:
         self.procs: list[subprocess.Popen] = []
         self.logs: dict[str, Path] = {}
         self._log_handles: list = []
+        self.backend_port, self.fakes_port, self.meet_port = _free_ports(3)
 
     def _log_handle(self, name: str):
         # Kept open for the child process's lifetime; closed in cleanup().
@@ -230,11 +233,18 @@ class JoinedRun:
     def start_servers(self) -> str:
         build_base_fixture(self.fixture_dir)
         self._spawn("fakes", [sys.executable, "-m", "rig.fakes.server"],
-                    self._env({"HALO_FIXTURE_DIR": str(self.fixture_dir)}))
-        _wait(lambda: _port_open(FAKES_PORT), 30, "fakes server")
-        self._spawn("backend", [sys.executable, "-c", "from halo.app import main; main()"],
+                    self._env({"HALO_FIXTURE_DIR": str(self.fixture_dir),
+                               "HALO_FAKE_PORT": str(self.fakes_port)}))
+        _wait(lambda: _port_open(self.fakes_port), 30, "fakes server")
+        # ponytail: halo.app.main() pins 8765, so the rig serves the same
+        # app object on its own port and prints the same pairing line.
+        serve = ("import sys, uvicorn; from halo.app import app; "
+                 "print('pairing code:', app.state.gateway.pairing.current_code, flush=True); "
+                 "uvicorn.run(app, host='127.0.0.1', port=int(sys.argv[1]))")
+        self._spawn("backend", [sys.executable, "-c", serve, str(self.backend_port)],
                     self._env({
                         "HALO_FAKES": "1",
+                        "HALO_FAKE_PORT": str(self.fakes_port),
                         "HALO_DATA_DIR": str(self.data_dir),
                         # LLMClient requires key presence even against
                         # the fake endpoint (see PR break list).
@@ -246,7 +256,7 @@ class JoinedRun:
         return code
 
     def redeem(self, code: str) -> str:
-        return _http_json(f"http://127.0.0.1:{BACKEND_PORT}/pair", {"code": code})["token"]
+        return _http_json(f"http://127.0.0.1:{self.backend_port}/pair", {"code": code})["token"]
 
     def _pairing_code(self) -> str | None:
         log = self.logs.get("backend")
@@ -257,7 +267,7 @@ class JoinedRun:
 
     def _healthy(self) -> bool:
         try:
-            return _http_json(f"http://127.0.0.1:{BACKEND_PORT}/healthz").get("status") == "ok"
+            return _http_json(f"http://127.0.0.1:{self.backend_port}/healthz").get("status") == "ok"
         except (OSError, ValueError):  # not up yet / not JSON yet
             return False
 
@@ -321,7 +331,7 @@ class JoinedRun:
         code = self.start_servers()
         bubble: dict = {}
         if backend_only:
-            transport = SyncTransport(self.redeem(code))
+            transport = SyncTransport(self.redeem(code), self.backend_port)
             meeting = str(uuid.uuid4())
             t0 = int(time.time() * 1000)
             build_fixture(self.fixture_dir, meeting, t0)
@@ -340,7 +350,7 @@ class JoinedRun:
                                30, "popup pairing token")
             build_fixture(self.fixture_dir, meeting, t0)
             fx = load_fixture(self.fixture_dir)
-            transport = SyncTransport(token_file["token"])
+            transport = SyncTransport(token_file["token"], self.backend_port)
             ModeA(fx, transport).run(fast=False, sleep_fn=lambda ms: time.sleep(ms / 1000))
             transport.close()
         _wait(lambda: len([e for e in read_events(self.data_dir)
@@ -357,16 +367,34 @@ class JoinedRun:
                 raise RuntimeError(f"playwright joined spec failed (rc={spec.returncode}): {tail}")
         return self._verify(bubble)
 
+    def extension_copy(self, built: Path = ROOT / "extension" / ".output" / "chrome-mv3") -> Path:
+        """The built extension, pointed at the rig backend instead of 8765."""
+        copy = self.work / "extension"
+        shutil.copytree(built, copy)
+        rig = f"127.0.0.1:{self.backend_port}"
+        for path in copy.rglob("*"):
+            if path.suffix in (".js", ".json", ".html"):
+                text = path.read_text(encoding="utf-8")
+                if LIVE_BACKEND in text:
+                    path.write_text(text.replace(LIVE_BACKEND, rig), encoding="utf-8")
+        left = [p.name for p in copy.rglob("*") if p.suffix in (".js", ".json", ".html")
+                and "8765" in p.read_text(encoding="utf-8")]
+        if left:
+            raise RuntimeError(f"extension copy still names port 8765: {left}")
+        return copy
+
     def _run_browser(self, code: str) -> dict:
         self.build_extension()
+        ext = self.extension_copy()
         # Fake Meet page server (the Playwright config would also start
         # one; reuseExistingServer makes the two agree on the port).
         log = self._log_handle("fake_meet")
         meet_proc = subprocess.Popen([shutil.which("node") or "node", "server.js"],
                                      cwd=ROOT / "rig" / "fake_meet",
+                                     env=dict(os.environ, PORT=str(self.meet_port)),
                                      stdout=log, stderr=subprocess.STDOUT)
         self.procs.append(meet_proc)
-        _wait(lambda: _port_open(MEET_PORT), 30, "fake meet server")
+        _wait(lambda: _port_open(self.meet_port), 30, "fake meet server")
         env = dict(os.environ)
         local_browsers = ROOT / ".pw-browsers"
         if "PLAYWRIGHT_BROWSERS_PATH" not in env and local_browsers.exists():
@@ -376,6 +404,8 @@ class JoinedRun:
             "HALO_JOINED_DIR": str(self.signal_dir),
             "HALO_POINT_TEXT": POINTS[0]["response"]["text"],
             "HALO_SPEAKER_TILE": SPEAKER_TILE,
+            "HALO_EXT_PATH": str(ext),
+            "HALO_MEET_PORT": str(self.meet_port),
         })
         log = self._log_handle("spec")
         npx = shutil.which("npx") or "npx"
@@ -432,6 +462,19 @@ class JoinedRun:
                     proc.kill()
         for handle in self._log_handles:
             handle.close()
+
+
+def _free_ports(n: int) -> list[int]:
+    import socket
+
+    socks = [socket.socket() for _ in range(n)]
+    try:
+        for s in socks:
+            s.bind(("127.0.0.1", 0))
+        return [s.getsockname()[1] for s in socks]
+    finally:
+        for s in socks:
+            s.close()
 
 
 def _port_open(port: int) -> bool:

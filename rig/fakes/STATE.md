@@ -32,5 +32,19 @@ ASR script/open-turns/turn-counter live as long as the app so a dropped
 session resumes on reconnect (control.drop closes only the connection now;
 engine poisoning stays available via `FakeASR.drop_session`). Next: push, PR.
 
+## Strict fakes (branch `rig/strict-fakes`)
+The fakes reject what the real engines reject and emit only real shapes
+(`rig/fakes/tests/test_strict.py`, evidence in the `server.py` docstring).
+Voice: served only on `/v1/asr/realtime`; the first frame must be the
+verified handshake (unknown keys, wrong model/mode/encoding, bad Bearer
+-> close 1008); only even-length binary PCM afterwards; >5 s backlog or
+>10 s under real time -> 1008; tab (DIARIZATION) and mic (ENDPOINTING) are
+separate sessions (the shared clock completed tab turns on the mic socket
+and lost a joined-gate turn). LLM: Bearer key (401), known model ids (404),
+only the request fields the real client sends, valid `reasoning_effort` per
+engine, `json_schema` template, recursive `$ref` (400); OpenAI error body
+`{error: {message, type, code: null}}`; Spark Open returns the canned reply
+unchecked plus `reasoning_content`, the contributor enforces the schema.
+
 ## Open questions
 - Script-format field names await replayer confirmation (issue #3, non-blocking: building against the assumed format above).

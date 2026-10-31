@@ -40,7 +40,7 @@ import uvicorn
 import websockets
 from halo.gateway.gateway import PINNED_EXTENSION_ID
 from halo.llm.llm import ENGINES, FAILOVER_ENGINE, PRIMARY_ENGINE
-from halo.transcriber.protocol import TurnAssembler
+from halo.transcriber.protocol import DIARIZATION, TurnAssembler, build_handshake
 from websockets.exceptions import ConnectionClosed
 
 from contracts.binary import pack_audio
@@ -433,9 +433,9 @@ async def _drop_and_resume(port: int) -> list[dict]:
             msg = await asyncio.wait_for(ws.recv(), timeout)
             events.append(json.loads(msg))
 
-    ws = await websockets.connect(f"ws://127.0.0.1:{port}/v1/voice/realtime")
+    ws = await websockets.connect(f"ws://127.0.0.1:{port}/v1/asr/realtime")
     try:
-        await ws.send(json.dumps({"mode": "DIARIZATION"}))
+        await ws.send(json.dumps(build_handshake(DIARIZATION, "gate7-dummy")))
         for _ in range(8):
             await ws.send(b"\x00\x00" * 1600)  # horizon 800: first turn open
         await read(ws, 2)  # speechStart + transcript
@@ -448,9 +448,9 @@ async def _drop_and_resume(port: int) -> list[dict]:
             pass
     finally:
         await ws.close()
-    ws = await websockets.connect(f"ws://127.0.0.1:{port}/v1/voice/realtime")
+    ws = await websockets.connect(f"ws://127.0.0.1:{port}/v1/asr/realtime")
     try:
-        await ws.send(json.dumps({"mode": "DIARIZATION"}))
+        await ws.send(json.dumps(build_handshake(DIARIZATION, "gate7-dummy")))
         for _ in range(37):
             await ws.send(b"\x00\x00" * 1600)  # horizon 4500: both turns due
         await collect(ws, 2)
