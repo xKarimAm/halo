@@ -28,6 +28,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from halo.gateway.gateway import PINNED_EXTENSION_ID
 from rig.replayer.checker import check
 from rig.replayer.fixture import load_fixture
 from rig.replayer.mode_a import ModeA
@@ -139,7 +140,7 @@ class SyncTransport:
         from websockets.sync.client import connect
 
         self.ws = connect(f"ws://127.0.0.1:{BACKEND_PORT}/ws",
-                          additional_headers={"Origin": "chrome-extension://joined-test"})
+                          additional_headers={"Origin": f"chrome-extension://{PINNED_EXTENSION_ID}"})
         hello = {
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "pair.hello",
             "source": "halo/replayer", "time": "2026-10-31T09:00:00Z", "meetingid": None,
