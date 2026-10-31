@@ -183,9 +183,9 @@ def test_tags_post_publishes_user_tag(tmp_path):
     action = client.post("/api/tags", json={"target": "action", "target_id": P1,
                                             "urgency": "later"})
     assert action.status_code == 201
-    assert client.post("/api/tags", json={"target": "point", "target_id": P1}).status_code == 400
+    assert client.post("/api/tags", json={"target": "point", "target_id": P1}).status_code == 422
     assert client.post("/api/tags", json={"target": "point", "target_id": P1,
-                                          "kind": "nope"}).status_code == 400
+                                          "kind": "nope"}).status_code == 422
     assert client.post("/api/tags", json={"target": "point",
                                           "target_id": "00000099-0000-4000-8000-000000000099",
                                           "kind": "point"}).status_code == 404
