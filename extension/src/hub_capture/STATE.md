@@ -25,7 +25,7 @@ Implement extension/src/hub_capture per its PLAN.md; done ONLY when `npm --prefi
 - `extension/wxt.config.ts`: composition root config + manifest.
 
 ## Current step
-Review fix pushed: socket reconnects with backoff (1 s, 2 s, 4 s, cap 5 s), no resend on close, nothing sent on a non-open socket, `pair.hello` direct on open (not via outbox), everything else held until `pair.ok` then resent once with the same ids. 10 Vitest cases green, typecheck clean. Then rebased on main.
+Live audio capture (the extension never captured audio; Gate 2 passed only on injected frames): `audio.ts` (downmix/resample/CaptureAccumulator pure DSP), `capture_live.ts` (tab stream 0 + replay, mic stream 1, per-stream degrade, adaptAudioContext bridge), offscreen entry runs it at Start via the pendingStart streamId, Hub.start best-effort self_name from the held pre-Start snapshot, manifest gains activeTab. 122 extension tests green (13 new here: 7 DSP + 4 orchestration + 2 self-name), `tsc` clean, build emits mic-permission.html.
 
 ## Open questions
 - L3 full form (hub opens on the Fake Meet page via `?halo_test=1`) runs once this module's `.output` and meet_adapter coexist on main; the hook and fixture-audio path are unit-tested here.

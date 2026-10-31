@@ -70,6 +70,7 @@ class TranscriptionSession:
         # Audio position (position_ms scale, ≈ engine audioProcessedMs) where
         # the current silence run began; None while speech is arriving.
         self._silence_start_ms: int | None = None
+        self._cut_this_pause = False
         self.speaker_override: str | None = "you" if mode == ENDPOINTING else None
         self.anchor_ms: int | None = None
         self.expected_seq: int | None = None
@@ -114,13 +115,17 @@ class TranscriptionSession:
         else:
             self._silence_run_ms = 0
             self._silence_start_ms = None
+            self._cut_this_pause = False
         self.position_ms += frame_ms
         try:
             await self.transport.send_audio(pcm, ts_ms)
             turns = await self._drain()
-            if self._silence_run_ms >= self.soft_cut_silence_ms:
+            # One cut per pause (live check: cutting at every late partial
+            # emitted single-word turns); speech resets the flag.
+            if self._silence_run_ms >= self.soft_cut_silence_ms and not self._cut_this_pause:
                 piece = self._assembler.maybe_cut(pause_start_ms=self._silence_start_ms)
                 if piece is not None:
+                    self._cut_this_pause = True
                     turns.append(self._map(piece))
             self._streak = 0
             self.health = "ok"
