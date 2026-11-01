@@ -6,7 +6,7 @@
 
 | Area | Map | Lanes (folder = lane, label = `module:<folder>`) |
 |---|---|---|
-| `backend/` | `backend/AGENTS.md` | bus, llm, gateway, transcriber, correlator, insight, classifier, event_store, notes_builder, notes_service, recorder |
+| `backend/` | `backend/AGENTS.md` | bus, llm, gateway, transcriber, correlator, insight, classifier, event_store, notes_builder, notes_service, recorder, coach |
 | `extension/` | `extension/AGENTS.md` | hub_capture, setup_panel, meet_adapter, frame_source, face_detector, overlay |
 | `notes-page/` | `notes-page/AGENTS.md` | notes-page |
 | `rig/` | `rig/AGENTS.md` | fakes, replayer, fake_meet |

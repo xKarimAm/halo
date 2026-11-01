@@ -11,10 +11,15 @@ export interface Ack {
   error?: AckError;
 }
 
+export interface CoachTips {
+  tips: string[];
+  lang: "en" | "ar";
+}
+
 export interface Envelope {
   specversion: "1.0";
   id: string;
-  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "transcript.partial" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready";
+  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "transcript.partial" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready" | "coach.tips";
   source: string;
   time: string;
   meetingid: string | null;

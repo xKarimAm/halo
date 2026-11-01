@@ -30,7 +30,8 @@
         "points.upsert",
         "llm.health",
         "tags.set",
-        "notes.ready"
+        "notes.ready",
+        "coach.tips"
       ]
     },
     "source": {

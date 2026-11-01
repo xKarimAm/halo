@@ -1,0 +1,16 @@
+{
+  "specversion": "1.0",
+  "id": "00000019-0000-4000-8000-000000000019",
+  "type": "coach.tips",
+  "source": "halo/golden",
+  "time": "2026-10-31T09:00:00Z",
+  "meetingid": "22222222-2222-4222-8222-222222222222",
+  "datacontenttype": "application/json",
+  "data": {
+    "tips": [
+      "Ask Omar for a date on the beta cohort.",
+      "Nobody owns the launch checklist yet."
+    ],
+    "lang": "en"
+  }
+}

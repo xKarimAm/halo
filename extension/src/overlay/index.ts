@@ -303,11 +303,37 @@ export function mountControls(
   bar.append(badge, toast, menu);
   doc.body.append(bar);
 
+  // Meeting coach (Karim 2026-11-02): 1-3 tips on steering the meeting,
+  // left side, replaced about once a minute; x hides it until the next tips.
+  const coach = make("aside", "halo-coach");
+  coach.setAttribute("aria-label", "Meeting coach");
+  coach.setAttribute("aria-live", "polite");
+  const tipList = make("ul", "");
+  let shownTips: unknown = null;
+  let dismissedTips: unknown = null;
+  const closeCoach = button("halo-dismiss", "×", () => {
+    dismissedTips = overlay.coach;
+    refresh();
+  });
+  closeCoach.setAttribute("aria-label", "Hide tips");
+  const coachHead = make("div", "halo-coach-head");
+  coachHead.append(make("span", "", "Coach"), closeCoach);
+  coach.append(coachHead, tipList);
+  doc.body.append(coach);
+
   const refresh = (): void => {
     badge.textContent = overlay.badgeText();
     const href = notesHref((overlay.notesToast as { url?: unknown } | null)?.url);
     toast.hidden = href === null;
     if (href) link.href = href;
+    const tips = overlay.coach;
+    coach.hidden = !tips || overlay.hidden || tips === dismissedTips;
+    if (tips && tips !== shownTips) {
+      shownTips = tips;
+      tipList.dir = tips.lang === "ar" ? "rtl" : "ltr";
+      tipList.lang = tips.lang;
+      tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
+    }
   };
   port.onMessage.addListener(refresh);
   refresh();

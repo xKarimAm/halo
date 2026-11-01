@@ -19,6 +19,7 @@ Each folder under `backend/halo/` is one lane, labelled `module:<folder>`:
 | `notes_builder/` | `meeting.ended` to `notes.ready` |
 | `notes_service/` | `/notes/*` + `/api/*`, serves `notes-page/` |
 | `recorder/` | Recording chunks to local files |
+| `coach/` | Meeting coach: `coach.tips`, 1-3 steering tips about every 60 s |
 
 Who emits and consumes each event: `contracts/catalog.md`. `halo/app.py` is the composition root (packaging lane) and the only file that imports modules; `uv run lint-imports` enforces that, so modules talk over the bus only.
 

@@ -22,12 +22,18 @@ class Ack(BaseModel):
     status: Literal["ok", "error"]
     error: AckError | None = None
 
+class CoachTips(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    tips: list[str]
+    lang: Literal["en", "ar"]
+
 class Envelope(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     specversion: Literal["1.0"]
     id: UUID
-    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready"]
+    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready", "coach.tips"]
     source: str
     time: datetime
     meetingid: UUID | None

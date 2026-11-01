@@ -17,6 +17,7 @@ from fastapi import FastAPI
 
 from halo.bus import Bus
 from halo.classifier import Classifier
+from halo.coach import Coach
 from halo.correlator import Correlator
 from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
@@ -76,11 +77,13 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.gateway.start()
     app.state.insight.start()
     app.state.classifier.start()
+    app.state.coach.start()
     app.state.recorder.start()
     health = asyncio.create_task(health_loop(app, _data_dir()))
     yield
     health.cancel()
     app.state.recorder.stop()
+    app.state.coach.stop()
     app.state.classifier.stop()
     app.state.insight.stop()
     app.state.gateway.stop()
@@ -130,6 +133,8 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Classifier: post-hoc kind/urgency tags via the shared model client.
     app.state.classifier = Classifier(app.state.bus, app.state.llm)
     app.state.bus.register_health("tagger", app.state.classifier.health)
+    # Coach: the slow lane, 1-3 steering tips about once a minute.
+    app.state.coach = Coach(app.state.bus, app.state.llm)
     # Notes Builder: meeting.ended in, one validated notes.ready out.
     # The store file is the Event Store's own; this lane only ever reads it.
     app.state.notes_builder = NotesBuilder(

@@ -365,3 +365,33 @@ describe("archive and legend (Karim 2026-11-01)", () => {
     }
   });
 });
+
+describe("meeting coach panel", () => {
+  const tips = (id: string, list: string[], lang = "en") => ({ id, type: "coach.tips", data: { tips: list, lang } });
+
+  it("is hidden until coach.tips, then shows the newest tips only", () => {
+    const { deliver } = setup();
+    const panel = $<HTMLElement>(".halo-coach");
+    expect(panel.hidden).toBe(true);
+    deliver(tips("c1", ["Ask Omar for a date.", "Nobody owns the checklist."]));
+    expect(panel.hidden).toBe(false);
+    expect([...panel.querySelectorAll("li")].map((li) => li.textContent))
+      .toEqual(["Ask Omar for a date.", "Nobody owns the checklist."]);
+    deliver(tips("c2", ["Layla has not spoken yet."]));
+    expect([...panel.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["Layla has not spoken yet."]);
+  });
+
+  it("dismisses until the next tips, hides with Alt+H, and sets Arabic direction", () => {
+    const { overlay, deliver, refresh } = setup();
+    deliver(tips("c1", ["One."]));
+    $<HTMLButtonElement>(".halo-coach .halo-dismiss").click();
+    const panel = $<HTMLElement>(".halo-coach");
+    expect(panel.hidden).toBe(true);
+    deliver(tips("c2", ["اسأل عمر عن الموعد."], "ar"));
+    expect(panel.hidden).toBe(false);
+    expect(panel.querySelector("ul")!.getAttribute("dir")).toBe("rtl");
+    overlay.hidden = true;
+    refresh();
+    expect(panel.hidden).toBe(true);
+  });
+});

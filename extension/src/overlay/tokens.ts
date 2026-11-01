@@ -67,6 +67,12 @@ export const OVERLAY_CSS = `
 .halo-toast[hidden]{display:none}
 .halo-toast a{color:${HALO_GOLD}}
 .halo-dismiss{border:0;background:none;color:#cfd3da;font:inherit;font-size:16px;line-height:1;cursor:pointer}
+/* Coach: left edge, vertically centred, clear of Meet's tiles' name pills. */
+.halo-coach{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:2147483647;width:min(260px,calc(100vw - 24px));box-sizing:border-box;padding:10px 12px 12px;border-radius:16px;${PANEL};color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif;pointer-events:auto}
+.halo-coach[hidden]{display:none}
+.halo-coach-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600;letter-spacing:.02em;color:${HALO_GOLD}}
+.halo-coach ul{margin:0;padding-inline-start:16px;display:flex;flex-direction:column;gap:6px}
+.halo-coach :focus-visible{outline:2px solid ${HALO_GOLD};outline-offset:2px}
 .halo-lang{align-self:flex-start;padding:5px 10px;border:0;border-radius:999px;${GLASS};color:#f5f7fa;font:inherit;cursor:pointer}
 .halo-lang option{background:#16181d;color:#f5f7fa}
 .halo-popover{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));box-sizing:border-box;padding:16px 18px;border-radius:18px;background:rgba(16,18,22,.78);backdrop-filter:blur(24px) saturate(170%);box-shadow:0 16px 40px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.08);color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif;animation:halo-pop-in 180ms ease-out}

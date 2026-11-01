@@ -99,6 +99,8 @@ export class Overlay {
   hidden = false;
   status: unknown = null;
   notesToast: unknown = null;
+  // Meeting coach (coach.tips): the newest 1-3 tips; null until the first.
+  coach: { tips: string[]; lang: "en" | "ar" } | null = null;
   perFace = 3;
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];
@@ -157,6 +159,7 @@ export class Overlay {
       }
     } else if (env.type === "system.status") this.status = env.data;
     else if (env.type === "notes.ready") this.notesToast = env.data;
+    else if (env.type === "coach.tips") this.coach = env.data as never;
   }
 
   applyPointsUpsert(point: PointsUpsert, _envelopeId?: string): void {
