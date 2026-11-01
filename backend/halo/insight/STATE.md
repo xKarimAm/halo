@@ -5,7 +5,7 @@ Implement insight per its PLAN.md; done ONLY when `uv run pytest backend/halo/in
 
 ## Key decisions
 - `Insight` subscribes `turn.attributed` / `speaker.mapped` / `meeting.context`; every other input (the model) arrives as an injected `llm` object shaped like the llm lane's client (`complete_json(...)` -> `{ok, engine, data?, error?}`, plus `health()`). Insight never imports `halo.llm` (lane rule); the llm PR's API is the contract, noted in that PR.
-- Caps never drop: per-speaker 1 call / 3 s and global 12 RPM (sliding 60 s) gate a flush; blocked speakers' turns are held and the next allowed call pops ALL of them, carrying every held `turn_id`. A 250 ms loop plus an opportunistic flush on every turn drains held turns during silence and keeps latency low when busy.
+- Caps never drop: per-speaker 1 call / 3 s and global 30 RPM (sliding 60 s; was 12 for Baseten until 2026-11-01) gate a flush; blocked speakers' turns are held and the next allowed call pops ALL of them, carrying every held `turn_id`. A 250 ms loop plus an opportunistic flush on every turn drains held turns during silence and keeps latency low when busy.
 - The sync model call runs in `asyncio.to_thread` so one slow call never stalls the bus loop.
 - Prompt order per the skill: fixed instructions, meeting context, the speaker's current points, new words last; one stable `prompt_cache_key` (`insight-v1`). Point `lang` = latest `viewer_lang` (default `en`); `tile_id`/`speaker_name`/`attribution` come from the latest held turn.
 - `corrects[]` never re-runs the model: stored points are re-sent with the same `point_id`, new tile/name, `attribution: locked`, text unchanged. `replaces` passes through only when the model sets it on a new point.
