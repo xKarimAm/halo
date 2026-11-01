@@ -118,6 +118,8 @@ class Insight:
         self._chunk_words = chunk_words
         self._hold_max_s = hold_max_s
         self._held_since: dict[tuple[str, str], float] = {}
+        # Words a "none" sent back to wait: no new call until more arrive.
+        self._rehold_words: dict[tuple[str, str], int] = {}
         self._bus = bus
         self._llm = llm
         self._clock = clock or time.monotonic
@@ -244,7 +246,7 @@ class Insight:
     def _flushable(self, key: tuple[str, str], now: float) -> bool:
         text = " ".join(str(t.get("text", "")) for t in self._held.get(key, [])).strip()
         words = len(text.split())
-        if words < self._min_words:
+        if words < self._min_words or words <= self._rehold_words.get(key, 0):
             return False
         if not (text.endswith(SENTENCE_END) or words >= self._chunk_words
                 or now - self._held_since.get(key, now) >= self._hold_max_s):
@@ -259,6 +261,7 @@ class Insight:
         meetingid, _ = key
         turns = self._held.pop(key, [])
         self._held_since.pop(key, None)
+        self._rehold_words.pop(key, None)
         if not turns:
             return
         now = self._clock()
@@ -294,6 +297,7 @@ class Insight:
                 # Cut off mid-sentence: the words wait for the rest of it.
                 self._held[key] = turns + self._held.get(key, [])
                 self._held_since.setdefault(key, now)
+                self._rehold_words[key] = len(text.split())
             return  # filler: the turns are spent, no point
         latest = turns[-1]
         point: dict[str, Any] = {

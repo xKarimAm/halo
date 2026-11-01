@@ -8,7 +8,7 @@
   --caption-bg:#dfe3d6; --menu-bg:rgba(250,247,241,.985);
   --aura-1:rgba(127,154,120,.16); --aura-2:rgba(201,138,104,.13); --aura-3:rgba(214,186,132,.18);
   --dec:#3b6343; --q:#3d6079; --push:#9a4526; --pt:#6f5468;
-  --urg-hi:#a23b37; --urg-mid:#77590d; --urg-lo:#5a5f56;
+  --urg-hi:#b3261e; --urg-mid:#9a6400; --urg-lo:#2f6db5; /* urgent red, medium amber, later blue: same order as the Meet overlay */
   --focus:#3d6079; --knob:#2a2924; --logo-dot:#5f7f62;
   --mark-bg:rgba(217,180,90,.38); --mark-text:#2a2924;
   --why-a:rgba(127,154,120,.20);
@@ -79,7 +79,9 @@ mark{background:var(--mark-bg);color:var(--mark-text);border-radius:3px;padding:
 .ucol h3,.ugroup h3{display:flex;align-items:center;gap:6px;font-size:13px;margin:0 0 6px}
 .ucol h3 em,.ugroup h3 em{font-style:normal;color:var(--muted)}
 .udot{width:9px;height:9px;border-radius:50%;background:var(--urg-lo)}
-.u-hi .udot{background:var(--urg-hi)} .u-mid .udot{background:var(--urg-mid)} .u-lo .udot{background:var(--urg-lo)}
+/* app.js tags urgency as u-urgent|u-medium|u-later (live 2026-11-01: the old u-hi/u-mid/u-lo never matched, every dot was grey) */
+.u-urgent .udot{background:var(--urg-hi)} .u-medium .udot{background:var(--urg-mid)} .u-later .udot{background:var(--urg-lo)}
+.act.u-urgent{box-shadow:inset 3px 0 0 var(--urg-hi)} .act.u-medium{box-shadow:inset 3px 0 0 var(--urg-mid)} .act.u-later{box-shadow:inset 3px 0 0 var(--urg-lo)}
 ul{list-style:none;margin:0;padding:0}
 .act{display:flex;gap:10px;padding:10px 4px;border-top:1px solid var(--hair)}
 .act.sug .body{border-inline-start:2px dashed var(--muted);padding-inline-start:8px}

@@ -507,6 +507,9 @@ def test_a_cut_off_sentence_judged_none_waits_for_the_rest():
         t1, t2 = ("00000071-0000-4000-8000-000000000071", "00000072-0000-4000-8000-000000000072")
         await bus.publish(turn_envelope(t1, "how their lives will be changed if they"))
         assert len(llm.calls) == 1 and points == []
+        clock.advance(30)  # silence: the held words alone never trigger another call
+        await insight.flush()
+        assert len(llm.calls) == 1
         await bus.publish(turn_envelope(t2, "use it.", ts=3000))
         assert len(llm.calls) == 2 and points[0]["data"]["turn_ids"] == [t1, t2]
 
