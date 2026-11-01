@@ -1,21 +1,25 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CONSENT_NOTICE, FakeClock, Overlay, notesHref } from "./overlay";
-import { mountControls } from "./index";
+import { bindHideKey, mountControls, mountPopover } from "./index";
 
 // Badge, consent dialog and notes-ready toast (issue #73), on a real DOM.
 type Listener = (msg: unknown) => void;
 function setup(clipboard: { writeText(t: string): unknown }) {
   const listeners: Listener[] = [];
+  const posted: unknown[] = [];
   const overlay = new Overlay(new FakeClock());
-  const port = { onMessage: { addListener: (fn: Listener) => { listeners.push(fn); } } };
+  const port = {
+    onMessage: { addListener: (fn: Listener) => { listeners.push(fn); } },
+    postMessage: (msg: unknown) => { posted.push(msg); },
+  };
   const refresh = mountControls(document, overlay, port, clipboard);
   // What boot() does on the same Port: apply first, then the controls refresh.
   const deliver = (envelope: { id: string; type: string; data: Record<string, unknown> }) => {
     overlay.applyEnvelope(envelope);
     for (const fn of listeners) fn({ type: "backend.envelope", envelope });
   };
-  return { overlay, deliver, refresh };
+  return { overlay, deliver, refresh, posted };
 }
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;
 const byText = (text: string) =>
@@ -94,5 +98,142 @@ describe("consent dialog", () => {
     byText("Copy notice").click();
     await new Promise((r) => setTimeout(r, 0));
     expect($(".halo-copy-status").textContent).toBe("Copy failed. Select the text and copy it.");
+  });
+});
+
+// Original-quote popover (DECISIONS 1: "the original quote is one click away").
+function withPoint(over: Record<string, unknown> = {}) {
+  const overlay = new Overlay(new FakeClock());
+  overlay.applyTiles({ tiles: [{ tile_id: "tile-1", name: "Layla", is_self: false, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null }] });
+  overlay.applyPointsUpsert({
+    point_id: "pt-1", tile_id: "tile-1", speaker_name: "Layla", kind: "question",
+    text: "Will the Arabic listing be ready?", lang: "en", quote: "هل ستكون القائمة العربية جاهزة؟",
+    turn_ids: ["t-1"], rank: 1, attribution: "provisional", is_action: false, engine: "spark-open", ...over,
+  } as never, "env-1");
+  const root = document.createElement("div");
+  document.body.append(root);
+  overlay.render(document as never, root as never, 0);
+  mountPopover(document, overlay, root);
+  const chip = root.querySelector<HTMLButtonElement>('[data-point-id="pt-1"]')!;
+  return { overlay, root, chip };
+}
+
+describe("original-quote popover", () => {
+  it("a bubble click shows kind, speaker, text and the original quote in its own direction", () => {
+    const { chip } = withPoint();
+    chip.click();
+    const pop = $<HTMLElement>(".halo-popover");
+    expect(pop.hidden).toBe(false);
+    expect(pop.textContent).toContain("Question");
+    expect(pop.textContent).toContain("Layla");
+    expect(pop.textContent).toContain("Will the Arabic listing be ready?");
+    const quote = $<HTMLElement>(".halo-popover blockquote");
+    expect(quote.textContent).toBe("هل ستكون القائمة العربية جاهزة؟");
+    expect(quote.dir).toBe("rtl");
+    expect(quote.lang).toBe("ar");
+  });
+
+  it("an urgent point shows the plain word Urgent", () => {
+    const { chip } = withPoint({ urgency: "urgent" });
+    chip.click();
+    expect($(".halo-popover").textContent).toContain("Urgent");
+  });
+
+  it("Esc closes it and focus returns to the bubble", () => {
+    const { chip } = withPoint();
+    chip.focus();
+    chip.click();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+    expect(document.activeElement).toBe(chip);
+  });
+
+  it("a click outside closes it; a second click on the same bubble toggles it shut", () => {
+    const { chip } = withPoint();
+    chip.click();
+    document.body.click();
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+    chip.click();
+    chip.click();
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+  });
+});
+
+// Alt+H hides the bubbles (PLAN case 6); the badge reads "Halo · hidden".
+describe("Alt+H on the Meet page", () => {
+  const press = (init: KeyboardEventInit) => {
+    const ev = new KeyboardEvent("keydown", { key: "h", bubbles: true, cancelable: true, ...init });
+    document.dispatchEvent(ev);
+    return ev;
+  };
+
+  it("toggles hidden, refreshes, and keeps the key from Meet", () => {
+    const overlay = new Overlay(new FakeClock());
+    let changes = 0;
+    bindHideKey(document, overlay, () => { changes += 1; });
+    const ev = press({ altKey: true });
+    expect(overlay.hidden).toBe(true);
+    expect(changes).toBe(1);
+    expect(ev.defaultPrevented).toBe(true);
+    press({ altKey: true });
+    expect(overlay.hidden).toBe(false);
+  });
+
+  it("passes Ctrl+Alt+H and plain h through untouched", () => {
+    const overlay = new Overlay(new FakeClock());
+    let changes = 0;
+    bindHideKey(document, overlay, () => { changes += 1; });
+    expect(press({ altKey: true, ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(press({}).defaultPrevented).toBe(false);
+    expect(overlay.hidden).toBe(false);
+    expect(changes).toBe(0);
+  });
+});
+
+// Points language from the Meet page (PLAN: badge menu -> Port set_viewer_lang;
+// the hub re-sends meeting.context). Saved into the popup's stored context so
+// the next Start keeps the choice.
+describe("points language picker", () => {
+  const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+  function storeWith(context: unknown) {
+    const data: Record<string, unknown> = { "halo.context": context };
+    (globalThis as unknown as { chrome: unknown }).chrome = {
+      storage: { local: {
+        get: async (keys: string[]) => Object.fromEntries(keys.map((k) => [k, data[k]])),
+        set: async (items: Record<string, unknown>) => { Object.assign(data, items); },
+      } },
+    };
+    return data;
+  }
+  afterEach(() => { delete (globalThis as unknown as { chrome?: unknown }).chrome; });
+
+  it("starts from the saved context language", async () => {
+    storeWith({ subject: "Launch", agenda: [], roles: [], viewer_lang: "ar" });
+    setup({ writeText: () => {} });
+    await flush();
+    expect($<HTMLSelectElement>(".halo-lang").value).toBe("ar");
+  });
+
+  it("a change tells the hub and saves the language into the stored context", async () => {
+    const data = storeWith({ subject: "Launch", agenda: ["a"], roles: [], viewer_lang: "en" });
+    const { posted } = setup({ writeText: () => {} });
+    await flush();
+    const select = $<HTMLSelectElement>(".halo-lang");
+    select.value = "ar";
+    select.dispatchEvent(new Event("change"));
+    await flush();
+    expect(posted).toEqual([{ type: "set_viewer_lang", viewer_lang: "ar" }]);
+    expect(data["halo.context"]).toEqual({ subject: "Launch", agenda: ["a"], roles: [], viewer_lang: "ar" });
+  });
+
+  it("defaults to English with no saved context and still tells the hub", async () => {
+    storeWith(undefined);
+    const { posted } = setup({ writeText: () => {} });
+    await flush();
+    const select = $<HTMLSelectElement>(".halo-lang");
+    expect(select.value).toBe("en");
+    select.value = "ar";
+    select.dispatchEvent(new Event("change"));
+    expect(posted).toEqual([{ type: "set_viewer_lang", viewer_lang: "ar" }]);
   });
 });
