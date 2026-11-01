@@ -184,3 +184,17 @@ def test_hub_ended_first_cancels_the_timeout(tmp_path):
         gateway.stop()
 
     asyncio.run(run())
+
+
+def test_health_counts_open_meetings(tmp_path):
+    async def run():
+        bus = Bus()
+        gateway = Gateway(bus, data_dir=tmp_path, extension_id="x")
+        assert gateway.health()["meetings_open"] == 0
+        await bus.publish(started_envelope())
+        assert gateway.health()["meetings_open"] == 1
+        await bus.publish(ended_envelope("left"))
+        assert gateway.health()["meetings_open"] == 0
+        gateway.stop()
+
+    asyncio.run(run())

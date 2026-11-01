@@ -100,8 +100,9 @@ def check(snap: dict[str, Any], opens_minute_ago: int) -> dict[str, str]:
     if gw["sockets_opened"] - opens_minute_ago >= CHURN_OPENS:
         problems["churn"] = f"{gw['sockets_opened'] - opens_minute_ago} socket opens in the last minute"
     for stream, age in gw["audio_age_s"].items():
-        if gw["sessions"] and age is not None and age > AUDIO_STALE_S:
-            problems[f"audio.{stream}"] = f"no {stream} audio for {age:.0f} s while the extension is connected"
+        # The hub keeps its socket between meetings: only an open meeting expects audio.
+        if gw["meetings_open"] and age is not None and age > AUDIO_STALE_S:
+            problems[f"audio.{stream}"] = f"no {stream} audio for {age:.0f} s during an open meeting"
     for name, (size, maxsize) in snap["queues"].items():
         if maxsize and size >= QUEUE_HIGH * maxsize:
             problems[f"queue.{name}"] = f"{name} queue backlog {size}/{maxsize}"
