@@ -212,6 +212,12 @@ class TurnAssembler:
             return self._complete(key)
         return None
 
+    def open_text(self) -> str:
+        """Cumulative text of the open turn, '' when none is open."""
+        if self._open is None or self._open in self._done:
+            return ""
+        return self._text.get(self._open, "")
+
     def maybe_cut(self, pause_start_ms: int | None = None) -> dict[str, Any] | None:
         """Emit the open turn's new words since the last cut, or None.
 

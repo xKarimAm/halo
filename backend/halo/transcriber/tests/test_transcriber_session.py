@@ -165,3 +165,15 @@ def test_mic_silent_warning_says_how_loud_the_mic_was(caplog):
 async def _feed_pcm(session: TranscriptionSession, pcm: bytes, n: int) -> None:
     for i in range(n):
         await session.feed_frame(i, ANCHOR + i * FRAME_MS, pcm)
+
+
+def test_live_view_shows_level_words_and_turns(caplog):
+    fake = script(turn("mic", "you", "Launch moves to Nov 12.", 200, 900))
+    session, _ = make_session(fake, "mic", ENDPOINTING)
+    asyncio.run(session.open("key"))
+    with caplog.at_level(logging.INFO, logger="halo.transcriber"):
+        feed(session, 20)
+    live = session.live()
+    assert live["frames"] == 20 and live["level_rms"] > 0
+    assert live["turns"] == 1 and live["last_turn"] == "Launch moves to Nov 12."
+    assert any("transcript mic you: Launch moves" in r.getMessage() for r in caplog.records)
