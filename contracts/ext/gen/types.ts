@@ -52,6 +52,8 @@ export interface MeetingPageMeeting {
   degraded: boolean;
   project_id?: string;
   t0_ms: number;
+  title?: string;
+  summary?: string;
 }
 
 export interface MeetingPagePeople {
@@ -155,6 +157,8 @@ export interface NotesReady {
   url: string;
   degraded: boolean;
   people: NotesReadyPeople[];
+  title?: string;
+  summary?: string;
 }
 
 export interface PairHello {

@@ -72,6 +72,8 @@ class MeetingPageMeeting(BaseModel):
     degraded: bool
     project_id: str | None = None
     t0_ms: int
+    title: str | None = None
+    summary: str | None = None
 
 
 class MeetingPagePeople(BaseModel):
@@ -197,6 +199,8 @@ class NotesReady(BaseModel):
     url: str
     degraded: bool
     people: list[NotesReadyPeople]
+    title: str | None = None
+    summary: str | None = None
 
 class PairHello(BaseModel):
     model_config = ConfigDict(extra='forbid')

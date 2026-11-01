@@ -2,6 +2,8 @@
   "meeting": {
     "meeting_id": "22222222-2222-4222-8222-222222222222",
     "subject": "Launch readiness",
+    "title": "Launch date moves to Nov 12",
+    "summary": "The team agreed to move the launch to Nov 12. Layla owns the date change. The Arabic store listing is still open.",
     "project_id": "halo-q4",
     "degraded": false,
     "t0_ms": 1760000000000

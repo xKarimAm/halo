@@ -27,6 +27,8 @@ const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css
 let server;
 let baseURL;
 const postedTags = [];
+// Fake folder store, same shapes as the Notes Service /api/folders.
+const folders = { list: [], byMeeting: {} };
 
 function send(res, status, body, type) {
   res.writeHead(status, { "Content-Type": type || "application/json" });
@@ -38,7 +40,8 @@ test.beforeAll(async () => {
     const url = new URL(req.url, "http://127.0.0.1");
     if (req.method === "GET" && url.pathname === "/api/meetings") {
       return send(res, 200, JSON.stringify([
-        { meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, people: ["Layla"], date: "Tue 28 Oct" },
+        { meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, title: GOLDEN.meeting.title,
+          people: ["Layla"], date: "Tue 28 Oct", folder_id: folders.byMeeting[MEETING_ID] || null },
       ]));
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/" + MEETING_ID) {
@@ -61,6 +64,23 @@ test.beforeAll(async () => {
           }]
         : [];
       return send(res, 200, JSON.stringify({ hits }));
+    }
+    if (url.pathname === "/api/folders") {
+      if (req.method === "GET") {
+        return send(res, 200, JSON.stringify(folders.list.map((f) => ({
+          ...f, count: Object.values(folders.byMeeting).filter((id) => id === f.folder_id).length,
+        }))));
+      }
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        const body = JSON.parse(raw);
+        const folder = { folder_id: "f" + (folders.list.length + 1), name: body.name };
+        folders.list.push(folder);
+        if (body.meeting_id) folders.byMeeting[body.meeting_id] = folder.folder_id;
+        send(res, 201, JSON.stringify(folder));
+      });
+      return;
     }
     if (req.method === "POST" && url.pathname === "/api/tags") {
       let raw = "";
@@ -89,6 +109,8 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   postedTags.length = 0;
+  folders.list.length = 0;
+  for (const k of Object.keys(folders.byMeeting)) delete folders.byMeeting[k];
 });
 
 test("(1) list view renders meetings and search hits with highlights", async ({ page }) => {
@@ -104,7 +126,8 @@ test("(1) list view renders meetings and search hits with highlights", async ({ 
 
 test("(2) meeting view: avatar selects person with why, points, actions, filter counts", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
-  await expect(page.getByRole("heading", { name: "Launch readiness" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: GOLDEN.meeting.title })).toBeVisible();
+  await expect(page.locator(".mtg-summary")).toHaveText(GOLDEN.meeting.summary);
   await page.locator('.person[data-person="Layla"]').click();
   const panel = page.locator(".panel");
   await expect(panel).toBeVisible();
@@ -164,4 +187,52 @@ test("(7) Arabic toggle renders RTL with Arabic labels and no overflow at 560px"
     () => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+// Karim 2026-11-02: browser Back must work, a hovered meeting previews on
+// the right (like Wispr Flow), meetings go into folders, and an assigned
+// action can be emailed to its owner.
+test("(8) browser Back and Forward move between the list and a meeting", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator(".mtg-card").first().click();
+  await expect(page.getByRole("heading", { name: GOLDEN.meeting.title })).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/notes/" + MEETING_ID);
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Meetings" })).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: GOLDEN.meeting.title })).toBeVisible();
+});
+
+test("(9) hovering a meeting previews its title, summary and action counts", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await expect(page.locator(".mtg-card").first()).toContainText(GOLDEN.meeting.title);
+  await page.locator(".mtg-card").first().hover();
+  const preview = page.locator("#preview");
+  await expect(preview).toContainText(GOLDEN.meeting.title);
+  await expect(preview).toContainText(GOLDEN.meeting.summary);
+  await expect(preview).toContainText(GOLDEN.actions[0].text);
+  await expect(preview.locator(".pv-counts")).toContainText("Medium 1");
+});
+
+test("(10) create a folder from a meeting, then filter the list by it", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator(".mtg-card").first().hover();
+  await page.locator("#preview .new-folder").fill("Launch");
+  await page.locator("#preview .create-folder").click();
+  const folder = page.locator(".folders [data-folder]", { hasText: "Launch" });
+  await expect(folder).toContainText("1");
+  await folder.click();
+  await expect(page.locator(".mtg-card")).toHaveCount(1);
+  await page.locator(".folders [data-folder='']").click();
+  await expect(page.locator(".mtg-card")).toHaveCount(1);
+});
+
+test("(11) an assigned action has an email link carrying its text and the meeting", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator(".mtg-card").first().click();
+  const mail = page.locator("a.mail").first();
+  const href = decodeURIComponent(await mail.getAttribute("href"));
+  expect(href.startsWith("mailto:?")).toBe(true);
+  expect(href).toContain(GOLDEN.actions[0].text);
+  expect(href).toContain(GOLDEN.meeting.title);
 });

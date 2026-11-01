@@ -40,7 +40,7 @@ def assert_valid_page(page):
     MeetingPage.model_validate(page)
 
 
-def seed_db(path, *, ended=True, ready=True, user_tag=False):
+def seed_db(path, *, ended=True, ready=True, user_tag=False, summary=False):
     conn = sqlite3.connect(str(path))
     conn.executescript(MINI_DDL)
     conn.execute(
@@ -91,7 +91,10 @@ def seed_db(path, *, ended=True, ready=True, user_tag=False):
             " VALUES (?, 'notes.ready', ?, ?, 'halo/notes_builder', 'application/json', ?)",
             (str(uuid.uuid4()), "2026-10-31T09:00:00Z", MEETING, json.dumps({
                 "meeting_id": MEETING, "project_id": "halo-q4",
-                "url": f"/notes/{MEETING}", "degraded": False, "people": [{
+                "url": f"/notes/{MEETING}", "degraded": False,
+                **({"title": "Launch date moves to Nov 12",
+                    "summary": "The launch moves to Nov 12. Layla owns it."} if summary else {}),
+                "people": [{
                     "name": "Layla", "role": "Engineering lead", "why": "Owns RTL.",
                     "relevant_points": [], "own_points": [P1], "actions": [{
                         "action_id": action_id_for(P1), "text": "Launch moves to Nov 12",
@@ -152,7 +155,7 @@ def test_list_and_project_filter(tmp_path):
     client, _, _ = make_client(tmp_path)
     meetings = client.get("/api/meetings").json()
     assert meetings == [{"meeting_id": MEETING, "subject": "Launch readiness",
-                         "people": ["Layla", "Omar"], "date": "Thu 09 Oct"}]
+                         "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None}]
     assert client.get("/api/meetings", params={"project_id": "halo-q4"}).json() == meetings
     assert client.get("/api/meetings", params={"project_id": "other"}).json() == []
 
@@ -211,3 +214,39 @@ def test_user_tags_reach_page_and_search(tmp_path):
     assert page["points"][0]["urgency"] == "urgent"
     hits = client.get("/api/search", params={"q": "launch"}).json()["hits"]
     assert next(h for h in hits if h["scope"] == "point")["urgency"] == "urgent"
+
+
+def test_ai_title_and_summary_from_notes_ready(tmp_path):
+    """Karim 2026-11-02: the builder's AI title + summary reach the page and the list."""
+    client, _, _ = make_client(tmp_path, summary=True)
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    assert_valid_page(page)
+    assert page["meeting"]["title"] == "Launch date moves to Nov 12"
+    assert page["meeting"]["summary"] == "The launch moves to Nov 12. Layla owns it."
+    assert client.get("/api/meetings").json()[0]["title"] == "Launch date moves to Nov 12"
+
+
+def test_list_shell_address(tmp_path):
+    """/notes/ is the list's own address, so browser Back lands on it (#102)."""
+    client, _, _ = make_client(tmp_path)
+    assert client.get("/notes/").status_code == 200
+    assert "shell" in client.get("/notes").text
+
+
+def test_folders_create_move_and_persist(tmp_path):
+    client, bus, data = make_client(tmp_path)
+    assert client.get("/api/folders").json() == []
+    res = client.post("/api/folders", json={"name": "Launch", "meeting_id": MEETING})
+    assert res.status_code == 201
+    folder = res.json()
+    assert folder["name"] == "Launch"
+    assert client.get("/api/folders").json() == [{**folder, "count": 1}]
+    assert client.get("/api/meetings").json()[0]["folder_id"] == folder["folder_id"]
+    assert client.post("/api/folders/move", json={"meeting_id": MEETING, "folder_id": None}).status_code == 200
+    assert client.get("/api/meetings").json()[0]["folder_id"] is None
+    assert client.post("/api/folders", json={"name": "  "}).status_code == 400
+    assert client.post("/api/folders/move", json={"meeting_id": MEETING, "folder_id": "nope"}).status_code == 404
+    # A fresh service (backend restart) reads the same folders back.
+    from halo.notes_service.notes_service import NotesService
+    again = NotesService(bus, data_dir=data)
+    assert [f["name"] for f in again.folders()] == ["Launch"]

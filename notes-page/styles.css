@@ -158,3 +158,20 @@ audio.rec{width:100%;margin-top:8px;max-width:100%}
   .cols{grid-template-columns:minmax(0,1fr)}
   .pgrid{grid-template-columns:minmax(0,1fr)}
 }
+/* Karim 2026-11-02: folders, Wispr-Flow-style hover preview, AI summary, email link */
+.folders{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.fchip{padding:5px 12px;border-radius:999px;border:1px solid var(--rim);font-size:13px;color:var(--muted)}
+.fchip[aria-pressed="true"]{background:var(--text);color:var(--on-accent);border-color:var(--text)}
+.fchip em{font-style:normal;opacity:.75}
+.preview{padding:16px 18px;align-self:start;position:sticky;top:12px}
+.preview h2{margin:0 0 2px;font-size:18px}
+.preview h3{margin:14px 0 6px;font-size:13px;color:var(--muted)}
+.pv-summary,.mtg-summary{line-height:1.5;margin:8px 0}
+.pv-counts{font-weight:600;font-size:13px}
+.pv-list{margin:0;padding-inline-start:18px;font-size:14px;line-height:1.5}
+.pv-list small{color:var(--muted)}
+.pv-folder{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.pv-folder .in{flex:1;min-width:140px;padding:6px 10px;border-radius:10px;border:1px solid var(--rim);background:transparent;font:inherit}
+.pv-folder select{padding:6px 8px;border-radius:10px;border:1px solid var(--rim);background:transparent;font:inherit}
+.pv-open{margin-top:12px}
+.mail{text-decoration:none}

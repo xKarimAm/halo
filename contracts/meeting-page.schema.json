@@ -23,6 +23,14 @@
         "t0_ms": {
           "type": "integer",
           "minimum": 0
+        },
+        "title": {
+          "type": "string",
+          "description": "AI title from the Notes Builder at meeting end; absent until then (show subject)."
+        },
+        "summary": {
+          "type": "string",
+          "description": "AI 3-5 line summary from the Notes Builder at meeting end; absent until then."
         }
       },
       "required": [

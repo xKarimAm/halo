@@ -3,8 +3,9 @@
 Read-only over the Event Store SQLite file (`meetings` + `events`; the
 documented points/tags semantics mirrored in Python, own copy — lane
 independence), plus the static `notes-page/` dir and the `recordings/`
-files. The only write path is `POST /api/tags`, which publishes `tags.set`
-(`source: user`) on the bus. No `notes.ready` consumption: the page is
+files. Write paths: `POST /api/tags`, which publishes `tags.set`
+(`source: user`) on the bus, and the folders in `data/folders.json` (this
+lane's own file; Karim 2026-11-02). No `notes.ready` consumption: the page is
 assembled here; people/actions prefer the latest stored `notes.ready`
 event, falling back to live state before the builder runs.
 """
@@ -58,6 +59,52 @@ class NotesService:
             self._static = Path(static_dir)
         else:
             self._static = Path(__file__).resolve().parents[3] / "notes-page"
+
+    # -- folders (data/folders.json) -----------------------------------------
+
+    def _folders_path(self) -> Path:
+        return self._data_dir / "folders.json"
+
+    def _load_folders(self) -> dict[str, Any]:
+        try:
+            data = json.loads(self._folders_path().read_text(encoding="utf-8"))
+            return {"folders": list(data.get("folders", [])), "meetings": dict(data.get("meetings", {}))}
+        except (OSError, ValueError, AttributeError):
+            return {"folders": [], "meetings": {}}
+
+    def _save_folders(self, data: dict[str, Any]) -> None:
+        # ponytail: whole-file rewrite, fine for a handful of folders on one PC
+        tmp = self._folders_path().with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(self._folders_path())
+
+    def folders(self) -> list[dict[str, Any]]:
+        data = self._load_folders()
+        counts: dict[str, int] = {}
+        for folder_id in data["meetings"].values():
+            counts[folder_id] = counts.get(folder_id, 0) + 1
+        return [{**f, "count": counts.get(f["folder_id"], 0)} for f in data["folders"]]
+
+    def create_folder(self, name: str, meeting_id: str | None = None) -> dict[str, Any]:
+        data = self._load_folders()
+        folder = {"folder_id": str(uuid.uuid4()), "name": name}
+        data["folders"].append(folder)
+        if meeting_id:
+            data["meetings"][meeting_id] = folder["folder_id"]
+        self._save_folders(data)
+        return folder
+
+    def move_to_folder(self, meeting_id: str, folder_id: str | None) -> bool:
+        """False when folder_id names no folder; None takes the meeting out."""
+        data = self._load_folders()
+        if folder_id is None:
+            data["meetings"].pop(meeting_id, None)
+        elif any(f["folder_id"] == folder_id for f in data["folders"]):
+            data["meetings"][meeting_id] = folder_id
+        else:
+            return False
+        self._save_folders(data)
+        return True
 
     # -- store reads --------------------------------------------------------
 
@@ -253,6 +300,9 @@ class NotesService:
         }
         if meeting["project_id"] is not None:
             page["meeting"]["project_id"] = meeting["project_id"]
+        for key in ("title", "summary"):  # AI, from the builder's notes.ready
+            if ready and isinstance(ready.get(key), str) and ready[key].strip():
+                page["meeting"][key] = ready[key].strip()
         return page
 
     # -- list / search ---------------------------------------------------------
@@ -272,20 +322,26 @@ class NotesService:
                     "SELECT meeting_id, subject, project_id, t0_ms FROM meetings"
                     " ORDER BY t0_ms DESC")
             out = []
+            in_folder = self._load_folders()["meetings"]
             for row in rows:
                 meeting = dict(row)
                 turns = self._turns(conn, meeting["meeting_id"])
+                ready = self._latest_ready(conn, meeting["meeting_id"]) or {}
                 seen: list[str] = []
                 for turn in turns:
                     if turn["speaker"] not in seen:
                         seen.append(turn["speaker"])
-                out.append({
+                item = {
                     "meeting_id": meeting["meeting_id"],
                     "subject": meeting["subject"] or "Untitled meeting",
                     "people": seen,
                     "date": datetime.fromtimestamp(
                         (meeting["t0_ms"] or 0) / 1000, UTC).strftime("%a %d %b"),
-                })
+                    "folder_id": in_folder.get(meeting["meeting_id"]),
+                }
+                if isinstance(ready.get("title"), str) and ready["title"].strip():
+                    item["title"] = ready["title"].strip()
+                out.append(item)
             return out
         finally:
             conn.close()
@@ -437,6 +493,16 @@ async def notes_styles(request: Request):  # type: ignore[no-untyped-def]
     return FileResponse(path, media_type="text/css")
 
 
+@router.get("/notes/")
+@router.get("/notes")
+async def notes_list_shell(request: Request):  # type: ignore[no-untyped-def]
+    """The meetings list's own address (browser Back lands here, #102)."""
+    path = _service(request).static_file("index.html")
+    if path is None:
+        return JSONResponse({"detail": "notes shell not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
 @router.get("/notes/{meeting_id}")
 async def notes_shell(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
     service = _service(request)
@@ -508,6 +574,41 @@ async def api_tags(request: Request):  # type: ignore[no-untyped-def]
     }
     await service._bus.publish(envelope)
     return envelope
+
+
+@router.get("/api/folders")
+async def api_folders(request: Request):  # type: ignore[no-untyped-def]
+    return _service(request).folders()
+
+
+@router.post("/api/folders", status_code=201)
+async def api_create_folder(request: Request):  # type: ignore[no-untyped-def]
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    name = body.get("name") if isinstance(body, dict) else None
+    if not isinstance(name, str) or not name.strip():
+        return JSONResponse({"detail": "folder name required"}, status_code=400)
+    meeting_id = body.get("meeting_id")
+    return _service(request).create_folder(
+        name.strip()[:80], meeting_id if isinstance(meeting_id, str) else None)
+
+
+@router.post("/api/folders/move")
+async def api_move_to_folder(request: Request):  # type: ignore[no-untyped-def]
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("meeting_id"), str):
+        return JSONResponse({"detail": "meeting_id required"}, status_code=400)
+    folder_id = body.get("folder_id")
+    if folder_id is not None and not isinstance(folder_id, str):
+        return JSONResponse({"detail": "folder_id must be a string or null"}, status_code=400)
+    if not _service(request).move_to_folder(body["meeting_id"], folder_id):
+        return JSONResponse({"detail": "unknown folder"}, status_code=404)
+    return {"meeting_id": body["meeting_id"], "folder_id": folder_id}
 
 
 @router.get("/api/audio")

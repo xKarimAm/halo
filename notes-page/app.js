@@ -37,7 +37,13 @@
       degraded: "AI summary failed, showing live notes.",
       keep: "Video auto-deletes after 7 days. Notes and transcript stay.",
       none: "Nothing here.", draftOnly: "Draft: only this meeting is filled in.",
-      translated: "Translated", video: "Video"
+      translated: "Translated", video: "Video",
+      allMeetings: "All meetings", preview: "Hover a meeting to preview it",
+      noSummary: "The AI summary appears when the meeting ends.",
+      newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
+      noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open notes",
+      mailSubject: "Action item from \u201C{m}\u201D: {a}",
+      mailBody: "Hi {o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes"
     },
     ar: {
       notes: "الملاحظات", meetings: "الاجتماعات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
@@ -62,7 +68,13 @@
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
       keep: "يُحذف الفيديو تلقائياً بعد ٧ أيام. الملاحظات والنص باقية.",
       none: "لا شيء هنا.", draftOnly: "مسودة: هذا الاجتماع فقط مكتمل.",
-      translated: "مترجم", video: "الفيديو"
+      translated: "مترجم", video: "الفيديو",
+      allMeetings: "كل الاجتماعات", preview: "مرّر على اجتماع لمعاينته",
+      noSummary: "يظهر الملخص الآلي عند انتهاء الاجتماع.",
+      newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
+      noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الملاحظات",
+      mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
+      mailBody: "مرحباً {o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo"
     }
   };
 
@@ -324,6 +336,11 @@
     if (showWho !== false) ameta.appendChild(personChip(action.owner, lang));
     if (line) ameta.appendChild(lineChip(app, line, lang));
     ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
+    if (assigned) {
+      var mail = el("a", "mail chip", "\u2709 " + t(lang, "email"));
+      mail.href = mailHref(app, action, lang);
+      ameta.appendChild(mail);
+    }
     body.appendChild(ameta);
     li.appendChild(body);
     return li;
@@ -352,6 +369,22 @@
     return bar;
   }
 
+  function titleOf(meeting) {
+    return meeting.title || meeting.subject;
+  }
+
+  function fmtDate(ms) {
+    return ms ? new Date(ms).toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }) : "";
+  }
+
+  function mailHref(app, action, lang) {
+    var m = app.page.meeting;
+    var vars = { m: titleOf(m), a: action.text, o: action.owner || "", d: fmtDate(m.t0_ms), u: t(lang, urgOf(action)) };
+    // ponytail: no addresses are stored, so the To field is left for the user
+    return "mailto:?subject=" + encodeURIComponent(t(lang, "mailSubject", vars)) +
+      "&body=" + encodeURIComponent(t(lang, "mailBody", vars));
+  }
+
   function meetingCard(app, meeting, lang) {
     var btn = el("button", "mtg-card glass");
     btn.dataset.open = meeting.meeting_id;
@@ -362,10 +395,12 @@
     btn.appendChild(stack);
     var info = el("span");
     info.style.flex = "1";
-    var title = el("b", null, meeting.subject);
+    var title = el("b", null, titleOf(meeting));
     info.appendChild(title);
     info.appendChild(el("br"));
-    info.appendChild(el("span", "sub", meeting.date || ""));
+    var sub = meeting.date || "";
+    if (meeting.title && meeting.title !== meeting.subject) sub += " · " + meeting.subject;
+    info.appendChild(el("span", "sub", sub));
     btn.appendChild(info);
     return btn;
   }
@@ -553,7 +588,11 @@
     var wrap = el("div", "mtg");
     var left = el("div");
     var head = el("section", "head glass");
-    head.appendChild(el("h1", null, page.meeting.subject));
+    head.appendChild(el("h1", null, titleOf(page.meeting)));
+    if (page.meeting.title && page.meeting.title !== page.meeting.subject) {
+      head.appendChild(el("p", "sub", page.meeting.subject));
+    }
+    if (page.meeting.summary) head.appendChild(el("p", "mtg-summary", page.meeting.summary));
     left.appendChild(head);
     left.appendChild(el("h2", "sr", t(lang, "people")));
     var people = el("div", "people");
@@ -614,21 +653,108 @@
     input.placeholder = t(lang, "search");
     label.appendChild(input);
     view.appendChild(label);
+    view.appendChild(foldersBar(app, lang));
     var grid = el("div", "listgrid");
     var listSection = el("section");
     listSection.setAttribute("aria-label", t(lang, "meetings"));
-    app.meetings.forEach(function (m) { listSection.appendChild(meetingCard(app, m, lang)); });
+    app.meetings
+      .filter(function (m) { return !app.folder || m.folder_id === app.folder; })
+      .forEach(function (m) { listSection.appendChild(meetingCard(app, m, lang)); });
     grid.appendChild(listSection);
-    var hitsSection = el("section", "hits glass");
-    hitsSection.setAttribute("aria-live", "polite");
-    hitsSection.appendChild(el("h2", null, t(lang, "results")));
-    var hits = el("div");
-    hits.id = "hits";
-    app.hits.forEach(function (h) { hits.appendChild(hitRow(app, h, lang)); });
-    if (app.q.trim() && app.hits.length === 0) hits.appendChild(el("p", "empty", t(lang, "noHits")));
-    hitsSection.appendChild(hits);
-    grid.appendChild(hitsSection);
+    if (app.q.trim()) {
+      var hitsSection = el("section", "hits glass");
+      hitsSection.setAttribute("aria-live", "polite");
+      hitsSection.appendChild(el("h2", null, t(lang, "results")));
+      var hits = el("div");
+      hits.id = "hits";
+      app.hits.forEach(function (h) { hits.appendChild(hitRow(app, h, lang)); });
+      if (app.hits.length === 0) hits.appendChild(el("p", "empty", t(lang, "noHits")));
+      hitsSection.appendChild(hits);
+      grid.appendChild(hitsSection);
+    } else {
+      grid.appendChild(previewPanel(app, lang));
+    }
     view.appendChild(grid);
+  }
+
+  function foldersBar(app, lang) {
+    var bar = el("nav", "folders");
+    bar.setAttribute("aria-label", t(lang, "moveTo"));
+    var all = el("button", "fchip", t(lang, "allMeetings"));
+    all.dataset.folder = "";
+    all.setAttribute("aria-pressed", app.folder ? "false" : "true");
+    bar.appendChild(all);
+    app.folders.forEach(function (f) {
+      var b = el("button", "fchip", "\uD83D\uDCC1 " + f.name + " ");
+      b.dataset.folder = f.folder_id;
+      b.setAttribute("aria-pressed", app.folder === f.folder_id ? "true" : "false");
+      b.appendChild(el("em", null, String(f.count || 0)));
+      bar.appendChild(b);
+    });
+    return bar;
+  }
+
+  // Wispr-Flow-style preview of the hovered meeting (Karim 2026-11-02).
+  function previewPanel(app, lang) {
+    var panel = el("section", "preview glass");
+    panel.id = "preview";
+    panel.setAttribute("aria-live", "polite");
+    var page = app.previewId ? app.previews[app.previewId] : null;
+    if (!page) {
+      panel.appendChild(el("p", "empty", t(lang, "preview")));
+      return panel;
+    }
+    var m = page.meeting;
+    panel.appendChild(el("h2", null, titleOf(m)));
+    panel.appendChild(el("p", "sub", fmtDate(m.t0_ms) + (m.title && m.title !== m.subject ? " \u00B7 " + m.subject : "")));
+    panel.appendChild(el("p", "pv-summary", m.summary || t(lang, "noSummary")));
+    var counts = URG_ORDER.map(function (u) {
+      var n = page.actions.filter(function (a) { return urgOf(a) === u; }).length;
+      return t(lang, u).split(" /")[0] + " " + n;
+    });
+    panel.appendChild(el("p", "pv-counts", counts.join(" \u00B7 ")));
+    var top = byUrg(page.actions).reduce(function (all, pair) { return all.concat(pair[1]); }, []).slice(0, 3);
+    if (top.length) {
+      panel.appendChild(el("h3", null, t(lang, "actions")));
+      var ul = el("ul", "pv-list");
+      top.forEach(function (a) {
+        var li = el("li", "u-" + urgOf(a), a.text);
+        if (a.owner) li.appendChild(el("small", null, " \u00B7 " + a.owner));
+        ul.appendChild(li);
+      });
+      panel.appendChild(ul);
+    }
+    var decs = page.points.filter(function (p) { return p.kind === "decision"; }).slice(0, 3);
+    if (decs.length) {
+      panel.appendChild(el("h3", null, t(lang, "decsShort")));
+      var dl = el("ul", "pv-list");
+      decs.forEach(function (p) { dl.appendChild(el("li", null, p.text)); });
+      panel.appendChild(dl);
+    }
+    var fold = el("div", "pv-folder");
+    var sel = el("select", "move-folder");
+    sel.setAttribute("aria-label", t(lang, "moveTo"));
+    sel.dataset.meeting = m.meeting_id;
+    var listed = app.meetings.filter(function (x) { return x.meeting_id === m.meeting_id; })[0];
+    [{ folder_id: "", name: t(lang, "noFolder") }].concat(app.folders).forEach(function (f) {
+      var o = el("option", null, f.name);
+      o.value = f.folder_id;
+      o.selected = ((listed && listed.folder_id) || "") === f.folder_id;
+      sel.appendChild(o);
+    });
+    fold.appendChild(sel);
+    var input = el("input", "new-folder in");
+    input.placeholder = t(lang, "newFolder");
+    input.setAttribute("aria-label", t(lang, "newFolder"));
+    fold.appendChild(input);
+    var create = el("button", "create-folder btn glass", t(lang, "createFolder"));
+    create.dataset.meeting = m.meeting_id;
+    fold.appendChild(create);
+    panel.appendChild(fold);
+    var open = el("button", "btn glass pv-open", t(lang, "openNotes"));
+    open.dataset.open = m.meeting_id;
+    panel.appendChild(open);
+    return panel;
   }
 
   function render(app) {
@@ -653,7 +779,7 @@
       var back = el("button", null, t(lang, "meetings"));
       back.dataset.nav = "list";
       crumb.appendChild(back);
-      crumb.appendChild(document.createTextNode(" / " + app.page.meeting.subject));
+      crumb.appendChild(document.createTextNode(" / " + titleOf(app.page.meeting)));
       if (app.person) crumb.appendChild(document.createTextNode(" / " + app.person));
     }
     var view = doc.getElementById("view");
@@ -760,8 +886,14 @@
       cat: "all",
       openQuote: {},
       userTags: {},
-      toastTimer: null
+      toastTimer: null,
+      folders: [],
+      folder: "",
+      previewId: null,
+      previews: {}
     };
+    var postJson = opts.postJson || function () { return Promise.reject(new Error("no postJson")); };
+    var win = opts.win || { history: { pushState: function () {} } };
 
     app.showList = function (meetings) {
       app.view = "list";
@@ -782,17 +914,38 @@
       render(app);
     };
 
-    app.loadMeetings = function () {
-      return app.fetchJson("/api/meetings").then(function (meetings) {
-        app.showList(meetings);
+    // Each view has its own address so browser Back/Forward work (#102).
+    app.loadMeetings = function (push) {
+      return Promise.all([
+        app.fetchJson("/api/meetings"),
+        app.fetchJson("/api/folders").catch(function () { return []; })
+      ]).then(function (res) {
+        app.folders = res[1] || [];
+        if (push) win.history.pushState({ view: "list" }, "", "/notes/");
+        app.showList(res[0]);
       });
     };
 
-    app.openMeeting = function (id) {
+    app.openMeeting = function (id, push) {
       return app.fetchJson("/api/meetings/" + encodeURIComponent(id)).then(function (page) {
+        if (push) win.history.pushState({ meeting: id }, "", "/notes/" + id);
         app.showMeeting(page);
       });
     };
+
+    app.setPreview = function (id) {
+      if (!id || id === app.previewId || app.view !== "list") return;
+      app.previewId = id;
+      if (app.previews[id]) { render(app); return; }
+      app.fetchJson("/api/meetings/" + encodeURIComponent(id)).then(function (page) {
+        app.previews[id] = page;
+        if (app.previewId === id && app.view === "list") render(app);
+      }).catch(function () {});
+    };
+
+    function saveFolder(url, body) {
+      return postJson(url, body).then(function () { return app.loadMeetings(false); });
+    }
 
     app.search = function (q) {
       app.q = q;
@@ -835,13 +988,23 @@
         app.setLang(b.dataset.lang);
         return;
       }
+      if ((b = g("[data-folder]"))) {
+        app.folder = b.dataset.folder;
+        render(app);
+        return;
+      }
+      if ((b = g(".create-folder"))) {
+        var name = (app.doc.querySelector("#preview .new-folder") || {}).value || "";
+        if (name.trim()) saveFolder("/api/folders", { name: name.trim(), meeting_id: b.dataset.meeting });
+        return;
+      }
       if ((b = g("[data-cat]"))) {
         app.cat = b.dataset.cat;
         render(app);
         return;
       }
       if ((b = g("[data-nav]"))) {
-        app.loadMeetings();
+        app.loadMeetings(true);
         return;
       }
       if ((b = g("#export"))) {
@@ -855,7 +1018,7 @@
         return;
       }
       if ((b = g("[data-open]"))) {
-        app.openMeeting(b.dataset.open).then(function () {
+        app.openMeeting(b.dataset.open, true).then(function () {
           var turn = b.dataset.line;
           if (turn && app.page) {
             var others = app.page.transcript_lines;
@@ -899,6 +1062,18 @@
       }
     }
 
+    function onHover(event) {
+      var card = closest(event.target, app.doc, ".mtg-card[data-open]");
+      if (card) app.setPreview(card.dataset.open);
+    }
+
+    function onChange(event) {
+      var sel = event.target;
+      if (sel && sel.classList && sel.classList.contains("move-folder")) {
+        saveFolder("/api/folders/move", { meeting_id: sel.dataset.meeting, folder_id: sel.value || null });
+      }
+    }
+
     function onInput(event) {
       if (event.target && event.target.id === "q") {
         app.search(event.target.value);
@@ -914,6 +1089,9 @@
     }
 
     app.doc.addEventListener("click", onClick);
+    app.doc.addEventListener("mouseover", onHover);
+    app.doc.addEventListener("focusin", onHover);
+    app.doc.addEventListener("change", onChange);
     app.doc.addEventListener("input", onInput);
     app.doc.addEventListener("keydown", onKey);
     return app;
@@ -936,9 +1114,29 @@
         return res.json().catch(function () { return {}; });
       });
     };
-    var app = createApp({ doc: doc, fetchJson: fetchJson, postTag: postTag });
-    if (meetingId) app.openMeeting(meetingId);
-    else app.loadMeetings();
+    var postJson = function (url, body) {
+      return window.fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body)
+      }).then(function (res) {
+        if (!res.ok) throw new Error("Halo notes request failed: " + url);
+        return res.json().catch(function () { return {}; });
+      });
+    };
+    var app = createApp({ doc: doc, fetchJson: fetchJson, postTag: postTag, postJson: postJson, win: window });
+    var idFromPath = function () {
+      var m = /^\/notes\/([0-9a-f-]{36})/i.exec(window.location.pathname);
+      return m ? m[1] : null;
+    };
+    window.addEventListener("popstate", function () {
+      var id = idFromPath();
+      if (id) app.openMeeting(id, false);
+      else app.loadMeetings(false);
+    });
+    var first = meetingId || idFromPath();
+    if (first) app.openMeeting(first, false);
+    else app.loadMeetings(false);
     return app;
   }
 

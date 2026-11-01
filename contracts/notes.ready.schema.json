@@ -97,6 +97,14 @@
         ],
         "additionalProperties": false
       }
+    },
+    "title": {
+      "type": "string",
+      "description": "AI meeting title (Notes Builder, Spark)."
+    },
+    "summary": {
+      "type": "string",
+      "description": "AI 3-5 line meeting summary (Notes Builder, Spark)."
     }
   },
   "required": [
