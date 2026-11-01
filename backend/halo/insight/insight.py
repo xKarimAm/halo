@@ -27,9 +27,14 @@ log = logging.getLogger("halo.insight")
 Envelope = dict[str, Any]
 
 SPEAKER_WINDOW_S = 3.0
-# Live 2026-11-01: a pause cut "This is" off its sentence and became a point.
-# A speaker's held words wait until they add up to this many.
+# Live 2026-11-01: pauses cut sentences into scraps ("This is", "Is", "and
+# how") and each scrap became a point. A speaker's held words wait for at
+# least MIN_WORDS and then a sentence end, CHUNK_WORDS, or HOLD_MAX_S.
 MIN_WORDS = 3  # ponytail: a lone "Yes." never becomes a point; it rides with the next turn
+CHUNK_WORDS = 8
+REHOLD_MAX_WORDS = 30  # an unfinished "none" waits for more words up to this size
+HOLD_MAX_S = 6.0
+SENTENCE_END = (".", "?", "!", "؟")  # ؟ = Arabic question mark
 MAX_RPM = 30  # Karim 2026-11-01: 12 fit Baseten's basic tier, unused now; contributor allows 150
 RPM_WINDOW_S = 60.0
 HEALTH_INTERVAL_S = 30.0
@@ -39,7 +44,8 @@ PROMPT_CACHE_KEY = "insight-v1"
 POINT_RESULT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "kind": {"type": "string", "enum": ["point", "question", "decision", "pushback"]},
+        # "none": nothing worth a point (greeting, filler, mic check); never published.
+        "kind": {"type": "string", "enum": ["point", "question", "decision", "pushback", "none"]},
         "text": {"type": "string"},
         "quote": {"type": "string"},
         "rank": {"type": "integer", "minimum": 1, "maximum": 3},
@@ -54,7 +60,10 @@ POINT_RESULT_SCHEMA: dict[str, Any] = {
 INSTRUCTIONS = (
     "You turn meeting turns into live points for the viewer. "
     "Reply with ONE JSON object: the single most important NEW point from "
-    "the new words below. kind is point|question|decision|pushback. "
+    "the new words below. kind is point|question|decision|pushback, or none "
+    "when the new words carry nothing worth a point (greetings, filler, "
+    "mic checks, small talk, or a sentence cut off before its point); "
+    "then text and quote may be empty. "
     "quote is copied character for character from the new words below: one "
     "contiguous span, same order, same language, nothing translated, "
     "reordered or fixed. "
@@ -102,8 +111,13 @@ class Insight:
         health_interval_s: float = HEALTH_INTERVAL_S,
         flush_interval_s: float = FLUSH_INTERVAL_S,
         min_words: int = MIN_WORDS,
+        chunk_words: int = CHUNK_WORDS,
+        hold_max_s: float = HOLD_MAX_S,
     ) -> None:
         self._min_words = min_words
+        self._chunk_words = chunk_words
+        self._hold_max_s = hold_max_s
+        self._held_since: dict[tuple[str, str], float] = {}
         self._bus = bus
         self._llm = llm
         self._clock = clock or time.monotonic
@@ -165,6 +179,7 @@ class Insight:
         # 4 s call would freeze the transcriber, the correlator and the gateway's
         # ACKs (found live). The 250 ms flush loop picks the turn up.
         self._held.setdefault(key, []).append(data)
+        self._held_since.setdefault(key, self._clock())
 
     async def _on_context(self, envelope: Envelope) -> None:
         data = envelope.get("data")
@@ -227,7 +242,12 @@ class Insight:
             log.error("insight call crashed", exc_info=task.exception())
 
     def _flushable(self, key: tuple[str, str], now: float) -> bool:
-        if sum(len(str(t.get("text", "")).split()) for t in self._held.get(key, [])) < self._min_words:
+        text = " ".join(str(t.get("text", "")) for t in self._held.get(key, [])).strip()
+        words = len(text.split())
+        if words < self._min_words:
+            return False
+        if not (text.endswith(SENTENCE_END) or words >= self._chunk_words
+                or now - self._held_since.get(key, now) >= self._hold_max_s):
             return False
         if now - self._last_call.get(key, float("-inf")) < self._speaker_window:
             return False
@@ -238,6 +258,7 @@ class Insight:
     async def _flush_speaker(self, key: tuple[str, str]) -> None:
         meetingid, _ = key
         turns = self._held.pop(key, [])
+        self._held_since.pop(key, None)
         if not turns:
             return
         now = self._clock()
@@ -267,6 +288,13 @@ class Insight:
         self._last_call[key] = now
         self._latencies.append(elapsed)
         del self._latencies[:-100]
+        if result.data["kind"] == "none":
+            text = " ".join(str(t.get("text", "")) for t in turns).strip()
+            if not text.endswith(SENTENCE_END) and len(text.split()) < REHOLD_MAX_WORDS:
+                # Cut off mid-sentence: the words wait for the rest of it.
+                self._held[key] = turns + self._held.get(key, [])
+                self._held_since.setdefault(key, now)
+            return  # filler: the turns are spent, no point
         latest = turns[-1]
         point: dict[str, Any] = {
             "point_id": str(uuid.uuid4()),

@@ -113,7 +113,7 @@ def setup(replies):
     clock = Clock()
     bus = Bus()
     llm = FakeLLM(clock, replies)
-    insight = Insight(bus, llm, clock=clock, min_words=1)  # these cases use two-word turns
+    insight = Insight(bus, llm, clock=clock, min_words=1, chunk_words=1)  # two-word turns flush at once
     # Production flushes from the 250 ms loop (the handler never awaits the
     # model); here a flush right after each turn keeps the timing deterministic.
     bus.subscribe("turn.attributed", lambda _e: insight.flush())
@@ -381,7 +381,7 @@ def test_calls_overlap_across_speakers_but_never_for_one_speaker():
     async def run():
         bus = Bus()
         llm = GateLLM()
-        insight = Insight(bus, llm, flush_interval_s=0.01, speaker_window_s=0.0)
+        insight = Insight(bus, llm, flush_interval_s=0.01, speaker_window_s=0.0, min_words=1, chunk_words=1)
         points: list[dict] = []
         bus.subscribe("points.upsert", points.append)
         insight.start()
@@ -427,7 +427,7 @@ def test_a_call_that_raises_requeues_its_turns():
     async def run():
         clock = Clock()
         bus = Bus()
-        insight = Insight(bus, Boom(clock, [point_reply("recovered")]), clock=clock)
+        insight = Insight(bus, Boom(clock, [point_reply("recovered")]), clock=clock, min_words=1, chunk_words=1)
         bus.subscribe("turn.attributed", lambda _e: insight.flush())
         points: list[dict] = []
         bus.subscribe("points.upsert", points.append)
@@ -453,7 +453,61 @@ def test_a_fragment_waits_for_more_words_before_a_point():
         t1, t2 = ("00000041-0000-4000-8000-000000000041", "00000042-0000-4000-8000-000000000042")
         await bus.publish(turn_envelope(t1, "This is"))
         assert llm.calls == [] and points == []  # held, not dropped
-        await bus.publish(turn_envelope(t2, "the main part here", ts=2000))
+        await bus.publish(turn_envelope(t2, "the main part here.", ts=2000))
         assert len(llm.calls) == 1 and points[0]["data"]["turn_ids"] == [t1, t2]
+
+    asyncio.run(run())
+
+
+def test_unfinished_words_wait_for_the_sentence_end_or_a_chunk():
+    # Live 2026-11-01: "Need to understand correctly what is" became a point.
+    async def run():
+        clock = Clock()
+        bus = Bus()
+        llm = FakeLLM(clock, [point_reply("role of the app")])
+        insight = Insight(bus, llm, clock=clock)
+        bus.subscribe("turn.attributed", lambda _e: insight.flush())
+        await bus.publish(turn_envelope("00000051-0000-4000-8000-000000000051",
+                                        "need to understand what is"))
+        assert llm.calls == []  # mid-sentence, under a chunk
+        await bus.publish(turn_envelope("00000052-0000-4000-8000-000000000052",
+                                        "the role of this application.", ts=2000))
+        assert len(llm.calls) == 1  # sentence end
+        clock.advance(10)
+        await bus.publish(turn_envelope("00000053-0000-4000-8000-000000000053",
+                                        "and how long", ts=9000))
+        assert len(llm.calls) == 1
+        clock.advance(7)  # a speaker who stops mid-sentence still gets a point
+        await insight.flush()
+        assert len(llm.calls) == 2
+
+    asyncio.run(run())
+
+
+def test_filler_returns_no_point():
+    # Live 2026-11-01: "Hello," became "Karim Amer greeted the meeting".
+    async def run():
+        _clock, bus, llm, _insight, points, _ = setup([point_reply("", kind="none")])
+        await bus.publish(turn_envelope("00000061-0000-4000-8000-000000000061", "Hello, can you hear me?"))
+        assert len(llm.calls) == 1 and points == []
+        assert "none" in llm.calls[0]["prompt"]
+
+    asyncio.run(run())
+
+
+def test_a_cut_off_sentence_judged_none_waits_for_the_rest():
+    async def run():
+        clock = Clock()
+        bus = Bus()
+        llm = FakeLLM(clock, [point_reply("", kind="none"), point_reply("lives change with the app")])
+        insight = Insight(bus, llm, clock=clock, speaker_window_s=0.0)
+        bus.subscribe("turn.attributed", lambda _e: insight.flush())
+        points: list = []
+        bus.subscribe("points.upsert", points.append)
+        t1, t2 = ("00000071-0000-4000-8000-000000000071", "00000072-0000-4000-8000-000000000072")
+        await bus.publish(turn_envelope(t1, "how their lives will be changed if they"))
+        assert len(llm.calls) == 1 and points == []
+        await bus.publish(turn_envelope(t2, "use it.", ts=3000))
+        assert len(llm.calls) == 2 and points[0]["data"]["turn_ids"] == [t1, t2]
 
     asyncio.run(run())
