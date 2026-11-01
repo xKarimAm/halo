@@ -56,11 +56,14 @@ export const OVERLAY_CSS = `
 .halo-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 .halo-lang{padding:5px 10px;border:0;border-radius:999px;background:rgba(12,14,18,.66);backdrop-filter:${GLASS_BLUR};box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#f5f7fa;font:inherit;cursor:pointer}
 .halo-lang option{background:#16181d;color:#f5f7fa}
-.halo-popover{position:fixed;z-index:2147483647;width:min(320px,calc(100vw - 16px));box-sizing:border-box;padding:10px 12px;border-radius:14px;background:rgba(16,18,22,.86);backdrop-filter:blur(24px) saturate(170%);box-shadow:0 12px 32px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.08);color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif}
+.halo-popover{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));box-sizing:border-box;padding:16px 18px;border-radius:18px;background:rgba(16,18,22,.78);backdrop-filter:blur(24px) saturate(170%);box-shadow:0 16px 40px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.08);color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif;animation:halo-pop-in 180ms ease-out}
+@keyframes halo-pop-in{from{opacity:0;transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){.halo-popover{animation:none}}
+.halo-chip *{pointer-events:none}
 .halo-popover[hidden]{display:none}
 .halo-popover p{margin:0 0 6px}
 .halo-popover .halo-pop-head{color:#cfd3da;font-weight:600}
-.halo-popover blockquote{margin:0;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.07);font-size:13px}
+.halo-popover blockquote{margin:0;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.07);font-size:13px}
 .halo-popover blockquote[lang=ar]{font-size:14px}
-.halo-controls :focus-visible,.halo-dialog :focus-visible,.halo-popover :focus-visible{outline:2px solid ${HALO_GOLD};outline-offset:2px}
+.halo-controls :focus-visible,.halo-dialog :focus-visible,.halo-popover:focus-visible,.halo-popover :focus-visible{outline:2px solid ${HALO_GOLD};outline-offset:2px}
 `;

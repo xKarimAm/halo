@@ -263,8 +263,9 @@ export class Overlay {
     return reducedMotion ? "dotted" : "sweep";
   }
 
-  handleKey(ev: { altKey: boolean; ctrlKey: boolean; key: string; repeat: boolean }): boolean {
-    if (!ev.altKey || ev.key.toLowerCase() !== "h" || ev.ctrlKey) return false; // Ctrl+Alt+H passes to Meet
+  handleKey(ev: { altKey: boolean; ctrlKey: boolean; shiftKey?: boolean; metaKey?: boolean; key: string; repeat: boolean }): boolean {
+    // Bare Alt+H only: Ctrl/Shift/Meta+Alt+H pass to Meet
+    if (!ev.altKey || ev.key.toLowerCase() !== "h" || ev.ctrlKey || ev.shiftKey || ev.metaKey) return false;
     if (!ev.repeat) this.hidden = !this.hidden; // bare Alt+H only; key repeat ignored
     return true;
   }

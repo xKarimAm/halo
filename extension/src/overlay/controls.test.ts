@@ -113,9 +113,9 @@ function withPoint(over: Record<string, unknown> = {}) {
   const root = document.createElement("div");
   document.body.append(root);
   overlay.render(document as never, root as never, 0);
-  mountPopover(document, overlay, root);
+  const sync = mountPopover(document, overlay, root);
   const chip = root.querySelector<HTMLButtonElement>('[data-point-id="pt-1"]')!;
-  return { overlay, root, chip };
+  return { overlay, root, chip, sync };
 }
 
 describe("original-quote popover", () => {
@@ -235,5 +235,74 @@ describe("points language picker", () => {
     select.value = "ar";
     select.dispatchEvent(new Event("change"));
     expect(posted).toEqual([{ type: "set_viewer_lang", viewer_lang: "ar" }]);
+  });
+});
+
+// Review fixes (code review on the overlay controls PR).
+describe("popover follows its bubble", () => {
+  it("opening moves focus into the card", () => {
+    const { chip } = withPoint();
+    chip.click();
+    expect(document.activeElement).toBe($(".halo-popover"));
+  });
+
+  it("a click outside closes it without pulling focus back to the bubble", () => {
+    const { chip } = withPoint();
+    const chat = document.createElement("input");
+    document.body.append(chat);
+    chip.click();
+    chat.focus();
+    chat.click();
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+    expect(document.activeElement).toBe(chat);
+  });
+
+  it("closes when Alt+H hides the bubbles or the point expires", () => {
+    const { overlay, chip, sync } = withPoint();
+    chip.click();
+    overlay.hidden = true;
+    sync();
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+    overlay.hidden = false;
+    chip.click();
+    overlay.points.delete("pt-1");
+    sync();
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+  });
+
+  it("a correction to the open point updates the card in place", () => {
+    const { overlay, chip, sync } = withPoint();
+    chip.click();
+    overlay.applyPointsUpsert({
+      point_id: "pt-1", tile_id: "tile-1", speaker_name: "Omar", kind: "decision",
+      text: "Launch on the 15th.", lang: "en", quote: "we launch on the 15th",
+      turn_ids: ["t-1"], rank: 1, attribution: "locked", is_action: false, engine: "spark-open",
+    } as never, "env-2");
+    sync();
+    const pop = $<HTMLElement>(".halo-popover");
+    expect(pop.hidden).toBe(false);
+    expect(pop.textContent).toContain("Decision · Omar");
+    expect(pop.textContent).toContain("we launch on the 15th");
+  });
+});
+
+describe("Alt+H is bare Alt+H only", () => {
+  it("Alt+Shift+H and Alt+Meta+H pass through; a held key re-renders once", () => {
+    const overlay = new Overlay(new FakeClock());
+    let changes = 0;
+    bindHideKey(document, overlay, () => { changes += 1; });
+    const press = (init: KeyboardEventInit) => {
+      const ev = new KeyboardEvent("keydown", { key: "h", bubbles: true, cancelable: true, ...init });
+      document.dispatchEvent(ev);
+      return ev;
+    };
+    expect(press({ altKey: true, shiftKey: true }).defaultPrevented).toBe(false);
+    expect(press({ altKey: true, metaKey: true }).defaultPrevented).toBe(false);
+    expect(overlay.hidden).toBe(false);
+    press({ altKey: true });
+    press({ altKey: true, repeat: true });
+    press({ altKey: true, repeat: true });
+    expect(overlay.hidden).toBe(true);
+    expect(changes).toBe(1);
   });
 });

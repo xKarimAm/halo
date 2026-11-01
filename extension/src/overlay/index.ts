@@ -68,8 +68,10 @@ export function boot(context: { port: PortIn }): Overlay {
   (root as unknown as HTMLElement).style.cssText =
     "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   document.body.appendChild(root as unknown as Node);
+  let syncPopover = (): void => {};
   const rerender = (): void => {
     overlay.render(doc, root as El & { children?: El[] });
+    syncPopover();
   };
   context.port.onMessage.addListener((msg) => {
     const m = msg as ToPagePortMessage;
@@ -80,7 +82,7 @@ export function boot(context: { port: PortIn }): Overlay {
   });
   watchUrgencyStyle(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
-  mountPopover(document, overlay, root as unknown as Element);
+  syncPopover = mountPopover(document, overlay, root as unknown as Element);
   bindHideKey(document, overlay, () => { rerender(); refresh(); });
   return overlay;
 }
@@ -89,33 +91,33 @@ const KIND_LABELS: Record<string, string> = {
   point: "Point", question: "Question", decision: "Decision", pushback: "Pushback",
 };
 
-/** Original-quote popover (DECISIONS 1): a bubble click opens kind, speaker,
- * the shown text and the original quote in its own script direction. Esc,
- * a click outside or a second click on the same bubble closes it; focus
- * returns to the bubble. Chips are re-rendered in place, so this listens on
- * the overlay root and resolves the chip by its data-point-id. */
-export function mountPopover(doc: Document, overlay: Overlay, root: Element): void {
+/** Original-quote popover (DECISIONS 1, OVERLAY-UX 6): a bubble click opens
+ * kind, speaker, the shown text and the original quote in its own script
+ * direction, below the bubble or above it near the bottom of the screen.
+ * Focus moves into the card; Esc (or a second click on the bubble) closes it
+ * and returns focus to the bubble, a click elsewhere just closes it. Chips are
+ * re-rendered in place, so clicks are resolved on the overlay root by
+ * data-point-id. Returns sync(), called after every render: it closes the
+ * card when its point is gone or hidden, and refreshes a corrected point. */
+export function mountPopover(doc: Document, overlay: Overlay, root: Element): () => void {
   const pop = doc.createElement("div");
   pop.className = "halo-popover";
   pop.setAttribute("role", "dialog");
   pop.setAttribute("aria-label", "Original quote");
+  pop.tabIndex = -1;
   pop.hidden = true;
   doc.body.append(pop);
   let openId: string | null = null;
   let opener: HTMLElement | null = null;
-  const close = (): void => {
+  const close = (returnFocus: boolean): void => {
     if (pop.hidden) return;
     pop.hidden = true;
     openId = null;
-    opener?.focus();
+    if (returnFocus) opener?.focus();
   };
-  root.addEventListener("click", (ev) => {
-    const chip = (ev.target as Element).closest?.("[data-point-id]") as HTMLElement | null;
-    const id = chip?.getAttribute("data-point-id");
-    if (!chip || !id) return;
-    if (openId === id) return close();
+  const fill = (id: string): boolean => {
     const p = overlay.popover(id);
-    if (!p) return;
+    if (!p) return false;
     const head = doc.createElement("p");
     head.className = "halo-pop-head";
     head.textContent = [KIND_LABELS[p.kind] ?? p.kind, p.speaker, p.urgentWord].filter(Boolean).join(" · ");
@@ -127,19 +129,33 @@ export function mountPopover(doc: Document, overlay: Overlay, root: Element): vo
     quote.dir = p.quoteDir;
     quote.lang = p.quoteDir === "rtl" ? "ar" : "en";
     pop.replaceChildren(head, text, quote);
-    const r = chip.getBoundingClientRect();
-    pop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 328))}px`;
-    pop.style.top = `${r.bottom + 6}px`;
+    return true;
+  };
+  root.addEventListener("click", (ev) => {
+    const chip = (ev.target as Element).closest?.("[data-point-id]") as HTMLElement | null;
+    const id = chip?.getAttribute("data-point-id");
+    if (!chip || !id) return;
+    if (openId === id) return close(true);
+    if (!fill(id)) return;
     pop.hidden = false;
+    const r = chip.getBoundingClientRect();
+    const h = pop.offsetHeight;
+    pop.style.left = `${Math.max(12, Math.min(r.left, innerWidth - pop.offsetWidth - 12))}px`;
+    pop.style.top = `${r.bottom + 6 + h > innerHeight - 12 ? Math.max(12, r.top - 6 - h) : r.bottom + 6}px`;
     openId = id;
     opener = chip;
+    pop.focus();
   });
   doc.addEventListener("click", (ev) => {
-    if (!(ev.target as Element).closest?.(".halo-popover, [data-point-id]")) close();
+    if (!(ev.target as Element).closest?.(".halo-popover, [data-point-id]")) close(false);
   });
   doc.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") close();
+    if (ev.key === "Escape") close(true);
   });
+  return () => {
+    if (openId === null) return;
+    if (overlay.hidden || !fill(openId)) close(false);
+  };
 }
 
 /** Alt+H hides/shows the bubbles. Capture phase, so Meet never sees a key
@@ -147,10 +163,11 @@ export function mountPopover(doc: Document, overlay: Overlay, root: Element): vo
 export function bindHideKey(doc: Document, overlay: Overlay, onChange: () => void): void {
   doc.addEventListener("keydown", (ev) => {
     const key = ev.code === "KeyH" ? "h" : ev.key;
-    if (!overlay.handleKey({ altKey: ev.altKey, ctrlKey: ev.ctrlKey, key, repeat: ev.repeat })) return;
+    const { altKey, ctrlKey, shiftKey, metaKey, repeat } = ev;
+    if (!overlay.handleKey({ altKey, ctrlKey, shiftKey, metaKey, key, repeat })) return;
     ev.preventDefault();
     ev.stopPropagation();
-    onChange();
+    if (!repeat) onChange(); // a held key toggles once
   }, true);
 }
 
@@ -183,7 +200,8 @@ async function saveViewerLang(lang: ViewerLang): Promise<void> {
   }
 }
 
-/** Badge, consent dialog and notes-ready toast, fixed top-left above Meet.
+/** Badge, points-language picker, consent dialog and notes-ready toast,
+ * fixed top-left above Meet.
  * Refreshes after every Port message (registered after boot's listener, so
  * the overlay store is already updated). Returns the refresh function. */
 export function mountControls(
