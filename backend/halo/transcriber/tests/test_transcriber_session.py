@@ -147,3 +147,21 @@ def test_seq_gap_pad_capped_at_30_s():
     asyncio.run(session.feed_frame(300, ANCHOR, FRAME))
     asyncio.run(session.feed_frame(6000, ANCHOR + 570_000, FRAME))
     assert session.pad_ms == 30_000
+
+
+def test_mic_silent_warning_says_how_loud_the_mic_was(caplog):
+    # Live 2026-11-01: 60 s "mic silent" while Meet showed the user talking.
+    # The level tells zeros (capture broken / muted) from faint noise (wrong mic).
+    session, _ = make_session(script(), "mic", ENDPOINTING)
+    asyncio.run(session.open("key"))
+    quiet = b"\x32\x00" * 1600  # constant sample 50 = RMS 50
+    with caplog.at_level(logging.WARNING, logger="halo.transcriber"):
+        asyncio.run(_feed_pcm(session, quiet, 601))
+    silent = [r.getMessage() for r in caplog.records if "mic silent" in r.getMessage()]
+    assert len(silent) == 1
+    assert "loudest RMS 50" in silent[0]
+
+
+async def _feed_pcm(session: TranscriptionSession, pcm: bytes, n: int) -> None:
+    for i in range(n):
+        await session.feed_frame(i, ANCHOR + i * FRAME_MS, pcm)

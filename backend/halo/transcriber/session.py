@@ -77,6 +77,7 @@ class TranscriptionSession:
         self.rotation_after_s = rotation_after_s
         self.soft_cut_silence_ms = soft_cut_silence_ms
         self._silence_run_ms = 0
+        self._silence_peak = 0.0  # loudest frame RMS in the current silence run
         # Audio position (position_ms scale, ≈ engine audioProcessedMs) where
         # the current silence run began; None while speech is arriving.
         self._silence_start_ms: int | None = None
@@ -150,10 +151,16 @@ class TranscriptionSession:
         if rms < floor:
             if self._silence_run_ms == 0:
                 self._silence_start_ms = self.position_ms
+                self._silence_peak = 0.0
             self._silence_run_ms += frame_ms
+            self._silence_peak = max(self._silence_peak, rms)
             # Live 2026-10-31: Chrome used the wrong mic and nothing said so.
+            # Live 2026-11-01: the level tells pure zeros (muted or capture
+            # broken) from faint noise (a live but wrong or quiet mic).
             if self.stream == "mic" and self._silence_run_ms - frame_ms < MIC_SILENT_ALERT_MS <= self._silence_run_ms:
-                log.warning("transcriber mic silent for %d s (muted, or the wrong mic?)", MIC_SILENT_ALERT_MS // 1000)
+                log.warning("transcriber mic silent for %d s, loudest RMS %d, speech floor %d"
+                            " (0 = no signal: muted or capture broken; above 0 = wrong or quiet mic)",
+                            MIC_SILENT_ALERT_MS // 1000, round(self._silence_peak), SILENCE_RMS_THRESHOLD)
         else:
             self._silence_run_ms = 0
             self._silence_start_ms = None
