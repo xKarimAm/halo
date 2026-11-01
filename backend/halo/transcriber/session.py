@@ -108,6 +108,22 @@ class TranscriptionSession:
         self._assembler = TurnAssembler()
         self._opened_at = 0.0
         self._streak = 0
+        self.frames = 0  # real frames received (pads not counted)
+        self.turns = 0
+        self.last_turn = ""
+
+    def live(self) -> dict[str, Any]:
+        """What this stream is hearing now, for health.json (every 5 s)."""
+        last_second = list(self._levels)[-10:]
+        return {
+            "frames": self.frames,
+            "level_rms": round(max(last_second, default=0.0)),  # 0 = digital silence
+            "silent_s": round(self._silence_run_ms / 1000, 1),
+            "hearing": self._assembler.open_text()[-120:],
+            "turns": self.turns,
+            "last_turn": self.last_turn[:120],
+            "health": self.health,
+        }
 
     async def open(self, key: str, keywords: list[str] | None = None) -> None:
         self._key = key
@@ -144,6 +160,7 @@ class TranscriptionSession:
             self._clock_pos.append(self.position_ms)
             self._clock_delta.append(delta)
         frame_ms = len(pcm) // BYTES_PER_MS
+        self.frames += 1
         rms = self._rms(pcm)
         self._levels.append(rms)
         floor = max(SILENCE_RMS_THRESHOLD, SILENCE_LEVEL_FRACTION * statistics.median(self._levels))
@@ -179,6 +196,10 @@ class TranscriptionSession:
                     turns.append(self._map(piece))
             self._streak = 0
             self.health = "ok"
+            for t in turns:
+                self.turns += 1
+                self.last_turn = t["text"]
+                log.info("transcript %s %s: %s", self.stream, t["speaker"], t["text"][:120])
             return turns
         except Exception as exc:  # noqa: BLE001 -- any engine failure routes to reconnect/down
             await self._on_transport_error(exc)

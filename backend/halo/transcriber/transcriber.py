@@ -132,6 +132,10 @@ class Transcriber:
                 },
             })
 
+    def live(self) -> dict[str, Any]:
+        """Per-stream live view of the open meeting (empty between meetings)."""
+        return {stream: s.live() for stream, s in self._sessions.items()}
+
     def health_status(self) -> str:
         states = [s.health for s in self._sessions.values()]
         if "down" in states:
