@@ -46,21 +46,6 @@ export interface DocLike {
   createElement(tag: string): El;
 }
 
-export const CONSENT_NOTICE =
-  "Halo is recording and transcribing this meeting on this PC to show live points and notes. " +
-  "Recordings and notes stay on this PC until deleted. / " +
-  "يقوم Halo بتسجيل هذا الاجتماع ونسخه على هذا الجهاز لعرض النقاط والملاحظات المباشرة. " +
-  "تبقى التسجيلات والملاحظات على هذا الجهاز حتى يتم حذفها.";
-
-/** Copy the (possibly user-edited) notice; the user pastes it into Meet chat. */
-export async function copyConsentNotice(
-  clipboard: { writeText(text: string): unknown },
-  text: string = CONSENT_NOTICE,
-): Promise<string> {
-  await clipboard.writeText(text); // clipboard only; Meet chat DOM is never touched
-  return text;
-}
-
 // ponytail: the backend is always local (DECISIONS 10: one app on 127.0.0.1:8765).
 export const NOTES_ORIGIN = "http://127.0.0.1:8765";
 
@@ -128,6 +113,7 @@ export class Overlay {
   private speakingTile: string | null = null;
   private layers = new Map<string, El>();
   private overflowEls = new Map<string, El>();
+  private expanded = new Set<string>(); // tiles whose +N the viewer opened
   urgencyStyle: UrgencyStyle = "words";
 
   constructor(private clock: { now: number }) {}
@@ -215,8 +201,14 @@ export class Overlay {
     return this.live(tileId).slice(0, this.maxVisible(tileId));
   }
 
+  /** The +N chip opens every live point on the tile; "Less" folds them back. */
+  toggleExpanded(tileId: string): void {
+    if (!this.expanded.delete(tileId)) this.expanded.add(tileId);
+  }
+
   /** Chips that fit above the captions floor (normal cap when no floor). */
-  private maxVisible(tileId: string): number {
+  private maxVisible(tileId: string, folded = false): number {
+    if (!folded && this.expanded.has(tileId)) return Infinity; // ponytail: an open stack may run past the captions floor
     const cap = Math.min(this.perFace, 3);
     const { stackPos, floorY } = this.layout(tileId);
     if (floorY === null) return cap;
@@ -391,13 +383,18 @@ export class Overlay {
         stack.appendChild(chip);
       }
       const overflow = this.overflowCount(tileId);
-      if (overflow > 0) {
+      const canFold = this.expanded.has(tileId)
+        && this.live(tileId).length > this.maxVisible(tileId, true);
+      if (overflow > 0 || canFold) {
         let el = this.overflowEls.get(tileId);
         if (!el) {
-          el = doc.createElement("span");
+          el = doc.createElement("button");
+          el.classList.add("halo-more");
+          el.setAttribute("data-expand-tile", tileId);
           this.overflowEls.set(tileId, el);
         }
-        el.textContent = `+${overflow}`;
+        el.textContent = canFold ? "Less" : `+${overflow}`;
+        el.setAttribute("aria-label", canFold ? "Show fewer points" : `Show ${overflow} more points`);
         stack.appendChild(el);
       }
     }

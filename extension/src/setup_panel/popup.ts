@@ -35,7 +35,17 @@ export interface PopupDeps {
   /** Ends the running meeting; the Stop button exists only when this is given. */
   onStop?: () => void | Promise<void>;
   pairFn?: (code: string) => Promise<string>;
+  /** Defaults to navigator.clipboard (tests pass a fake). */
+  clipboard?: { writeText(text: string): unknown };
 }
+
+/** Pasted into Meet chat by the user at the start (DECISIONS 10). Karim
+ * 2026-11-02: lives here beside Start, no longer on the Meet overlay. */
+export const CONSENT_NOTICE =
+  "Halo is recording and transcribing this meeting on this PC to show live points and notes. " +
+  "Recordings and notes stay on this PC until deleted. / " +
+  "يقوم Halo بتسجيل هذا الاجتماع ونسخه على هذا الجهاز لعرض النقاط والملاحظات المباشرة. " +
+  "تبقى التسجيلات والملاحظات على هذا الجهاز حتى يتم حذفها.";
 
 function el(tag: string, attrs: Record<string, string> = {}, text = ""): HTMLElement {
   const node = document.createElement(tag);
@@ -103,7 +113,8 @@ export function micStatusText(state: SavedSetup["micState"], label?: string): st
  * token + context, prefills role rows from participant names, and wires
  * Pair / Save / Start with busy, done and error states. Start is
  * idempotent: once running it shows Running and further presses do
- * nothing. Contains no consent UI: consent lives in the Overlay lane only.
+ * nothing. "Copy consent notice" beside Start puts the notice on the
+ * clipboard for Meet chat; nothing automates Meet chat.
  */
 export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<void> {
   const saved: SavedSetup = await deps.storage.load();
@@ -421,7 +432,19 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
       renderStart();
     })();
   });
-  startSection.append(startButton, stopButton, startMessage);
+  const consentButton = el("button", { id: "consent-btn", type: "button", class: "btn block" }, "Copy consent notice") as HTMLButtonElement;
+  const consentState = el("p", { id: "consent-state", class: "tiny", role: "status" });
+  consentButton.addEventListener("click", () => {
+    void (async () => {
+      try {
+        await (deps.clipboard ?? navigator.clipboard).writeText(CONSENT_NOTICE);
+        consentState.textContent = "Copied. Paste it into Meet chat.";
+      } catch {
+        consentState.textContent = "Copy failed. Try again.";
+      }
+    })();
+  });
+  startSection.append(startButton, stopButton, startMessage, consentButton, consentState);
   root.appendChild(startSection);
   renderStart();
 }

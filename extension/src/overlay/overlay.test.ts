@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CONSENT_NOTICE,
   FakeClock,
   Overlay,
-  copyConsentNotice,
   projectFaceBox,
   type El,
   type PointUpsert,
@@ -241,13 +239,26 @@ describe("popover and consent", () => {
     const chip = root.find((e) => e.attrs.has("data-point-id"))[0];
     expect(chip.attrs.has("data-urgency-mark")).toBe(false);
   });
+});
 
-  it("copy notice puts the bilingual notice on the clipboard only", async () => {
-    const written: string[] = [];
-    const text = await copyConsentNotice({ writeText: (t: string) => { written.push(t); } });
-    expect(text).toBe(CONSENT_NOTICE);
-    expect(written).toEqual([CONSENT_NOTICE]);
-    expect(CONSENT_NOTICE).toMatch(/record/i);
+// Karim 2026-11-02: the +N chip opens the folded points; "Less" folds them back.
+describe("expand +N", () => {
+  it("a +N toggle shows every live point on that tile, then folds back", () => {
+    const { overlay } = make();
+    for (let i = 0; i < 5; i += 1) overlay.applyPointsUpsert(point());
+    const root = new FakeEl();
+    const chips = () => root.find((e) => e.attrs.has("data-point-id")).length;
+    const toggle = () => root.find((e) => e.attrs.get("data-expand-tile") === "tile-1")[0];
+    overlay.render(doc as never, root as never, 0);
+    expect(chips()).toBe(3);
+    expect(toggle().textContent).toBe("+2");
+    overlay.toggleExpanded("tile-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(chips()).toBe(5);
+    expect(toggle().textContent).toBe("Less");
+    overlay.toggleExpanded("tile-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(chips()).toBe(3);
   });
 });
 

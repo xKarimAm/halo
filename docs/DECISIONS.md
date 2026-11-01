@@ -164,7 +164,7 @@ Recorded in the module PLAN.md files they affect; the short list here wins if a 
   - Tab and mic are always separate streams (only the webm recording mixes them).
   - Insight coalesces capped turns into the next call and never drops them.
   - The Correlator never drops a turn: mic -> self tile, locked.
-  - Consent = the Overlay's dialog with "Copy notice", and nothing automates Meet chat.
+  - Consent = "Copy consent notice" in the toolbar popup beside Start (Karim 2026-11-02, moved from the Overlay), and nothing automates Meet chat.
   - Pairing tokens persist in `data/` across backend restarts.
   - Urgency mark (Karim, Oct 31): two styles, switchable by the viewer. **Words** = draft 2 (word tab in the bubble's language; the default) and **Symbols** = draft 1 (shape seals: triangle urgent / circle medium / hollow square later, about 25% smaller than the draft). The setting lives in the setup panel and is stored in `chrome.storage.local` key `halo.urgencyStyle` (`"words"|"symbols"`); the overlay reads it and follows `storage.onChanged` live. No Port or contract change.
 

@@ -2,7 +2,7 @@
 // and in-tab feeds into the overlay and renders into the Meet page.
 import type { ToPagePortMessage } from "../../../contracts/ext/port";
 import {
-  CONSENT_NOTICE, Overlay, SystemClock, copyConsentNotice, notesHref,
+  Overlay, SystemClock, notesHref,
   type DocLike, type El, type UrgencyStyle,
 } from "./overlay";
 import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
@@ -83,6 +83,7 @@ export function boot(context: { port: PortIn }): Overlay {
   watchUrgencyStyle(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
   syncPopover = mountPopover(document, overlay, root as unknown as Element, rerender);
+  bindExpand(root as unknown as Element, overlay, rerender);
   bindHideKey(document, overlay, () => { rerender(); refresh(); });
   return overlay;
 }
@@ -171,6 +172,16 @@ export function mountPopover(doc: Document, overlay: Overlay, root: Element, onC
   };
 }
 
+/** A click on a tile's +N chip opens its folded points; "Less" folds them. */
+export function bindExpand(root: Element, overlay: Overlay, rerender: () => void): void {
+  root.addEventListener("click", (ev) => {
+    const id = (ev.target as Element).closest?.("[data-expand-tile]")?.getAttribute("data-expand-tile");
+    if (!id) return;
+    overlay.toggleExpanded(id);
+    rerender();
+  });
+}
+
 /** Alt+H hides/shows the bubbles. Capture phase, so Meet never sees a key
  * Halo used. The physical key counts, so an Arabic keyboard layout works. */
 export function bindHideKey(doc: Document, overlay: Overlay, onChange: () => void): void {
@@ -213,15 +224,15 @@ async function saveViewerLang(lang: ViewerLang): Promise<void> {
   }
 }
 
-/** Badge, points-language picker, consent dialog and notes-ready toast,
- * fixed top-left above Meet.
+/** Halo badge, its menu (points language + legend) and the notes-ready
+ * toast, fixed top-left above Meet. Karim 2026-11-02: one Halo pill holds
+ * everything; the consent notice moved to the toolbar popup.
  * Refreshes after every Port message (registered after boot's listener, so
  * the overlay store is already updated). Returns the refresh function. */
 export function mountControls(
   doc: Document,
   overlay: Overlay,
   port: PortIn,
-  clipboard: { writeText(text: string): unknown } = navigator.clipboard,
 ): () => void {
   const make = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "") => {
     const e = doc.createElement(tag);
@@ -236,37 +247,17 @@ export function mountControls(
     return b;
   };
 
-  // Consent dialog (DECISIONS 10): editable notice, "Copy notice" puts it on
-  // the clipboard; the user pastes it into Meet chat. Meet chat is never touched.
-  const dialog = make("dialog", "halo-dialog");
-  dialog.setAttribute("aria-labelledby", "halo-consent-title");
-  const title = make("h2", "", "Consent notice");
-  title.id = "halo-consent-title";
-  const help = make("p", "", "Copy this notice, then paste it into Meet chat.");
-  const notice = make("textarea", "halo-notice");
-  notice.value = CONSENT_NOTICE;
-  notice.dir = "auto";
-  notice.rows = 7;
-  notice.setAttribute("aria-label", "Consent notice text");
-  const copyStatus = make("p", "halo-copy-status");
-  copyStatus.setAttribute("role", "status");
-  const actions = make("div", "halo-actions");
-  actions.append(
-    button("halo-btn", "Close", () => dialog.close()),
-    button("halo-btn halo-primary", "Copy notice", async () => {
-      try {
-        await copyConsentNotice(clipboard, notice.value);
-        copyStatus.textContent = "Copied. Paste it into Meet chat.";
-      } catch {
-        copyStatus.textContent = "Copy failed. Select the text and copy it.";
-      }
-    }),
-  );
-  dialog.append(title, help, notice, copyStatus, actions);
-
-  // Badge (never cut, DECISIONS 8) + the consent entry + the notes toast.
+  // Badge (never cut, DECISIONS 8): a click opens the Halo menu.
   const bar = make("div", "halo-controls");
-  const badge = make("span", "halo-badge");
+  const menu = make("div", "halo-menu");
+  menu.id = "halo-menu";
+  menu.hidden = true;
+  const badge = button("halo-badge", "", () => {
+    menu.hidden = !menu.hidden;
+    badge.setAttribute("aria-expanded", String(!menu.hidden));
+  });
+  badge.setAttribute("aria-expanded", "false");
+  badge.setAttribute("aria-controls", "halo-menu");
   const toast = make("div", "halo-toast");
   toast.setAttribute("role", "status");
   const link = make("a", "", "Open notes");
@@ -295,7 +286,6 @@ export function mountControls(
 
   // Legend (Karim 2026-11-01): what each colour and glyph means.
   const legend = make("div", "halo-legend");
-  legend.hidden = true;
   for (const [u, word] of [["urgent", "Urgent (stays until you archive it)"], ["medium", "Medium"], ["later", "Later"]] as const) {
     const swatch = make("span", "halo-swatch");
     swatch.style.background = URGENCY_COLORS[u];
@@ -304,21 +294,10 @@ export function mountControls(
   for (const [k, word] of [["point", "Point"], ["question", "Question"], ["decision", "Decision"], ["pushback", "Pushback"]] as const) {
     legend.append(make("span", "halo-kind", KIND_GLYPHS[k]), make("span", "", word));
   }
-  const legendBtn = button("halo-btn", "?", () => { legend.hidden = !legend.hidden; });
-  legendBtn.setAttribute("aria-label", "What the colours mean");
+  menu.append(lang, legend);
 
-  bar.append(
-    badge,
-    legendBtn,
-    lang,
-    button("halo-btn", "Consent notice", () => {
-      copyStatus.textContent = "";
-      dialog.showModal();
-    }),
-    toast,
-    legend,
-  );
-  doc.body.append(bar, dialog);
+  bar.append(badge, toast, menu);
+  doc.body.append(bar);
 
   const refresh = (): void => {
     badge.textContent = overlay.badgeText();

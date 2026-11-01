@@ -5,7 +5,7 @@ import type { PortMeetingContext } from "../../../contracts/ext/port";
 import type { MeetingContext } from "../../../contracts/ext/gen/types";
 import goldenContext from "../../../contracts/golden/meeting.context.json";
 import { PairingError } from "./pairing";
-import { initPopup, type PopupDeps } from "./popup";
+import { CONSENT_NOTICE, initPopup, type PopupDeps } from "./popup";
 import { memorySetupStorage } from "./storage";
 
 const golden = goldenContext.data as unknown as MeetingContext;
@@ -315,13 +315,31 @@ describe("popup three steps", () => {
   });
 });
 
+// Karim 2026-11-02: the consent notice moved here from the Meet overlay,
+// next to Start, where it is copied before pasting into Meet chat.
 describe("popup consent", () => {
-  it("contains no consent control (consent lives in the Overlay)", async () => {
-    const deps = depsWith();
+  it("Copy consent notice puts the bilingual notice on the clipboard and confirms", async () => {
+    const written: string[] = [];
+    const deps = depsWith({ clipboard: { writeText: async (t: string) => { written.push(t); } } });
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
-    expect(root.innerHTML).not.toMatch(/consent/i);
+    (root.querySelector("#consent-btn") as HTMLButtonElement).click();
+    await flush();
+    expect(written).toEqual([CONSENT_NOTICE]);
+    expect(CONSENT_NOTICE).toMatch(/record/i);
+    expect(CONSENT_NOTICE).toMatch(/[؀-ۿ]/); // Arabic half
+    expect(root.querySelector("#consent-state")?.textContent).toBe("Copied. Paste it into Meet chat.");
+  });
+
+  it("says so when the clipboard refuses", async () => {
+    const deps = depsWith({ clipboard: { writeText: async () => { throw new Error("denied"); } } });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    (root.querySelector("#consent-btn") as HTMLButtonElement).click();
+    await flush();
+    expect(root.querySelector("#consent-state")?.textContent).toBe("Copy failed. Try again.");
   });
 });
 
