@@ -29,6 +29,12 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 
 | Feature | What you see | Since |
 |---|---|---|
+| Back works | Every view has its own address, so the browser Back and Forward buttons move between the list and a meeting. | bd83b39 |
+| Hover preview | Hover a meeting in the list: its AI title, summary, Urgent/Medium/Later counts, top action items and decisions show on the right (Wispr-Flow style). | bd83b39 |
+| Folders | "Create folder" from the preview, move meetings between folders, filter the list by folder. | bd83b39 |
+| AI title + summary | At meeting end Spark writes a title (8 words max) and a 3-5 sentence summary, in the meeting's language. | f9b52a2 |
+| Email an action | Each assigned action item has an Email link that opens a ready message with the item, owner and meeting. | bd83b39 |
+| Look drafts | `?look=a` (ink band on sage) and `?look=b` (editorial serif, teal) for Karim to pick from. | c2ab580 |
 | Action items board | Urgent / Medium / Later columns; "by Halo" lets you re-tag any item and Halo keeps your choice over the model's. | earlier, liked by Karim 2026-11-02 |
 | Points, questions, decisions, pushbacks | Filter chips with counts; each item links to its transcript line. | earlier |
 | Recording + play buttons | Each item's play button jumps to that moment in the meeting recording (tab + your mic mixed). | f572d24 (built, not yet live-checked) |
@@ -44,6 +50,5 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 ## Ideas Karim raised (not built)
 
 - Meeting coach: a left panel with 1-3 tips on steering the meeting, from the model reading the whole meeting so far (plan step 3b).
-- Email an assigned action item to its owner, including people who missed the meeting (a mockup is fine).
 - Video clips: cut the moment of each point from the screen recording, not just the audio.
 - RAG / vector search across meetings (advised later, with carry-over in step 5).
