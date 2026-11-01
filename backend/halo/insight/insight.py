@@ -110,6 +110,7 @@ class Insight:
         self._last_call: dict[tuple[str, str], float] = {}
         self._call_times: deque[float] = deque()
         self._inflight: set[tuple[str, str]] = set()
+        self._calls: set[asyncio.Task] = set()
         self._contexts: dict[str, dict[str, Any]] = {}
         self._points: dict[str, dict[str, dict[str, Any]]] = {}
         self._turn_points: dict[tuple[str, str], list[str]] = {}
@@ -139,6 +140,8 @@ class Insight:
         if self._task is not None:
             self._task.cancel()
             self._task = None
+        for call in list(self._calls):  # no point publishes after stop
+            call.cancel()
 
     async def _flush_loop(self) -> None:
         while True:
@@ -207,11 +210,13 @@ class Insight:
             self._inflight.add(key)
             self._call_times.append(now)
             task = asyncio.get_running_loop().create_task(self._flush_speaker(key))
+            self._calls.add(task)  # the loop only holds tasks weakly
             task.add_done_callback(partial(self._call_done, key))
             started.append(task)
         return started
 
     def _call_done(self, key: tuple[str, str], task: asyncio.Task) -> None:
+        self._calls.discard(task)
         self._inflight.discard(key)
         if not task.cancelled() and task.exception() is not None:
             log.error("insight call crashed", exc_info=task.exception())
@@ -233,15 +238,21 @@ class Insight:
         viewer_lang = context.get("viewer_lang", "en")
         prompt = self.build_prompt(context, meetingid, str(turns[0].get("name", "")), turns)
         start = self._clock()
-        result = await asyncio.to_thread(
-            self._llm.complete_json,
-            prompt=prompt,
-            schema=POINT_RESULT_SCHEMA,
-            schema_name="insight.point",
-            prompt_cache_key=PROMPT_CACHE_KEY,
-        )
+        try:
+            result = await asyncio.to_thread(
+                self._llm.complete_json,
+                prompt=prompt,
+                schema=POINT_RESULT_SCHEMA,
+                schema_name="insight.point",
+                prompt_cache_key=PROMPT_CACHE_KEY,
+            )
+        except Exception:
+            # The client returns typed failures; a raise is a bug there, but
+            # the turns still never drop (PLAN): re-queue like a failed call.
+            log.exception("insight call raised, %d turns re-queued", len(turns))
+            result = None
         elapsed = self._clock() - start
-        if not result.ok or not isinstance(result.data, dict):
+        if result is None or not result.ok or not isinstance(result.data, dict):
             log.warning("insight call failed, %d turns re-queued", len(turns))
             self._held[key] = turns + self._held.get(key, [])
             self._last_call[key] = now
