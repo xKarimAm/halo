@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CONSENT_NOTICE, FakeClock, Overlay, notesHref } from "./overlay";
 import { bindHideKey, mountControls, mountPopover } from "./index";
+import { OVERLAY_CSS } from "./tokens";
 
 // Badge, consent dialog and notes-ready toast (issue #73), on a real DOM.
 type Listener = (msg: unknown) => void;
@@ -330,11 +331,16 @@ describe("archive and legend (Karim 2026-11-01)", () => {
   });
 
   it("the ? button shows a legend of urgency colours and kind glyphs", () => {
+    // The real stylesheet: its display:grid once beat [hidden] and the
+    // legend covered the bubbles (joined run 2026-11-01).
+    const style = document.createElement("style");
+    style.textContent = OVERLAY_CSS;
+    document.head.append(style);
     setup({ writeText: () => {} });
     const legend = $<HTMLElement>(".halo-legend");
-    expect(legend.hidden).toBe(true);
+    expect(getComputedStyle(legend).display).toBe("none");
     byText("?").click();
-    expect(legend.hidden).toBe(false);
+    expect(getComputedStyle(legend).display).toBe("grid");
     for (const word of ["Urgent", "Medium", "Later", "Question", "Decision", "Pushback"]) {
       expect(legend.textContent).toContain(word);
     }

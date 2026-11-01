@@ -43,6 +43,7 @@ export const OVERLAY_CSS = `
 .halo-chip-medium{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.medium}}
 .halo-chip-later{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.later}}
 .halo-legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(16,18,22,.86);backdrop-filter:blur(24px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.halo-legend[hidden]{display:none}
 .halo-legend .halo-swatch{width:12px;height:12px;border-radius:3px}
 .halo-pop-actions{display:flex;gap:8px;margin-top:10px}
 .halo-aged{color:#d5d9df}
