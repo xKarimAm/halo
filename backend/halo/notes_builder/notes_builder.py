@@ -71,7 +71,8 @@ def summary_prompt(store: dict[str, Any]) -> str:
     points = "\n".join(f"- [{p['kind']}] {p['text']}" for p in store["points"])
     return (
         "Write the notes header for this meeting. title: what the meeting was "
-        "about, at most 8 words, no quotes. summary: 3 to 5 plain sentences "
+        "about, at most 8 words, capital first letter, no quotes, no end period. "
+        "summary: 3 to 5 plain sentences, each ending with a period, "
         "covering what was decided, who owns what, and what is still open. Use "
         "only what the transcript says. Write both in the language most of the "
         "meeting used.\n\n"

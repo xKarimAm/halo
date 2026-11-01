@@ -120,6 +120,28 @@
     return parts[0].slice(0, 1) + parts[1].slice(0, 1);
   }
 
+  // Karim 2026-11-02: neat punctuation. Model text comes with or without a
+  // capital and an end mark; shown text gets both. Titles get no end mark.
+  // Quotes and transcript lines stay verbatim (they are evidence).
+  function tidy(text, isTitle) {
+    var s = String(text || "").replace(/\s+/g, " ").trim();
+    if (!s) return s;
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+    if (isTitle) return s.replace(/[.。]+$/, "");
+    return /[\p{L}\p{N})"'”]$/u.test(s) ? s + "." : s;
+  }
+
+  function tidyPage(page) {
+    var m = page.meeting || {};
+    if (m.title) m.title = tidy(m.title, true);
+    if (m.subject) m.subject = tidy(m.subject, true);
+    if (m.summary) m.summary = tidy(m.summary);
+    (page.points || []).forEach(function (p) { p.text = tidy(p.text); });
+    (page.actions || []).forEach(function (a) { a.text = tidy(a.text); });
+    (page.people || []).forEach(function (p) { if (p.why) p.why = tidy(p.why); });
+    return page;
+  }
+
   function el(tag, cls, text) {
     var node = document.createElement(tag);
     if (cls) node.className = cls;
@@ -897,13 +919,13 @@
 
     app.showList = function (meetings) {
       app.view = "list";
-      app.meetings = meetings;
+      app.meetings = (meetings || []).map(function (m) { return tidyPage({ meeting: m }).meeting; });
       render(app);
     };
 
     app.showMeeting = function (page) {
       app.view = "meeting";
-      app.page = page;
+      app.page = tidyPage(page);
       app.person = null;
       app.lineIndex = 0;
       render(app);
@@ -938,7 +960,7 @@
       app.previewId = id;
       if (app.previews[id]) { render(app); return; }
       app.fetchJson("/api/meetings/" + encodeURIComponent(id)).then(function (page) {
-        app.previews[id] = page;
+        app.previews[id] = tidyPage(page);
         if (app.previewId === id && app.view === "list") render(app);
       }).catch(function () {});
     };
@@ -1143,6 +1165,7 @@
   window.HaloNotes = {
     createApp: createApp,
     boot: boot,
-    exportMarkdown: exportMarkdown
+    exportMarkdown: exportMarkdown,
+    tidy: tidy
   };
 })();

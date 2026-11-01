@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap");
+/* Fonts as in docs/ui/notes-v2.html (DECISIONS: the notes page design). */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap");
 /* Halo Notes: Sage & Clay (from docs/ui/notes-v2.html palette 2, People First). */
 [data-palette="2"]{
   color-scheme:light;
@@ -180,9 +181,9 @@ audio.rec{width:100%;margin-top:8px;max-width:100%}
 
 /* ---- Karim 2026-11-02: the chosen look, a mix of draft A and B on the
    original Sage & Clay palette (docs/ui/notes-v2.html palette 2):
-   A's ink band behind the top bar and the meeting title, B's serif title and
+   A's ink band behind the top bar and the meeting title, B's large title and
    flat panels with a sage-tinted transcript/preview. One type scale. ---- */
-[data-palette="2"]{--band:var(--text);--band-ink:var(--on-accent);--band-muted:#c9c3b6;--panel:#fbf8f1;--tint:var(--caption-bg);--serif:'Instrument Serif',Georgia,serif}
+[data-palette="2"]{--band:var(--text);--band-ink:var(--on-accent);--band-muted:#c9c3b6;--panel:#fbf8f1;--tint:var(--caption-bg)}
 body::before{background:var(--bg)}
 .glass{background:var(--panel);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border-color:var(--hair)}
 .top{background:var(--band);color:var(--band-ink)}
@@ -197,11 +198,12 @@ body::before{background:var(--bg)}
 .mtg-card:hover,.mtg-card:focus-visible{border-color:var(--text)}
 .fchip[aria-pressed="true"],.btn.glass{background:var(--text);color:var(--on-accent);border-color:var(--text)}
 .person,.all{background:var(--panel)}
-/* One type scale: 40 serif titles, 20 serif panel titles, 17 section heads, 15 body, 13 small. */
-h1,.head h1,#view>h1{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.05;letter-spacing:-.01em}
-.preview h2{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.1}
+/* One type scale, all Inter (Karim 2026-11-02: no serif headers): 30 page
+   titles, 22 panel titles, 17 section heads, 15 body, 13 small. */
+h1,.head h1,#view>h1{font-weight:700;font-size:30px;line-height:1.15;letter-spacing:-.02em}
+.preview h2{font-weight:700;font-size:22px;line-height:1.2;letter-spacing:-.01em}
 h2,.tx h2,.why h2,.board h2,.col h2,.hits h2,.p-head h2{font-size:17px;font-weight:600}
 h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 .mtg-card b{font-size:16px;font-weight:600}
 .sub,.prov,.ln .who,.act small{font-size:13px}
-[lang=ar] h1,[dir=rtl] h1,[lang=ar] .preview h2{font-family:'IBM Plex Sans Arabic',sans-serif;font-weight:600;font-size:32px}
+[lang=ar] h1,[dir=rtl] h1,[lang=ar] .preview h2{font-family:'IBM Plex Sans Arabic',sans-serif;font-weight:700;letter-spacing:0}

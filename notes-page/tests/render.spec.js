@@ -22,6 +22,14 @@ function degradedPage() {
   return page;
 }
 
+// Model text as it arrives live: no capital, no end mark, a title ending in ".".
+function messyPage() {
+  const page = JSON.parse(JSON.stringify(GOLDEN));
+  page.meeting.title = "launch readiness review.";
+  page.points[0].text = "launch  moves to nov 12";
+  return page;
+}
+
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 
 let server;
@@ -46,6 +54,9 @@ test.beforeAll(async () => {
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/" + MEETING_ID) {
       return send(res, 200, JSON.stringify(GOLDEN));
+    }
+    if (req.method === "GET" && url.pathname === "/api/meetings/messy") {
+      return send(res, 200, JSON.stringify(messyPage()));
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/degraded") {
       return send(res, 200, JSON.stringify(degradedPage()));
@@ -235,4 +246,13 @@ test("(11) an assigned action has an email link carrying its text and the meetin
   expect(href.startsWith("mailto:?")).toBe(true);
   expect(href).toContain(GOLDEN.actions[0].text);
   expect(href).toContain(GOLDEN.meeting.title);
+});
+
+test("(12) shown text is tidy: capital first letter, end period, titles without one, Inter headers", async ({ page }) => {
+  await page.goto(baseURL + "/?meeting=messy");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Launch readiness review");
+  await expect(page.locator(".txt").first()).toHaveText("Launch moves to nov 12.");
+  const h1Font = await page.locator("h1").first().evaluate((e) => getComputedStyle(e).fontFamily);
+  expect(h1Font).toContain("Inter");
+  expect(h1Font).not.toContain("Instrument Serif");
 });
