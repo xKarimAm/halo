@@ -186,6 +186,21 @@ describe("startLiveCapture", () => {
     expect(ctx.closed).toBe(true);
   });
 
+  it("opens the mic Meet uses, falling back to the default when it is gone", async () => {
+    const ctx = fakeContext();
+    const asked: unknown[] = [];
+    const getUserMedia = async (constraints: unknown) => {
+      asked.push(constraints);
+      const audio = (constraints as { audio: unknown }).audio;
+      if (audio !== true && asked.length === 1) throw new DOMException("gone", "OverconstrainedError");
+      return fakeStream();
+    };
+    const { deps } = depsWith({ getUserMedia }, ctx);
+    expect(await startLiveCapture(undefined, deps, { mic: true, micDeviceId: "headset-id" }))
+      .toEqual({ tab: false, mic: true });
+    expect(asked).toEqual([{ audio: { deviceId: { exact: "headset-id" } } }, { audio: true }]);
+  });
+
   it("hub side (mic: false): taps only the tab, never asks for the mic", async () => {
     const ctx = fakeContext();
     const getUserMedia = vi.fn(async () => fakeStream());

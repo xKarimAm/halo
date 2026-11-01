@@ -15,6 +15,7 @@ import { createPortSync } from "../meet_adapter/port_sync";
 import { boot as bootOverlay } from "../overlay/index";
 import { adaptAudioContext, startLiveCapture } from "../hub_capture/capture_live";
 import { createMicSender, MIC_PORT_NAME, MIC_START_MESSAGE } from "../hub_capture/mic_relay";
+import { MIC_DEVICE_KEY } from "../hub_capture/mic_device";
 
 declare const chrome: any;
 
@@ -83,7 +84,8 @@ export function listenForMicStart(): void {
       sendAudio: (_stream, pcm, tsMs) => send(pcm, tsMs),
       setMicState: (state) => void chrome.storage.local.set({ "halo.micState": state }),
       now: () => Date.now(),
-    }).then((res) => { micStarted = res.mic; }); // denied: a later Start may retry
+    }, { mic: true, micDeviceId: document.documentElement.dataset[MIC_DEVICE_KEY] })
+      .then((res) => { micStarted = res.mic; }); // denied: a later Start may retry
     return false;
   });
 }

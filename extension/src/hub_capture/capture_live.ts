@@ -118,7 +118,7 @@ function pcmBytes(pcm: Int16Array): Uint8Array {
 export async function startLiveCapture(
   streamId: string | undefined,
   deps: LiveCaptureDeps,
-  opts: { mic: boolean } = { mic: true },
+  opts: { mic: boolean; micDeviceId?: string } = { mic: true },
 ): Promise<{ tab: boolean; mic: boolean }> {
   const result = { tab: false, mic: false };
   const tracks: MediaStreamTrack[] = [];
@@ -189,7 +189,11 @@ export async function startLiveCapture(
 
   if (!opts.mic) return result;
   try {
-    const mic = await deps.mediaDevices.getUserMedia({ audio: true });
+    // The mic Meet uses (mic_device.ts); the default device can be a silent virtual one.
+    const mic = opts.micDeviceId
+      ? await deps.mediaDevices.getUserMedia({ audio: { deviceId: { exact: opts.micDeviceId } } })
+        .catch(() => deps.mediaDevices.getUserMedia({ audio: true })) // unplugged since: the default
+      : await deps.mediaDevices.getUserMedia({ audio: true });
     tap(mic, "mic", false);
     deps.setMicState("granted");
     // Unplugged or revoked mid-meeting: the popup must not keep saying "ready".
