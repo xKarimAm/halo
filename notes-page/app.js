@@ -1124,16 +1124,6 @@
         return res.json().catch(function () { return {}; });
       });
     };
-    // Look drafts (?look=a|b), kept for the session so navigation keeps them.
-    try {
-      var look = new URLSearchParams(window.location.search).get("look") || window.sessionStorage.getItem("halo.look");
-      if (look === "a" || look === "b") {
-        doc.documentElement.dataset.look = look;
-        window.sessionStorage.setItem("halo.look", look);
-      } else if (look === "off") {
-        window.sessionStorage.removeItem("halo.look");
-      }
-    } catch (e) { /* storage blocked: the default look */ }
     var app = createApp({ doc: doc, fetchJson: fetchJson, postTag: postTag, postJson: postJson, win: window });
     var idFromPath = function () {
       var m = /^\/notes\/([0-9a-f-]{36})/i.exec(window.location.pathname);

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap");
 /* Halo Notes: Sage & Clay (from docs/ui/notes-v2.html palette 2, People First). */
 [data-palette="2"]{
   color-scheme:light;
@@ -177,51 +177,31 @@ audio.rec{width:100%;margin-top:8px;max-width:100%}
 .pv-open{margin-top:12px}
 .mail{text-decoration:none}
 
-/* ---- Look drafts (Karim 2026-11-02, taste skill). ?look=a or ?look=b; none = Sage & Clay. ---- */
 
-/* Draft A, "Ledger on sage": ink chrome, a deep two-tone header band, sage
-   ground with white cards, colour only on urgency. Geist. */
-html[data-look="a"]{
-  --font:'Geist','IBM Plex Sans Arabic',system-ui,sans-serif;
-  --bg:#f2f5f2; --text:#0a0a0a; --muted:#5f655f; --faint:#6b6b6b; --on-accent:#ffffff;
-  --glass:#ffffff; --glass-hi:#ffffff; --rim:#e2e7e2; --hair:#edf0ed;
-  --knob:#141414; --focus:#1d5fbf; --logo-dot:#7fd39a; --r:8px;
-  --band:#13221a; --band-ink:#eef5ef; --band-muted:#a9bcae;
-}
-html[data-look="a"] body::before{background:var(--bg)}
-html[data-look="a"] .glass{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border-color:var(--rim)}
-html[data-look="a"] .top{background:var(--band);color:var(--band-ink)}
-html[data-look="a"] .top .crumb,html[data-look="a"] .top .sub{color:var(--band-muted)}
-html[data-look="a"] .top .seg,html[data-look="a"] .top .btn{background:#1f3328;border-color:#2c4537;color:var(--band-ink)}
-html[data-look="a"] .top .seg button[aria-pressed="true"]{background:var(--band-ink);color:var(--band)}
-html[data-look="a"] .head{background:var(--band);color:var(--band-ink);border:0;border-radius:0 0 var(--r) var(--r);margin-top:-6px;padding:24px 28px}
-html[data-look="a"] .head .sub,html[data-look="a"] .head .mtg-summary{color:var(--band-muted)}
-html[data-look="a"] .head h1{font-size:30px;letter-spacing:-.02em}
-html[data-look="a"] #view>h1{font-size:30px;letter-spacing:-.02em}
-html[data-look="a"] .mtg-card:hover,html[data-look="a"] .mtg-card:focus-visible{border-color:#141414}
-html[data-look="a"] .fchip[aria-pressed="true"],html[data-look="a"] .btn.glass{background:#141414;color:#fff;border-color:#141414}
-html[data-look="a"] .person,html[data-look="a"] .all{background:#fff}
-
-/* Draft B, "Editorial teal": a white page with a stone working panel and a
-   teal-tinted transcript, the meeting title as a big serif headline. */
-html[data-look="b"]{
-  --font:'Instrument Sans','IBM Plex Sans Arabic',system-ui,sans-serif;
-  --bg:#ffffff; --text:#1f201d; --muted:#636361; --faint:#636361; --on-accent:#ffffff;
-  --glass:#f6f4ef; --glass-hi:#ffffff; --rim:#ebe8e1; --hair:#efede8;
-  --knob:#1b6e66; --focus:#1b6e66; --logo-dot:#1b6e66; --r:22px;
-  --teal-tint:#eaf3f1; --teal:#1b6e66;
-}
-html[data-look="b"] body::before{background:#ffffff}
-html[data-look="b"] .glass{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border-color:transparent}
-html[data-look="b"] .head{background:transparent;padding:8px 0 4px}
-html[data-look="b"] .head h1,html[data-look="b"] #view>h1,html[data-look="b"] .preview h2{font-family:'Instrument Serif',serif;font-weight:400;letter-spacing:-.01em}
-html[data-look="b"] .head h1,html[data-look="b"] #view>h1{font-size:48px;line-height:1.05}
-html[data-look="b"] .preview h2{font-size:32px;line-height:1.1}
-html[data-look="b"] .tx,html[data-look="b"] .preview{background:var(--teal-tint);border-color:transparent}
-html[data-look="b"] .ln.on{background:#ffffff;outline:0}
-html[data-look="b"] .fchip[aria-pressed="true"],html[data-look="b"] .btn.glass,html[data-look="b"] .seg button[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
-html[data-look="b"] .mtg-card{background:#f6f4ef}
-html[data-look="b"] .mtg-card:hover,html[data-look="b"] .mtg-card:focus-visible{background:var(--teal-tint)}
-html[data-look="b"] .person,html[data-look="b"] .all{background:#f6f4ef;border-color:transparent}
-html[data-look="b"] .person[aria-pressed="true"],html[data-look="b"] .all[aria-pressed="true"]{background:var(--teal);color:#fff}
-html[data-look="b"] .person[aria-pressed="true"] .rl{color:#d7ece8}
+/* ---- Karim 2026-11-02: the chosen look, a mix of draft A and B on the
+   original Sage & Clay palette (docs/ui/notes-v2.html palette 2):
+   A's ink band behind the top bar and the meeting title, B's serif title and
+   flat panels with a sage-tinted transcript/preview. One type scale. ---- */
+[data-palette="2"]{--band:var(--text);--band-ink:var(--on-accent);--band-muted:#c9c3b6;--panel:#fbf8f1;--tint:var(--caption-bg);--serif:'Instrument Serif',Georgia,serif}
+body::before{background:var(--bg)}
+.glass{background:var(--panel);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border-color:var(--hair)}
+.top{background:var(--band);color:var(--band-ink)}
+.top .crumb,.top .logo .sub{color:var(--band-muted)}
+.top .seg,.top .btn{background:#3a3832;border-color:#4a473f;color:var(--band-ink)}
+.top .seg button{color:var(--band-muted)}
+.top .seg button[aria-pressed="true"]{background:var(--band-ink);color:var(--band)}
+.head{background:var(--band);color:var(--band-ink);border:0;border-radius:0 0 var(--r) var(--r);margin-top:-6px;padding:22px 26px}
+.head .sub,.head .mtg-summary{color:var(--band-muted)}
+.tx,.preview{background:var(--tint);border-color:transparent}
+.ln.on{background:var(--panel);outline:0}
+.mtg-card:hover,.mtg-card:focus-visible{border-color:var(--text)}
+.fchip[aria-pressed="true"],.btn.glass{background:var(--text);color:var(--on-accent);border-color:var(--text)}
+.person,.all{background:var(--panel)}
+/* One type scale: 40 serif titles, 20 serif panel titles, 17 section heads, 15 body, 13 small. */
+h1,.head h1,#view>h1{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.05;letter-spacing:-.01em}
+.preview h2{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.1}
+h2,.tx h2,.why h2,.board h2,.col h2,.hits h2,.p-head h2{font-size:17px;font-weight:600}
+h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
+.mtg-card b{font-size:16px;font-weight:600}
+.sub,.prov,.ln .who,.act small{font-size:13px}
+[lang=ar] h1,[dir=rtl] h1,[lang=ar] .preview h2{font-family:'IBM Plex Sans Arabic',sans-serif;font-weight:600;font-size:32px}
