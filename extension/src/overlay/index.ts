@@ -252,9 +252,13 @@ export function mountControls(
   const menu = make("div", "halo-menu");
   menu.id = "halo-menu";
   menu.hidden = true;
-  const badge = button("halo-badge", "", () => {
-    menu.hidden = !menu.hidden;
-    badge.setAttribute("aria-expanded", String(!menu.hidden));
+  const showMenu = (open: boolean): void => {
+    menu.hidden = !open;
+    badge.setAttribute("aria-expanded", String(open));
+  };
+  const badge = button("halo-badge", "", () => showMenu(menu.hidden));
+  doc.addEventListener("click", (ev) => {
+    if (!menu.hidden && !(ev.target as Element).closest?.(".halo-controls")) showMenu(false);
   });
   badge.setAttribute("aria-expanded", "false");
   badge.setAttribute("aria-controls", "halo-menu");

@@ -57,7 +57,8 @@ export const OVERLAY_CSS = `
 .halo-thinking{animation:halo-sweep 1.3s linear infinite}
 .halo-thinking-dotted{border-bottom:2px dotted #fff3d1}
 @media (prefers-reduced-motion:reduce){.halo-thinking{animation:none}}
-.halo-controls{position:fixed;top:12px;left:12px;z-index:2147483647;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100vw - 24px);font:500 12px/1.25 Inter,system-ui,sans-serif;color:#f5f7fa}
+/* Top centre: Meet's clock and meeting code sit top-left (live 2026-11-02). */
+.halo-controls{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;max-width:calc(100vw - 24px);font:500 12px/1.25 Inter,system-ui,sans-serif;color:#f5f7fa}
 .halo-badge,.halo-controls .halo-btn,.halo-toast{${GLASS}}
 .halo-badge{padding:5px 12px;border:0;border-radius:999px;color:#fff;font:inherit;font-weight:600;cursor:pointer}
 .halo-btn{padding:5px 12px;border:0;border-radius:999px;background:rgba(255,255,255,.08);color:#f5f7fa;font:inherit;cursor:pointer}

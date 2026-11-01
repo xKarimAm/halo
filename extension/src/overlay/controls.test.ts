@@ -87,6 +87,12 @@ describe("Halo menu", () => {
     expect(menu.textContent).toContain("Urgent");
     badge.click();
     expect(menu.hidden).toBe(true);
+    badge.click();
+    (menu.querySelector(".halo-lang") as HTMLElement).click(); // inside: stays open
+    expect(menu.hidden).toBe(false);
+    document.body.click(); // outside closes it
+    expect(menu.hidden).toBe(true);
+    expect(badge.getAttribute("aria-expanded")).toBe("false");
     expect(document.body.textContent).not.toMatch(/consent/i);
     expect(byText("?")).toBeUndefined();
   });
