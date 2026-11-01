@@ -31,7 +31,7 @@ export interface PopupDeps {
   /** True when the active tab is a Meet call (drives "Ready for meeting"). */
   onMeetCall?: () => Promise<boolean>;
   /** Live `halo.micState` updates (the Meet tab writes it when the mic opens). */
-  watchMicState?: (onChange: (state: MicState) => void) => void;
+  watchMicState?: (onChange: (state: MicState, label?: string) => void) => void;
   /** Ends the running meeting; the Stop button exists only when this is given. */
   onStop?: () => void | Promise<void>;
   pairFn?: (code: string) => Promise<string>;
@@ -89,8 +89,10 @@ function flash(node: HTMLElement, text: string, ms = 1500): void {
   setTimeout(() => node.setAttribute("hidden", "true"), ms);
 }
 
-export function micStatusText(state: SavedSetup["micState"]): string {
-  if (state === "granted") return "Microphone: ready";
+export function micStatusText(state: SavedSetup["micState"], label?: string): string {
+  // Chrome labels read "Microphone (Arctis Nova Pro Wireless) (1038:12e0)": keep the name.
+  const name = (label ?? "").replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, "").replace(/^Microphone \((.*)\)$/, "$1").trim();
+  if (state === "granted") return name ? `Microphone: ${name}` : "Microphone: ready";
   if (state === "denied") return "Microphone: blocked in Meet, tab audio only";
   return "Microphone: starts with Start";
 }
@@ -125,6 +127,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   let savedOnce = Boolean(saved.context);
   let running = runningAtOpen;
   let micState = saved.micState;
+  let micLabel = saved.micLabel;
   const header = el("header", { class: "top" });
   const logo = el("h1", { class: "logo" }, "Halo");
   logo.prepend(el("i"));
@@ -202,7 +205,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
           : { text: "Ready for meeting", tone: "ok" };
     readyState.textContent = ready.text;
     readyState.dataset.tone = ready.tone;
-    micLine.textContent = micStatusText(micState);
+    micLine.textContent = micStatusText(micState, micLabel);
     micLine.dataset.tone = micState === "denied" ? "warn" : "";
   };
   changeButton.addEventListener("click", () => {
@@ -359,8 +362,9 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   const micSection = el("div", { id: "mic-section", class: "mic" });
   micSection.append(readyState, micLine);
   startSection.appendChild(micSection);
-  deps.watchMicState?.((state) => {
+  deps.watchMicState?.((state, label) => {
     micState = state;
+    if (label !== undefined) micLabel = label;
     renderSteps();
   });
 

@@ -124,7 +124,8 @@ void initPopup(root, {
   watchMicState: (onChange) => {
     chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
       const next = changes[MIC_STATE_KEY]?.newValue;
-      if (next === "granted" || next === "denied") onChange(next as MicState);
+      const label = changes["halo.micLabel"]?.newValue;
+      if (next === "granted" || next === "denied") onChange(next as MicState, typeof label === "string" ? label : undefined);
     });
   },
 });

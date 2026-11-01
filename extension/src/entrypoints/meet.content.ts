@@ -82,7 +82,7 @@ export function listenForMicStart(): void {
       mediaDevices: navigator.mediaDevices,
       createContext: () => adaptAudioContext(new AudioContext()),
       sendAudio: (_stream, pcm, tsMs) => send(pcm, tsMs),
-      setMicState: (state) => void chrome.storage.local.set({ "halo.micState": state }),
+      setMicState: (state, label) => void chrome.storage.local.set({ "halo.micState": state, "halo.micLabel": label ?? "" }),
       now: () => Date.now(),
     }, { mic: true, micDeviceId: document.documentElement.dataset[MIC_DEVICE_KEY] })
       .then((res) => { micStarted = res.mic; }); // denied: a later Start may retry

@@ -201,6 +201,17 @@ describe("startLiveCapture", () => {
     expect(asked).toEqual([{ audio: { deviceId: { exact: "headset-id" } } }, { audio: true }]);
   });
 
+  it("reports the opened mic's label with the granted state", async () => {
+    const ctx = fakeContext();
+    const stream = fakeStream();
+    (stream.getAudioTracks()[0] as unknown as { label: string }).label = "Microphone (Arctis Nova Pro Wireless)";
+    const labels: (string | undefined)[] = [];
+    const { deps } = depsWith({ getUserMedia: async () => stream }, ctx);
+    deps.setMicState = (_s, label) => { labels.push(label); };
+    await startLiveCapture(undefined, deps);
+    expect(labels).toEqual(["Microphone (Arctis Nova Pro Wireless)"]);
+  });
+
   it("hub side (mic: false): taps only the tab, never asks for the mic", async () => {
     const ctx = fakeContext();
     const getUserMedia = vi.fn(async () => fakeStream());

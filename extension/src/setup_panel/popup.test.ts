@@ -427,3 +427,13 @@ describe("popup Stop", () => {
 beforeEach(() => {
   document.body.textContent = "";
 });
+
+describe("mic line names the device (Karim 2026-11-01)", () => {
+  it("shows the mic Halo opened, without Chrome's USB id", async () => {
+    const { micStatusText } = await import("./popup");
+    expect(micStatusText("granted", "Microphone (Arctis Nova Pro Wireless) (1038:12e0)"))
+      .toBe("Microphone: Arctis Nova Pro Wireless");
+    expect(micStatusText("granted")).toBe("Microphone: ready");
+    expect(micStatusText(undefined)).toBe("Microphone: starts with Start");
+  });
+});

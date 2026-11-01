@@ -50,7 +50,7 @@ export interface LiveCaptureDeps {
   mediaDevices: MediaDevicesLike;
   createContext(): AudioContextLike;
   sendAudio(stream: CaptureStream, pcm: Uint8Array, tsMs: number): void;
-  setMicState(state: "granted" | "denied"): void;
+  setMicState(state: "granted" | "denied", label?: string): void;
   now(): number;
   /** The tab stream ended on its own (tab closed): the meeting is over. */
   onTabEnded?(): void;
@@ -195,7 +195,7 @@ export async function startLiveCapture(
         .catch(() => deps.mediaDevices.getUserMedia({ audio: true })) // unplugged since: the default
       : await deps.mediaDevices.getUserMedia({ audio: true });
     tap(mic, "mic", false);
-    deps.setMicState("granted");
+    deps.setMicState("granted", mic.getAudioTracks()[0]?.label);
     // Unplugged or revoked mid-meeting: the popup must not keep saying "ready".
     mic.getAudioTracks()[0]?.addEventListener("ended", () => deps.setMicState("denied"));
     result.mic = true;

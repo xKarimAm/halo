@@ -8,6 +8,8 @@ export type MicState = "granted" | "denied";
 
 /** Storage key the offscreen hub writes when the mic opens or is denied. */
 export const MIC_STATE_KEY = "halo.micState";
+/** The opened mic's device name, written with the state (Karim 2026-11-01). */
+export const MIC_LABEL_KEY = "halo.micLabel";
 
 /** Storage key the overlay reads on boot and watches live. */
 export const URGENCY_STYLE_KEY = "halo.urgencyStyle";
@@ -18,6 +20,7 @@ export interface SavedSetup {
   context?: MeetingContext;
   urgencyStyle?: UrgencyStyle;
   micState?: MicState;
+  micLabel?: string;
 }
 
 /** Token + context + viewer-preference persistence. Production use is `chrome.storage.local`. */
@@ -58,6 +61,7 @@ export function chromeSetupStorage(area: StorageArea): SetupStorage {
       if (mic === "granted" || mic === "denied") {
         saved.micState = mic;
       }
+      if (typeof items[MIC_LABEL_KEY] === "string") saved.micLabel = items[MIC_LABEL_KEY] as string;
       return saved;
     },
     async saveToken(token: string): Promise<void> {
