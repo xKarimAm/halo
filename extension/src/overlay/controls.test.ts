@@ -306,3 +306,37 @@ describe("Alt+H is bare Alt+H only", () => {
     expect(changes).toBe(1);
   });
 });
+
+describe("archive and legend (Karim 2026-11-01)", () => {
+  it("Archive in the card removes the point from the bubbles and re-renders", () => {
+    const overlay = new Overlay(new FakeClock());
+    overlay.applyTiles({ tiles: [{ tile_id: "tile-1", name: "Layla", is_self: false, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null }] });
+    overlay.applyPointsUpsert({
+      point_id: "pt-9", tile_id: "tile-1", speaker_name: "Layla", kind: "point", text: "Fix the mic", lang: "en",
+      quote: "fix the mic", turn_ids: ["t-1"], rank: 1, attribution: "provisional", is_action: true,
+      engine: "spark-open", urgency: "urgent",
+    } as never, "env-9");
+    const root = document.createElement("div");
+    document.body.append(root);
+    let renders = 0;
+    const render = () => { renders += 1; overlay.render(document as never, root as never, 0); };
+    render();
+    mountPopover(document, overlay, root, render);
+    root.querySelector<HTMLButtonElement>('[data-point-id="pt-9"]')!.click();
+    byText("Archive").click();
+    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+    expect(renders).toBe(2);
+  });
+
+  it("the ? button shows a legend of urgency colours and kind glyphs", () => {
+    setup({ writeText: () => {} });
+    const legend = $<HTMLElement>(".halo-legend");
+    expect(legend.hidden).toBe(true);
+    byText("?").click();
+    expect(legend.hidden).toBe(false);
+    for (const word of ["Urgent", "Medium", "Later", "Question", "Decision", "Pushback"]) {
+      expect(legend.textContent).toContain(word);
+    }
+  });
+});

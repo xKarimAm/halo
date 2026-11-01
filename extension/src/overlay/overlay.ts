@@ -5,7 +5,7 @@
 import type {
   FacesUpdate, PointsUpsert, SpeakerActive, TagsSet, TilesSnapshot, TilesSnapshotTiles,
 } from "../../../contracts/ext/gen/types";
-import { AGEING_FRACTION, KIND_COLORS, POINT_LIFETIME_MS } from "./tokens";
+import { AGEING_FRACTION, KIND_GLYPHS, POINT_LIFETIME_MS } from "./tokens";
 
 export type PointUpsert = PointsUpsert;
 
@@ -119,6 +119,7 @@ export class Overlay {
   private tileOrder: string[] = [];
   private faces = new Map<string, FacesUpdate["face"]>();
   private seenEnvelopes = new Set<string>();
+  private archived = new Set<string>();
   private thinkingStart = new Map<string, number>();
   private layers = new Map<string, El>();
   private overflowEls = new Map<string, El>();
@@ -184,10 +185,18 @@ export class Overlay {
     if (tag.urgency) stored.urgency = tag.urgency;
   }
 
+  /** Urgent points stay until archived (Karim 2026-11-01); others age out. */
   private live(tileId: string): StoredPoint[] {
+    const urgent = (p: StoredPoint) => (p.urgency === "urgent" ? 0 : 1);
     return [...this.points.values()]
-      .filter((p) => p.tile_id === tileId && this.clock.now - p.arrivedMs < POINT_LIFETIME_MS)
-      .sort((a, b) => a.rank - b.rank || a.arrivedMs - b.arrivedMs);
+      .filter((p) => p.tile_id === tileId && !this.archived.has(p.point_id)
+        && (p.urgency === "urgent" || this.clock.now - p.arrivedMs < POINT_LIFETIME_MS))
+      .sort((a, b) => urgent(a) - urgent(b) || a.rank - b.rank || a.arrivedMs - b.arrivedMs);
+  }
+
+  /** The viewer handled it: gone from the bubbles (the notes keep it). */
+  archive(pointId: string): void {
+    this.archived.add(pointId); // ponytail: per page load; a reload brings urgent points back
   }
 
   visiblePoints(tileId: string): StoredPoint[] {
@@ -279,7 +288,7 @@ export class Overlay {
     quoteDir: "rtl" | "ltr"; urgentWord?: string;
   } | null {
     const p = this.points.get(pointId);
-    if (!p) return null;
+    if (!p || this.archived.has(pointId)) return null;
     return {
       kind: p.kind, speaker: p.speaker_name, text: p.text, quote: p.quote,
       quoteDir: quoteDirection(p.quote),
@@ -336,8 +345,9 @@ export class Overlay {
         chip.textContent = "";
         const mark = doc.createElement("span");
         mark.classList.add("halo-kind");
-        mark.style.setProperty("background", KIND_COLORS[stored.kind]);
+        mark.textContent = KIND_GLYPHS[stored.kind] ?? "";
         chip.appendChild(mark);
+        for (const u of ["urgent", "medium", "later"]) chip.classList.toggle(`halo-chip-${u}`, stored.urgency === u);
         if (stored.urgency) {
           const urg = doc.createElement("span");
           const words = this.urgencyStyle === "words";

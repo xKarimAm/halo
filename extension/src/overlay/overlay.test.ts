@@ -339,3 +339,29 @@ describe("urgency mark", () => {
     expect(overlay.urgencyStyle).toBe("words");
   });
 });
+
+// Live 2026-11-01 (Karim): urgent points vanished after a minute; they must
+// stay until handled. Colour means urgency only; kind is a glyph.
+describe("urgent points stick until archived", () => {
+  it("an urgent point outlives the lifetime and leads the stack; archive removes it", () => {
+    const { overlay, clock } = make();
+    overlay.applyPointsUpsert(point({ point_id: "u1", urgency: "urgent", rank: 3 }), "env-s1");
+    overlay.applyPointsUpsert(point({ point_id: "m1", urgency: "medium", rank: 1 }), "env-s2");
+    expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["u1", "m1"]);
+    clock.now += 10 * 60_000;
+    expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["u1"]);
+    overlay.archive("u1");
+    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect(overlay.popover("u1")).toBeNull();
+  });
+
+  it("the kind mark is a glyph on a neutral disc, not a second colour", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point({ kind: "question", urgency: "later" }), "env-s3");
+    overlay.render(doc as never, root as never, 0);
+    const mark = root.find((e) => e.classes.has("halo-kind"))[0];
+    expect(mark.textContent).toBe("?");
+    expect(root.find((e) => e.classes.has("halo-chip-later"))).toHaveLength(1);
+  });
+});

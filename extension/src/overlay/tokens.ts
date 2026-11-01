@@ -7,6 +7,11 @@ export const KIND_COLORS = {
   pushback: "#ffb199",
 } as const;
 
+// Live 2026-11-01 (Karim): colour means urgency only (red / amber / blue,
+// the usual severity order); kind is a glyph on a neutral disc.
+export const URGENCY_COLORS = { urgent: "#ff4d5e", medium: "#f5b301", later: "#5aa9ff" } as const;
+export const KIND_GLYPHS = { point: "•", question: "?", decision: "✓", pushback: "≠" } as const;
+
 export const DARK = "#0b0f1a";
 // The one UI accent (OVERLAY-UX section 4): primary button, links, focus ring.
 export const HALO_GOLD = "#ffd98a";
@@ -26,14 +31,20 @@ export const OVERLAY_CSS = `
 .halo-stack{position:absolute;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .halo-chip{position:relative;display:flex;align-items:center;gap:6px;padding:5px 9px 5px 6px;border-radius:9px;font:500 12px/1.25 Inter,system-ui,sans-serif;color:#fff;background:rgba(12,14,18,.66);backdrop-filter:${GLASS_BLUR};cursor:pointer}
 .halo-utab{position:absolute;top:-9px;inset-inline-start:10px;padding:1px 7px;border-radius:9px 9px 0 0;font:700 ${URGENCY_TAB_FONT_PX}px/1.5 Inter,system-ui,sans-serif;letter-spacing:.06em;color:${DARK};z-index:1}
-.halo-utab.halo-u-urgent{background:#ff3b5c}
-.halo-utab.halo-u-medium{background:#f5b301}
-.halo-utab.halo-u-later{background:#aab0b8}
+.halo-utab.halo-u-urgent{background:${URGENCY_COLORS.urgent}}
+.halo-utab.halo-u-medium{background:${URGENCY_COLORS.medium}}
+.halo-utab.halo-u-later{background:${URGENCY_COLORS.later}}
 .halo-useal{position:absolute;top:-6px;inset-inline-end:6px;width:${URGENCY_SEAL_PX}px;height:${URGENCY_SEAL_PX}px;display:grid;place-items:center;font:900 9px/1 Inter,system-ui,sans-serif;color:${DARK};z-index:1}
-.halo-useal.halo-u-urgent{background:#ff3b5c;clip-path:polygon(50% 0,100% 100%,0 100%)}
-.halo-useal.halo-u-medium{background:#f5b301;border-radius:50%}
-.halo-useal.halo-u-later{border:2px solid #aab0b8}
-.halo-kind{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:${DARK};box-shadow:0 0 0 1.5px ${DARK}}
+.halo-useal.halo-u-urgent{background:${URGENCY_COLORS.urgent};clip-path:polygon(50% 0,100% 100%,0 100%)}
+.halo-useal.halo-u-medium{background:${URGENCY_COLORS.medium};border-radius:50%}
+.halo-useal.halo-u-later{background:${URGENCY_COLORS.later};border-radius:3px}
+.halo-kind{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.92);color:${DARK};font:800 11px/1 Inter,system-ui,sans-serif;box-shadow:0 0 0 1.5px ${DARK}}
+.halo-chip-urgent{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.urgent}}
+.halo-chip-medium{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.medium}}
+.halo-chip-later{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.later}}
+.halo-legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(16,18,22,.86);backdrop-filter:blur(24px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.halo-legend .halo-swatch{width:12px;height:12px;border-radius:3px}
+.halo-pop-actions{display:flex;gap:8px;margin-top:10px}
 .halo-aged{color:#d5d9df}
 .halo-thinking{animation:halo-sweep 1.3s linear infinite}
 .halo-thinking-dotted{border-bottom:2px dotted #fff3d1}

@@ -5,7 +5,7 @@ import {
   CONSENT_NOTICE, Overlay, SystemClock, copyConsentNotice, notesHref,
   type DocLike, type El, type UrgencyStyle,
 } from "./overlay";
-import { OVERLAY_CSS } from "./tokens";
+import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
 
 // Viewer urgency-mark setting, shared with the setup panel (no ambient
 // chrome types in this lane: structural access keeps the two lanes' globals
@@ -82,7 +82,7 @@ export function boot(context: { port: PortIn }): Overlay {
   });
   watchUrgencyStyle(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
-  syncPopover = mountPopover(document, overlay, root as unknown as Element);
+  syncPopover = mountPopover(document, overlay, root as unknown as Element, rerender);
   bindHideKey(document, overlay, () => { rerender(); refresh(); });
   return overlay;
 }
@@ -99,7 +99,7 @@ const KIND_LABELS: Record<string, string> = {
  * re-rendered in place, so clicks are resolved on the overlay root by
  * data-point-id. Returns sync(), called after every render: it closes the
  * card when its point is gone or hidden, and refreshes a corrected point. */
-export function mountPopover(doc: Document, overlay: Overlay, root: Element): () => void {
+export function mountPopover(doc: Document, overlay: Overlay, root: Element, onChange: () => void = () => {}): () => void {
   const pop = doc.createElement("div");
   pop.className = "halo-popover";
   pop.setAttribute("role", "dialog");
@@ -128,7 +128,20 @@ export function mountPopover(doc: Document, overlay: Overlay, root: Element): ()
     quote.textContent = p.quote;
     quote.dir = p.quoteDir;
     quote.lang = p.quoteDir === "rtl" ? "ar" : "en";
-    pop.replaceChildren(head, text, quote);
+    // Handled: the point leaves the bubbles (urgent ones stay until this).
+    const archive = doc.createElement("button");
+    archive.type = "button";
+    archive.className = "halo-btn";
+    archive.textContent = "Archive";
+    archive.addEventListener("click", () => {
+      overlay.archive(id);
+      close(false);
+      onChange();
+    });
+    const actions = doc.createElement("div");
+    actions.className = "halo-pop-actions";
+    actions.append(archive);
+    pop.replaceChildren(head, text, quote, actions);
     return true;
   };
   root.addEventListener("click", (ev) => {
@@ -280,14 +293,30 @@ export function mountControls(
     void saveViewerLang(v);
   });
 
+  // Legend (Karim 2026-11-01): what each colour and glyph means.
+  const legend = make("div", "halo-legend");
+  legend.hidden = true;
+  for (const [u, word] of [["urgent", "Urgent (stays until you archive it)"], ["medium", "Medium"], ["later", "Later"]] as const) {
+    const swatch = make("span", "halo-swatch");
+    swatch.style.background = URGENCY_COLORS[u];
+    legend.append(swatch, make("span", "", word));
+  }
+  for (const [k, word] of [["point", "Point"], ["question", "Question"], ["decision", "Decision"], ["pushback", "Pushback"]] as const) {
+    legend.append(make("span", "halo-kind", KIND_GLYPHS[k]), make("span", "", word));
+  }
+  const legendBtn = button("halo-btn", "?", () => { legend.hidden = !legend.hidden; });
+  legendBtn.setAttribute("aria-label", "What the colours mean");
+
   bar.append(
     badge,
+    legendBtn,
     lang,
     button("halo-btn", "Consent notice", () => {
       copyStatus.textContent = "";
       dialog.showModal();
     }),
     toast,
+    legend,
   );
   doc.body.append(bar, dialog);
 
