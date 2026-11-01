@@ -250,3 +250,16 @@ def test_folders_create_move_and_persist(tmp_path):
     from halo.notes_service.notes_service import NotesService
     again = NotesService(bus, data_dir=data)
     assert [f["name"] for f in again.folders()] == ["Launch"]
+
+
+def test_writes_refuse_other_sites(tmp_path):
+    """Another site open in Chrome cannot POST to the notes API."""
+    client, _, _ = make_client(tmp_path)
+    evil = {"origin": "https://evil.example"}
+    assert client.post("/api/folders", json={"name": "x"}, headers=evil).status_code == 403
+    assert client.post("/api/folders/move", json={"meeting_id": MEETING, "folder_id": None},
+                       headers=evil).status_code == 403
+    assert client.post("/api/tags", json={"target": "point", "target_id": P1, "urgency": "urgent"},
+                       headers=evil).status_code == 403
+    own = {"origin": "http://127.0.0.1:8765"}
+    assert client.post("/api/folders", json={"name": "x"}, headers=own).status_code == 201

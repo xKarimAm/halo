@@ -31,6 +31,7 @@ log = logging.getLogger("halo.notes_service")
 
 Envelope = dict[str, Any]
 SEARCH_CAP = 100
+MAX_FOLDERS = 200
 
 KINDS = ("point", "question", "decision", "pushback")
 URGENCIES = ("urgent", "medium", "later")
@@ -87,6 +88,8 @@ class NotesService:
 
     def create_folder(self, name: str, meeting_id: str | None = None) -> dict[str, Any]:
         data = self._load_folders()
+        if len(data["folders"]) >= MAX_FOLDERS:
+            raise ValueError("too many folders")
         folder = {"folder_id": str(uuid.uuid4()), "name": name}
         data["folders"].append(folder)
         if meeting_id:
@@ -473,6 +476,16 @@ def _snippet(text: str, needle: str, window: int = 60) -> str:
 router = APIRouter()
 
 
+def _foreign_origin(request: Request) -> JSONResponse | None:
+    """Writes come only from the notes page itself. The Host check already pins
+    loopback; a browser also sends Origin on every cross-site POST, so another
+    site open in Chrome cannot tag or file meetings (security review 2026-11-02)."""
+    origin = request.headers.get("origin")
+    if origin is not None and origin != f"http://{request.headers.get('host', '')}":
+        return JSONResponse({"detail": "foreign origin rejected"}, status_code=403)
+    return None
+
+
 def _service(request: Request) -> NotesService:
     return request.app.state.notes_service
 
@@ -544,6 +557,8 @@ async def api_search(request: Request, q: str | None = None):  # type: ignore[no
 
 @router.post("/api/tags", status_code=201)
 async def api_tags(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
     service = _service(request)
     try:
         body = await request.json()
@@ -583,6 +598,8 @@ async def api_folders(request: Request):  # type: ignore[no-untyped-def]
 
 @router.post("/api/folders", status_code=201)
 async def api_create_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
     try:
         body = await request.json()
     except ValueError:
@@ -591,12 +608,17 @@ async def api_create_folder(request: Request):  # type: ignore[no-untyped-def]
     if not isinstance(name, str) or not name.strip():
         return JSONResponse({"detail": "folder name required"}, status_code=400)
     meeting_id = body.get("meeting_id")
-    return _service(request).create_folder(
-        name.strip()[:80], meeting_id if isinstance(meeting_id, str) else None)
+    try:
+        return _service(request).create_folder(
+            name.strip()[:80], meeting_id if isinstance(meeting_id, str) else None)
+    except ValueError:
+        return JSONResponse({"detail": "folder limit reached"}, status_code=409)
 
 
 @router.post("/api/folders/move")
 async def api_move_to_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
     try:
         body = await request.json()
     except ValueError:
