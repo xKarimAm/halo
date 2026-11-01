@@ -13,6 +13,7 @@ import { OVERLAY_CSS } from "./tokens";
 export const URGENCY_STYLE_KEY = "halo.urgencyStyle";
 interface LocalStore {
   get(keys: string[]): Promise<Record<string, unknown>>;
+  set?(items: Record<string, unknown>): Promise<void>;
 }
 interface ChromeLike {
   storage?: {
@@ -54,7 +55,7 @@ export function watchUrgencyStyle(
   }
 }
 
-export function boot(context: { port: { onMessage: { addListener(fn: (msg: unknown) => void): void } } }): Overlay {
+export function boot(context: { port: PortIn }): Overlay {
   const overlay = new Overlay(new SystemClock());
   const doc = document as unknown as DocLike;
   const style = document.createElement("style");
@@ -67,8 +68,10 @@ export function boot(context: { port: { onMessage: { addListener(fn: (msg: unkno
   (root as unknown as HTMLElement).style.cssText =
     "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   document.body.appendChild(root as unknown as Node);
+  let syncPopover = (): void => {};
   const rerender = (): void => {
     overlay.render(doc, root as El & { children?: El[] });
+    syncPopover();
   };
   context.port.onMessage.addListener((msg) => {
     const m = msg as ToPagePortMessage;
@@ -78,13 +81,127 @@ export function boot(context: { port: { onMessage: { addListener(fn: (msg: unkno
     }
   });
   watchUrgencyStyle(overlay, rerender);
-  mountControls(document, overlay, context.port);
+  const refresh = mountControls(document, overlay, context.port);
+  syncPopover = mountPopover(document, overlay, root as unknown as Element);
+  bindHideKey(document, overlay, () => { rerender(); refresh(); });
   return overlay;
 }
 
-type PortIn = { onMessage: { addListener(fn: (msg: unknown) => void): void } };
+const KIND_LABELS: Record<string, string> = {
+  point: "Point", question: "Question", decision: "Decision", pushback: "Pushback",
+};
 
-/** Badge, consent dialog and notes-ready toast, fixed top-left above Meet.
+/** Original-quote popover (DECISIONS 1, OVERLAY-UX 6): a bubble click opens
+ * kind, speaker, the shown text and the original quote in its own script
+ * direction, below the bubble or above it near the bottom of the screen.
+ * Focus moves into the card; Esc (or a second click on the bubble) closes it
+ * and returns focus to the bubble, a click elsewhere just closes it. Chips are
+ * re-rendered in place, so clicks are resolved on the overlay root by
+ * data-point-id. Returns sync(), called after every render: it closes the
+ * card when its point is gone or hidden, and refreshes a corrected point. */
+export function mountPopover(doc: Document, overlay: Overlay, root: Element): () => void {
+  const pop = doc.createElement("div");
+  pop.className = "halo-popover";
+  pop.setAttribute("role", "dialog");
+  pop.setAttribute("aria-label", "Original quote");
+  pop.tabIndex = -1;
+  pop.hidden = true;
+  doc.body.append(pop);
+  let openId: string | null = null;
+  let opener: HTMLElement | null = null;
+  const close = (returnFocus: boolean): void => {
+    if (pop.hidden) return;
+    pop.hidden = true;
+    openId = null;
+    if (returnFocus) opener?.focus();
+  };
+  const fill = (id: string): boolean => {
+    const p = overlay.popover(id);
+    if (!p) return false;
+    const head = doc.createElement("p");
+    head.className = "halo-pop-head";
+    head.textContent = [KIND_LABELS[p.kind] ?? p.kind, p.speaker, p.urgentWord].filter(Boolean).join(" · ");
+    const text = doc.createElement("p");
+    text.textContent = p.text;
+    text.dir = "auto";
+    const quote = doc.createElement("blockquote");
+    quote.textContent = p.quote;
+    quote.dir = p.quoteDir;
+    quote.lang = p.quoteDir === "rtl" ? "ar" : "en";
+    pop.replaceChildren(head, text, quote);
+    return true;
+  };
+  root.addEventListener("click", (ev) => {
+    const chip = (ev.target as Element).closest?.("[data-point-id]") as HTMLElement | null;
+    const id = chip?.getAttribute("data-point-id");
+    if (!chip || !id) return;
+    if (openId === id) return close(true);
+    if (!fill(id)) return;
+    pop.hidden = false;
+    const r = chip.getBoundingClientRect();
+    const h = pop.offsetHeight;
+    pop.style.left = `${Math.max(12, Math.min(r.left, innerWidth - pop.offsetWidth - 12))}px`;
+    pop.style.top = `${r.bottom + 6 + h > innerHeight - 12 ? Math.max(12, r.top - 6 - h) : r.bottom + 6}px`;
+    openId = id;
+    opener = chip;
+    pop.focus();
+  });
+  doc.addEventListener("click", (ev) => {
+    if (!(ev.target as Element).closest?.(".halo-popover, [data-point-id]")) close(false);
+  });
+  doc.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") close(true);
+  });
+  return () => {
+    if (openId === null) return;
+    if (overlay.hidden || !fill(openId)) close(false);
+  };
+}
+
+/** Alt+H hides/shows the bubbles. Capture phase, so Meet never sees a key
+ * Halo used. The physical key counts, so an Arabic keyboard layout works. */
+export function bindHideKey(doc: Document, overlay: Overlay, onChange: () => void): void {
+  doc.addEventListener("keydown", (ev) => {
+    const key = ev.code === "KeyH" ? "h" : ev.key;
+    const { altKey, ctrlKey, shiftKey, metaKey, repeat } = ev;
+    if (!overlay.handleKey({ altKey, ctrlKey, shiftKey, metaKey, key, repeat })) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (!repeat) onChange(); // a held key toggles once
+  }, true);
+}
+
+type PortIn = {
+  onMessage: { addListener(fn: (msg: unknown) => void): void };
+  postMessage(msg: unknown): void;
+};
+
+// The setup panel's saved meeting context; the picker keeps its viewer_lang
+// in step so the next Start sends the language chosen on the Meet page.
+const CONTEXT_KEY = "halo.context";
+type ViewerLang = "en" | "ar";
+
+async function readViewerLang(): Promise<ViewerLang> {
+  try {
+    const ctx = (await chromeApi()?.storage?.local?.get([CONTEXT_KEY]))?.[CONTEXT_KEY] as { viewer_lang?: unknown } | undefined;
+    return ctx?.viewer_lang === "ar" ? "ar" : "en";
+  } catch {
+    return "en";
+  }
+}
+
+async function saveViewerLang(lang: ViewerLang): Promise<void> {
+  try {
+    const local = chromeApi()?.storage?.local;
+    const ctx = (await local?.get([CONTEXT_KEY]))?.[CONTEXT_KEY];
+    if (typeof ctx === "object" && ctx !== null) await local?.set?.({ [CONTEXT_KEY]: { ...ctx, viewer_lang: lang } });
+  } catch {
+    // storage unavailable: the hub already has the new language for this meeting.
+  }
+}
+
+/** Badge, points-language picker, consent dialog and notes-ready toast,
+ * fixed top-left above Meet.
  * Refreshes after every Port message (registered after boot's listener, so
  * the overlay store is already updated). Returns the refresh function. */
 export function mountControls(
@@ -148,8 +265,24 @@ export function mountControls(
   });
   dismiss.setAttribute("aria-label", "Dismiss");
   toast.append(make("span", "", "Meeting notes are ready."), link, dismiss);
+  // Points language (later turns only; points already shown keep theirs).
+  const lang = make("select", "halo-lang");
+  lang.setAttribute("aria-label", "Points language");
+  for (const [value, text] of [["en", "Points: English"], ["ar", "النقاط: العربية"]]) {
+    const option = make("option", "", text);
+    option.value = value;
+    lang.append(option);
+  }
+  readViewerLang().then((v) => { lang.value = v; });
+  lang.addEventListener("change", () => {
+    const v: ViewerLang = lang.value === "ar" ? "ar" : "en";
+    port.postMessage({ type: "set_viewer_lang", viewer_lang: v });
+    void saveViewerLang(v);
+  });
+
   bar.append(
     badge,
+    lang,
     button("halo-btn", "Consent notice", () => {
       copyStatus.textContent = "";
       dialog.showModal();

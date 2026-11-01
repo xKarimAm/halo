@@ -109,6 +109,21 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     expect(overlapX).toBeGreaterThan(0);
     expect(overlapY).toBeGreaterThan(0);
 
+    // One click shows the original quote (DECISIONS 1); Esc closes it.
+    await chip.click();
+    const pop = page.locator(".halo-popover");
+    await expect(pop).toBeVisible();
+    await expect(pop.locator("blockquote")).not.toBeEmpty();
+    await page.keyboard.press("Escape");
+    await expect(pop).toBeHidden();
+    // Alt+H hides the bubbles and the badge says so; again shows them.
+    await page.keyboard.press("Alt+KeyH");
+    await expect(page.locator(".halo-badge")).toHaveText("Halo · hidden");
+    await expect(chip).toBeHidden();
+    await page.keyboard.press("Alt+KeyH");
+    await expect(chip).toBeVisible();
+    await expect(page.locator(".halo-lang")).toBeVisible();
+
     writeFileSync(`${JOINED_DIR}/result.json`, JSON.stringify({
       ok: true, tileId: TILE_ID, text, seenAt: Date.now(),
     }));
