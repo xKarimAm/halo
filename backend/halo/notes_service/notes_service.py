@@ -32,6 +32,9 @@ log = logging.getLogger("halo.notes_service")
 Envelope = dict[str, Any]
 SEARCH_CAP = 100
 MAX_FOLDERS = 200
+# The shell and its files change with every update: browsers must revalidate
+# (live 2026-11-02: Chrome kept the old app.js after an update).
+NO_CACHE = {"Cache-Control": "no-cache"}
 
 KINDS = ("point", "question", "decision", "pushback")
 URGENCIES = ("urgent", "medium", "later")
@@ -341,6 +344,7 @@ class NotesService:
                     "date": datetime.fromtimestamp(
                         (meeting["t0_ms"] or 0) / 1000, UTC).strftime("%a %d %b"),
                     "folder_id": in_folder.get(meeting["meeting_id"]),
+                    "t0_ms": meeting["t0_ms"] or 0,  # the page formats the date in local time
                 }
                 if isinstance(ready.get("title"), str) and ready["title"].strip():
                     item["title"] = ready["title"].strip()
@@ -495,7 +499,7 @@ async def notes_app_js(request: Request):  # type: ignore[no-untyped-def]
     path = _service(request).static_file("app.js")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="application/javascript")
+    return FileResponse(path, media_type="application/javascript", headers=NO_CACHE)
 
 
 @router.get("/notes/styles.css")
@@ -503,7 +507,7 @@ async def notes_styles(request: Request):  # type: ignore[no-untyped-def]
     path = _service(request).static_file("styles.css")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="text/css")
+    return FileResponse(path, media_type="text/css", headers=NO_CACHE)
 
 
 @router.get("/notes/")
@@ -513,7 +517,7 @@ async def notes_list_shell(request: Request):  # type: ignore[no-untyped-def]
     path = _service(request).static_file("index.html")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="text/html")
+    return FileResponse(path, media_type="text/html", headers=NO_CACHE)
 
 
 @router.get("/notes/{meeting_id}")
@@ -524,7 +528,7 @@ async def notes_shell(meeting_id: str, request: Request):  # type: ignore[no-unt
     path = service.static_file("index.html")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="text/html")
+    return FileResponse(path, media_type="text/html", headers=NO_CACHE)
 
 
 @router.get("/api/meetings")

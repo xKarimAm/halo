@@ -129,6 +129,8 @@ def test_shell_and_static(tmp_path):
     assert client.get("/notes/unknown-id").status_code == 404
     assert client.get("/notes/app.js").status_code == 200
     assert client.get("/notes/styles.css").status_code == 200
+    for url in (f"/notes/{MEETING}", "/notes/app.js", "/notes/styles.css"):
+        assert client.get(url).headers["cache-control"] == "no-cache"  # updates show at once
 
 
 def test_page_json_matches_schema(tmp_path):
@@ -155,7 +157,8 @@ def test_list_and_project_filter(tmp_path):
     client, _, _ = make_client(tmp_path)
     meetings = client.get("/api/meetings").json()
     assert meetings == [{"meeting_id": MEETING, "subject": "Launch readiness",
-                         "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None}]
+                         "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None,
+                         "t0_ms": T0}]
     assert client.get("/api/meetings", params={"project_id": "halo-q4"}).json() == meetings
     assert client.get("/api/meetings", params={"project_id": "other"}).json() == []
 

@@ -39,7 +39,7 @@
       none: "Nothing here.", draftOnly: "Draft: only this meeting is filled in.",
       translated: "Translated", video: "Video",
       allMeetings: "All meetings", preview: "Hover a meeting to preview it",
-      noSummary: "The AI summary appears when the meeting ends.",
+      noSummary: "No AI summary yet. Meetings get one when they end.",
       newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
       noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open notes",
       mailSubject: "Action item from \u201C{m}\u201D: {a}",
@@ -70,7 +70,7 @@
       none: "لا شيء هنا.", draftOnly: "مسودة: هذا الاجتماع فقط مكتمل.",
       translated: "مترجم", video: "الفيديو",
       allMeetings: "كل الاجتماعات", preview: "مرّر على اجتماع لمعاينته",
-      noSummary: "يظهر الملخص الآلي عند انتهاء الاجتماع.",
+      noSummary: "لا يوجد ملخص آلي بعد. يُكتب عند انتهاء الاجتماع.",
       newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
       noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الملاحظات",
       mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
@@ -398,7 +398,7 @@
     var title = el("b", null, titleOf(meeting));
     info.appendChild(title);
     info.appendChild(el("br"));
-    var sub = meeting.date || "";
+    var sub = fmtDate(meeting.t0_ms) || meeting.date || ""; // local day, not the server's UTC one
     if (meeting.title && meeting.title !== meeting.subject) sub += " · " + meeting.subject;
     info.appendChild(el("span", "sub", sub));
     btn.appendChild(info);
@@ -1124,6 +1124,16 @@
         return res.json().catch(function () { return {}; });
       });
     };
+    // Look drafts (?look=a|b), kept for the session so navigation keeps them.
+    try {
+      var look = new URLSearchParams(window.location.search).get("look") || window.sessionStorage.getItem("halo.look");
+      if (look === "a" || look === "b") {
+        doc.documentElement.dataset.look = look;
+        window.sessionStorage.setItem("halo.look", look);
+      } else if (look === "off") {
+        window.sessionStorage.removeItem("halo.look");
+      }
+    } catch (e) { /* storage blocked: the default look */ }
     var app = createApp({ doc: doc, fetchJson: fetchJson, postTag: postTag, postJson: postJson, win: window });
     var idFromPath = function () {
       var m = /^\/notes\/([0-9a-f-]{36})/i.exec(window.location.pathname);
