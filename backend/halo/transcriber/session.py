@@ -34,6 +34,9 @@ SILENCE_LEVEL_FRACTION = 0.4
 LEVEL_WINDOW_FRAMES = 100
 MAX_GAP_PAD_FRAMES = 300  # 30 s, the Gateway's bound; a longer gap pads no more
 SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
+# Live 2026-11-01: slow speech cut "Can" / "anyone hear" / "me?" into lines
+# of their own. Fewer new words wait for the next pause or the turn's end.
+MIN_CUT_WORDS = 3
 MIC_SILENT_ALERT_MS = 60_000  # one warning per silent run this long on the mic
 PARTIAL_WORDS = 12  # live caption: the open turn's last words (a monologue is one wire turn)
 
@@ -206,12 +209,14 @@ class TranscriptionSession:
             if self._silence_run_ms >= self.soft_cut_silence_ms and not self._cut_this_pause:
                 self._pending_pause_ms = self._silence_start_ms
             if self._pending_pause_ms is not None:
-                piece = self._assembler.maybe_cut(
-                    pause_start_ms=self._pending_pause_ms - self._session_ms)
+                pause = self._pending_pause_ms - self._session_ms
+                piece = self._assembler.maybe_cut(pause_start_ms=pause, min_words=MIN_CUT_WORDS)
                 if piece is not None:
+                    turns.append(self._map(piece))
+                if piece is not None or self._assembler.covers(pause):
+                    # Cut, or too few words to cut: this pause is spent.
                     self._cut_this_pause = True
                     self._pending_pause_ms = None
-                    turns.append(self._map(piece))
             self._streak = 0
             self.health = "ok"
             for t in turns:

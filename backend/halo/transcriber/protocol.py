@@ -218,7 +218,13 @@ class TurnAssembler:
             return ""
         return self._text.get(self._open, "")
 
-    def maybe_cut(self, pause_start_ms: int | None = None) -> dict[str, Any] | None:
+    def covers(self, position_ms: int) -> bool:
+        """True once the open turn's latest partial reaches `position_ms`."""
+        latest = self._latest.get(self._open) if self._open is not None else None
+        return latest is not None and latest >= position_ms
+
+    def maybe_cut(self, pause_start_ms: int | None = None,
+                  min_words: int = 1) -> dict[str, Any] | None:
         """Emit the open turn's new words since the last cut, or None.
 
         The session calls this once a pause has lasted long enough, passing
@@ -251,7 +257,7 @@ class TurnAssembler:
             return None
         else:
             new_words = extra[: -SOFT_CUT_TAIL_WORDS]
-        if not new_words:
+        if len(new_words) < max(1, min_words):
             return None
         start = self._cut_end.get(key, self._start.get(key, 0))
         end = self._latest.get(key, start)

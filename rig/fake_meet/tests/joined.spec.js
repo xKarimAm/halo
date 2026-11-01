@@ -122,6 +122,8 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     await expect(chip).toBeHidden();
     await page.keyboard.press("Alt+KeyH");
     await expect(chip).toBeVisible();
+    // The language picker lives in the Halo menu the badge opens.
+    await page.locator("button.halo-badge").click();
     await expect(page.locator(".halo-lang")).toBeVisible();
 
     writeFileSync(`${JOINED_DIR}/result.json`, JSON.stringify({

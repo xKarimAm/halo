@@ -367,10 +367,10 @@ def test_llm_failover_keeps_points_flowing(monkeypatch: Any, tmp_path: Path) -> 
         classifier_replies(2) + [
             LlmReply(match="Launch moves", response={
                 "kind": "decision", "text": "Launch moves to Nov 12",
-                "quote": turn1, "rank": 1, "urgency": "medium", "is_action": False}),
+                "rank": 1, "urgency": "medium", "is_action": False}),
             LlmReply(match="Beta cohort", response={
                 "kind": "point", "text": "Beta cohort grows",
-                "quote": turn2, "rank": 1, "urgency": "medium", "is_action": False}),
+                "rank": 1, "urgency": "medium", "is_action": False}),
         ],
         llm_errors={PRIMARY_MODEL: 500})
     data_dir = tmp_path / "data"

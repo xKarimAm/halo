@@ -56,7 +56,7 @@ class FakeLLM:
 
 
 def point_reply(text, **over):
-    data = {"kind": "decision", "text": text, "quote": text + ".",
+    data = {"kind": "decision", "text": text,
             "rank": 1, "urgency": "medium", "is_action": True}
     data.update(over)
     return {"data": data}
@@ -113,7 +113,7 @@ def setup(replies):
     clock = Clock()
     bus = Bus()
     llm = FakeLLM(clock, replies)
-    insight = Insight(bus, llm, clock=clock, min_words=1, chunk_words=1)  # two-word turns flush at once
+    insight = Insight(bus, llm, clock=clock, min_words=1)  # two-word turns flush at once
     # Production flushes from the 250 ms loop (the handler never awaits the
     # model); here a flush right after each turn keeps the timing deterministic.
     bus.subscribe("turn.attributed", lambda _e: insight.flush())
@@ -126,14 +126,14 @@ def setup(replies):
 def test_turn_produces_point_in_viewer_language():
     async def run():
         _clock, bus, llm, _insight, points, health = setup(
-            [point_reply("Launch moves to Nov 12", quote="Launch moves")])
+            [point_reply("Launch moves to Nov 12")])
         await bus.publish(context_envelope("ar"))
         await bus.publish(turn_envelope("00000030-0000-4000-8000-000000000030",
                                         "Launch moves to Nov 12"))
         assert len(points) == 1 and len(llm.calls) == 1
         point = points[0]["data"]
         assert validate_envelope(points[0]) == []
-        assert point["lang"] == "ar" and point["quote"] == "Launch moves"
+        assert point["lang"] == "ar" and point["quote"] == "Launch moves to Nov 12"
         assert point["turn_ids"] == ["00000030-0000-4000-8000-000000000030"]
         assert point["engine"] == "spark-open" and point["rank"] == 1
         assert llm.calls[0]["prompt_cache_key"] == PROMPT_CACHE_KEY
@@ -288,39 +288,20 @@ def test_turn_handler_never_awaits_the_model():
     asyncio.run(run())
 
 
-def published_quote(turn_text, model_quote):
+def test_quote_is_the_speakers_exact_words():
+    # #92: a model-written quote got reordered; now the quote is the turns' text.
     async def run():
-        _clock, bus, _llm, _insight, points, _health = setup(
-            [point_reply("Need more engineers", quote=model_quote)])
-        await bus.publish(turn_envelope("00000031-0000-4000-8000-000000000031", turn_text))
-        assert len(points) == 1
-        return points[0]["data"]["quote"]
+        _clock, bus, _llm, _insight, points, _health = setup([point_reply("Need more engineers")])
+        text = "خلينا نخلص الـ testing، I think we need two more engineers on this."
+        await bus.publish(turn_envelope("00000031-0000-4000-8000-000000000031", text))
+        assert points[0]["data"]["quote"] == text
 
-    return asyncio.run(run())
-
-
-def test_reordered_quote_snaps_to_the_verbatim_span():
-    # Live 2026-11-01, Egyptian clip: Insight moved "testing" to the end.
-    quote = published_quote("testing I think we need two more engineers on",
-                            "I think we need two more engineers on testing")
-    assert quote == "I think we need two more engineers on"
+    asyncio.run(run())
 
 
-def test_mixed_arabic_english_quote_keeps_the_source_punctuation():
-    quote = published_quote("خلينا نخلص الـ testing، I think we need two more engineers on this.",
-                            "نخلص الـ testing I think we need two more engineers")
-    assert quote == "نخلص الـ testing، I think we need two more engineers"
-
-
-def test_quote_with_no_shared_words_falls_back_to_the_turn_text():
-    quote = published_quote("محتاجين اتنين مهندسين كمان", "We need two more engineers.")
-    assert quote == "محتاجين اتنين مهندسين كمان"
-
-
-def test_quote_may_span_the_points_coalesced_turns():
+def test_quote_spans_the_points_coalesced_turns():
     async def run():
-        clock, bus, _llm, _insight, points, _health = setup(
-            [point_reply("first"), point_reply("x", quote="engineers on this. Starting Monday")])
+        clock, bus, _llm, _insight, points, _health = setup([point_reply("first"), point_reply("x")])
         await bus.publish(turn_envelope("00000032-0000-4000-8000-000000000032", "first"))
         await bus.publish(turn_envelope("00000033-0000-4000-8000-000000000033",
                                         "two more engineers on this."))
@@ -328,10 +309,9 @@ def test_quote_may_span_the_points_coalesced_turns():
                                         "Starting Monday please"))
         clock.advance(3.0)
         await _insight.flush()
-        assert points[-1]["data"]["quote"] == "engineers on this. Starting Monday"
+        assert points[-1]["data"]["quote"] == "two more engineers on this. Starting Monday please"
 
     asyncio.run(run())
-
 
 
 class GateLLM:
@@ -368,7 +348,7 @@ class GateLLM:
             self.inflight[name] -= 1
         text = prompt.rsplit("- ", 1)[-1]
         return SimpleNamespace(ok=True, engine="muse-spark-1.3-contributor", error=None,
-                               data={"kind": "point", "text": text, "quote": text,
+                               data={"kind": "point", "text": text,
                                      "rank": 1, "urgency": "medium", "is_action": False})
 
     def health(self):
@@ -381,7 +361,7 @@ def test_calls_overlap_across_speakers_but_never_for_one_speaker():
     async def run():
         bus = Bus()
         llm = GateLLM()
-        insight = Insight(bus, llm, flush_interval_s=0.01, speaker_window_s=0.0, min_words=1, chunk_words=1)
+        insight = Insight(bus, llm, flush_interval_s=0.01, speaker_window_s=0.0, min_words=1)
         points: list[dict] = []
         bus.subscribe("points.upsert", points.append)
         insight.start()
@@ -427,7 +407,7 @@ def test_a_call_that_raises_requeues_its_turns():
     async def run():
         clock = Clock()
         bus = Bus()
-        insight = Insight(bus, Boom(clock, [point_reply("recovered")]), clock=clock, min_words=1, chunk_words=1)
+        insight = Insight(bus, Boom(clock, [point_reply("recovered")]), clock=clock, min_words=1)
         bus.subscribe("turn.attributed", lambda _e: insight.flush())
         points: list[dict] = []
         bus.subscribe("points.upsert", points.append)
@@ -459,8 +439,9 @@ def test_a_fragment_waits_for_more_words_before_a_point():
     asyncio.run(run())
 
 
-def test_unfinished_words_wait_for_the_sentence_end_or_a_chunk():
-    # Live 2026-11-01: "Need to understand correctly what is" became a point.
+def test_a_pause_cut_turn_calls_at_once_without_a_sentence_end():
+    # 2026-11-02: Voice partials carry no punctuation, so waiting for "." held
+    # every point for 8 words or 6 s. A turn arriving is the pause.
     async def run():
         clock = Clock()
         bus = Bus()
@@ -468,18 +449,8 @@ def test_unfinished_words_wait_for_the_sentence_end_or_a_chunk():
         insight = Insight(bus, llm, clock=clock)
         bus.subscribe("turn.attributed", lambda _e: insight.flush())
         await bus.publish(turn_envelope("00000051-0000-4000-8000-000000000051",
-                                        "need to understand what is"))
-        assert llm.calls == []  # mid-sentence, under a chunk
-        await bus.publish(turn_envelope("00000052-0000-4000-8000-000000000052",
-                                        "the role of this application.", ts=2000))
-        assert len(llm.calls) == 1  # sentence end
-        clock.advance(10)
-        await bus.publish(turn_envelope("00000053-0000-4000-8000-000000000053",
-                                        "and how long", ts=9000))
+                                        "we need the role of this application"))
         assert len(llm.calls) == 1
-        clock.advance(7)  # a speaker who stops mid-sentence still gets a point
-        await insight.flush()
-        assert len(llm.calls) == 2
 
     asyncio.run(run())
 
