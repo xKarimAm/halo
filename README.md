@@ -19,7 +19,7 @@ Every AI model Halo calls at runtime is a Meta model. These are all of them:
 | Model | Exact id | Endpoint | Called from | What it does |
 |---|---|---|---|---|
 | Muse Voice Transcribe (realtime) | `muse-voice-transcribe-1.0` | `wss://api.meta.ai/v1/asr/realtime` | `backend/halo/transcriber/` (`protocol.py` builds the handshake, `transport.py` holds the socket; the URL is in `rig/fakes/config.py`) | Speech to text. Two sessions per meeting: the call audio in `DIARIZATION` mode (who said what) and your mic in `ENDPOINTING` mode. Language bias Arabic + English. |
-| Muse Spark Open (open weights, hosted on Baseten) | `meta-models/muse-spark-open-1026` | `https://inference.baseten.co/v1` | `backend/halo/llm/llm.py` (the one shared model client) | The default for every text call: live points (`backend/halo/insight/`), urgency/kind tags (`backend/halo/classifier/`) and the end-of-meeting notes (`backend/halo/notes_builder/`). |
+| Muse Spark Open (open weights) | `meta-models/muse-spark-open-1026` on Baseten (default), or `meta-models/Muse-Spark-Open-816B-A42B` on a Modal shared endpoint | `https://inference.baseten.co/v1` by default; any OpenAI-compatible host through `HALO_PRIMARY_BASE_URL` in `.env` | `backend/halo/llm/llm.py` (the one shared model client) | The default for every text call: live points (`backend/halo/insight/`), urgency/kind tags (`backend/halo/classifier/`) and the end-of-meeting notes (`backend/halo/notes_builder/`). |
 | Muse Spark 1.3 (contributor) | `muse-spark-1.3-contributor` | `https://api.meta.ai/v1` | `backend/halo/llm/llm.py` | Per-call failover when Spark Open takes over 4 s, fails twice (bad JSON, HTTP 429 or 5xx), or has a missing or rejected key. After 30 s Spark Open gets tried again. Same three callers as above. |
 
 The Chrome extension calls no models at all; it only talks to the local backend.
@@ -32,7 +32,7 @@ The Chrome extension calls no models at all; it only talks to the local backend.
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (it runs the Python side). Halo needs Python 3.12+; if you don't have it, `uv python install 3.12` gets it.
 - [Node.js](https://nodejs.org/) 22 or newer (only to build the extension)
 - A **headset**. Without one your mic picks up the call again and you get echo.
-- Two API keys: a Meta Model API key and a Baseten key
+- A Meta Model API key. A Spark Open key (Baseten, or a Modal proxy token) is optional: without one, every text call runs on Spark 1.3 contributor.
 
 ## Install
 
@@ -45,12 +45,14 @@ copy .env.example .env
 notepad .env
 ```
 
-In Notepad, fill in the two keys and save:
+In Notepad, fill in your keys and save:
 
 ```
 META_API_KEY=your Meta Model API key
-BASETEN_API_KEY=your Baseten key
+BASETEN_API_KEY=your Baseten key (optional)
 ```
+
+To run Spark Open somewhere other than Baseten (a Modal shared endpoint, or a local llama.cpp / Ollama server), fill in the three `HALO_PRIMARY_*` lines instead; `.env.example` has a worked example for each.
 
 `.env` is git-ignored, so your keys stay on your PC. Never commit them.
 
@@ -85,7 +87,7 @@ Leave that window open. Quick check: http://127.0.0.1:8765/healthz should say `"
 
 **4. The mic.** Nothing to set up: at Start, Halo opens your mic inside the Meet tab under the permission you already gave Meet. If Meet has no mic permission, Halo runs on the call audio only.
 
-**5. Start in a call.** Join a Google Meet call, open the Halo popup, fill in the subject, the agenda (one item per line) and people's roles if you like, pick your language, then press **Start**. Start only works on a `meet.google.com` call tab.
+**5. Start in a call.** Join a Google Meet call, open the Halo popup, fill in the subject, the agenda (one item per line) and people's roles if you like (your points language is under **Preferences**), then press **Start** once. It turns to **Running**; pressing it again does nothing. Start only works on a `meet.google.com` call tab.
 
 Please tell everyone in the call that Halo is recording and transcribing before you start. The **Consent notice** button next to the Halo badge (top left of the Meet page) copies a bilingual notice for you to paste into the Meet chat.
 
