@@ -329,3 +329,48 @@ def test_quote_may_span_the_points_coalesced_turns():
         assert points[-1]["data"]["quote"] == "engineers on this. Starting Monday"
 
     asyncio.run(run())
+
+
+class SlowLLM:
+    """A real-time model fake: every call blocks its thread for `secs`."""
+
+    def __init__(self, secs: float) -> None:
+        self._secs = secs
+
+    def complete_json(self, *, prompt, schema, schema_name="insight.point",
+                      system=None, prompt_cache_key=None):
+        import time
+        time.sleep(self._secs)
+        text = prompt.rsplit("- ", 1)[-1]
+        return SimpleNamespace(ok=True, engine="muse-spark-1.3-contributor", error=None,
+                               data={"kind": "point", "text": text, "quote": text,
+                                     "rank": 1, "urgency": "medium", "is_action": False})
+
+    def health(self):
+        return {"engine": "muse-spark-1.3-contributor", "failover": True}
+
+
+def test_one_speakers_slow_call_does_not_hold_another_speakers_point():
+    # Live 2026-11-01: contributor calls take ~4 s, and one call at a time made
+    # a second speaker's turn wait for the first call, then its own (p90 ~9 s).
+    async def run():
+        import time
+        bus = Bus()
+        insight = Insight(bus, SlowLLM(0.5), flush_interval_s=0.02)
+        arrived: dict[str, float] = {}
+        bus.subscribe("points.upsert", lambda e: arrived.setdefault(e["data"]["speaker_name"], time.monotonic()))
+        insight.start()
+        try:
+            await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000001", "Launch on the 15th", name="Layla"))
+            await asyncio.sleep(0.1)
+            sent_b = time.monotonic()
+            await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000002", "QA is not done", name="Omar", tile="t2"))
+            for _ in range(100):
+                if "Omar" in arrived:
+                    break
+                await asyncio.sleep(0.02)
+        finally:
+            insight.stop()
+        assert "Omar" in arrived, "no point for the second speaker"
+        assert arrived["Omar"] - sent_b < 0.75, f"second speaker waited {arrived['Omar'] - sent_b:.2f}s"
+    asyncio.run(run())

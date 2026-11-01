@@ -19,6 +19,7 @@ import uuid
 from collections import deque
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
+from functools import partial
 from typing import Any
 
 log = logging.getLogger("halo.insight")
@@ -108,6 +109,7 @@ class Insight:
         self._held: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self._last_call: dict[tuple[str, str], float] = {}
         self._call_times: deque[float] = deque()
+        self._inflight: set[tuple[str, str]] = set()
         self._contexts: dict[str, dict[str, Any]] = {}
         self._points: dict[str, dict[str, dict[str, Any]]] = {}
         self._turn_points: dict[tuple[str, str], list[str]] = {}
@@ -141,7 +143,7 @@ class Insight:
     async def _flush_loop(self) -> None:
         while True:
             await asyncio.sleep(self._flush_interval)
-            await self.flush()
+            self._launch()  # never await the calls: one speaker's 4 s call must not hold another's
 
     # -- inputs -----------------------------------------------------------
 
@@ -187,11 +189,32 @@ class Insight:
     # -- flushing ----------------------------------------------------------
 
     async def flush(self) -> None:
+        """Start every allowed call and wait for them (tests; the loop uses _launch)."""
+        await asyncio.gather(*self._launch())
+
+    def _launch(self) -> list[asyncio.Task]:
+        """Start one call per speaker with held turns, in parallel (live
+        2026-11-01: one call at a time made a turn wait for another speaker's
+        call, then its own). A speaker with a call in flight keeps collecting
+        turns for its next call; the RPM cap counts calls as they start."""
         pending = [(min(t.get("ts_start_ms", 0) for t in turns), key)
-                   for key, turns in self._held.items() if turns]
+                   for key, turns in self._held.items() if turns and key not in self._inflight]
+        started = []
         for _, key in sorted(pending):
-            if self._flushable(key, self._clock()):
-                await self._flush_speaker(key)
+            now = self._clock()
+            if not self._flushable(key, now):
+                continue
+            self._inflight.add(key)
+            self._call_times.append(now)
+            task = asyncio.get_running_loop().create_task(self._flush_speaker(key))
+            task.add_done_callback(partial(self._call_done, key))
+            started.append(task)
+        return started
+
+    def _call_done(self, key: tuple[str, str], task: asyncio.Task) -> None:
+        self._inflight.discard(key)
+        if not task.cancelled() and task.exception() is not None:
+            log.error("insight call crashed", exc_info=task.exception())
 
     def _flushable(self, key: tuple[str, str], now: float) -> bool:
         if now - self._last_call.get(key, float("-inf")) < self._speaker_window:
@@ -224,7 +247,6 @@ class Insight:
             self._last_call[key] = now
             return
         self._last_call[key] = now
-        self._call_times.append(now)
         self._latencies.append(elapsed)
         del self._latencies[:-100]
         latest = turns[-1]
