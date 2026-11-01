@@ -2,7 +2,7 @@
 
 The fake speaks the llm lane's result shape (`{ok, engine, data?, error?}`)
 so no model import is needed here; the real client is injected by the
-composition root. A fake clock drives the 3 s / 12 RPM / 30 s budgets with no
+composition root. A fake clock drives the 3 s / 30 RPM / 30 s budgets with no
 sleeping.
 """
 
@@ -166,18 +166,20 @@ def test_second_turn_within_3s_coalesces():
 
 def test_rpm_cap_holds_without_dropping():
     async def run():
-        clock, bus, llm, _, points, _ = setup([point_reply(f"p{i}") for i in range(13)])
-        for i in range(12):
+        # 30 RPM (Karim 2026-11-01): the 12 RPM cap only fit Baseten's basic
+        # tier, which Halo no longer uses; the contributor allows 150 RPM.
+        clock, bus, llm, _, points, _ = setup([point_reply(f"p{i}") for i in range(31)])
+        for i in range(30):
             tid = f"1000000{i:02d}-0000-4000-8000-0000000000{i:02d}"
             await bus.publish(turn_envelope(tid, f"words {i}", name=f"Speaker {i}"))
-        assert len(llm.calls) == 12
+        assert len(llm.calls) == 30
         held_id = "20000000-0000-4000-8000-000000000020"
         await bus.publish(turn_envelope(held_id, "held words", name="Late"))
-        assert len(llm.calls) == 12 and len(points) == 12  # capped, kept
+        assert len(llm.calls) == 30 and len(points) == 30  # capped, kept
         clock.advance(61.0)
         await bus.publish(turn_envelope("30000000-0000-4000-8000-000000000030",
                                         "nudge", name="Nudge"))
-        assert len(llm.calls) == 14  # held + nudge, nothing lost
+        assert len(llm.calls) == 32  # held + nudge, nothing lost
         ids = [p["data"]["turn_ids"][0] for p in points]
         assert held_id in ids
 
