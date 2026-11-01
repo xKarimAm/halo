@@ -27,6 +27,9 @@ log = logging.getLogger("halo.insight")
 Envelope = dict[str, Any]
 
 SPEAKER_WINDOW_S = 3.0
+# Live 2026-11-01: a pause cut "This is" off its sentence and became a point.
+# A speaker's held words wait until they add up to this many.
+MIN_WORDS = 3  # ponytail: a lone "Yes." never becomes a point; it rides with the next turn
 MAX_RPM = 30  # Karim 2026-11-01: 12 fit Baseten's basic tier, unused now; contributor allows 150
 RPM_WINDOW_S = 60.0
 HEALTH_INTERVAL_S = 30.0
@@ -98,7 +101,9 @@ class Insight:
         max_rpm: int = MAX_RPM,
         health_interval_s: float = HEALTH_INTERVAL_S,
         flush_interval_s: float = FLUSH_INTERVAL_S,
+        min_words: int = MIN_WORDS,
     ) -> None:
+        self._min_words = min_words
         self._bus = bus
         self._llm = llm
         self._clock = clock or time.monotonic
@@ -222,6 +227,8 @@ class Insight:
             log.error("insight call crashed", exc_info=task.exception())
 
     def _flushable(self, key: tuple[str, str], now: float) -> bool:
+        if sum(len(str(t.get("text", "")).split()) for t in self._held.get(key, [])) < self._min_words:
+            return False
         if now - self._last_call.get(key, float("-inf")) < self._speaker_window:
             return False
         while self._call_times and self._call_times[0] <= now - RPM_WINDOW_S:

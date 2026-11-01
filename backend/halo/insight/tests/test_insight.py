@@ -113,7 +113,7 @@ def setup(replies):
     clock = Clock()
     bus = Bus()
     llm = FakeLLM(clock, replies)
-    insight = Insight(bus, llm, clock=clock)
+    insight = Insight(bus, llm, clock=clock, min_words=1)  # these cases use two-word turns
     # Production flushes from the 250 ms loop (the handler never awaits the
     # model); here a flush right after each turn keeps the timing deterministic.
     bus.subscribe("turn.attributed", lambda _e: insight.flush())
@@ -436,4 +436,24 @@ def test_a_call_that_raises_requeues_its_turns():
         clock.advance(3.0)
         await insight.flush()
         assert [p["data"]["turn_ids"] for p in points] == [["11111111-1111-4111-8111-000000000004"]]
+    asyncio.run(run())
+
+
+def test_a_fragment_waits_for_more_words_before_a_point():
+    # Live 2026-11-01: a pause cut "This is" off its sentence and Insight
+    # published the point "This is". Fragments now join the next turn.
+    async def run():
+        clock = Clock()
+        bus = Bus()
+        llm = FakeLLM(clock, [point_reply("main part is understanding the flow")])
+        insight = Insight(bus, llm, clock=clock)
+        bus.subscribe("turn.attributed", lambda _e: insight.flush())
+        points: list = []
+        bus.subscribe("points.upsert", points.append)
+        t1, t2 = ("00000041-0000-4000-8000-000000000041", "00000042-0000-4000-8000-000000000042")
+        await bus.publish(turn_envelope(t1, "This is"))
+        assert llm.calls == [] and points == []  # held, not dropped
+        await bus.publish(turn_envelope(t2, "the main part here", ts=2000))
+        assert len(llm.calls) == 1 and points[0]["data"]["turn_ids"] == [t1, t2]
+
     asyncio.run(run())
