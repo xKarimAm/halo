@@ -13,6 +13,8 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 | Colour = urgency | Red urgent, amber medium, blue later, as a tab on each bubble; kind is a glyph (• point, ? question, ✓ decision, ≠ pushback). | 2026-11-01 |
 | Urgent stays | Urgent points stay on screen until you click them and press Archive; others fade after 60 s. | 2026-11-01 |
 | Original quote | Click a bubble: kind, speaker, the point and the exact words said, in their own script direction (Arabic right-to-left). | earlier |
+| Meeting coach | A left-side panel with 1-3 tips on steering the meeting (a decision with no owner, a question nobody answered, someone who has not spoken), from the model reading the whole meeting so far, about once a minute. x hides it until the next tips. | f4c5985 (not yet live-checked) |
+| Faster points | Points start the moment the speaker pauses (no waiting for 8 words or a full stop) with a shorter model reply: about 1.5-2 s sooner per point. One-word transcript scraps ("Can" / "anyone hear") are gone: a pause cut needs 3 words. | e95e150 (not yet live-checked) |
 | Points language | Switch points between English and Arabic mid-meeting from the Halo menu. | earlier |
 | Alt+H | Hides or shows all bubbles; the pill says "Halo · hidden". | earlier |
 | Notes toast | "Meeting notes are ready" with a link when the meeting ends. | earlier |
@@ -34,7 +36,7 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 | Folders | "Create folder" from the preview, move meetings between folders, filter the list by folder. | bd83b39 |
 | AI title + summary | At meeting end Spark writes a title (8 words max) and a 3-5 sentence summary, in the meeting's language. | f9b52a2 |
 | Email an action | Each assigned action item has an Email link that opens a ready message with the item, owner and meeting. | bd83b39 |
-| Look drafts | `?look=a` (ink band on sage) and `?look=b` (editorial serif, teal) for Karim to pick from. | c2ab580 |
+| Look | Sage & Clay from the locked design, all headers in Inter (no serif, Karim 2026-11-02); neat punctuation: every shown item starts with a capital and ends with a period, titles end with none. | 78a7146, 196d50c |
 | Action items board | Urgent / Medium / Later columns; "by Halo" lets you re-tag any item and Halo keeps your choice over the model's. | earlier, liked by Karim 2026-11-02 |
 | Points, questions, decisions, pushbacks | Filter chips with counts; each item links to its transcript line. | earlier |
 | Recording + play buttons | Each item's play button jumps to that moment in the meeting recording (tab + your mic mixed). | f572d24 (built, not yet live-checked) |
@@ -49,6 +51,5 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 
 ## Ideas Karim raised (not built)
 
-- Meeting coach: a left panel with 1-3 tips on steering the meeting, from the model reading the whole meeting so far (plan step 3b).
 - Video clips: cut the moment of each point from the screen recording, not just the audio.
 - RAG / vector search across meetings (advised later, with carry-over in step 5).
