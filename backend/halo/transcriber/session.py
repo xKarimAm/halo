@@ -35,6 +35,7 @@ LEVEL_WINDOW_FRAMES = 100
 MAX_GAP_PAD_FRAMES = 300  # 30 s, the Gateway's bound; a longer gap pads no more
 SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
 MIC_SILENT_ALERT_MS = 60_000  # one warning per silent run this long on the mic
+PARTIAL_WORDS = 12  # live caption: the open turn's last words (a monologue is one wire turn)
 
 
 class TransportError(RuntimeError):
@@ -112,6 +113,13 @@ class TranscriptionSession:
         self.frames = 0  # real frames received (pads not counted)
         self.turns = 0
         self.last_turn = ""
+        self._caption = ""  # last caption text sent out
+        self._caption_due: str | None = None  # new caption text not yet taken
+
+    def take_caption(self) -> str | None:
+        """New live-caption text since the last call ("" = the turn ended), else None."""
+        due, self._caption_due = self._caption_due, None
+        return due
 
     def live(self) -> dict[str, Any]:
         """What this stream is hearing now, for health.json (every 5 s)."""
@@ -186,6 +194,9 @@ class TranscriptionSession:
         try:
             await self.transport.send_audio(pcm, ts_ms)
             turns = await self._drain()
+            caption = " ".join(self._assembler.open_text().split()[-PARTIAL_WORDS:])
+            if caption != self._caption:
+                self._caption = self._caption_due = caption
             if turns:
                 self._pending_pause_ms = None  # the turn completed: nothing to cut
             # One cut per pause (live check: cutting at every late partial
@@ -342,6 +353,9 @@ class TranscriptionSession:
             sent_ms += len(pcm) // BYTES_PER_MS
             for turn in await self.feed_frame(seq, ts_ms, pcm):
                 out.put_nowait(turn)
+            caption = self.take_caption()
+            if caption is not None:
+                out.put_nowait({"partial": True, "stream": self.stream, "text": caption})
 
     async def close(self) -> None:
         if self.closed:

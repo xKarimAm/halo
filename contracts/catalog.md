@@ -18,6 +18,7 @@ ACK lives on the extension ⇄ Gateway socket only. Inside the backend, `bus.pub
 | `tiles.snapshot` | `tiles.snapshot.schema.json` | Meet Adapter | Overlay + Frame Source in-tab; Correlator + Event Store via hub/socket |
 | `speaker.active` | `speaker.active.schema.json` | Meet Adapter | Overlay in-tab; Correlator + Event Store via hub/socket |
 | `transcript.final` | `transcript.final.schema.json` | Transcriber | Correlator, Event Store |
+| `transcript.partial` | `transcript.partial.schema.json` | Transcriber (open-turn words, `""` at turn end) | Overlay live caption (via Gateway); never stored |
 | `turn.attributed` | `turn.attributed.schema.json` | Correlator | Insight, Event Store |
 | `speaker.mapped` | `speaker.mapped.schema.json` | Correlator | Insight, Overlay (via Gateway), Event Store |
 | `points.upsert` | `points.upsert.schema.json` | Insight | Classifier, Overlay (via Gateway), Event Store |

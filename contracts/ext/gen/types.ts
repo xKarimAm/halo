@@ -14,7 +14,7 @@ export interface Ack {
 export interface Envelope {
   specversion: "1.0";
   id: string;
-  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready";
+  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "transcript.partial" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready";
   source: string;
   time: string;
   meetingid: string | null;
@@ -251,6 +251,11 @@ export interface TranscriptFinal {
   lang: "ar" | "en" | "mixed";
   ts_start_ms: number;
   ts_end_ms: number;
+}
+
+export interface TranscriptPartial {
+  stream: "tab" | "mic";
+  text: string;
 }
 
 export interface TurnAttributed {

@@ -24,6 +24,7 @@
         "tiles.snapshot",
         "speaker.active",
         "transcript.final",
+        "transcript.partial",
         "turn.attributed",
         "speaker.mapped",
         "points.upsert",

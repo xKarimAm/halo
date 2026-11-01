@@ -218,3 +218,13 @@ def test_replayed_started_and_context_are_no_ops(tmp_path):
     acks = publish_all(bus, [started, context])
     assert [a["status"] for a in acks] == ["ok", "ok"]
     assert (store.count(), store.get_meeting(MID)) == before
+
+
+def test_live_caption_partials_not_stored(tmp_path):
+    """transcript.partial is a live caption only: the tap skips it."""
+    store = make_store(tmp_path)
+    bus = Bus()
+    bus.set_tap(store.tap)
+    acks = publish_all(bus, [golden("transcript.partial")])
+    assert acks[0]["status"] == "ok"
+    assert store.count() == 0

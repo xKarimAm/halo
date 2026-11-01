@@ -365,3 +365,45 @@ describe("urgent points stick until archived", () => {
     expect(root.find((e) => e.classes.has("halo-chip-later"))).toHaveLength(1);
   });
 });
+
+// Step 1 live caption: transcript.partial shows the words being said, at
+// the top of the speaker's stack (tab = the tile Meet last marked speaking,
+// mic = the self tile); "" clears it.
+describe("live caption", () => {
+  const partial = (id: string, stream: "tab" | "mic", text: string) =>
+    ({ id, type: "transcript.partial", data: { stream, text } });
+  const captionOf = (root: FakeEl, tileId: string) =>
+    root.find((e) => e.attrs.get("data-tile-id") === tileId)[0]
+      ?.find((e) => e.classes.has("halo-caption"))[0]?.textContent;
+
+  it("puts tab words on the last speaking tile, mic words on the self tile, and clears", () => {
+    const overlay = new Overlay(new FakeClock(0));
+    overlay.applyTiles({
+      tiles: [
+        { tile_id: "tile-1", name: "Karim", is_self: true, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+        { tile_id: "tile-2", name: "Layla", is_self: false, rect: [408, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+      ],
+    });
+    const root = new FakeEl();
+    overlay.applyEnvelope(partial("e1", "tab", "nobody marked yet"));
+    overlay.render(doc, root);
+    expect(captionOf(root, "tile-2")).toBeUndefined();
+
+    overlay.applySpeakerActive({ tile_id: "tile-2", speaking: true, ts_ms: 0 });
+    overlay.applySpeakerActive({ tile_id: "tile-2", speaking: false, ts_ms: 500 }); // words lag the highlight
+    overlay.applyEnvelope(partial("e2", "tab", "launch moves to"));
+    overlay.applyEnvelope(partial("e3", "mic", "my own words"));
+    overlay.applyPointsUpsert(point({ tile_id: "tile-2" }));
+    overlay.render(doc, root);
+    expect(captionOf(root, "tile-2")).toBe("launch moves to");
+    expect(captionOf(root, "tile-1")).toBe("my own words");
+    const stack = root.find((e) => e.classes.has("halo-stack") && e.parent?.attrs.get("data-tile-id") === "tile-2")[0];
+    expect(stack.children[0].classes.has("halo-caption")).toBe(true); // above the bubbles
+
+    overlay.applyEnvelope(partial("e4", "tab", ""));
+    overlay.handleKey({ altKey: true, ctrlKey: false, key: "h", repeat: false });
+    overlay.render(doc, root);
+    expect(captionOf(root, "tile-2")).toBeUndefined();
+    expect(captionOf(root, "tile-1")).toBeUndefined(); // Alt+H hides captions too
+  });
+});

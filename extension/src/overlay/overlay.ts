@@ -121,6 +121,11 @@ export class Overlay {
   private seenEnvelopes = new Set<string>();
   private archived = new Set<string>();
   private thinkingStart = new Map<string, number>();
+  // Live caption (transcript.partial): the words being said per stream, and
+  // the tile Meet last marked speaking (kept after speaking=false: the words
+  // arrive 1-2 s after the highlight).
+  private captions = { tab: "", mic: "" };
+  private speakingTile: string | null = null;
   private layers = new Map<string, El>();
   private overflowEls = new Map<string, El>();
   urgencyStyle: UrgencyStyle = "words";
@@ -143,10 +148,17 @@ export class Overlay {
   }
 
   applySpeakerActive(active: SpeakerActive): void {
-    if (!active.speaking) this.thinkingStart.set(active.tile_id, this.clock.now);
+    if (active.speaking) this.speakingTile = active.tile_id;
+    else this.thinkingStart.set(active.tile_id, this.clock.now);
   }
 
   applyEnvelope(env: { id: string; type: string; data: Record<string, unknown> }): void {
+    if (env.type === "transcript.partial") {
+      // ponytail: no dedupe, a repeat caption is harmless; keeps seenEnvelopes small
+      const { stream, text } = env.data as { stream: "tab" | "mic"; text: string };
+      this.captions[stream] = text;
+      return;
+    }
     if (this.seenEnvelopes.has(env.id)) return; // dedupe by envelope id
     this.seenEnvelopes.add(env.id);
     const data = env.data as never;
@@ -296,6 +308,12 @@ export class Overlay {
     };
   }
 
+  /** Caption text for a tile: mic words on the self tile, tab words on the speaking tile. */
+  caption(tileId: string): string {
+    const self = this.tiles.get(tileId)?.is_self;
+    return (self ? this.captions.mic : tileId === this.speakingTile ? this.captions.tab : "");
+  }
+
   render(doc: DocLike, root: El & { children?: El[] }, _now?: number): void {
     for (const tileId of this.tileOrder) {
       let layer = this.layers.get(tileId);
@@ -333,6 +351,15 @@ export class Overlay {
       stack.style.setProperty("top", `${layout.stackPos.y}px`);
       layer.appendChild(stack);
       if (this.hidden) continue;
+      const words = this.caption(tileId);
+      if (words) {
+        // ponytail: the caption is not counted in the captions-floor fit rule
+        const cap = doc.createElement("div");
+        cap.classList.add("halo-caption");
+        cap.setAttribute("dir", "auto");
+        cap.textContent = words;
+        stack.appendChild(cap);
+      }
       for (const stored of this.visiblePoints(tileId)) {
         if (!stored.el) {
           stored.el = doc.createElement("button");

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/transcript.partial",
+  "title": "transcript.partial",
+  "description": "Live caption: the last words of the open turn on one stream, sent as Voice revises them. Empty text = the turn ended. Not stored.",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "type": "string",
+      "enum": [
+        "tab",
+        "mic"
+      ]
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "stream",
+    "text"
+  ],
+  "additionalProperties": false
+}

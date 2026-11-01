@@ -29,6 +29,7 @@ export const AGEING_FRACTION = 0.72;
 export const OVERLAY_CSS = `
 .halo-name{position:absolute;font:500 12px/1.25 Inter,system-ui,sans-serif;padding:4px 10px;border-radius:999px;color:rgba(255,255,255,.9);background:rgba(12,14,18,.66);backdrop-filter:${GLASS_BLUR}}
 .halo-stack{position:absolute;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.halo-caption{max-width:300px;padding:5px 10px;border-radius:9px;font:500 13px/1.35 Inter,system-ui,sans-serif;color:#fff;background:rgba(12,14,18,.78);backdrop-filter:${GLASS_BLUR}}
 .halo-chip{position:relative;display:flex;align-items:center;gap:6px;padding:5px 9px 5px 6px;border-radius:9px;font:500 12px/1.25 Inter,system-ui,sans-serif;color:#fff;background:rgba(12,14,18,.66);backdrop-filter:${GLASS_BLUR};cursor:pointer}
 .halo-utab{position:absolute;top:-9px;inset-inline-start:10px;padding:1px 7px;border-radius:9px 9px 0 0;font:700 ${URGENCY_TAB_FONT_PX}px/1.5 Inter,system-ui,sans-serif;letter-spacing:.06em;color:${DARK};z-index:1}
 .halo-utab.halo-u-urgent{background:${URGENCY_COLORS.urgent}}

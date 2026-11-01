@@ -27,7 +27,7 @@ class Envelope(BaseModel):
 
     specversion: Literal["1.0"]
     id: UUID
-    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready"]
+    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready"]
     source: str
     time: datetime
     meetingid: UUID | None
@@ -308,6 +308,12 @@ class TranscriptFinal(BaseModel):
     lang: Literal["ar", "en", "mixed"]
     ts_start_ms: int
     ts_end_ms: int
+
+class TranscriptPartial(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    stream: Literal["tab", "mic"]
+    text: str
 
 class TurnAttributed(BaseModel):
     model_config = ConfigDict(extra='forbid')

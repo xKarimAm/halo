@@ -235,3 +235,76 @@ def test_new_meeting_replaces_the_open_one_never_stacks():
     counts, close_calls = asyncio.run(go())
     assert counts == {"halo-transcriber-tab": 1, "halo-transcriber-mic": 1, "halo-transcriber-pump": 1}
     assert close_calls == 2, "the first meeting's tab and mic sessions closed"
+
+
+
+class StepTransport(FakeTransport):
+    """Releases one scripted Voice event per audio frame (live pacing)."""
+
+    def __init__(self, events: list[dict]) -> None:
+        self._events = list(events)
+        self._ready: list[dict] = []
+
+    async def open(self, handshake: dict) -> None:
+        pass
+
+    async def send_audio(self, pcm: bytes, ts_ms: int = 0) -> None:
+        if self._events:
+            self._ready.append(self._events.pop(0))
+
+    async def recv_event(self) -> dict | None:
+        return self._ready.pop(0) if self._ready else None
+
+    async def close(self) -> None:
+        pass
+
+
+def test_partials_published_as_live_caption_then_cleared():
+    """Step 1 live caption: new open-turn text goes out as transcript.partial
+    (its last PARTIAL_WORDS words), "" when the turn ends; finals unchanged."""
+    from halo.transcriber.session import PARTIAL_WORDS
+
+    words = [f"w{i}" for i in range(PARTIAL_WORDS + 5)]
+    full = " ".join(words)
+    # Real Voice shapes: partials carry no turnId; speechComplete closes.
+    tab_events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "w0 w1", "final": False},
+        {"type": "transcript", "transcript": "w0 w1", "final": False},  # unchanged: no repeat
+        {"type": "transcript", "transcript": full, "final": False},
+        {"type": "speaker", "label": "A"},
+        {"type": "speechComplete", "turnId": 0, "transcript": full, "audioProcessedMs": 500},
+    ]
+    transports = {"tab": StepTransport(tab_events), "mic": StepTransport([])}
+
+    async def go() -> tuple[list[dict], list[dict]]:
+        bus = Bus()
+        partials: list[dict] = []
+        finals: list[dict] = []
+        bus.subscribe("transcript.partial", partials.append)
+        bus.subscribe("transcript.final", finals.append)
+        qtab: asyncio.Queue = asyncio.Queue()
+        qmic: asyncio.Queue = asyncio.Queue()
+        Transcriber(bus, qtab, qmic, lambda stream, mode: transports[stream], key="fake-key")
+        await bus.publish(golden("meeting.started"))
+        for i in range(12):
+            qtab.put_nowait((i, ANCHOR + i * 100, FRAME))
+        for _ in range(100):
+            if finals and partials and partials[-1]["data"]["text"] == "":
+                break
+            await asyncio.sleep(0.05)
+        current = asyncio.current_task()
+        for task in asyncio.all_tasks():
+            if task is not current:
+                task.cancel()
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if t is not current],
+                             return_exceptions=True)
+        return partials, finals
+
+    partials, finals = asyncio.run(go())
+    for env in partials:
+        assert validate_envelope(env) == []
+        assert env["data"]["stream"] == "tab"
+    texts = [env["data"]["text"] for env in partials]
+    assert texts == ["w0 w1", " ".join(words[-PARTIAL_WORDS:]), ""]
+    assert [f["data"]["text"] for f in finals] == [full]

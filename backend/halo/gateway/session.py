@@ -18,7 +18,7 @@ from contracts.validate import known_type, validate_envelope
 Envelope = dict[str, Any]
 
 #: Bus types the Gateway forwards to paired sockets (the Overlay).
-FORWARD_TYPES = ("points.upsert", "tags.set", "speaker.mapped", "notes.ready")
+FORWARD_TYPES = ("points.upsert", "tags.set", "speaker.mapped", "notes.ready", "transcript.partial")
 
 
 def _ack(ack_of: object, status: str, code: str | None = None, message: str = "") -> dict[str, Any]:
