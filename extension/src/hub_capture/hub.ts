@@ -268,6 +268,7 @@ export class Hub {
   sendRec(webm: Uint8Array, tsMs: number): void {
     if (!this.recorderOn) return; // Recorder switch only gates kind=3
     if (!this.socketOpen || !this.paired) return;
+    if (!this.meetingId || this.ended) return; // chunks belong to a running meeting
     this.deps.socket.sendBinary(packRecFrame(this.recSeq++, tsMs, webm));
   }
 

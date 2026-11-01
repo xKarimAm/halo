@@ -54,6 +54,8 @@ export interface LiveCaptureDeps {
   now(): number;
   /** The tab stream ended on its own (tab closed): the meeting is over. */
   onTabEnded?(): void;
+  /** The captured tab stream, handed to the recording (a tab stream id is usable once). */
+  onTabStream?(stream: MediaStream): void;
   /** Abort = meeting over: stops every captured track (ends the tab capture, frees the mic). */
   signal?: AbortSignal;
 }
@@ -178,6 +180,7 @@ export async function startLiveCapture(
         audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: streamId } },
       });
       tap(tab, "tab", true);
+      deps.onTabStream?.(tab);
       // "ended" fires when the source stops (tab closed), never on our own stop().
       tab.getAudioTracks()[0]?.addEventListener("ended", () => deps.onTabEnded?.());
       result.tab = true;

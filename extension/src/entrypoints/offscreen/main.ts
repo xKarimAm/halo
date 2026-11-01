@@ -4,6 +4,7 @@
 import { HUB_START_MESSAGE, HUB_STOP_MESSAGE, Hub, handleHubRuntimeMessage } from "../../hub_capture/hub";
 import { adaptAudioContext, startLiveCapture } from "../../hub_capture/capture_live";
 import { MIC_PORT_NAME, readMicFrame } from "../../hub_capture/mic_relay";
+import { startRecording } from "../../hub_capture/recording";
 import type { ToPagePortMessage } from "../../../../contracts/ext/port";
 import type { MeetingContext } from "../../../../contracts/ext/gen/types";
 
@@ -39,6 +40,7 @@ const socket = {
 };
 
 let meeting: AbortController | null = null; // the running meeting's capture
+let recording: { pushMic(pcm: Uint8Array): void } | null = null; // its tab + mic webm
 
 const hubDeps = {
   socket,
@@ -68,7 +70,9 @@ chrome.runtime.onConnect.addListener((port: any) => {
     // Mic stream 1, captured by the Meet content script (see mic_relay.ts).
     port.onMessage.addListener((msg: unknown) => {
       const frame = readMicFrame(msg);
-      if (frame) hub.sendAudio("mic", frame.pcm, frame.ts, port.sender?.tab?.id);
+      if (!frame) return;
+      hub.sendAudio("mic", frame.pcm, frame.ts, port.sender?.tab?.id);
+      recording?.pushMic(frame.pcm);
     });
     return;
   }
@@ -93,6 +97,25 @@ function startFrom(handoff: StartHandoff): void {
   if (!handleHubRuntimeMessage(hub, msg)) return;
   const current = (meeting = new AbortController());
   if (handoff.context) hub.onPortMessage({ type: "meeting.context", data: handoff.context });
+  // Recording (kind=3): tab + relayed mic mixed into one webm. It starts with
+  // the meeting, mic-only until the tab stream arrives; abort ends it.
+  hub.setRecorder(true);
+  const startRec = (tab?: MediaStream): void => {
+    if (current.signal.aborted) return;
+    try {
+      recording = startRecording({
+        ctx: new AudioContext(),
+        tab,
+        makeRecorder: (stream) => new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" }) as never,
+        onChunk: (webm, ts) => hub.sendRec(webm, ts),
+        now: () => Date.now(),
+        signal: current.signal,
+      });
+    } catch {
+      recording = null; // no recording; live captions and points carry on
+    }
+  };
+  current.signal.addEventListener("abort", () => { recording = null; });
   // Live audio: tab stream 0 (+ local replay). The mic (stream 1) comes
   // from the Meet content script over the "halo-mic" Port: this document
   // cannot show a permission prompt. Never blocks the meeting: without a
@@ -111,9 +134,10 @@ function startFrom(handoff: StartHandoff): void {
       onTabEnded: () => {
         if (meeting === current) hub.stop("tab_closed"); // else an older meeting's tab
       },
+      onTabStream: (tab) => startRec(tab),
     },
     { mic: false },
-  );
+  ).then((r) => { if (!r.tab) startRec(); }); // no tab audio: record the mic alone
 }
 
 // The popup's "halo/hub.start" goes to the worker, never straight here:
