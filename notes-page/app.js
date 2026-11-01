@@ -87,6 +87,12 @@
     return fmt(ms / 1000);
   }
 
+  // Time into the meeting. ts_start_ms is the browser clock (epoch ms);
+  // live 2026-11-01 the chips read "29892683:17" until this.
+  function at(line) {
+    return line.recording_offset_ms != null ? line.recording_offset_ms : line.ts_start_ms;
+  }
+
   function hueOf(name) {
     var h = 0;
     for (var i = 0; i < name.length; i++) {
@@ -264,7 +270,7 @@
     var btn = el("button", "chip", "\u25B6 ");
     btn.dataset.line = line.turn_id;
     btn.title = t(lang, "play");
-    var time = el("span", null, fmtMs(line.ts_start_ms));
+    var time = el("span", null, fmtMs(at(line)));
     time.setAttribute("dir", "ltr");
     btn.appendChild(time);
     return btn;
@@ -493,7 +499,7 @@
     play.setAttribute("aria-label", t(lang, "play"));
     if (cur) play.dataset.line = cur.turn_id;
     row.appendChild(play);
-    var time = el("span", "time", cur ? fmtMs(cur.ts_start_ms) : "--:--");
+    var time = el("span", "time", cur ? fmtMs(at(cur)) : "--:--");
     time.setAttribute("dir", "ltr");
     row.appendChild(time);
     player.appendChild(row);
@@ -527,7 +533,7 @@
       var who = el("span", "who");
       who.appendChild(el("b", null, ln.speaker_name));
       who.appendChild(document.createTextNode(" \u00B7 "));
-      var when = el("span", null, fmtMs(ln.ts_start_ms));
+      var when = el("span", null, fmtMs(at(ln)));
       when.setAttribute("dir", "ltr");
       who.appendChild(when);
       btn.appendChild(who);
@@ -681,7 +687,7 @@
           var ln = linked ? lineByTurn(page, linked.turn_ids[0]) : null;
           lines.push("- [ ] **" + a.text + "** (" +
             t(lang, a.status === "assigned" ? "assigned" : "suggested") +
-            (ln ? ", [" + fmtMs(ln.ts_start_ms) + "](#t=" + Math.floor(ln.ts_start_ms / 1000) + ")" : "") + ")");
+            (ln ? ", [" + fmtMs(at(ln)) + "](#t=" + Math.floor(at(ln) / 1000) + ")" : "") + ")");
         });
         lines.push("");
       });
@@ -694,7 +700,7 @@
       list.forEach(function (p) {
         var ln = lineByTurn(page, p.turn_ids[0]);
         lines.push("- **" + p.text + "** (" + p.speaker_name +
-          (ln ? ", [" + fmtMs(ln.ts_start_ms) + "](#t=" + Math.floor(ln.ts_start_ms / 1000) + ")" : "") + ")");
+          (ln ? ", [" + fmtMs(at(ln)) + "](#t=" + Math.floor(at(ln) / 1000) + ")" : "") + ")");
         lines.push("  > " + p.quote);
       });
       lines.push("");
