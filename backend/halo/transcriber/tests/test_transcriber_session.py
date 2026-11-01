@@ -147,3 +147,15 @@ def test_seq_gap_pad_capped_at_30_s():
     asyncio.run(session.feed_frame(300, ANCHOR, FRAME))
     asyncio.run(session.feed_frame(6000, ANCHOR + 570_000, FRAME))
     assert session.pad_ms == 30_000
+
+
+def test_live_view_shows_level_words_and_turns(caplog):
+    fake = script(turn("mic", "you", "Launch moves to Nov 12.", 200, 900))
+    session, _ = make_session(fake, "mic", ENDPOINTING)
+    asyncio.run(session.open("key"))
+    with caplog.at_level(logging.INFO, logger="halo.transcriber"):
+        feed(session, 20)
+    live = session.live()
+    assert live["frames"] == 20 and live["level_rms"] > 0
+    assert live["turns"] == 1 and live["last_turn"] == "Launch moves to Nov 12."
+    assert any("transcript mic you: Launch moves" in r.getMessage() for r in caplog.records)

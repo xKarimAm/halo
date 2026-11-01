@@ -55,3 +55,13 @@ def test_log_config_writes_backend_log_and_alerts(tmp_path):
     assert "turn final" in text and "voice closed 1008" in text and "boom" in text
     alerts = (tmp_path / "alerts.jsonl").read_text(encoding="utf-8")
     assert "voice closed 1008" in alerts and "boom" in alerts and "turn final" not in alerts
+
+
+def test_mic_pure_silence_is_a_problem_within_10_s():
+    # Live 2026-11-01: every mic sample was 0 while Karim talked; nothing said so for 60 s.
+    gateway = {"sessions": 1, "sockets_opened": 1, "audio_age_s": {"tab": 0.1, "mic": 0.1}}
+    mic = {"frames": 120, "level_rms": 0, "silent_s": 12.0}
+    snap = {"queues": {}, "modules": {"gateway": gateway}, "streams": {"mic": mic}}
+    assert set(check(snap, opens_minute_ago=1)) == {"mic.zero"}
+    mic["level_rms"] = 40  # faint room noise: a live mic, user just quiet
+    assert check(snap, opens_minute_ago=1) == {}

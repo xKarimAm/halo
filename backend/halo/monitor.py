@@ -87,6 +87,8 @@ def snapshot(app: Any) -> dict[str, Any]:
     return {
         "time": _now(),
         "modules": state.bus.health(),  # includes the gateway's sockets and audio age
+        # Live per-stream view: level, words heard so far, turns out.
+        "streams": state.transcriber.live() if hasattr(state, "transcriber") else {},
         "queues": {name: [q.qsize(), q.maxsize] for name, q in queues.items()},
     }
 
@@ -102,6 +104,10 @@ def check(snap: dict[str, Any], opens_minute_ago: int) -> dict[str, str]:
     for stream, age in gw["audio_age_s"].items():
         if gw["sessions"] and age is not None and age > AUDIO_STALE_S:
             problems[f"audio.{stream}"] = f"no {stream} audio for {age:.0f} s while the extension is connected"
+    mic = snap.get("streams", {}).get("mic")
+    # A live mic never reads exactly 0 (room noise): 0 for 10 s = capture sends digital silence.
+    if mic and mic["frames"] and mic["level_rms"] == 0 and mic["silent_s"] >= 10:
+        problems["mic.zero"] = f"mic audio is pure silence (level 0) for {mic['silent_s']:.0f} s"
     for name, (size, maxsize) in snap["queues"].items():
         if maxsize and size >= QUEUE_HIGH * maxsize:
             problems[f"queue.{name}"] = f"{name} queue backlog {size}/{maxsize}"
