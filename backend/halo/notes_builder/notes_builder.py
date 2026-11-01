@@ -51,6 +51,36 @@ REBUILD_INSTRUCTIONS = (
 )
 
 
+# Karim 2026-11-02: an AI title + short summary for the notes list preview
+# and the meeting page. One extra Spark call at meeting end; a failure only
+# leaves them out.
+SUMMARY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "summary": {"type": "string"},
+    },
+    "required": ["title", "summary"],
+    "additionalProperties": False,
+}
+SUMMARY_TRANSCRIPT_CHARS = 12_000  # ponytail: the meeting's last 12k chars; chunk + merge if long meetings need more
+
+
+def summary_prompt(store: dict[str, Any]) -> str:
+    lines = "\n".join(f"{t['speaker']}: {t['text']}" for t in store["turns"])
+    points = "\n".join(f"- [{p['kind']}] {p['text']}" for p in store["points"])
+    return (
+        "Write the notes header for this meeting. title: what the meeting was "
+        "about, at most 8 words, no quotes. summary: 3 to 5 plain sentences "
+        "covering what was decided, who owns what, and what is still open. Use "
+        "only what the transcript says. Write both in the language most of the "
+        "meeting used.\n\n"
+        f"Subject typed by the host: {store['meeting']['subject'] or 'none'}\n\n"
+        f"Points:\n{points or '- none'}\n\n"
+        f"Transcript:\n{lines[-SUMMARY_TRANSCRIPT_CHARS:]}"
+    )
+
+
 def action_id_for(point_id: str) -> str:
     """Stable action id over its point. Must equal notes_service.action_id_for
     (own copy, lane independence): the page matches ready actions by it, and
@@ -68,6 +98,7 @@ class NotesBuilder:
         self._lock = asyncio.Lock()
         self._emitted: set[str] = set()
         self._lkg: dict[str, dict[str, Any]] = {}
+        self._header: dict[str, dict[str, str]] = {}  # AI title + summary per meeting
         self.pending: set[asyncio.Task] = set()
         bus.subscribe("meeting.ended", self._on_ended)
 
@@ -97,6 +128,7 @@ class NotesBuilder:
         if store is None:
             log.warning("notes: unknown meeting %s, nothing emitted", meeting_id)
             return
+        await self._summarize(meeting_id, store)
         candidate = self.build_v1(meeting_id, store)
         problems = validate_page(candidate, store)
         if not problems:
@@ -122,6 +154,24 @@ class NotesBuilder:
             # the full-page rebuild hit the 10 s model timeout.
             log.warning("notes: rebuild failed for %s, emitting the live notes degraded", meeting_id)
             await self._emit_fresh(meeting_id, degrade(candidate))
+
+    async def _summarize(self, meeting_id: str, store: dict[str, Any]) -> None:
+        if meeting_id in self._header or not store["turns"]:
+            return
+        result = await asyncio.to_thread(
+            self._llm.complete_json,
+            prompt=summary_prompt(store),
+            schema=SUMMARY_SCHEMA,
+            schema_name="notes.summary",
+            prompt_cache_key="notes-summary-v1",
+        )
+        data = result.data if result.ok and isinstance(result.data, dict) else {}
+        header = {k: data[k].strip()[:700 if k == "summary" else 80] for k in ("title", "summary")
+                  if isinstance(data.get(k), str) and data[k].strip()}
+        if header:
+            self._header[meeting_id] = header
+        else:
+            log.warning("notes: no AI title/summary for %s", meeting_id)
 
     # -- emission ----------------------------------------------------------
 
@@ -163,6 +213,7 @@ class NotesBuilder:
         }
         if meeting.get("project_id") is not None:
             data["project_id"] = meeting["project_id"]
+        data.update(self._header.get(meeting_id, {}))
         return {
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "notes.ready",
             "source": "halo/notes_builder", "time": datetime.now(UTC).isoformat(),

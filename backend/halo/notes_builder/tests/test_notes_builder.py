@@ -65,9 +65,18 @@ class FakeLLM:
         self._clock = clock
         self._replies = list(replies)
         self.calls: list[str] = []
+        self.summary_calls: list[str] = []
+        self.summary_reply: dict | None = {"title": "Launch date moves to Nov 12",
+                                           "summary": "Layla moved the launch to Nov 12."}
 
     def complete_json(self, *, prompt, schema, schema_name="notes.page",
                       system=None, prompt_cache_key=None):
+        if schema_name == "notes.summary":  # the AI title + summary call
+            self.summary_calls.append(prompt)
+            if self.summary_reply is None:
+                return SimpleNamespace(ok=False, engine="spark-open", data=None,
+                                       error={"code": "engine_error", "message": "down"})
+            return SimpleNamespace(ok=True, engine="spark-open", data=self.summary_reply, error=None)
         self.calls.append(prompt)
         reply = self._replies.pop(0) if self._replies else "repair"
         self._clock.advance(0.05)
@@ -335,5 +344,31 @@ def test_action_ids_match_the_notes_service(tmp_path):
         layla = next(p for p in ready[0]["data"]["people"] if p["name"] == "Layla")
         assert layla["actions"][0]["action_id"] == str(
             uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{P1}"))
+
+    asyncio.run(run())
+
+
+def test_ai_title_and_summary_ride_on_notes_ready(tmp_path):
+    """Karim 2026-11-02: Spark writes a title + 3-5 line summary at meeting end."""
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert validate_envelope(ready[0]) == []
+        assert ready[0]["data"]["title"] == "Launch date moves to Nov 12"
+        assert ready[0]["data"]["summary"] == "Layla moved the launch to Nov 12."
+        assert len(llm.summary_calls) == 1
+        assert "Layla: Launch moves to Nov 12." in llm.summary_calls[0]
+
+    asyncio.run(run())
+
+
+def test_summary_failure_still_emits_notes(tmp_path):
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        llm.summary_reply = None
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert len(ready) == 1 and "title" not in ready[0]["data"]
 
     asyncio.run(run())
