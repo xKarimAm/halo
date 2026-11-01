@@ -1,6 +1,6 @@
 """Live insight: one model call per capped speaker turn batch, points upserted.
 
-On each `turn.attributed`, at most 1 call / 3 s / speaker and at most 12 RPM
+On each `turn.attributed`, at most 1 call / 3 s / speaker and at most 30 RPM
 overall. Turns that hit a cap are held and coalesced into the next allowed
 call for their speaker (all of them as new words, every held `turn_id` on the
 point). Nothing bursts, nothing drops. `speaker.mapped.corrects[]` re-sends
@@ -27,7 +27,7 @@ log = logging.getLogger("halo.insight")
 Envelope = dict[str, Any]
 
 SPEAKER_WINDOW_S = 3.0
-MAX_RPM = 12
+MAX_RPM = 30  # Karim 2026-11-01: 12 fit Baseten's basic tier, unused now; contributor allows 150
 RPM_WINDOW_S = 60.0
 HEALTH_INTERVAL_S = 30.0
 FLUSH_INTERVAL_S = 0.25
