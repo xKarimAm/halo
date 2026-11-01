@@ -54,6 +54,7 @@ h2{font-size:16px;margin:0 0 8px}
 @media (max-width:900px){.listgrid{grid-template-columns:1fr}}
 .mtg-card{display:flex;gap:12px;width:100%;text-align:start;padding:14px 16px;margin-bottom:10px;align-items:flex-start}
 .mtg-card b{font-size:15px}
+.mtg-card .stack:empty{flex:none;width:26px} /* no people: titles still line up */
 .stack{display:flex}
 .av{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;flex:none;
   background:hsl(var(--h,200) var(--av-s1) var(--av-l1));color:#fdfbf6;font-weight:700;font-size:14px}
@@ -85,7 +86,9 @@ mark{background:var(--mark-bg);color:var(--mark-text);border-radius:3px;padding:
 .u-urgent .udot{background:var(--urg-hi)} .u-medium .udot{background:var(--urg-mid)} .u-later .udot{background:var(--urg-lo)}
 .act.u-urgent{box-shadow:inset 3px 0 0 var(--urg-hi)} .act.u-medium{box-shadow:inset 3px 0 0 var(--urg-mid)} .act.u-later{box-shadow:inset 3px 0 0 var(--urg-lo)}
 ul{list-style:none;margin:0;padding:0}
-.act{display:flex;gap:10px;padding:10px 4px;border-top:1px solid var(--hair)}
+/* Tag above the text: beside it, the text wrapped every 2-3 words (2026-11-02). */
+.act{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:10px 4px 10px 12px;border-top:1px solid var(--hair)}
+.act .body{align-self:stretch}
 .act.sug .body{border-inline-start:2px dashed var(--muted);padding-inline-start:8px}
 .act:not(.sug) .body{border-inline-start:3px solid var(--knob);padding-inline-start:8px}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;height:fit-content;white-space:nowrap}

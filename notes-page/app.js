@@ -122,7 +122,7 @@
 
   // Karim 2026-11-02: neat punctuation. Model text comes with or without a
   // capital and an end mark; shown text gets both. Titles get no end mark.
-  // Quotes and transcript lines stay verbatim (they are evidence).
+  // Quotes stay verbatim (evidence); transcript lines only get the capital.
   function tidy(text, isTitle) {
     var s = String(text || "").replace(/\s+/g, " ").trim();
     if (!s) return s;
@@ -139,6 +139,9 @@
     (page.points || []).forEach(function (p) { p.text = tidy(p.text); });
     (page.actions || []).forEach(function (a) { a.text = tidy(a.text); });
     (page.people || []).forEach(function (p) { if (p.why) p.why = tidy(p.why); });
+    (page.transcript_lines || []).forEach(function (l) {
+      l.text = String(l.text || "").charAt(0).toUpperCase() + String(l.text || "").slice(1);
+    });
     return page;
   }
 
