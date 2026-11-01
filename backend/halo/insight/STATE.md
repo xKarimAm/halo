@@ -26,7 +26,7 @@ Implement insight per its PLAN.md; done ONLY when `uv run pytest backend/halo/in
 - `backend/halo/insight/PLAN.md` — the contract for this lane
 
 ## Current step
-Building; branch `module/insight`.
+Built and merged. 2026-11-01: calls run in parallel across speakers (`_launch`, one in flight per speaker, RPM cap counted at start). Before, one call at a time made a turn wait for another speaker's call: real contributor, 2 speakers ~1.2 s apart, turn-to-point median 8.3-10.9 s became 4.8-5.1 s. The rest is the contributor's floor: `minimal` is its lowest reasoning setting (`none` is rejected with 400) and it still writes ~280-470 reasoning tokens (~4 s).
 
 ## Open questions
 None.

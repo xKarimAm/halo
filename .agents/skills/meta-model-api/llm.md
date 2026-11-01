@@ -21,7 +21,7 @@ Both speak the OpenAI Chat Completions API (verified 2026-10-29: plain replies, 
 
 ## Latency levers (live Insight targets ~3 s, p90 under 4 s)
 
-- Set reasoning effort on every live call: `"low"` on Spark Open (its floor), `"minimal"` on Spark 1.3 (Meta ladder: `none` < `minimal` < `low` < `medium` < `high`; `"none"` is unreliable today). Reasoning tokens bill as output and arrive before the first streamed token, so effort is latency.
+- Set reasoning effort on every live call: `"low"` on Spark Open (its floor), `"minimal"` on Spark 1.3 (Meta ladder: `none` < `minimal` < `low` < `medium` < `high`; `muse-spark-1.3-contributor` rejects `"none"` with HTTP 400, so `minimal` is its floor, checked 2026-11-01). Reasoning tokens bill as output and arrive before the first streamed token, so effort is latency: at `minimal` the contributor still writes ~280-470 reasoning tokens (~4 s) for an Insight point. A `max_tokens` cap does not help: the reasoning eats the whole budget and no answer comes back.
 - Prompt caching is automatic and matches from the first token. Order every prompt as: fixed instructions, then meeting context, then the speaker's current points, then the new words last. Pass one stable `prompt_cache_key` per prompt template, never one per user. Watch `usage.prompt_tokens_details.cached_tokens`.
 - Stream with `stream=True` and `stream_options={"include_usage": True}`. `delta.content` can be `None` and the usage chunk has empty `choices`; guard both.
 

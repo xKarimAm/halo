@@ -329,3 +329,109 @@ def test_quote_may_span_the_points_coalesced_turns():
         assert points[-1]["data"]["quote"] == "engineers on this. Starting Monday"
 
     asyncio.run(run())
+
+
+
+class GateLLM:
+    """Thread-blocking model fake: Layla's first call waits until another
+    call has started, so the test proves overlap without wall-clock limits.
+    Records the most calls in flight per speaker and overall."""
+
+    def __init__(self) -> None:
+        import threading
+        self._lock = threading.Lock()
+        self.other_started = threading.Event()
+        self.release = threading.Event()
+        self.inflight: dict[str, int] = {}
+        self.max_per_speaker = 0
+        self.overlapped = False
+        self.prompts: list[str] = []
+
+    def complete_json(self, *, prompt, schema, schema_name="insight.point",
+                      system=None, prompt_cache_key=None):
+        name = prompt.rsplit("New words from ", 1)[-1].split(":", 1)[0]
+        with self._lock:
+            self.prompts.append(prompt)
+            self.inflight[name] = self.inflight.get(name, 0) + 1
+            self.max_per_speaker = max(self.max_per_speaker, self.inflight[name])
+            if sum(self.inflight.values()) > 1:
+                self.overlapped = True
+            first_layla = name == "Layla" and not self.release.is_set() and len(self.prompts) == 1
+        if name != "Layla":
+            self.other_started.set()
+        if first_layla:
+            self.other_started.wait(5)
+            self.release.wait(5)
+        with self._lock:
+            self.inflight[name] -= 1
+        text = prompt.rsplit("- ", 1)[-1]
+        return SimpleNamespace(ok=True, engine="muse-spark-1.3-contributor", error=None,
+                               data={"kind": "point", "text": text, "quote": text,
+                                     "rank": 1, "urgency": "medium", "is_action": False})
+
+    def health(self):
+        return {"engine": "muse-spark-1.3-contributor", "failover": True}
+
+
+def test_calls_overlap_across_speakers_but_never_for_one_speaker():
+    # Live 2026-11-01: contributor calls take ~4 s, and one call at a time made
+    # a second speaker's turn wait for the first call, then its own (p90 ~9 s).
+    async def run():
+        bus = Bus()
+        llm = GateLLM()
+        insight = Insight(bus, llm, flush_interval_s=0.01, speaker_window_s=0.0)
+        points: list[dict] = []
+        bus.subscribe("points.upsert", points.append)
+        insight.start()
+        try:
+            await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000001", "Launch on the 15th", name="Layla"))
+            for _ in range(500):  # Layla's first call is in flight (holding only her first turn)
+                if llm.prompts:
+                    break
+                await asyncio.sleep(0.01)
+            await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000002", "QA is not done", name="Omar", tile="t2"))
+            await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000003", "Ads wait for December", name="Layla"))
+            await asyncio.to_thread(llm.other_started.wait, 5)
+            for _ in range(200):  # Omar's point lands while Layla's call is still blocked
+                if any(p["data"]["speaker_name"] == "Omar" for p in points):
+                    break
+                await asyncio.sleep(0.01)
+            omar_first = [p["data"]["speaker_name"] for p in points] == ["Omar"]
+            llm.release.set()
+            for _ in range(300):
+                if len(points) >= 3:
+                    break
+                await asyncio.sleep(0.01)
+        finally:
+            llm.release.set()
+            insight.stop()
+        assert omar_first, "Omar's point waited for Layla's call"
+        assert llm.overlapped
+        assert llm.max_per_speaker == 1, "two calls for one speaker at once"
+        # Layla's second turn, sent while her call was in flight, went into her next call.
+        assert "Ads wait for December" in llm.prompts[-1]
+        assert sorted(p["data"]["speaker_name"] for p in points) == ["Layla", "Layla", "Omar"]
+    asyncio.run(run())
+
+
+def test_a_call_that_raises_requeues_its_turns():
+    class Boom(FakeLLM):
+        def complete_json(self, **kw):
+            if not self.calls:
+                self.calls.append(kw)
+                raise RuntimeError("client blew up")
+            return super().complete_json(**kw)
+
+    async def run():
+        clock = Clock()
+        bus = Bus()
+        insight = Insight(bus, Boom(clock, [point_reply("recovered")]), clock=clock)
+        bus.subscribe("turn.attributed", lambda _e: insight.flush())
+        points: list[dict] = []
+        bus.subscribe("points.upsert", points.append)
+        await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000004", "Ship it Monday"))
+        assert points == []
+        clock.advance(3.0)
+        await insight.flush()
+        assert [p["data"]["turn_ids"] for p in points] == [["11111111-1111-4111-8111-000000000004"]]
+    asyncio.run(run())
