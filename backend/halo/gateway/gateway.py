@@ -133,6 +133,7 @@ class Gateway:
     def health(self) -> dict[str, Any]:
         return {
             "sessions": len(self.sessions),
+            "meetings_open": len(self._meetings - self._ended - self._timeout_sent),
             "audio_gaps": self.audio.gaps,
             "audio_dropped": self.audio.dropped,
             "audio_age_s": self.audio.audio_age_s(),
