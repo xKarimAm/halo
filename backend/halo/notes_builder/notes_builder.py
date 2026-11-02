@@ -336,6 +336,7 @@ class NotesBuilder:
                 })
             points.sort(key=lambda p: (p["rank"], p["seq"]))
             tags: dict[str, dict[str, str]] = {}
+            by_user: set[tuple[str, str]] = set()
             for (data,) in conn.execute(
                     "SELECT data FROM events WHERE type = 'tags.set' ORDER BY seq"):
                 try:
@@ -344,11 +345,16 @@ class NotesBuilder:
                     continue
                 if tag.get("target") != "point" or not isinstance(tag.get("target_id"), str):
                     continue
+                # Latest user tag > latest model tag > guess (DECISIONS).
                 entry = tags.setdefault(tag["target_id"], {})
                 for field in ("kind", "urgency"):
-                    if tag.get(field) is not None and (
-                            tag.get("source") == "user" or field not in entry):
-                        entry[field] = tag[field]
+                    if tag.get(field) is None:
+                        continue
+                    if tag.get("source") == "user":
+                        by_user.add((tag["target_id"], field))
+                    elif (tag["target_id"], field) in by_user:
+                        continue
+                    entry[field] = tag[field]
             context: dict[str, Any] = {}
             row = conn.execute(
                 "SELECT data FROM events WHERE type = 'meeting.context' AND meetingid = ?"

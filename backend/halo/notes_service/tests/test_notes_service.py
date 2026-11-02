@@ -270,3 +270,22 @@ def test_writes_refuse_other_sites(tmp_path):
                        headers=evil).status_code == 403
     own = {"origin": "http://127.0.0.1:8765"}
     assert client.post("/api/folders", json={"name": "x"}, headers=own).status_code == 201
+
+
+def test_the_latest_model_tag_wins_but_never_over_a_user_tag(tmp_path):
+    """DECISIONS: latest user tag > latest model tag > guess. Live 2026-11-02:
+    the page kept the first model tag, so a corrected kind never showed."""
+    client, _, data = make_client(tmp_path, user_tag=True)  # user set urgency=urgent
+    conn = sqlite3.connect(data / "events.sqlite")
+    for kind, urgency in (("pushback", "later"), ("point", "medium")):  # model, in order
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'tags.set', ?, ?, 'halo/classifier', 'application/json', ?)",
+            (str(uuid.uuid4()), "2026-10-31T09:01:00Z", MEETING, json.dumps({
+                "target": "point", "target_id": P1, "kind": kind, "urgency": urgency,
+                "source": "model", "model": "x"})))
+    conn.commit()
+    conn.close()
+    point = client.get(f"/api/meetings/{MEETING}").json()["points"][0]
+    assert point["kind"] == "point"  # the latest model tag
+    assert point["urgency"] == "urgent"  # the user's tag still wins

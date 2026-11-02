@@ -390,3 +390,21 @@ def test_disagreements_ride_on_notes_ready_and_bad_ones_drop(tmp_path):
         assert "disagreements:" in llm.summary_calls[0]
 
     asyncio.run(run())
+
+
+def test_the_latest_model_tag_wins_but_never_over_a_user_tag(tmp_path):
+    """DECISIONS: latest user tag > latest model tag > guess."""
+    path = tmp_path / "events.sqlite"
+    _bus, _llm, builder, _ready, _ = setup(path, [])
+    conn = sqlite3.connect(str(path))
+    for source, kind, urgency in (("user", None, "urgent"), ("model", "pushback", "later"),
+                                  ("model", "point", "medium")):
+        tag = {"target": "point", "target_id": P1, "source": source,
+               **({"kind": kind} if kind else {}), "urgency": urgency}
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'tags.set', ?, ?, 'halo/test', 'application/json', ?)",
+            (str(uuid.uuid4()), "2026-10-31T09:01:00Z", MEETING, json.dumps(tag)))
+    conn.commit()
+    conn.close()
+    assert builder._read_store(MEETING)["tags"][P1] == {"kind": "point", "urgency": "urgent"}
