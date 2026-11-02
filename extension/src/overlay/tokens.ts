@@ -48,7 +48,7 @@ export const OVERLAY_CSS = `
 .halo-chip-urgent{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.urgent},inset 0 0 0 1px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.3),0 4px 14px rgba(0,0,0,.16)}
 .halo-chip-medium{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.medium},inset 0 0 0 1px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.3),0 4px 14px rgba(0,0,0,.16)}
 .halo-chip-later{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.later},inset 0 0 0 1px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.3),0 4px 14px rgba(0,0,0,.16)}
-.halo-menu{flex-basis:100%;display:flex;flex-direction:column;gap:12px;width:max-content;padding:12px 14px;border-radius:16px;${PANEL}}
+.halo-menu{display:flex;flex-direction:column;gap:12px;width:max-content;padding:12px 14px;border-radius:16px;${PANEL}}
 .halo-menu[hidden]{display:none}
 .halo-legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
 .halo-legend .halo-swatch{width:12px;height:12px;border-radius:3px}
@@ -58,12 +58,12 @@ export const OVERLAY_CSS = `
 .halo-thinking-dotted{border-bottom:2px dotted #fff3d1}
 @media (prefers-reduced-motion:reduce){.halo-thinking{animation:none}}
 /* Top centre: Meet's clock and meeting code sit top-left (live 2026-11-02). */
-.halo-controls{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;max-width:calc(100vw - 24px);font:500 12px/1.25 Inter,system-ui,sans-serif;color:#f5f7fa}
+.halo-controls{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:calc(100vw - 24px);font:500 12px/1.25 Inter,system-ui,sans-serif;color:#f5f7fa}
 .halo-badge,.halo-controls .halo-btn,.halo-toast{${GLASS}}
 .halo-badge{padding:5px 12px;border:0;border-radius:999px;color:#fff;font:inherit;font-weight:600;cursor:pointer}
 .halo-btn{padding:5px 12px;border:0;border-radius:999px;background:rgba(255,255,255,.08);color:#f5f7fa;font:inherit;cursor:pointer}
 .halo-btn.halo-primary{background:${HALO_GOLD};color:#1b1608}
-.halo-toast{flex-basis:100%;display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:8px 8px 8px 12px;border-radius:14px}
+.halo-toast{display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:8px 8px 8px 12px;border-radius:14px}
 .halo-toast[hidden]{display:none}
 .halo-toast a{color:${HALO_GOLD}}
 .halo-dismiss{border:0;background:none;color:#cfd3da;font:inherit;font-size:16px;line-height:1;cursor:pointer}
