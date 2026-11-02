@@ -28,6 +28,7 @@ REPO = "unsloth/sam3.1"  # Meta's SAM 3.1 weights, ungated mirror for transforme
 PROMPT = "face"
 MIN_SCORE = 0.5
 MAX_BODY = 2_000_000
+MAX_PIXELS = 1920 * 1080  # the extension sends 480 px frames; anything far bigger is not ours
 
 
 def pick_face(boxes: list[list[float]], scores: list[float], w: int, h: int) -> dict[str, Any] | None:
@@ -59,8 +60,11 @@ class SamFaces:
     def detect(self, jpeg: bytes) -> dict[str, Any] | None:
         from PIL import Image
 
-        image = Image.open(io.BytesIO(jpeg)).convert("RGB")
+        image = Image.open(io.BytesIO(jpeg))  # reads the header only
         w, h = image.size
+        if w * h > MAX_PIXELS:
+            raise ValueError(f"frame too large: {w}x{h}")
+        image = image.convert("RGB")
         torch = self._torch
         with self._lock, torch.inference_mode():
             batch = self._processor(images=[image], text=[PROMPT], return_tensors="pt").to("cuda")
@@ -85,8 +89,24 @@ def make_handler(detector: Any) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             self._reply(200, {"ok": True, "engine": "sam"}) if self.path == "/health" else self._reply(404, {})
 
+        def _trusted(self) -> bool:
+            """Only the Halo hub (or a local tool) may use the GPU. A web page
+            sends a web Origin and cannot send Content-Type image/jpeg without
+            a preflight, which this server never answers; the Host check stops
+            DNS rebinding."""
+            origin = self.headers.get("Origin")
+            return (self.headers.get("Host") == f"127.0.0.1:{self.server.server_address[1]}"
+                    and (origin is None or origin.startswith("chrome-extension://"))
+                    and self.headers.get("Content-Type") == "image/jpeg")
+
         def do_POST(self) -> None:
-            length = int(self.headers.get("Content-Length") or 0)
+            if not self._trusted():
+                self._reply(403, {"error": "forbidden"})
+                return
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                length = 0
             if self.path != "/faces" or not 0 < length <= MAX_BODY:
                 self._reply(400, {"error": "POST a JPEG to /faces"})
                 return

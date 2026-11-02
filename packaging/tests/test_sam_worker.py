@@ -36,8 +36,9 @@ def test_http_faces_and_health():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{server.server_address[1]}"
     try:
-        def post(body: bytes):
-            req = urllib.request.Request(base + "/faces", data=body, method="POST")
+        def post(body: bytes, **headers: str):
+            req = urllib.request.Request(base + "/faces", data=body, method="POST",
+                                         headers={"Content-Type": "image/jpeg", **headers})
             with urllib.request.urlopen(req, timeout=5) as r:
                 return r.status, json.loads(r.read())
 
@@ -47,6 +48,13 @@ def test_http_faces_and_health():
             raise AssertionError("expected 500")
         except urllib.error.HTTPError as err:
             assert err.code == 500
+        assert post(b"jpeg", Origin="chrome-extension://halo")[1]["face"]["conf"] == 0.9
+        for bad in ({"Origin": "https://evil.example"}, {"Content-Type": "text/plain"}):
+            try:
+                post(b"jpeg", **bad)
+                raise AssertionError(f"expected 403 for {bad}")
+            except urllib.error.HTTPError as err:
+                assert err.code == 403
         with urllib.request.urlopen(base + "/health", timeout=5) as r:
             assert json.loads(r.read()) == {"ok": True, "engine": "sam"}
     finally:
