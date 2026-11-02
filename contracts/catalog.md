@@ -25,7 +25,7 @@ ACK lives on the extension ⇄ Gateway socket only. Inside the backend, `bus.pub
 | `llm.health` | `llm.health.schema.json` | Insight (engine change, else ≤30 s) | Gateway, Event Store |
 | `tags.set` | `tags.set.schema.json` | Classifier (model); Notes Service on POST /api/tags (user) | Overlay (via Gateway), Event Store, Classifier (skip set) |
 | `notes.ready` | `notes.ready.schema.json` | Notes Builder | Event Store, Overlay toast (via Gateway) |
-| `coach.tips` | `coach.tips.schema.json` | Coach (whole meeting so far, about every 60 s) | Overlay coach panel (via Gateway), Event Store |
+| `coach.tips` | `coach.tips.schema.json` | Coach (meeting so far; new words at most every 8 s, or a 15 s silence) | Overlay coach panel (via Gateway), Event Store |
 | envelope | `envelope.schema.json` | every envelope sender | every receiver |
 | ACK | `ack.schema.json` | Gateway (socket); `bus.publish()` return value | Hub; backend publishers |
 | `faces.update` (in-tab) | `faces.update.schema.json` | Face Detector | Overlay |

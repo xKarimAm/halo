@@ -99,8 +99,8 @@ export class Overlay {
   hidden = false;
   status: unknown = null;
   notesToast: unknown = null;
-  // Meeting coach (coach.tips): the newest 1-3 tips; null until the first.
-  coach: { tips: string[]; lang: "en" | "ar" } | null = null;
+  // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
+  coach: { tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
   perFace = 3;
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];

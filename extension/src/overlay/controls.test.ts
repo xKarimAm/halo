@@ -381,6 +381,20 @@ describe("meeting coach panel", () => {
     expect([...panel.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["Layla has not spoken yet."]);
   });
 
+  it("shows an alert above the tips, and an alert alone still opens the panel", () => {
+    const { deliver } = setup();
+    const panel = $<HTMLElement>(".halo-coach");
+    const alert = $<HTMLElement>(".halo-coach-alert");
+    deliver(tips("c1", ["Ask Omar for a date."]));
+    expect(alert.hidden).toBe(true);
+    deliver({ id: "c2", type: "coach.tips", data: { tips: [], alert: "De-escalate now.", lang: "en" } });
+    expect(panel.hidden).toBe(false);
+    expect(alert.hidden).toBe(false);
+    expect(alert.textContent).toBe("De-escalate now.");
+    deliver({ id: "c3", type: "coach.tips", data: { tips: [], lang: "en" } });
+    expect(panel.hidden).toBe(true);
+  });
+
   it("dismisses until the next tips, hides with Alt+H, and sets Arabic direction", () => {
     const { overlay, deliver, refresh } = setup();
     deliver(tips("c1", ["One."]));
@@ -389,7 +403,7 @@ describe("meeting coach panel", () => {
     expect(panel.hidden).toBe(true);
     deliver(tips("c2", ["اسأل عمر عن الموعد."], "ar"));
     expect(panel.hidden).toBe(false);
-    expect(panel.querySelector("ul")!.getAttribute("dir")).toBe("rtl");
+    expect(panel.getAttribute("dir")).toBe("rtl");
     overlay.hidden = true;
     refresh();
     expect(panel.hidden).toBe(true);

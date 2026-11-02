@@ -303,8 +303,9 @@ export function mountControls(
   bar.append(badge, toast, menu);
   doc.body.append(bar);
 
-  // Meeting coach (Karim 2026-11-02): 1-3 tips on steering the meeting,
-  // left side, replaced about once a minute; x hides it until the next tips.
+  // Meeting coach (Karim 2026-11-02): 0-3 tips on steering the meeting plus
+  // an optional alert ("De-escalate now."), left side, replaced within
+  // seconds of new words; x hides it until the next tips.
   const coach = make("aside", "halo-coach");
   coach.setAttribute("aria-label", "Meeting coach");
   coach.setAttribute("aria-live", "polite");
@@ -318,7 +319,9 @@ export function mountControls(
   closeCoach.setAttribute("aria-label", "Hide tips");
   const coachHead = make("div", "halo-coach-head");
   coachHead.append(make("span", "", "Coach"), closeCoach);
-  coach.append(coachHead, tipList);
+  const alert = make("p", "halo-coach-alert");
+  alert.setAttribute("role", "alert");
+  coach.append(coachHead, alert, tipList);
   doc.body.append(coach);
 
   const refresh = (): void => {
@@ -327,11 +330,13 @@ export function mountControls(
     toast.hidden = href === null;
     if (href) link.href = href;
     const tips = overlay.coach;
-    coach.hidden = !tips || overlay.hidden || tips === dismissedTips;
+    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || tips === dismissedTips;
     if (tips && tips !== shownTips) {
       shownTips = tips;
-      tipList.dir = tips.lang === "ar" ? "rtl" : "ltr";
-      tipList.lang = tips.lang;
+      coach.dir = tips.lang === "ar" ? "rtl" : "ltr";
+      coach.lang = tips.lang;
+      alert.textContent = tips.alert ?? "";
+      alert.hidden = !tips.alert;
       tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
     }
   };

@@ -65,7 +65,7 @@ POINTS = [
 # matched on its instruction line (Insight prompts never contain it), so
 # the two consumers can interleave in any order: one reply per point.
 CLASSIFIER_REPLIES = [
-    {"match": "assign tags to a meeting point",
+    {"match": "check the tags of one live meeting point",
      "response": {"kind": "point", "urgency": "medium"}}
     for _ in POINTS
 ]

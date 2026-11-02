@@ -1,4 +1,4 @@
-"""Coach tests: a scripted model fake; tick() stands in for the 60 s loop."""
+"""Coach tests: a scripted model fake and a fake clock; tick() stands in for the 1 s loop."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from halo.bus import Bus
 from halo.coach import Coach
+from halo.coach.coach import MIN_GAP_S, SILENCE_S
 
 from contracts.validate import validate_envelope
 
@@ -39,54 +40,111 @@ def turn(text, name="Layla", n=1):
         "attribution": "provisional", "overlap": False}, n)
 
 
+class Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
 def setup(replies):
     bus = Bus()
     llm = FakeLLM(replies)
-    coach = Coach(bus, llm, min_new_words=5)
+    clock = Clock()
+    coach = Coach(bus, llm, clock=clock)
     tips: list = []
     bus.subscribe("coach.tips", tips.append)
-    return bus, llm, coach, tips
+    return bus, llm, coach, tips, clock
 
 
-def test_tips_come_from_the_whole_meeting_in_the_viewer_language():
+def test_tips_speak_to_the_viewer_in_their_role_and_language():
     async def run():
-        bus, llm, coach, tips = setup([{"tips": ["Ask Omar for a date."]}])
-        await bus.publish(env("meeting.context", {"subject": "Launch", "agenda": [], "roles": [],
-                                                  "viewer_lang": "ar"}, 90))
+        bus, llm, coach, tips, _clock = setup([{"tips": ["Ask Omar for a date."], "alert": ""}])
+        await bus.publish(env("meeting.started", {
+            "meeting_id": MEETING, "platform": "meet", "meeting_code": "abc-defg-hij",
+            "t0_ms": 0, "self_name": "Layla"}, 89))
+        await bus.publish(env("meeting.context", {
+            "subject": "Launch", "agenda": [], "viewer_lang": "ar",
+            "roles": [{"name": "Layla", "role": "Technical product manager"}]}, 90))
         await bus.publish(turn("We move the launch to the twelfth", n=2))
         await bus.publish(turn("Fine but who tells the client", name="Omar", n=3))
         await coach.tick()
         assert len(tips) == 1 and validate_envelope(tips[0]) == []
         assert tips[0]["data"] == {"tips": ["Ask Omar for a date."], "lang": "ar"}
-        assert "Layla: We move the launch" in llm.prompts[0] and "Omar: Fine" in llm.prompts[0]
+        prompt = llm.prompts[0]
+        assert "Viewer: Layla, Technical product manager" in prompt
+        assert "Layla (you): We move the launch" in prompt and "Omar: Fine" in prompt
 
     asyncio.run(run())
 
 
-def test_a_quiet_minute_makes_no_call_and_old_tips_feed_the_next():
+def test_new_words_call_within_seconds_but_at_most_once_per_gap():
     async def run():
-        bus, llm, coach, tips = setup([{"tips": ["One."]}, {"tips": ["Two."]}])
-        await bus.publish(turn("one two three four five six", n=2))
+        bus, llm, coach, tips, clock = setup([{"tips": ["One."], "alert": ""},
+                                              {"tips": ["Two."], "alert": ""}])
+        await bus.publish(turn("one two three", n=2))
         await coach.tick()
-        await coach.tick()  # no new words
-        assert len(llm.prompts) == 1
-        await bus.publish(turn("seven eight nine ten eleven", n=3))
+        assert len(llm.prompts) == 1  # first words: at once
+        await bus.publish(turn("four five", n=3))
+        clock.now += MIN_GAP_S - 1
+        await coach.tick()
+        assert len(llm.prompts) == 1  # inside the gap: waits
+        clock.now += 1
         await coach.tick()
         assert len(tips) == 2 and "Previous tips: One." in llm.prompts[1]
+        await coach.tick()
+        assert len(llm.prompts) == 2  # nothing new: no call
+
+    asyncio.run(run())
+
+
+def test_a_long_silence_calls_once_until_someone_speaks():
+    async def run():
+        bus, llm, coach, _tips, clock = setup([{"tips": ["One."], "alert": ""},
+                                              {"tips": ["Ask Omar by name."], "alert": ""}])
+        await bus.publish(turn("What is the budget?", n=2))
+        await coach.tick()
+        clock.now += SILENCE_S
+        await coach.tick()
+        assert "Why now: 15 s of silence" in llm.prompts[1]
+        clock.now += 60
+        await coach.tick()
+        assert len(llm.prompts) == 2  # one call per quiet stretch
+
+    asyncio.run(run())
+
+
+def test_an_alert_keeps_the_tips_and_an_empty_reply_publishes_nothing():
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"tips": ["Ask Omar for a date."], "alert": ""},
+            {"tips": [], "alert": "Remove the personal remark."},
+            {"tips": [], "alert": ""}])
+        for n, text in enumerate(["Dates first", "You never listen, typical", "Okay"], start=2):
+            await bus.publish(turn(text, n=n))
+            await coach.tick()
+            clock.now += MIN_GAP_S
+        assert [t["data"] for t in tips] == [
+            {"tips": ["Ask Omar for a date."], "lang": "en"},
+            {"tips": ["Ask Omar for a date."], "alert": "Remove the personal remark.", "lang": "en"}]
+        assert all(validate_envelope(t) == [] for t in tips)
 
     asyncio.run(run())
 
 
 def test_a_failed_call_retries_next_tick_and_an_ended_meeting_stops():
     async def run():
-        bus, llm, coach, tips = setup([None, {"tips": ["Back."]}])
+        bus, llm, coach, tips, clock = setup([None, {"tips": ["Back."], "alert": ""}])
         await bus.publish(turn("one two three four five six", n=2))
         await coach.tick()
         assert tips == []
+        clock.now += MIN_GAP_S
         await coach.tick()
         assert len(tips) == 1
         await bus.publish(turn("one two three four five six", n=3))
         await bus.publish(env("meeting.ended", {"reason": "left"}, 91))
+        clock.now += MIN_GAP_S
         await coach.tick()
         assert len(llm.prompts) == 2
 

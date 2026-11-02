@@ -26,6 +26,7 @@ class CoachTips(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     tips: list[str]
+    alert: str | None = None
     lang: Literal["en", "ar"]
 
 class Envelope(BaseModel):

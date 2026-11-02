@@ -71,6 +71,8 @@ export const OVERLAY_CSS = `
 .halo-coach{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:2147483647;width:min(260px,calc(100vw - 24px));box-sizing:border-box;padding:10px 12px 12px;border-radius:16px;${PANEL};color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif;pointer-events:auto}
 .halo-coach[hidden]{display:none}
 .halo-coach-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600;letter-spacing:.02em;color:${HALO_GOLD}}
+.halo-coach-alert{margin:0 0 8px;padding:6px 9px;border-radius:9px;background:${URGENCY_COLORS.urgent};color:#fff;font-weight:700;font-size:13px}
+.halo-coach-alert[hidden]{display:none}
 .halo-coach ul{margin:0;padding-inline-start:16px;display:flex;flex-direction:column;gap:6px}
 .halo-coach :focus-visible{outline:2px solid ${HALO_GOLD};outline-offset:2px}
 .halo-lang{align-self:flex-start;padding:5px 10px;border:0;border-radius:999px;${GLASS};color:#f5f7fa;font:inherit;cursor:pointer}

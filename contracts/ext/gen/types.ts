@@ -13,6 +13,7 @@ export interface Ack {
 
 export interface CoachTips {
   tips: string[];
+  alert?: string;
   lang: "en" | "ar";
 }
 

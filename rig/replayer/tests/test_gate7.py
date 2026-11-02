@@ -248,7 +248,7 @@ def events_of(data_dir: Path, type_: str) -> list[dict]:
 
 
 def classifier_replies(n: int) -> list[LlmReply]:
-    return [LlmReply(match="assign tags to a meeting point",
+    return [LlmReply(match="check the tags of one live meeting point",
                      response={"kind": "point", "urgency": "medium"})
             for _ in range(n)]
 

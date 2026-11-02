@@ -35,8 +35,8 @@ def test_llm_script_scripts_both_llm_consumers() -> None:
     and Insight starves — the day-1 integration failure."""
     fake = FakeLLM([LlmReply(**r) for r in CLASSIFIER_REPLIES + POINTS])
     classifier_prompt = (
-        "You assign tags to a meeting point. Reply with ONE JSON object.\n"
-        "Decision text: Launch moves to Nov 12"
+        "You check the tags of one live meeting point. Reply with ONE JSON object.\n"
+        "Point text: Launch moves to Nov 12"
     )
 
     def content(resp: dict) -> dict:
