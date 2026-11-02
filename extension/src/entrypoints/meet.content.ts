@@ -56,9 +56,17 @@ export async function bootMeetPage(): Promise<void> {
   createPortSync(portProxy, adapter);
 
   const connect = (): void => {
+    // Halo was reloaded: this copy of the script is orphaned and every
+    // chrome.runtime call throws "Extension context invalidated". Stop.
+    if (!chrome.runtime?.id) return;
     attempts += 1;
     try { current?.disconnect?.(); } catch { /* already dead */ }
-    current = chrome.runtime.connect({ name: "halo-hub" });
+    try {
+      current = chrome.runtime.connect({ name: "halo-hub" });
+    } catch {
+      current = null;
+      return;
+    }
     const port = current;
     port.onMessage.addListener((msg: unknown) => {
       for (const fn of listeners) fn(msg);
