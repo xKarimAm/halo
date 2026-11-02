@@ -299,7 +299,7 @@ export class Overlay {
     return {
       kind: p.kind, speaker: p.speaker_name, text: p.text, quote: p.quote,
       quoteDir: quoteDirection(p.quote),
-      urgentWord: p.urgency === "urgent" ? "Urgent" : undefined, // plain text only, no bubble mark
+      urgentWord: p.urgency === "urgent" ? ["Urgent", p.why].filter(Boolean).join(" · ") : undefined, // plain text only, no bubble mark
     };
   }
 
@@ -377,6 +377,7 @@ export class Overlay {
           urg.classList.add(`halo-u-${stored.urgency}`);
           urg.textContent = words
             ? URGENCY_WORDS[stored.lang === "ar" ? "ar" : "en"][stored.urgency]
+              + (stored.urgency === "urgent" && stored.why ? ` · ${stored.why}` : "") // "Urgent · today"
             : URGENCY_GLYPHS[stored.urgency];
           chip.appendChild(urg);
         }

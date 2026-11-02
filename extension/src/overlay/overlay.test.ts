@@ -227,6 +227,16 @@ describe("thinking, hide, language", () => {
 
 // (7) popover model; (8) consent copy touches only the clipboard
 describe("popover and consent", () => {
+  it("an urgent point shows its why: Urgent · today", () => {
+    const { overlay } = make();
+    const p = point({ urgency: "urgent", why: "today" });
+    overlay.applyPointsUpsert(p, "env-why");
+    expect(overlay.popover(p.point_id)?.urgentWord).toBe("Urgent · today");
+    const root = new FakeEl();
+    overlay.render(doc as never, root as never, 0);
+    expect(root.find((e) => e.classes.has("halo-utab"))[0]?.textContent).toMatch(/· today$/);
+  });
+
   it("urgent shows plain-text Urgent in the popover (bubble marks are covered below)", () => {
     const { overlay } = make();
     const p = point({ urgency: "urgent", kind: "decision" });

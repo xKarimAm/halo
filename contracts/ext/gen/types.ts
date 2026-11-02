@@ -191,6 +191,7 @@ export interface PointsUpsert {
   rank: number;
   attribution: "provisional" | "locked";
   urgency?: "urgent" | "medium" | "later";
+  why?: string;
   is_action: boolean;
   engine: string;
   replaces?: string;

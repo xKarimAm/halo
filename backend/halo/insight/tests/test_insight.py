@@ -485,3 +485,20 @@ def test_a_cut_off_sentence_judged_none_waits_for_the_rest():
         assert len(llm.calls) == 2 and points[0]["data"]["turn_ids"] == [t1, t2]
 
     asyncio.run(run())
+
+
+def test_an_urgent_point_carries_its_short_why():
+    # Karim 2026-11-02: an urgent bubble says why ("Urgent · today").
+    async def run():
+        _clock, bus, llm, _insight, points, _health = setup([
+            point_reply("Fix the payment server", urgency="urgent", why="today"),
+            point_reply("Pricing sheet by Thursday", why="by Thursday")])
+        await bus.publish(turn_envelope("00000035-0000-4000-8000-000000000035", "fix it today"))
+        await bus.publish(turn_envelope("00000036-0000-4000-8000-000000000036", "send it Thursday",
+                                        name="Omar", tile="t2"))
+        assert points[0]["data"]["why"] == "today"
+        assert "why" not in points[1]["data"]  # only an urgent point says why
+        assert all(validate_envelope(p) == [] for p in points)
+        assert "urgent only when" in llm.calls[0]["prompt"]
+
+    asyncio.run(run())

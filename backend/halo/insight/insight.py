@@ -37,7 +37,7 @@ MAX_RPM = 30  # Karim 2026-11-01: 12 fit Baseten's basic tier, unused now; contr
 RPM_WINDOW_S = 60.0
 HEALTH_INTERVAL_S = 30.0
 FLUSH_INTERVAL_S = 0.25
-PROMPT_CACHE_KEY = "insight-v2"
+PROMPT_CACHE_KEY = "insight-v3"
 
 # 2026-11-02: no model-written quote. The quote is the speaker's exact words
 # (always verbatim, #92), and a shorter reply plus shorter instructions cut
@@ -51,6 +51,7 @@ POINT_RESULT_SCHEMA: dict[str, Any] = {
         "rank": {"type": "integer", "minimum": 1, "maximum": 3},
         "urgency": {"type": "string", "enum": ["urgent", "medium", "later"]},
         "is_action": {"type": "boolean"},
+        "why": {"type": "string"},
         "replaces": {"type": "string", "format": "uuid"},
     },
     "required": ["kind", "text", "rank", "urgency", "is_action"],
@@ -62,8 +63,12 @@ INSTRUCTIONS = (
     "kind: point|question|decision|pushback, or none for filler, greetings, "
     "mic checks, small talk or a sentence cut off before its point. "
     "text: the point as one short sentence (at most 12 words) with a capital "
-    "first letter and an end period, in the viewer language. "
-    "rank: 1-3 (1 = most important). urgency: urgent|medium|later. "
+    "first letter, ending with a period (a question mark for a question), "
+    "in the viewer language. rank: 1-3 (1 = most important). "
+    "urgency: urgent only when it must happen today, blocks other people, or "
+    "is a live risk to customers or money; medium when it is needed soon; "
+    "later otherwise. why: only when urgent, 1-4 words on the deadline or "
+    "what it blocks (today, blocks signups). "
     "is_action: true when someone is asked to do something. "
     "replaces: only when this point supersedes an earlier point id. "
     "Decide fast; do not deliberate."
@@ -277,6 +282,9 @@ class Insight:
             "is_action": result.data["is_action"],
             "engine": result.engine,
         }
+        why = str(result.data.get("why") or "").strip()
+        if point["urgency"] == "urgent" and why:
+            point["why"] = why[:40]
         if result.data.get("replaces"):
             point["replaces"] = result.data["replaces"]
         self._points.setdefault(meetingid, {})[point["point_id"]] = point

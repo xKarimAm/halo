@@ -64,6 +64,12 @@
         "later"
       ]
     },
+    "why": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "Urgent points only: 1-4 words on the deadline or what it blocks (\"today\", \"blocks signups\")."
+    },
     "is_action": {
       "type": "boolean"
     },

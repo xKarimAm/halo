@@ -238,6 +238,7 @@ class PointsUpsert(BaseModel):
     rank: int
     attribution: Literal["provisional", "locked"]
     urgency: Literal["urgent", "medium", "later"] | None = None
+    why: str | None = None
     is_action: bool
     engine: str
     replaces: UUID | None = None
