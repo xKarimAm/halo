@@ -16,6 +16,7 @@ import { boot as bootOverlay } from "../overlay/index";
 import { adaptAudioContext, startLiveCapture } from "../hub_capture/capture_live";
 import { createMicSender, MIC_PORT_NAME, MIC_START_MESSAGE } from "../hub_capture/mic_relay";
 import { MIC_DEVICE_KEY } from "../hub_capture/mic_device";
+import { createSamDetect, encodeJpeg, SAM_PORT_NAME, SamFaceSource } from "../face_detector/sam";
 
 declare const chrome: any;
 
@@ -38,7 +39,20 @@ export async function bootMeetPage(): Promise<void> {
   const adapter = new MeetDomAdapter({});
   overlay.applyTiles({ tiles: adapter.tiles() });
   adapter.onTiles((tiles) => overlay.applyTiles({ tiles }));
-  adapter.onSpeaking((event) => overlay.applySpeakerActive(event));
+  let speaking: string | null = null;
+  adapter.onSpeaking((event) => {
+    overlay.applySpeakerActive(event);
+    if (event.speaking) speaking = event.tile_id;
+  });
+  // Halo mode (SAM 3.1 on the local worker): face boxes for the speaking
+  // tile. Without the worker every tile stays in Frame mode.
+  new SamFaceSource({
+    speakingTile: () => speaking,
+    video: (id) => adapter.video(id),
+    encode: encodeJpeg,
+    detect: createSamDetect(() => chrome.runtime.connect({ name: SAM_PORT_NAME })),
+    onFaces: (update) => { overlay.applyFaces(update); overlay.requestRender(); },
+  }).start();
   createPortSync(portProxy, adapter);
 
   const connect = (): void => {

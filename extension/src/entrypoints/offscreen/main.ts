@@ -2,6 +2,7 @@
 // Thin wrapper; all behaviour (incl. reconnect/backoff/pairing gate) lives
 // in hub_capture/hub.ts (unit-tested).
 import { HUB_START_MESSAGE, HUB_STOP_MESSAGE, Hub, handleHubRuntimeMessage } from "../../hub_capture/hub";
+import { SAM_PORT_NAME, serveSamPort } from "../../face_detector/sam";
 import { adaptAudioContext, startLiveCapture } from "../../hub_capture/capture_live";
 import { MIC_PORT_NAME, readMicFrame } from "../../hub_capture/mic_relay";
 import { startRecording } from "../../hub_capture/recording";
@@ -74,6 +75,10 @@ chrome.runtime.onConnect.addListener((port: any) => {
       hub.sendAudio("mic", frame.pcm, frame.ts, port.sender?.tab?.id);
       recording?.pushMic(frame.pcm);
     });
+    return;
+  }
+  if (port.name === SAM_PORT_NAME) {
+    serveSamPort(port); // Halo mode frames to the local SAM worker
     return;
   }
   if (port.name !== "halo-hub") return;

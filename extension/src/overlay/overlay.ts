@@ -131,6 +131,9 @@ export class Overlay {
     for (const t of snapshot.tiles) this.tiles.set(t.tile_id, t);
   }
 
+  /** Set by boot(): redraw now (faces arrive outside backend envelopes). */
+  requestRender: () => void = () => {};
+
   applyFaces(update: FacesUpdate): void {
     this.faces.set(update.tile_id, update.face);
   }
