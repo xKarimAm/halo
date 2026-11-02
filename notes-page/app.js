@@ -20,6 +20,7 @@
       results: "Search results", noHits: "No matches.", inPoints: "Point", inTx: "Transcript",
       decision: "Decision", question: "Open question", pushback: "Pushback", point: "Point",
       decs: "Key decisions", qs: "Open questions", pushes: "Pushbacks", pts: "Points",
+      dis: "Disagreements", disSettled: "Settled", disParked: "Parked", disOpen: "Still open",
       urgent: "Urgent", medium: "Medium", later: "Later / to discuss",
       filter: "Filter by type", all: "All",
       byHalo: "by Halo", byYou: "by you", menuCat: "Change type", menuUrg: "Change urgency",
@@ -51,6 +52,7 @@
       results: "نتائج البحث", noHits: "لا توجد نتائج.", inPoints: "نقطة", inTx: "النص",
       decision: "قرار", question: "سؤال مفتوح", pushback: "اعتراض", point: "نقطة",
       decs: "القرارات الرئيسية", qs: "أسئلة مفتوحة", pushes: "اعتراضات", pts: "نقاط",
+      dis: "الخلافات", disSettled: "تم الحسم", disParked: "مؤجل", disOpen: "ما زال مفتوحا",
       urgent: "عاجل", medium: "متوسط", later: "لاحقاً / للنقاش",
       filter: "تصفية حسب النوع", all: "الكل",
       byHalo: "بواسطة Halo", byYou: "بواسطتك", menuCat: "تغيير النوع", menuUrg: "تغيير الأولوية",
@@ -136,7 +138,18 @@
     if (m.title) m.title = tidy(m.title, true);
     if (m.subject) m.subject = tidy(m.subject, true);
     if (m.summary) m.summary = tidy(m.summary);
-    (page.points || []).forEach(function (p) { p.text = tidy(p.text); });
+    (m.disagreements || []).forEach(function (d) {
+      d.topic = tidy(d.topic, true);
+      if (d.resolution) d.resolution = tidy(d.resolution);
+      d.sides.forEach(function (x) { x.view = tidy(x.view); });
+    });
+    (page.points || []).forEach(function (p) {
+      p.text = tidy(p.text);
+      // A question point the model ended with a period gets its question mark.
+      if (p.kind === "question" && /^(what|who|when|where|why|how|which|is|are|can|could|do|does|did|should|will|would)\b/i.test(p.text)) {
+        p.text = p.text.replace(/\.$/, "?");
+      }
+    });
     (page.actions || []).forEach(function (a) { a.text = tidy(a.text); });
     (page.people || []).forEach(function (p) { if (p.why) p.why = tidy(p.why); });
     (page.transcript_lines || []).forEach(function (l) {
@@ -470,6 +483,36 @@
     return section;
   }
 
+  /** Who disagreed on what, each side's view, and how it ended (AI, at meeting end). */
+  function disagreementsBoard(app, lang) {
+    var list = app.page.meeting.disagreements || [];
+    if (!list.length || (app.cat !== "all" && app.cat !== "pushback")) return null;
+    var section = el("section", "board glass dis");
+    var h2 = el("h2");
+    h2.appendChild(svgIcon("pushback"));
+    h2.appendChild(document.createTextNode(t(lang, "dis")));
+    section.appendChild(h2);
+    var outcomes = { settled: "disSettled", parked: "disParked", open: "disOpen" };
+    list.forEach(function (d) {
+      var item = el("div", "dis-item o-" + d.outcome);
+      var head = el("div", "dis-head");
+      head.appendChild(el("h3", null, d.topic));
+      head.appendChild(el("span", "chip dis-out", t(lang, outcomes[d.outcome])));
+      item.appendChild(head);
+      var ul = el("ul", "dis-sides");
+      d.sides.forEach(function (x) {
+        var li = el("li");
+        li.appendChild(el("b", null, x.name));
+        li.appendChild(document.createTextNode(" " + x.view));
+        ul.appendChild(li);
+      });
+      item.appendChild(ul);
+      if (d.resolution) item.appendChild(el("p", "dis-res", d.resolution));
+      section.appendChild(item);
+    });
+    return section;
+  }
+
   function kindColumn(app, kind, lang) {
     var names = { decision: "decs", question: "qs", pushback: "pushes", point: "pts" };
     var list = app.page.points.filter(function (p) {
@@ -648,6 +691,8 @@
     } else {
       stage.appendChild(summaryBoard(app, lang));
       stage.appendChild(filtersBar(app, page.points, lang));
+      var dis = disagreementsBoard(app, lang);
+      if (dis) stage.appendChild(dis);
       var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
       (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
         cols.appendChild(kindColumn(app, k, lang));

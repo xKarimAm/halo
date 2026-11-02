@@ -105,6 +105,64 @@
     "summary": {
       "type": "string",
       "description": "AI 3-5 line meeting summary (Notes Builder, Spark)."
+    },
+    "disagreements": {
+      "type": "array",
+      "maxItems": 5,
+      "description": "AI (Notes Builder): where people disagreed, each side's view and how it ended.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topic",
+          "sides",
+          "outcome"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "sides": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "view"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "view": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                }
+              }
+            }
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "settled",
+              "parked",
+              "open"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
     }
   },
   "required": [

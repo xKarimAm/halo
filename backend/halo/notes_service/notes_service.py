@@ -309,6 +309,8 @@ class NotesService:
         for key in ("title", "summary"):  # AI, from the builder's notes.ready
             if ready and isinstance(ready.get(key), str) and ready[key].strip():
                 page["meeting"][key] = ready[key].strip()
+        if ready and isinstance(ready.get("disagreements"), list) and ready["disagreements"]:
+            page["meeting"]["disagreements"] = ready["disagreements"]
         return page
 
     # -- list / search ---------------------------------------------------------

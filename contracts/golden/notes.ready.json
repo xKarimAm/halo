@@ -30,6 +30,23 @@
           }
         ]
       }
+    ],
+    "disagreements": [
+      {
+        "topic": "Beta launch date",
+        "sides": [
+          {
+            "name": "Layla",
+            "view": "Launch on November 12 if payments QA clears."
+          },
+          {
+            "name": "Omar",
+            "view": "QA is not done; wait for December."
+          }
+        ],
+        "outcome": "settled",
+        "resolution": "Launch November 12; Omar signs off QA by Friday."
+      }
     ]
   }
 }

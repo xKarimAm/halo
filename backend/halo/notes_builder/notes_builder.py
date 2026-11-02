@@ -59,8 +59,21 @@ SUMMARY_SCHEMA: dict[str, Any] = {
     "properties": {
         "title": {"type": "string"},
         "summary": {"type": "string"},
+        "disagreements": {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string"},
+                "sides": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}, "view": {"type": "string"}},
+                    "required": ["name", "view"], "additionalProperties": False}},
+                "outcome": {"type": "string", "enum": ["settled", "parked", "open"]},
+                "resolution": {"type": "string"},
+            },
+            "required": ["topic", "sides", "outcome", "resolution"],
+            "additionalProperties": False}},
     },
-    "required": ["title", "summary"],
+    "required": ["title", "summary", "disagreements"],
     "additionalProperties": False,
 }
 SUMMARY_TRANSCRIPT_CHARS = 12_000  # ponytail: the meeting's last 12k chars; chunk + merge if long meetings need more
@@ -73,13 +86,39 @@ def summary_prompt(store: dict[str, Any]) -> str:
         "Write the notes header for this meeting. title: what the meeting was "
         "about, at most 8 words, capital first letter, no quotes, no end period. "
         "summary: 3 to 5 plain sentences, each ending with a period, "
-        "covering what was decided, who owns what, and what is still open. Use "
+        "covering what was decided, who owns what, and what is still open. "
+        "disagreements: 0 to 5 places where people disagreed or pushed back: "
+        "topic (at most 6 words), sides (each person's name and their view in "
+        "at most 12 words), outcome settled (agreed in the meeting), parked "
+        "(moved to later or offline) or open, resolution (what was agreed or "
+        "the next step, or empty). Use "
         "only what the transcript says. Write both in the language most of the "
         "meeting used.\n\n"
         f"Subject typed by the host: {store['meeting']['subject'] or 'none'}\n\n"
         f"Points:\n{points or '- none'}\n\n"
         f"Transcript:\n{lines[-SUMMARY_TRANSCRIPT_CHARS:]}"
     )
+
+
+def clean_disagreements(raw: Any) -> list[dict[str, Any]]:
+    """The model's disagreements cut to the contract; a malformed one drops."""
+    out: list[dict[str, Any]] = []
+    for d in raw if isinstance(raw, list) else []:
+        if not isinstance(d, dict) or d.get("outcome") not in ("settled", "parked", "open"):
+            continue
+        topic = str(d.get("topic") or "").strip()[:80]
+        sides = [{"name": str(s["name"]).strip()[:80], "view": str(s["view"]).strip()[:160]}
+                 for s in d.get("sides") or []
+                 if isinstance(s, dict) and str(s.get("name") or "").strip()
+                 and str(s.get("view") or "").strip()][:4]
+        if not topic or not sides:
+            continue
+        item: dict[str, Any] = {"topic": topic, "sides": sides, "outcome": d["outcome"]}
+        resolution = str(d.get("resolution") or "").strip()[:200]
+        if resolution:
+            item["resolution"] = resolution
+        out.append(item)
+    return out[:5]
 
 
 def action_id_for(point_id: str) -> str:
@@ -99,7 +138,7 @@ class NotesBuilder:
         self._lock = asyncio.Lock()
         self._emitted: set[str] = set()
         self._lkg: dict[str, dict[str, Any]] = {}
-        self._header: dict[str, dict[str, str]] = {}  # AI title + summary per meeting
+        self._header: dict[str, dict[str, Any]] = {}  # AI title, summary, disagreements per meeting
         self.pending: set[asyncio.Task] = set()
         bus.subscribe("meeting.ended", self._on_ended)
 
@@ -164,11 +203,15 @@ class NotesBuilder:
             prompt=summary_prompt(store),
             schema=SUMMARY_SCHEMA,
             schema_name="notes.summary",
-            prompt_cache_key="notes-summary-v1",
+            prompt_cache_key="notes-summary-v2",
         )
         data = result.data if result.ok and isinstance(result.data, dict) else {}
-        header = {k: data[k].strip()[:700 if k == "summary" else 80] for k in ("title", "summary")
-                  if isinstance(data.get(k), str) and data[k].strip()}
+        header: dict[str, Any] = {
+            k: data[k].strip()[:700 if k == "summary" else 80] for k in ("title", "summary")
+            if isinstance(data.get(k), str) and data[k].strip()}
+        disagreements = clean_disagreements(data.get("disagreements"))
+        if disagreements:
+            header["disagreements"] = disagreements
         if header:
             self._header[meeting_id] = header
         else:

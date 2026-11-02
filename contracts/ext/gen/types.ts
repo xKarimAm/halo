@@ -52,6 +52,18 @@ export interface LlmHealth {
   p90_ms: number;
 }
 
+export interface MeetingPageMeetingDisagreementsSides {
+  name: string;
+  view: string;
+}
+
+export interface MeetingPageMeetingDisagreements {
+  topic: string;
+  sides: MeetingPageMeetingDisagreementsSides[];
+  outcome: "settled" | "parked" | "open";
+  resolution?: string;
+}
+
 export interface MeetingPageMeeting {
   meeting_id: string;
   subject: string;
@@ -60,6 +72,7 @@ export interface MeetingPageMeeting {
   t0_ms: number;
   title?: string;
   summary?: string;
+  disagreements?: MeetingPageMeetingDisagreements[];
 }
 
 export interface MeetingPagePeople {
@@ -157,6 +170,18 @@ export interface NotesReadyPeople {
   actions: NotesReadyPeopleActions[];
 }
 
+export interface NotesReadyDisagreementsSides {
+  name: string;
+  view: string;
+}
+
+export interface NotesReadyDisagreements {
+  topic: string;
+  sides: NotesReadyDisagreementsSides[];
+  outcome: "settled" | "parked" | "open";
+  resolution?: string;
+}
+
 export interface NotesReady {
   meeting_id: string;
   project_id?: string;
@@ -165,6 +190,7 @@ export interface NotesReady {
   people: NotesReadyPeople[];
   title?: string;
   summary?: string;
+  disagreements?: NotesReadyDisagreements[];
 }
 
 export interface PairHello {

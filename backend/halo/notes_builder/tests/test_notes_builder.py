@@ -372,3 +372,21 @@ def test_summary_failure_still_emits_notes(tmp_path):
         assert len(ready) == 1 and "title" not in ready[0]["data"]
 
     asyncio.run(run())
+
+
+def test_disagreements_ride_on_notes_ready_and_bad_ones_drop(tmp_path):
+    """Karim 2026-11-02: who disagreed on what, each side's view, how it ended."""
+    good = {"topic": "Launch date", "outcome": "settled", "resolution": "Nov 12.",
+            "sides": [{"name": "Layla", "view": "Nov 12."}, {"name": "Omar", "view": "December."}]}
+
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        llm.summary_reply = {**llm.summary_reply, "disagreements": [
+            good, {"topic": "", "outcome": "maybe", "sides": []}]}
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert validate_envelope(ready[0]) == []
+        assert ready[0]["data"]["disagreements"] == [good]
+        assert "disagreements:" in llm.summary_calls[0]
+
+    asyncio.run(run())

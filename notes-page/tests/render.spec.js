@@ -256,3 +256,16 @@ test("(12) shown text is tidy: capital first letter, end period, titles without 
   expect(h1Font).toContain("Inter");
   expect(h1Font).not.toContain("Instrument Serif");
 });
+
+test("(13) disagreements: topic, each side's view, outcome and resolution", async ({ page }) => {
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const board = page.locator(".dis");
+  await expect(board.locator("h2")).toHaveText("Disagreements");
+  const item = board.locator(".dis-item").first();
+  await expect(item.locator("h3")).toHaveText("Beta launch date");
+  await expect(item.locator(".dis-out")).toHaveText("Settled");
+  await expect(item.locator(".dis-sides li")).toHaveText([
+    "Layla Launch on November 12 if payments QA clears.",
+    "Omar QA is not done; wait for December."]);
+  await expect(item.locator(".dis-res")).toHaveText("Launch November 12; Omar signs off QA by Friday.");
+});

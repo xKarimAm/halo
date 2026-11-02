@@ -75,6 +75,17 @@ mark{background:var(--mark-bg);color:var(--mark-text);border-radius:3px;padding:
 .person .nm{font-weight:600}
 .person .rl{color:var(--muted);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .board{padding:16px 20px;margin-bottom:14px}
+.dis h2{display:flex;align-items:center;gap:8px;color:var(--push)}
+.dis-item{padding:10px 0;border-top:1px solid var(--hair)}
+.dis-item:first-of-type{border-top:0}
+.dis-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.dis-head h3{margin:0;font-size:15px;font-weight:600}
+.dis-out{white-space:nowrap}
+.o-settled .dis-out{color:var(--dec);border-color:var(--dec)}
+.o-open .dis-out{color:var(--push);border-color:var(--push)}
+.dis-sides{margin:6px 0 0;padding-inline-start:18px}
+.dis-sides b{font-weight:600}
+.dis-res{margin:6px 0 0;color:var(--muted)}
 .bhead{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
 .bhead .prov{color:var(--faint);font-size:12px;margin:0}
 .ugrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}

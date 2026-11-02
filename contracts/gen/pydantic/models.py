@@ -71,6 +71,22 @@ class LlmHealth(BaseModel):
     engine: str
     p90_ms: int
 
+class MeetingPageMeetingDisagreementsSides(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    name: str
+    view: str
+
+
+class MeetingPageMeetingDisagreements(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    topic: str
+    sides: list[MeetingPageMeetingDisagreementsSides]
+    outcome: Literal["settled", "parked", "open"]
+    resolution: str | None = None
+
+
 class MeetingPageMeeting(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -81,6 +97,7 @@ class MeetingPageMeeting(BaseModel):
     t0_ms: int
     title: str | None = None
     summary: str | None = None
+    disagreements: list[MeetingPageMeetingDisagreements] | None = None
 
 
 class MeetingPagePeople(BaseModel):
@@ -198,6 +215,22 @@ class NotesReadyPeople(BaseModel):
     actions: list[NotesReadyPeopleActions]
 
 
+class NotesReadyDisagreementsSides(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    name: str
+    view: str
+
+
+class NotesReadyDisagreements(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    topic: str
+    sides: list[NotesReadyDisagreementsSides]
+    outcome: Literal["settled", "parked", "open"]
+    resolution: str | None = None
+
+
 class NotesReady(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -208,6 +241,7 @@ class NotesReady(BaseModel):
     people: list[NotesReadyPeople]
     title: str | None = None
     summary: str | None = None
+    disagreements: list[NotesReadyDisagreements] | None = None
 
 class PairHello(BaseModel):
     model_config = ConfigDict(extra='forbid')
