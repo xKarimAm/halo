@@ -24,7 +24,7 @@ Envelope = dict[str, Any]
 FIELDS = ("kind", "urgency")
 FLUSH_INTERVAL_S = 10.0
 FAIL_DOWN_AFTER = 3
-PROMPT_CACHE_KEY = "classifier-v1"
+PROMPT_CACHE_KEY = "classifier-v2"
 
 TAG_RESULT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -37,10 +37,13 @@ TAG_RESULT_SCHEMA: dict[str, Any] = {
 }
 
 INSTRUCTIONS = (
-    "You assign tags to a meeting point. Reply with ONE JSON object with "
-    "kind (point|question|decision|pushback) and urgency (urgent|medium|later). "
-    "Never contradict the current tags below: keep any field they already set. "
-    "Classify only from the decision text."
+    "You check the tags of one live meeting point. Reply with ONE JSON object "
+    "with kind and urgency. kind: decision = something agreed or settled; "
+    "question = something asked and not answered; pushback = disagreement "
+    "with something said; point = anything else, including tasks and plans. "
+    "urgency: urgent = must happen today or blocks others; medium; later. "
+    "Keep the first guess unless it is clearly wrong. Never contradict the "
+    "current tags: keep any field they already set."
 )
 
 
@@ -142,7 +145,9 @@ class Classifier:
             self._consecutive_failures += 1
             return
         self._consecutive_failures = 0
-        answer = {f: result.data[f] for f in missing if isinstance(result.data.get(f), str)}
+        # Only a correction of Insight's first guess is news.
+        answer = {f: result.data[f] for f in missing
+                  if isinstance(result.data.get(f), str) and result.data[f] != point.get(f)}
         if not answer:
             return
         self._model_tags[key] = {**self._model_tags.get(key, {}), **answer}
@@ -166,7 +171,10 @@ class Classifier:
             lines.append("Current tags (keep these): " + ", ".join(f"{k}={v}" for k, v in current.items()))
         else:
             lines.append("Current tags: none yet.")
-        lines.append(f"Decision text: {point.get('text', '')}")
+        guess = ", ".join(f"{f}={point[f]}" for f in FIELDS if isinstance(point.get(f), str))
+        if guess:
+            lines.append(f"First guess: {guess}")
+        lines.append(f"Point text: {point.get('text', '')}")
         if point.get("quote"):
             lines.append(f"Original words: {point['quote']}")
         return "\n".join(lines)

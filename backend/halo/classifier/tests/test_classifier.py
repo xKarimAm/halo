@@ -98,7 +98,7 @@ def test_present_tags_make_no_calls():
 def test_missing_kind_classified_once():
     async def run():
         bus, llm, classifier, published = setup(
-            [{"data": {"kind": "decision", "urgency": "later"}}])
+            [{"data": {"kind": "question", "urgency": "later"}}])
         await bus.publish(point_envelope())
         await classifier.flush()
         assert len(llm.calls) == 1
@@ -106,8 +106,24 @@ def test_missing_kind_classified_once():
         data = published[0]["data"]
         assert validate_envelope(published[0]) == []
         assert (data["target"], data["target_id"]) == ("point", POINT)
-        assert data["kind"] == "decision" and data["urgency"] == "later"
+        assert data["kind"] == "question" and data["urgency"] == "later"
         assert data["source"] == "model" and data["model"] == "spark-open"
+
+    asyncio.run(run())
+
+
+def test_only_a_change_to_the_guess_is_published():
+    # Live 2026-11-02: re-tags that only repeated or blindly replaced
+    # Insight's guess turned 8 of 11 points into "decision".
+    async def run():
+        bus, llm, classifier, published = setup(
+            [{"data": {"kind": "decision", "urgency": "urgent"}}])
+        await bus.publish(point_envelope(kind="point", urgency="urgent"))
+        await classifier.flush()
+        assert "kind=point, urgency=urgent" in llm.calls[0]  # sees the guess
+        assert "Decision text" not in llm.calls[0]
+        assert [e["data"].get("urgency") for e in published] == [None]  # only the kind changed
+        assert published[0]["data"]["kind"] == "decision"
 
     asyncio.run(run())
 
@@ -132,7 +148,7 @@ def test_user_tagged_field_skipped_same_tick():
 def test_double_upsert_same_tick_one_call():
     async def run():
         bus, llm, classifier, published = setup(
-            [{"data": {"kind": "decision", "urgency": "medium"}}])
+            [{"data": {"kind": "decision", "urgency": "urgent"}}])
         await bus.publish(point_envelope())
         await bus.publish(point_envelope())
         await classifier.flush()
