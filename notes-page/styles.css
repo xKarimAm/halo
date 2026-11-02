@@ -54,7 +54,6 @@ h2{font-size:16px;margin:0 0 8px}
 @media (max-width:900px){.listgrid{grid-template-columns:1fr}}
 .mtg-card{display:flex;gap:12px;width:100%;text-align:start;padding:14px 16px;margin-bottom:10px;align-items:flex-start}
 .mtg-card b{font-size:15px}
-.mtg-card .stack:empty{flex:none;width:26px} /* no people: titles still line up */
 .stack{display:flex}
 .av{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;flex:none;
   background:hsl(var(--h,200) var(--av-s1) var(--av-l1));color:#fdfbf6;font-weight:700;font-size:14px}
@@ -221,3 +220,34 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 .mtg-card b{font-size:16px;font-weight:600}
 .sub,.prov,.ln .who,.act small{font-size:13px}
 [lang=ar] h1,[dir=rtl] h1,[lang=ar] .preview h2{font-family:'IBM Plex Sans Arabic',sans-serif;font-weight:700;letter-spacing:0}
+/* ---- Smoothing (taste review 2026-11-03): cards carry the locked design's
+   facts, panels keep their own height, calmer phone margins, gentle feedback. */
+.av.more{background:var(--hair);color:var(--muted);font-size:12px}
+.av.none{visibility:hidden}
+.mtg-card .sub{display:inline-block;margin-top:3px;font-variant-numeric:tabular-nums}
+.mtg-card .sub2{display:block;font-size:12px;color:var(--faint);margin-top:2px}
+.mtg-card,.fchip,.chip,.person,.all{transition:border-color .15s ease,background-color .15s ease,transform .15s ease}
+.mtg-card:active,.chip:active,.fchip:active{transform:translateY(1px)}
+.cols{align-items:start}
+@media (max-width:560px){
+  #view{padding:4px 16px 60px}
+  .top{padding:10px 16px}
+  h1,.head h1,#view>h1{font-size:24px}
+  .head{padding:18px 18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* The kind panels flow into two balanced columns, so a long Points list no
+   longer leaves a tall hole beside a one-item Open questions panel. */
+.cols{display:block;columns:2 320px;column-gap:12px}
+.cols.one{columns:1}
+.cols>.col{break-inside:avoid;margin-bottom:12px;display:block;width:100%}
+/* Transcript as a conversation: name and time over the words, one face per run. */
+.ln .body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ln .o{font-size:14px;line-height:1.45}
+.ln.cont{padding-top:2px}
+.ln.cont .av{visibility:hidden;height:0}
+.ln.cont .who{font-size:11px;color:var(--faint)}
+/* A kind panel already names its kind: no "Point" label on every row. */
+.col .pt-main .tag{display:none}
+/* The recording's file path is for tests and support, not for reading. */
+.recoff{display:none}

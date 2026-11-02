@@ -356,10 +356,25 @@ class NotesService:
                 }
                 if isinstance(ready.get("title"), str) and ready["title"].strip():
                     item["title"] = ready["title"].strip()
+                item.update(self._card_counts(meeting["meeting_id"], meeting["t0_ms"] or 0, turns))
                 out.append(item)
             return out
         finally:
             conn.close()
+
+    def _card_counts(self, meeting_id: str, t0_ms: int, turns: list[dict[str, Any]]) -> dict[str, Any]:
+        """The meeting card's facts (locked design: duration, decisions, open
+        questions, pushbacks, urgent actions), with the user's re-tags applied.
+        ponytail: builds each meeting's page; a SQL count if the list grows past ~100."""
+        page = self.page_for(meeting_id) or {"points": [], "actions": []}
+        kinds = [p["kind"] for p in page["points"]]
+        end = max((t["ts_end_ms"] or t["ts_start_ms"] for t in turns), default=t0_ms)
+        return {
+            "minutes": max(0, round((end - t0_ms) / 60000)) if turns and t0_ms else 0,
+            "counts": {"decision": kinds.count("decision"), "question": kinds.count("question"),
+                       "pushback": kinds.count("pushback"),
+                       "urgent": sum(a["urgency"] == "urgent" for a in page["actions"])},
+        }
 
     def search(self, query: str) -> list[dict[str, Any]]:
         needle = query.lower()

@@ -28,6 +28,9 @@
       tipUrg: "Urgency picked by Halo's low-cost classifier. Click to change it.",
       prov: "Sorted by Halo's lightweight classifier. Wrong call? Click \u201Cby Halo\u201D on any item to re-tag it.",
       retagged: "Changed.",
+      cMin: "{n} min", cDec: "{n} decision", cDecs: "{n} decisions", cQ: "{n} open question",
+      cQs: "{n} open questions", cPush: "{n} pushback", cPushes: "{n} pushbacks",
+      cUrg: "{n} urgent action", cUrgs: "{n} urgent actions",
       why: "Why {n} matters here", actions: "Action items", action: "Action item",
       assigned: "Assigned", suggested: "Suggested",
       asNote: "Said aloud", sgNote: "Suggested from their role, not said aloud", due: "Due",
@@ -60,6 +63,9 @@
       tipUrg: "حدّد Halo الأولوية بنموذج منخفض التكلفة. اضغط لتغييرها.",
       prov: "رتّبها مصنّف Halo الخفيف. التصنيف غير دقيق؟ اضغط \u00ABبواسطة Halo\u00BB على أي عنصر لتعديله.",
       retagged: "تم التغيير.",
+      cMin: "{n} دقيقة", cDec: "قرارات: {n}", cDecs: "قرارات: {n}", cQ: "أسئلة مفتوحة: {n}",
+      cQs: "أسئلة مفتوحة: {n}", cPush: "اعتراضات: {n}", cPushes: "اعتراضات: {n}",
+      cUrg: "مهام عاجلة: {n}", cUrgs: "مهام عاجلة: {n}",
       why: "لماذا يهم {n} هنا", actions: "المهام", action: "مهمة",
       assigned: "مُسندة", suggested: "مقترحة",
       asNote: "قيلت في الاجتماع", sgNote: "مقترحة حسب الدور، لم تُذكر صراحةً", due: "الموعد",
@@ -366,16 +372,17 @@
     var li = el("li", "act" + (assigned ? " asg" : " sug") + " u-" + urgOf(action));
     var badge = el("span", "badge " + (assigned ? "as" : "sg"),
       t(lang, assigned ? "assigned" : "suggested"));
+    badge.title = t(lang, assigned ? "asNote" : "sgNote");
     li.appendChild(badge);
     var body = el("div", "body", action.text);
-    var small = el("small", null, t(lang, assigned ? "asNote" : "sgNote"));
-    body.appendChild(small);
+    // The Assigned pill already says it was said aloud; only a suggestion explains itself.
+    if (!assigned) body.appendChild(el("small", null, t(lang, "sgNote")));
     var ameta = el("div", "ameta");
     if (showWho !== false) ameta.appendChild(personChip(action.owner, lang));
     if (line) ameta.appendChild(lineChip(app, line, lang));
     ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
     if (assigned) {
-      var mail = el("a", "mail chip", "\u2709 " + t(lang, "email"));
+      var mail = el("a", "mail chip", t(lang, "email"));
       mail.href = mailHref(app, action, lang);
       ameta.appendChild(mail);
     }
@@ -427,18 +434,27 @@
     var btn = el("button", "mtg-card glass");
     btn.dataset.open = meeting.meeting_id;
     var stack = el("span", "stack");
-    (meeting.people || []).slice(0, 4).forEach(function (name) {
+    var people = meeting.people || [];
+    people.slice(0, 4).forEach(function (name) {
       stack.appendChild(avatar(name));
     });
+    if (people.length > 4) stack.appendChild(el("span", "av more", "+" + (people.length - 4)));
+    if (!people.length) stack.appendChild(el("span", "av none"));  // keeps titles on one edge
     btn.appendChild(stack);
     var info = el("span");
     info.style.flex = "1";
     var title = el("b", null, titleOf(meeting));
     info.appendChild(title);
     info.appendChild(el("br"));
-    var sub = fmtDate(meeting.t0_ms) || meeting.date || ""; // local day, not the server's UTC one
-    if (meeting.title && meeting.title !== meeting.subject) sub += " · " + meeting.subject;
-    info.appendChild(el("span", "sub", sub));
+    // Locked design: date · length · what came out of it (zero counts are left out)
+    var bits = [fmtDate(meeting.t0_ms) || meeting.date || ""]; // local day, not the server's UTC one
+    if (meeting.minutes) bits.push(t(lang, "cMin", { n: meeting.minutes }));
+    var c = meeting.counts || {};
+    [["decision", "cDec"], ["question", "cQ"], ["pushback", "cPush"], ["urgent", "cUrg"]].forEach(function (k) {
+      if (c[k[0]]) bits.push(t(lang, k[1] + (c[k[0]] > 1 ? "s" : ""), { n: c[k[0]] }));
+    });
+    info.appendChild(el("span", "sub", bits.join(" · ")));
+    if (meeting.title && meeting.title !== meeting.subject) info.appendChild(el("span", "sub2", meeting.subject));
     btn.appendChild(info);
     return btn;
   }
@@ -632,15 +648,22 @@
       btn.dataset.line = ln.turn_id;
       btn.id = "ln-" + index;
       if (index === app.lineIndex) btn.setAttribute("aria-current", "true");
+      // Chat-style: a run of lines by one speaker shows the name and face once.
+      var cont = index > 0 && page.transcript_lines[index - 1].speaker_name === ln.speaker_name;
+      if (cont) btn.classList.add("cont");
       btn.appendChild(avatar(ln.speaker_name));
+      var body = el("span", "body");
       var who = el("span", "who");
-      who.appendChild(el("b", null, ln.speaker_name));
-      who.appendChild(document.createTextNode(" \u00B7 "));
+      if (!cont) {
+        who.appendChild(el("b", null, ln.speaker_name));
+        who.appendChild(document.createTextNode(" \u00B7 "));
+      }
       var when = el("span", null, fmtMs(at(ln)));
       when.setAttribute("dir", "ltr");
       who.appendChild(when);
-      btn.appendChild(who);
-      btn.appendChild(el("span", "o", ln.text));
+      body.appendChild(who);
+      body.appendChild(el("span", "o", ln.text));
+      btn.appendChild(body);
       lines.appendChild(btn);
     });
     aside.appendChild(lines);
@@ -755,7 +778,7 @@
     all.setAttribute("aria-pressed", app.folder ? "false" : "true");
     bar.appendChild(all);
     app.folders.forEach(function (f) {
-      var b = el("button", "fchip", "\uD83D\uDCC1 " + f.name + " ");
+      var b = el("button", "fchip", f.name + " ");
       b.dataset.folder = f.folder_id;
       b.setAttribute("aria-pressed", app.folder === f.folder_id ? "true" : "false");
       b.appendChild(el("em", null, String(f.count || 0)));
