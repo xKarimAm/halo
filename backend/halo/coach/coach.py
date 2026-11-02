@@ -43,6 +43,12 @@ TIPS_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
+# Live 2026-11-02: alone in the call, the viewer named Sarah, John and Lisa
+# and got "Let them finish." Telling the model who is present made calls 7-10 s
+# (A/B: 4.8 s median vs timeouts), so the prompt stays fixed and _publish drops
+# a talk-over alert when nobody else is in the call.
+# ponytail: keyword match on the alert; a model paraphrase can slip past it.
+TALK_OVER_WORDS = ("invite", "let them", "finish", "floor", "interrupt", "talking over")
 INSTRUCTIONS = (
     "You are a live meeting coach whispering to one person, the viewer. Talk "
     "to them as you. Coach the way an experienced coach for their role would: "
@@ -54,7 +60,8 @@ INSTRUCTIONS = (
     "turns personal or heated (Remove the personal remark. / De-escalate "
     "now: pause first. / Lower your tone.), when the same people repeat "
     "themselves with no new facts (Park it: owner and date.), or when the "
-    "viewer talks over others or too long (Let them finish.).\n"
+    "viewer talks over others or holds the floor too long (Pause and invite "
+    "others in.).\n"
     "tips: 0 to 3 tips, each one sentence of at most 16 words ending with a "
     "period, naming a person or topic. Disagreement about the work is "
     "healthy: keep it on the work (ask each side to restate the other's view, "
@@ -81,6 +88,7 @@ class Coach:
         self._turns: dict[str, list[tuple[str, str]]] = {}
         self._contexts: dict[str, dict[str, Any]] = {}
         self._self_names: dict[str, str] = {}
+        self._people: dict[str, list[str]] = {}  # who is in the call (Meet tiles)
         self._tips: dict[str, list[str]] = {}
         self._due: set[str] = set()  # new words since the last call
         self._last_turn: dict[str, float] = {}
@@ -129,10 +137,13 @@ class Coach:
         """The self tile names the viewer when meeting.started had no self_name
         (live 2026-11-02: it came empty, and the coach said "Ask Karim")."""
         data, meetingid = envelope.get("data"), envelope.get("meetingid")
-        if not isinstance(data, dict) or not isinstance(meetingid, str) or self._self_names.get(meetingid):
+        if not isinstance(data, dict) or not isinstance(meetingid, str):
             return
-        me = next((t.get("name") for t in data.get("tiles") or []
-                   if isinstance(t, dict) and t.get("is_self") and t.get("name")), None)
+        tiles = [t for t in data.get("tiles") or [] if isinstance(t, dict) and t.get("name")]
+        self._people[meetingid] = [str(t["name"]) for t in tiles]
+        if self._self_names.get(meetingid):
+            return
+        me = next((t["name"] for t in tiles if t.get("is_self")), None)
         if me:
             self._self_names[meetingid] = str(me)
 
@@ -143,7 +154,7 @@ class Coach:
 
     async def _on_ended(self, envelope: dict[str, Any]) -> None:
         meetingid = envelope.get("meetingid")
-        for store in (self._turns, self._contexts, self._self_names, self._tips,
+        for store in (self._turns, self._contexts, self._self_names, self._tips, self._people,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)
         self._due.discard(meetingid)
@@ -183,6 +194,8 @@ class Coach:
     async def _publish(self, meetingid: str, data: dict[str, Any]) -> None:
         tips = [str(t).strip()[:160] for t in data.get("tips", []) if str(t).strip()][:3]
         alert = str(data.get("alert") or "").strip()[:80]
+        if alert and not self._others_here(meetingid) and any(w in alert.lower() for w in TALK_OVER_WORDS):
+            alert = ""  # nobody to talk over
         if not tips and not alert:
             return  # nothing new for the viewer: the panel keeps its tips
         tips = tips or self._tips.get(meetingid, [])
@@ -196,6 +209,14 @@ class Coach:
             "source": "halo/coach", "time": datetime.now(UTC).isoformat(),
             "meetingid": meetingid, "datacontenttype": "application/json", "data": payload,
         })
+
+    def _others_here(self, meetingid: str) -> bool:
+        """Meet tiles say who is in the call; without them, any other speaker."""
+        people = self._people.get(meetingid)
+        if people:
+            return len(people) > 1
+        me = self._self_names.get(meetingid, "")
+        return any(name != me for name, _ in self._turns.get(meetingid, []))
 
     def build_prompt(self, meetingid: str, reason: str = "new words") -> str:
         context = self._contexts.get(meetingid, {})

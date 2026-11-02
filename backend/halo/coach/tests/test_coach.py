@@ -180,3 +180,23 @@ def test_the_self_tile_names_the_viewer_when_meeting_started_had_none():
         assert "Viewer: Layla" in llm.prompts[0] and "Layla (you): We move" in llm.prompts[0]
 
     asyncio.run(run())
+
+
+def test_alone_in_the_call_a_talk_over_alert_is_dropped():
+    # Live 2026-11-02: alone, naming Sarah and John, the viewer got "Let them finish."
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"tips": [], "alert": "Pause and invite others in."},
+            {"tips": [], "alert": "Park it: owner and date."}])
+        await bus.publish(env("tiles.snapshot", {"tiles": [
+            {"tile_id": "t1", "name": "Layla", "is_self": True, "rect": [0, 0, 10, 10],
+             "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None}]}, 88))
+        await bus.publish(turn("Sarah please take the dates, John the testing", name="Layla", n=2))
+        await coach.tick()
+        assert tips == []  # nobody to talk over
+        clock.now += 100
+        await bus.publish(turn("Sarah please take the dates again", name="Layla", n=3))
+        await coach.tick()
+        assert tips[0]["data"]["alert"] == "Park it: owner and date."
+
+    asyncio.run(run())
