@@ -89,6 +89,7 @@ class Coach:
         self._task: asyncio.Task | None = None
         bus.subscribe("turn.attributed", self._on_turn)
         bus.subscribe("meeting.started", self._on_started)
+        bus.subscribe("tiles.snapshot", self._on_tiles)
         bus.subscribe("meeting.context", self._on_context)
         bus.subscribe("meeting.ended", self._on_ended)
 
@@ -123,6 +124,17 @@ class Coach:
         data, meetingid = envelope.get("data"), envelope.get("meetingid")
         if isinstance(data, dict) and isinstance(meetingid, str) and data.get("self_name"):
             self._self_names[meetingid] = str(data["self_name"])
+
+    async def _on_tiles(self, envelope: dict[str, Any]) -> None:
+        """The self tile names the viewer when meeting.started had no self_name
+        (live 2026-11-02: it came empty, and the coach said "Ask Karim")."""
+        data, meetingid = envelope.get("data"), envelope.get("meetingid")
+        if not isinstance(data, dict) or not isinstance(meetingid, str) or self._self_names.get(meetingid):
+            return
+        me = next((t.get("name") for t in data.get("tiles") or []
+                   if isinstance(t, dict) and t.get("is_self") and t.get("name")), None)
+        if me:
+            self._self_names[meetingid] = str(me)
 
     async def _on_context(self, envelope: dict[str, Any]) -> None:
         data, meetingid = envelope.get("data"), envelope.get("meetingid")

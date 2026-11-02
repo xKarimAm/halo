@@ -96,6 +96,23 @@ describe("layout", () => {
     const flipped = projectFaceBox({ ...tile, is_self: true }, [0.25, 0.2, 0.2, 0.4]);
     expect(flipped.x).toBeGreaterThan(box.x); // mirrored self tile flips x
   });
+
+  it("face mode positions are tile-local: the tile's layer already sits at the tile", () => {
+    const clock = new FakeClock(0);
+    const overlay = new Overlay(clock);
+    const tile = { tile_id: "t", name: "Karim", is_self: false, rect: [238, 64, 1388, 781] as number[],
+      video_w: 1280, video_h: 720, fit: "contain" as const, captions_rect: [600, 853, 600, 80] as number[] };
+    overlay.applyTiles({ tiles: [tile] });
+    overlay.applyFaces({ tile_id: "t", frame_ts_ms: 0, engine: "sam", space: { frame_w: 1280, frame_h: 720 },
+      face: { box: [0.4, 0.4, 0.15, 0.35], head_anchor: [0.475, 0.4], conf: 0.9 } });
+    const layout = overlay.layout("t");
+    const page = projectFaceBox(tile, [0.4, 0.4, 0.15, 0.35]);
+    expect(layout.mode).toBe("face");
+    expect(layout.namePos.x).toBeCloseTo(page.x + page.w / 2 - 238);
+    expect(layout.namePos.y).toBeCloseTo(page.y - 6 - 64);
+    expect(layout.stackPos.y).toBeCloseTo(page.y - 64);
+    expect(layout.floorY).toBe(853 - 64);
+  });
 });
 
 // Joined-gate regression: render against a real-DOM-shaped tree (getter-

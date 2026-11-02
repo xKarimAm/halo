@@ -162,3 +162,21 @@ def test_the_prompt_keeps_the_newest_words_under_the_cap():
     asyncio.run(run())
     prompt = coach.build_prompt(MEETING)
     assert "new new" in prompt and "old old" not in prompt
+
+
+def test_the_self_tile_names_the_viewer_when_meeting_started_had_none():
+    async def run():
+        bus, llm, coach, _tips, _clock = setup([{"tips": ["One."], "alert": ""}])
+        await bus.publish(env("meeting.started", {
+            "meeting_id": MEETING, "platform": "meet", "meeting_code": "abc-defg-hij",
+            "t0_ms": 0, "self_name": ""}, 89))
+        await bus.publish(env("tiles.snapshot", {"tiles": [
+            {"tile_id": "t2", "name": "Omar", "is_self": False, "rect": [0, 0, 10, 10],
+             "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None},
+            {"tile_id": "t1", "name": "Layla", "is_self": True, "rect": [0, 0, 10, 10],
+             "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None}]}, 88))
+        await bus.publish(turn("We move the launch", n=2))
+        await coach.tick()
+        assert "Viewer: Layla" in llm.prompts[0] and "Layla (you): We move" in llm.prompts[0]
+
+    asyncio.run(run())

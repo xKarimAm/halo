@@ -259,11 +259,15 @@ export class Overlay {
       const stackX = roomRight >= box.x - tile.rect[0]
         ? box.x + box.w + Math.max(10, tile.rect[2] * 0.026)
         : Math.max(tile.rect[0] + 10, box.x - 160);
+      // The box is page space; the tile's layer is already placed at the
+      // tile, so positions are made tile-local (live 2026-11-02: they were
+      // offset twice). The name's anchor is its bottom centre, above the head.
+      const [rx, ry] = tile.rect;
       return {
         mode: "face",
-        namePos: { x: box.x + box.w / 2, y: Math.max(tile.rect[1] + 21, box.y - 6) },
-        stackPos: { x: stackX, y: box.y },
-        floorY: captionsTop,
+        namePos: { x: box.x + box.w / 2 - rx, y: Math.max(21, box.y - 6 - ry) },
+        stackPos: { x: stackX - rx, y: box.y - ry },
+        floorY: captionsTop !== null ? captionsTop - ry : null,
         faceBox: box,
       };
     }
@@ -342,6 +346,7 @@ export class Overlay {
       name.textContent = this.tiles.get(tileId)?.name ?? "";
       name.style.setProperty("left", `${layout.namePos.x}px`);
       name.style.setProperty("top", `${layout.namePos.y}px`);
+      if (layout.mode === "face") name.style.setProperty("transform", "translate(-50%, -100%)");
       layer.appendChild(name);
       const stack = doc.createElement("div");
       stack.classList.add("halo-stack");
