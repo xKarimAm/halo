@@ -403,7 +403,7 @@ class NotesBuilder:
         lines = [{
             "turn_id": t["turn_id"], "speaker_name": t["speaker"],
             "text": t["text"], "ts_start_ms": t["ts_start_ms"], "ts_end_ms": t["ts_end_ms"],
-            "recording_offset_ms": t["ts_start_ms"] - t0_ms,
+            "recording_offset_ms": max(0, t["ts_start_ms"] - t0_ms),  # a turn begun before Start plays from 0
         } for t in store["turns"]]
         subject = meeting["subject"] or "Untitled meeting"
         page: dict[str, Any] = {

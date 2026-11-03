@@ -408,3 +408,20 @@ def test_the_latest_model_tag_wins_but_never_over_a_user_tag(tmp_path):
     conn.commit()
     conn.close()
     assert builder._read_store(MEETING)["tags"][P1] == {"kind": "point", "urgency": "urgent"}
+
+
+def test_a_turn_begun_before_start_still_validates(tmp_path):
+    # E2E 2026-11-03: a first turn a few seconds before meeting.started gave a
+    # negative recording offset, failed V1 and degraded the whole page.
+    async def run():
+        path = tmp_path / "events.sqlite"
+        bus, llm, _, ready, _ = setup(path, [])
+        conn = sqlite3.connect(str(path))
+        conn.execute("UPDATE meetings SET t0_ms = ?", (T0 + 5000,))
+        conn.commit()
+        conn.close()
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert len(ready) == 1 and llm.calls == [] and ready[0]["data"]["degraded"] is False
+
+    asyncio.run(run())

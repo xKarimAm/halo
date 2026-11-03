@@ -314,7 +314,7 @@ class NotesService:
                 "turn_id": t["turn_id"], "speaker_name": t["speaker"],
                 "text": t["text"], "ts_start_ms": t["ts_start_ms"],
                 "ts_end_ms": t["ts_end_ms"],
-                "recording_offset_ms": t["ts_start_ms"] - t0_ms,
+                "recording_offset_ms": max(0, t["ts_start_ms"] - t0_ms),  # a turn begun before Start plays from 0
             } for t in turns],
             "recording": {"path": f"recordings/{meeting_id}.webm", "start_ts_ms": t0_ms},
         }
