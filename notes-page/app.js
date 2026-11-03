@@ -53,7 +53,8 @@
       orig: "Original", hide: "Hide original", jump: "Jump to line", play: "Play recording from here",
       recAt: "Recording: {p} at {t}", close: "Close profile", role: "Role from Setup",
       degraded: "AI summary failed, showing live notes.",
-      keep: "Video auto-deletes after 7 days. Notes and transcript stay.",
+      keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
+      norec: "No recording for this meeting. The notes and transcript are complete.",
       none: "Nothing here.", draftOnly: "Draft: only this meeting is filled in.",
       translated: "Translated", video: "Video",
       allMeetings: "All meetings", preview: "Hover a meeting to preview it",
@@ -102,7 +103,8 @@
       orig: "الأصل", hide: "إخفاء الأصل", jump: "انتقل إلى السطر", play: "شغّل التسجيل من هنا",
       recAt: "التسجيل: {p} عند {t}", close: "إغلاق الملف", role: "الدور من الإعداد",
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
-      keep: "يُحذف الفيديو تلقائياً بعد ٧ أيام. الملاحظات والنص باقية.",
+      keep: "صوت المكالمة وميكروفونك، محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
+      norec: "لا يوجد تسجيل لهذا الاجتماع. الملاحظات والنص كاملة.",
       none: "لا شيء هنا.", draftOnly: "مسودة: هذا الاجتماع فقط مكتمل.",
       translated: "مترجم", video: "الفيديو",
       allMeetings: "كل الاجتماعات", preview: "مرّر على اجتماع لمعاينته",
@@ -708,10 +710,19 @@
     audio.id = "rec";
     audio.className = "rec";
     audio.controls = true;
-    audio.preload = "none";
+    // metadata, not none: a missing file (404) must show up before anyone presses play.
+    audio.preload = "metadata";
     audio.src = "/api/audio?meeting_id=" + encodeURIComponent(page.meeting.meeting_id);
     player.appendChild(audio);
-    player.appendChild(el("div", "keep", t(lang, "keep")));
+    var keep = el("div", "keep", t(lang, "keep"));
+    player.appendChild(keep);
+    var norec = el("div", "norec", t(lang, "norec"));
+    norec.hidden = true;
+    player.appendChild(norec);
+    audio.addEventListener("error", function () {
+      row.hidden = audio.hidden = keep.hidden = true;
+      norec.hidden = false;
+    });
     if (cur) {
       player.appendChild(el("div", "recoff", t(lang, "recAt", {
         p: page.recording.path, t: fmtMs(cur.recording_offset_ms)

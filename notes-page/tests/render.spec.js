@@ -306,3 +306,12 @@ test("(15) a half-typed question survives a language switch", async ({ page }) =
   await page.getByRole("button", { name: "عربي" }).click();
   await expect(page.locator("#askq")).toHaveValue("ماذا قررنا");
 });
+
+test("(16) a meeting with no recording hides the player and says so", async ({ page }) => {
+  // The test server answers /api/audio with 404, like the backend before a recording exists.
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".norec")).toHaveText("No recording for this meeting. The notes and transcript are complete.");
+  await expect(page.locator(".player .prow")).toBeHidden();
+  await expect(page.locator("audio#rec")).toBeHidden();
+  await expect(page.getByText(/auto-deletes/)).toHaveCount(0);
+});
