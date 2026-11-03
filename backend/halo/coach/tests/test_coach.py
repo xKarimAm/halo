@@ -259,7 +259,7 @@ def test_the_prompt_remembers_earlier_tips_not_only_the_last_set():
     # Live 2026-11-04: "Lead with tomorrow morning..." came back four times in
     # five minutes; only the latest set was in "Previous tips".
     async def run():
-        bus, llm, coach, tips, clock = setup([
+        bus, llm, coach, _tips, clock = setup([
             {"tips": ["Lead with the deadline."], "alert": ""},
             {"tips": ["Cut the filler."], "alert": ""},
             {"tips": [], "alert": ""}])
