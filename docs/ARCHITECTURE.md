@@ -65,12 +65,18 @@ flowchart LR
 7. **End.** Stop, leaving the call or closing the tab sends `meeting.ended`. A dead socket triggers it after a 60 s grace. The Notes Builder reads the meeting from SQLite and makes one schema-checked Spark call: title, summary, action items with owners and urgency. It publishes `notes.ready`. If the call fails twice, it falls back to the live points.
 8. **Notes.** The Notes Service serves the notes page and its JSON API from the same SQLite file. SQLite's FTS5 indexes transcripts and points for search. The Recorder saves the mixed recording to `data/recordings/` so each item can jump to its moment.
 
+9. **Ask your meetings.** `POST /api/ask` (`backend/halo/notes_service/ask.py`):
+   - Spark turns the question into English and Arabic keywords.
+   - Every meeting's AI summary, points and transcript lines are scored by keyword hits. Arabic is normalised: no diacritics, one alef, no leading article.
+   - Spark answers from the top passages and cites them by number. The citations shown are the stored passages, so a quote can't be made up.
+   - There is no embedding model, because the runtime stays Meta-only.
+
 ## Models and endpoints
 
 | Model | Endpoint | Called from | Job |
 |---|---|---|---|
 | Muse Voice Transcribe 1.0 | `wss://api.meta.ai/v1/asr/realtime` | `backend/halo/transcriber/` | Speech to text, Arabic + English, two sessions per meeting |
-| Muse Spark 1.3 contributor | `https://api.meta.ai/v1` (`muse-spark-1.3-contributor`) | `backend/halo/llm/llm.py` | Every text call when no Spark Open key is set; otherwise failover |
+| Muse Spark 1.3 contributor | `https://api.meta.ai/v1` (`muse-spark-1.3-contributor`) | `backend/halo/llm/llm.py` | Every text call (points, tags, coach, notes, Ask) when no Spark Open key is set; otherwise failover |
 | Muse Spark Open (open weights) | `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`), or Modal / a local server via `HALO_PRIMARY_*` | `backend/halo/llm/llm.py` | First choice for text calls when its key is set |
 | SAM 3.1 (open weights) | `http://127.0.0.1:8766/faces` (`packaging/sam_worker.py`) | `extension/src/face_detector/sam.ts` | Halo mode face boxes, optional |
 

@@ -11,6 +11,7 @@ Halo is a bilingual Arabic/English meeting copilot for Google Meet. While people
 - **Live bubbles.** A glass bubble appears on the speaker's tile a few seconds after they say something that matters. It shows the kind (point, question, decision, pushback), the urgency, and the exact words one click away. Arabic, English and mixed speech all work, and you read the points in the language you choose.
 - **Live coach.** A side panel whispers 0 to 3 tips: a decision with no owner, a question nobody answered, someone who hasn't spoken, a claim nobody checked. A short alert appears when you should act now ("You cut Hana off; hand it back."). Alone in a call, it coaches a rehearsal instead.
 - **Notes when the call ends.** You get an AI title and summary, an action items board (Urgent, Medium, Later) with owners and a one-click email, decisions, open questions, pushbacks, a person-by-person view, a chat-style transcript with jumps into the recording, and Markdown export.
+- **Ask your meetings.** Questions like "who owns the signup numbers?" get a short answer in the question's language (Arabic or English), with the exact stored lines it came from. A click opens the meeting at that moment. An Arabic question finds an English meeting and the other way round. If the notes don't say, it says so.
 - **A private speaking panel.** It shows your talk share, cut-ins, questions, pace and hedged commitments quoted back to you, with no score and no mood words.
 
 ## Which Meta models, and where
@@ -18,7 +19,7 @@ Halo is a bilingual Arabic/English meeting copilot for Google Meet. While people
 | Model | Use |
 |---|---|
 | Muse Voice Transcribe 1.0 (realtime) | Two sessions per meeting: the call in diarization mode, your mic in endpointing mode. Arabic + English. |
-| Muse Spark 1.3 (contributor) | Every text call: live points, the urgency/kind re-check every 10 s, the live coach, and the end-of-meeting notes. Each call returns schema-checked JSON. |
+| Muse Spark 1.3 (contributor) | Every text call: live points, the urgency/kind re-check every 10 s, the live coach, the end-of-meeting notes, and Ask your meetings (keyword expansion in English + Arabic, then a cited answer). Each call returns schema-checked JSON. |
 | Muse Spark Open (open weights) | Wired as the first choice when a Baseten, Modal or local key is set, with per-call failover to Spark 1.3. **[check]**: say whether it ran in your final setup. |
 | SAM 3.1 (open weights, local GPU) | Optional Halo mode: finds the speaker's face so the name sits above their head. **[check]**: say whether it was verified on a live call. |
 
@@ -53,6 +54,5 @@ The tests (`uv run pytest`, `npm --prefix extension test`) need no keys.
 
 ## What's next
 
-- **Ask across meetings:** questions like "what did we decide about pricing?", answered with quotes from past meetings.
 - **Halo mode on every tile**, not only the speaker's.
 - **Carry-over:** open items from the last meeting with the same people show up at the next Start.

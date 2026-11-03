@@ -38,6 +38,7 @@ The meeting ends when you press **Stop**, leave the call, or close the Meet tab.
 
 Open http://127.0.0.1:8765 (it goes to the meetings list) or click the toast's link.
 
+- **Ask your meetings:** the box under search takes a question in English or Arabic, for example "What did we decide about the launch date?". Halo answers in a few sentences, in your question's language, from what was said and noted in your meetings. The rows it lists underneath are the exact stored words it used; click one to open that meeting at that moment. If your meetings don't say, it tells you so instead of guessing. Each question takes about 6 to 9 seconds.
 - **Meetings list:** each card shows who spoke, the length, and counts of decisions, open questions, pushbacks and urgent actions. Hover a card to preview its AI title, summary and top action items. Use **Create folder** to group meetings, then filter the list by folder.
 - **A meeting:**
   - **Action items board:** Urgent, Medium and Later columns. Each item has its owner and an **Email** link that opens a ready message. "by Halo" lets you re-tag an item, and your choice always wins over the model's.

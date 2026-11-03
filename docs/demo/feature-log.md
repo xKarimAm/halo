@@ -31,6 +31,7 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 
 | Feature | What you see | Since |
 |---|---|---|
+| Ask your meetings | A box on the meetings list: ask in English or Arabic ("who owns the signup numbers?"), get a short answer in the same language plus the exact stored lines it used; click one to open that meeting at that line. Says so when the notes don't cover it. Spark expands the question into EN+AR keywords; no embedding model. ~6-9 s. | 95c0da7, 3cb7db0 (2026-11-03) |
 | Back works | Every view has its own address, so the browser Back and Forward buttons move between the list and a meeting. | bd83b39 |
 | Hover preview | Hover a meeting in the list: its AI title, summary, Urgent/Medium/Later counts, top action items and decisions show on the right (Wispr-Flow style). | bd83b39 |
 | Folders | "Create folder" from the preview, move meetings between folders, filter the list by folder. | bd83b39 |
@@ -58,4 +59,3 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 ## Ideas Karim raised (not built)
 
 - Video clips: cut the moment of each point from the screen recording, not just the audio.
-- RAG / vector search across meetings (advised later, with carry-over in step 5).
