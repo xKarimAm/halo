@@ -61,7 +61,9 @@ def speaking_insights(turns: list[dict[str, Any]], me: str, t0_ms: int) -> dict[
         if run[1] - run[0] > best[1] - best[0]:
             best = run
 
-    questions, follow_ups, cut_ins, hedged = 0, 0, [], []
+    questions, follow_ups = 0, 0
+    cut_ins: list[dict[str, Any]] = []
+    hedged: list[dict[str, Any]] = []
     for i, t in enumerate(turns):
         if t["speaker"] != me:
             continue

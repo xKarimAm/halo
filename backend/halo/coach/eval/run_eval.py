@@ -41,6 +41,7 @@ class Bus:
 
 def load_coach(path: Path):
     spec = importlib.util.spec_from_file_location(f"coach_{abs(hash(str(path)))}", path)
+    assert spec is not None and spec.loader is not None, path
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

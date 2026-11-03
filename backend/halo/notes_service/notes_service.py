@@ -191,7 +191,8 @@ class NotesService:
         # scanned every tag of every meeting once per meeting).
         tags: dict[str, dict[str, str]] = {}
         by_user: set[tuple[str, str]] = set()
-        sql, args = "SELECT data FROM events WHERE type = 'tags.set'", ()
+        sql = "SELECT data FROM events WHERE type = 'tags.set'"
+        args: tuple[str, ...] = ()
         if meeting_id is not None:
             sql, args = sql + " AND meetingid = ?", (meeting_id,)
         for (data,) in conn.execute(sql + " ORDER BY seq", args):
