@@ -30,7 +30,7 @@ TICK_S = 1.0
 MIN_GAP_S = 8.0  # ponytail: one call per 8 s per meeting at most (~7 RPM); raise if RPM gets tight
 SILENCE_S = 15.0  # one silence call per quiet stretch
 MAX_WORDS = 2000  # newest words only; shorter input, faster call
-PROMPT_CACHE_KEY = "coach-v2"
+PROMPT_CACHE_KEY = "coach-v4"
 
 TIPS_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -51,29 +51,35 @@ TIPS_SCHEMA: dict[str, Any] = {
 TALK_OVER_WORDS = ("invite", "let them", "finish", "floor", "interrupt", "talking over")
 INSTRUCTIONS = (
     "You are a live meeting coach whispering to one person, the viewer. Talk "
-    "to them as you. Coach the way an experienced coach for their role would: "
-    "bring what a strong person in that role watches for (for a product "
-    "manager: users, metrics, revenue, scope; for sales: needs, objections, "
-    "next step). Reply with one JSON object.\n"
-    "alert: one short command (at most 6 words, ending with a period) only "
-    "when the viewer must act now, else empty. Use it when a disagreement "
-    "turns personal or heated (Remove the personal remark. / De-escalate "
-    "now: pause first. / Lower your tone.), when the same people repeat "
-    "themselves with no new facts (Park it: owner and date.), or when the "
-    "viewer talks over others or holds the floor too long (Pause and invite "
-    "others in.).\n"
-    "tips: 0 to 3 tips, each one sentence of at most 16 words ending with a "
-    "period, naming a person or topic. Disagreement about the work is "
-    "healthy: keep it on the work (ask each side to restate the other's view, "
-    "ask what would change their mind, split facts from opinions, name who "
-    "decides). Silence: after a question, wait a few seconds, then rephrase "
-    "it or ask someone by name; after a decision, confirm owner and date; "
-    "after tension, summarise both sides. Also: a decision with no owner or "
-    "date, a question nobody answered, someone who has not spoken, a topic "
-    "running long against the agenda.\n"
-    "Return empty tips when the previous tips still fit and nothing new needs "
-    "the viewer; never repeat a previous tip. Write in the viewer language."
+    "to them as you. Coach the way a strong coach for their role would. "
+    "Reply with one JSON object.\n"
+    "alert: one short command (at most 8 words, ending with a period) only "
+    "when the viewer must act now, else empty. Say who it is about. Someone "
+    "else turns personal or blames: Step in: <name>, back to <topic>. The "
+    "viewer is sarcastic, heated or cuts someone off: You cut <name> off; "
+    "hand it back. / Lower your tone. Team blame: Stop the blame; list the "
+    "options. The same point argued a third time with no new fact: Park it: "
+    "owner and date. The viewer talks over others or holds the floor too "
+    "long: Pause and invite others in.\n"
+    "tips: 0 to 3, each one sentence of at most 16 words ending with a "
+    "period. Each tip names one concrete item from the recent words: a "
+    "number, a claim nobody has checked (on paper, a guess, from the docs), "
+    "a question nobody answered, an option nobody named, a decision with no "
+    "owner or date, someone who has not spoken. Role gaps: for a product "
+    "manager, the user problem and its evidence, a success metric, scope "
+    "against value, a staged rollout, the revenue link; for sales, dig into "
+    "the objection before discounting, who signs off, a next step with a "
+    "date. An item is closed once it has an owner, a time and a spoken yes; "
+    "never tip on a closed item, not even to confirm it. Silence after a "
+    "question is thinking time: wait, then rephrase it or ask one person.\n"
+    "Return empty tips when the previous tips still fit or everything is "
+    "settled; never repeat or reword a previous tip. Write in the viewer "
+    "language."
 )
+REHEARSAL = ("The viewer is alone in the call, rehearsing: names are the future "
+             "audience, so never tell them to ask or invite anyone, and a silence is a "
+             "break (empty tips). Tips only on content and delivery: lead with the "
+             "number, cut filler, keep the stronger version of a line.")
 
 
 class Coach:
@@ -90,6 +96,7 @@ class Coach:
         self._self_names: dict[str, str] = {}
         self._people: dict[str, list[str]] = {}  # who is in the call (Meet tiles)
         self._tips: dict[str, list[str]] = {}
+        self._alerts: dict[str, set[str]] = {}  # alerts already shown: never the same one twice
         self._due: set[str] = set()  # new words since the last call
         self._last_turn: dict[str, float] = {}
         self._last_call: dict[str, float] = {}
@@ -154,7 +161,7 @@ class Coach:
 
     async def _on_ended(self, envelope: dict[str, Any]) -> None:
         meetingid = envelope.get("meetingid")
-        for store in (self._turns, self._contexts, self._self_names, self._tips, self._people,
+        for store in (self._turns, self._contexts, self._self_names, self._tips, self._people, self._alerts,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)
         self._due.discard(meetingid)
@@ -196,6 +203,8 @@ class Coach:
         alert = str(data.get("alert") or "").strip()[:80]
         if alert and not self._others_here(meetingid) and any(w in alert.lower() for w in TALK_OVER_WORDS):
             alert = ""  # nobody to talk over
+        if alert in self._alerts.get(meetingid, set()):
+            alert = ""  # eval r0: the same canned alert fired loop after loop
         if not tips and not alert:
             return  # nothing new for the viewer: the panel keeps its tips
         tips = tips or self._tips.get(meetingid, [])
@@ -204,6 +213,7 @@ class Coach:
         payload: dict[str, Any] = {"tips": tips, "lang": lang if lang in ("en", "ar") else "en"}
         if alert:
             payload["alert"] = alert
+            self._alerts.setdefault(meetingid, set()).add(alert)
         await self._bus.publish({
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "coach.tips",
             "source": "halo/coach", "time": datetime.now(UTC).isoformat(),
@@ -229,6 +239,8 @@ class Coach:
                   f"Viewer language: {context.get('viewer_lang', 'en')}")]
         if context.get("agenda"):
             lines.append("Agenda: " + "; ".join(str(a) for a in context["agenda"]))
+        if not self._others_here(meetingid):
+            lines.append(REHEARSAL)
         if roles:
             lines.append("Roles: " + ", ".join(
                 f"{r.get('name')} ({r.get('role')})" if r.get("role") else str(r.get("name"))

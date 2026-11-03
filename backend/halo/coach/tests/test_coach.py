@@ -200,3 +200,25 @@ def test_alone_in_the_call_a_talk_over_alert_is_dropped():
         assert tips[0]["data"]["alert"] == "Park it: owner and date."
 
     asyncio.run(run())
+
+
+def test_the_same_alert_never_shows_twice_and_alone_means_rehearsal():
+    # Night eval 2026-11-03: "Park it: owner and date." fired loop after loop,
+    # and alone in the call the coach said "Ask Sara".
+    async def run():
+        bus, llm, coach, tips, clock = setup([
+            {"tips": ["One."], "alert": "Park it: owner and date."},
+            {"tips": ["Two."], "alert": "Park it: owner and date."}])
+        await bus.publish(env("tiles.snapshot", {"tiles": [
+            {"tile_id": "t1", "name": "Layla", "is_self": True, "rect": [0, 0, 10, 10],
+             "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None}]}, 88))
+        await bus.publish(turn("Sara will take the dates", name="Layla", n=2))
+        await coach.tick()
+        assert "rehearsing" in llm.prompts[0]
+        clock.now += 100
+        await bus.publish(turn("Sara will take the dates again", name="Layla", n=3))
+        await coach.tick()
+        assert tips[0]["data"].get("alert") == "Park it: owner and date."
+        assert "alert" not in tips[1]["data"] and tips[1]["data"]["tips"] == ["Two."]
+
+    asyncio.run(run())
