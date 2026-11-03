@@ -16,13 +16,13 @@ Implement extension/src/face_detector per its PLAN.md; done ONLY when `npm --pre
 
 ## File map
 - `extension/src/face_detector/detector.ts`: engine seam, tracker, pipeline, IoU.
-- `extension/src/face_detector/mediapipe.ts`: MediaPipe engine (bundled WASM/model).
 - `extension/src/face_detector/detector.test.ts`: Done-case tests.
-- `extension/src/face_detector/index.ts`: in-tab boot (frame subscription seam).
-- `extension/src/entrypoints/face-detector/index.html` + `main.ts`: hidden iframe page.
+- `extension/src/face_detector/sam.ts` + `sam.test.ts`: SAM 3.1 engine (local worker on 127.0.0.1:8766, `packaging/sam_worker.py`).
 
 ## Current step
-Review fix pushed: the BlazeFace model (`blaze_face_short_range.tflite`, 229,746 bytes) is committed at the assets path the engine loads from, with `model.test.ts` loading it as a valid TFLite (TFL3) model — 7 Vitest cases green, `tsc --noEmit` clean. Full MediaPipe WASM runtime creation needs a browser document, so it stays an L3 concern; Frame mode remains the fallback until then. Then rebased on main.
+2026-11-03: MediaPipe engine, its BlazeFace model, iframe page and `@mediapipe/tasks-vision` removed (Meta-only runtime rule, DECISIONS §3; nothing mounted them). SAM 3.1 is the only engine.
+
+Earlier: Review fix pushed: the BlazeFace model (`blaze_face_short_range.tflite`, 229,746 bytes) is committed at the assets path the engine loads from, with `model.test.ts` loading it as a valid TFLite (TFL3) model — 7 Vitest cases green, `tsc --noEmit` clean. Full MediaPipe WASM runtime creation needs a browser document, so it stays an L3 concern; Frame mode remains the fallback until then. Then rebased on main.
 
 ## Open questions
 - L3 IoU ≥ 0.7 on CC0 faces painted by Fake Meet runs once frame_source + fake_meet merge with this module; the IoU helper and stub-engine cases here are the same math that spec asserts.
