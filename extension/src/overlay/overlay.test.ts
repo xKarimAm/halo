@@ -452,3 +452,31 @@ describe("live caption", () => {
     expect(captionOf(root, "tile-1")).toBeUndefined(); // Alt+H hides captions too
   });
 });
+
+// Live 2026-11-04: after leaving the call, the name pill, points and coach
+// stayed on Meet's "You left the meeting" page.
+describe("the meeting ends: nothing lingers", () => {
+  it("a tile that left the snapshot loses its layer on the next render", () => {
+    const { overlay } = make();
+    overlay.applyPointsUpsert(point({ text: "Ship it" }), "env-1");
+    const root = new FakeEl();
+    overlay.render(doc as never, root as never);
+    expect(root.find((e) => e.attrs.has("data-tile-id"))).toHaveLength(1);
+    overlay.applyTiles({ tiles: [] });
+    overlay.render(doc as never, root as never);
+    expect(root.find((e) => e.attrs.has("data-tile-id"))).toHaveLength(0);
+  });
+
+  it("endMeeting clears points (urgent ones too), coach and captions, and keeps the notes toast", () => {
+    const { overlay } = make();
+    overlay.applyPointsUpsert(point({ urgency: "urgent" }), "env-1");
+    overlay.applyEnvelope({ id: "c1", type: "coach.tips", data: { tips: ["Name an owner."], lang: "en" } });
+    overlay.applyEnvelope({ id: "p1", type: "transcript.partial", data: { stream: "tab", text: "so the" } });
+    overlay.applyEnvelope({ id: "n1", type: "notes.ready", data: { meeting_id: "m" } });
+    overlay.endMeeting();
+    expect(overlay.points.size).toBe(0);
+    expect(overlay.coach).toBeNull();
+    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect(overlay.notesToast).not.toBeNull();
+  });
+});

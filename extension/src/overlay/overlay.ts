@@ -131,6 +131,19 @@ export class Overlay {
     for (const t of snapshot.tiles) this.tiles.set(t.tile_id, t);
   }
 
+  /** The meeting stopped (Stop, or the call was left): clear everything it put
+   * on the page, urgent points included. The notes toast stays: it is the
+   * way to the notes. */
+  endMeeting(): void {
+    this.points.clear();
+    this.coach = null;
+    this.captions = { tab: "", mic: "" };
+    this.faces.clear();
+    this.thinkingStart.clear();
+    this.expanded.clear();
+    this.speakingTile = null;
+  }
+
   /** Set by boot(): redraw now (faces arrive outside backend envelopes). */
   requestRender: () => void = () => {};
 
@@ -320,6 +333,11 @@ export class Overlay {
   }
 
   render(doc: DocLike, root: El & { children?: El[] }, _now?: number): void {
+    for (const [tileId, layer] of this.layers) {
+      if (this.tiles.has(tileId)) continue;
+      layer.remove(); // the tile left the call (or the call ended)
+      this.layers.delete(tileId);
+    }
     for (const tileId of this.tileOrder) {
       let layer = this.layers.get(tileId);
       if (!layer) {

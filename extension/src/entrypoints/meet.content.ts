@@ -41,7 +41,15 @@ export async function bootMeetPage(): Promise<void> {
   const overlay = bootOverlay({ port: portProxy });
   const adapter = new MeetDomAdapter({});
   overlay.applyTiles({ tiles: adapter.tiles() });
-  adapter.onTiles((tiles) => overlay.applyTiles({ tiles }));
+  adapter.onTiles((tiles) => { overlay.applyTiles({ tiles }); overlay.requestRender(); });
+  // Live 2026-11-04: the pill, points and coach stayed on "You left the
+  // meeting". The hub clears this flag on Stop and on call.left.
+  chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
+    if (MEETING_RUNNING_KEY in changes && changes[MEETING_RUNNING_KEY].newValue !== true) {
+      overlay.endMeeting();
+      overlay.requestRender();
+    }
+  });
   let speaking: string | null = null;
   adapter.onSpeaking((event) => {
     overlay.applySpeakerActive(event);

@@ -80,9 +80,9 @@ export function boot(context: { port: PortIn }): Overlay {
       rerender();
     }
   });
-  overlay.requestRender = rerender;
   watchUrgencyStyle(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
+  overlay.requestRender = () => { rerender(); refresh(); }; // bubbles and the coach card
   syncPopover = mountPopover(document, overlay, root as unknown as Element, rerender);
   bindExpand(root as unknown as Element, overlay, rerender);
   bindHideKey(document, overlay, () => { rerender(); refresh(); });
