@@ -37,6 +37,7 @@ let baseURL;
 const postedTags = [];
 // Fake folder store, same shapes as the Notes Service /api/folders.
 const folders = { list: [], byMeeting: {} };
+const status = { meta_key: true };
 
 function send(res, status, body, type) {
   res.writeHead(status, { "Content-Type": type || "application/json" });
@@ -46,6 +47,10 @@ function send(res, status, body, type) {
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
+    if (req.method === "GET" && url.pathname === "/api/status") {
+      send(res, 200, JSON.stringify(status));
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/meetings") {
       return send(res, 200, JSON.stringify([
         { meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, title: GOLDEN.meeting.title,
@@ -134,6 +139,7 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   postedTags.length = 0;
+  status.meta_key = true;
   folders.list.length = 0;
   for (const k of Object.keys(folders.byMeeting)) delete folders.byMeeting[k];
 });
@@ -314,4 +320,16 @@ test("(16) a meeting with no recording hides the player and says so", async ({ p
   await expect(page.locator(".player .prow")).toBeHidden();
   await expect(page.locator("audio#rec")).toBeHidden();
   await expect(page.getByText(/auto-deletes/)).toHaveCount(0);
+});
+
+test("(17) no Meta key: a banner says how to fix it, in both languages; with a key, none", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await expect(page.locator("#keybar")).toBeHidden();
+  status.meta_key = false;
+  await page.goto(baseURL + "/");
+  await expect(page.locator("#keybar")).toHaveText(
+    "Meta Model API key missing: put it after META_API_KEY= in .env and restart uv run halo. Until then there are no live transcripts, points, notes or answers.");
+  await page.getByRole("button", { name: "عربي" }).click();
+  await expect(page.locator("#keybar")).toContainText("META_API_KEY");
+  await expect(page.locator("#keybar")).toContainText("مفتاح");
 });

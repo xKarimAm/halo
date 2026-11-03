@@ -55,6 +55,7 @@
       degraded: "AI summary failed, showing live notes.",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
       norec: "No recording for this meeting. The notes and transcript are complete.",
+      nokey: "Meta Model API key missing: put it after META_API_KEY= in .env and restart uv run halo. Until then there are no live transcripts, points, notes or answers.",
       none: "Nothing here.", draftOnly: "Draft: only this meeting is filled in.",
       translated: "Translated", video: "Video",
       allMeetings: "All meetings", preview: "Hover a meeting to preview it",
@@ -105,6 +106,7 @@
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
       keep: "صوت المكالمة وميكروفونك، محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
       norec: "لا يوجد تسجيل لهذا الاجتماع. الملاحظات والنص كاملة.",
+      nokey: "مفتاح Meta Model API غير موجود: ضعه بعد META_API_KEY= في ملف .env وأعد تشغيل uv run halo. حتى ذلك الحين لا يوجد نص مباشر ولا نقاط ولا ملاحظات ولا إجابات.",
       none: "لا شيء هنا.", draftOnly: "مسودة: هذا الاجتماع فقط مكتمل.",
       translated: "مترجم", video: "الفيديو",
       allMeetings: "كل الاجتماعات", preview: "مرّر على اجتماع لمعاينته",
@@ -1429,6 +1431,11 @@
       if (id) app.openMeeting(id, false);
       else app.loadMeetings(false);
     });
+    // A judge without a key gets told why nothing happens (older backends have no /api/status).
+    fetchJson("/api/status").then(function (s) {
+      var bar = doc.getElementById("keybar");
+      if (bar && s && s.meta_key === false) bar.hidden = false;
+    }).catch(function () {});
     var first = meetingId || idFromPath();
     if (first) app.openMeeting(first, false);
     else app.loadMeetings(false);

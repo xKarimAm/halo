@@ -157,6 +157,11 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     async def healthz() -> dict:
         return {"status": "ok", "bus_health": app.state.bus.health()}
 
+    @app.get("/api/status")
+    async def status() -> dict:
+        """Read by the notes page to tell a keyless user why nothing happens."""
+        return {"meta_key": os.environ.get("HALO_FAKES") == "1" or bool(os.environ.get("META_API_KEY"))}
+
     return app
 
 

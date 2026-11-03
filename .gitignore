@@ -33,3 +33,6 @@ rig/fixtures/*/
 test-results/
 .npm-cache/
 pytest-of-*/
+
+# design-skill working files (local only)
+.taste-skill/
