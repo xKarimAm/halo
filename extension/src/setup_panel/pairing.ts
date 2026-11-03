@@ -54,3 +54,26 @@ export async function pairWithCode(code: string, fetchFn: FetchFn = fetch): Prom
   }
   return token;
 }
+
+/** Automatic pairing (Karim 2026-11-04): the backend mints a token for the pinned extension's Origin only. */
+export const PAIR_AUTO_URL = "http://127.0.0.1:8765/pair/auto";
+
+/**
+ * Ask the local Halo app for a token with no code. Chrome sets the
+ * `chrome-extension://<id>` Origin itself, which is what the backend checks.
+ * Throws PairingError: status 0 when the app is not running, the HTTP status when refused.
+ */
+export async function pairAuto(fetchFn: FetchFn = fetch): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetchFn(PAIR_AUTO_URL, { method: "POST" });
+  } catch (error) {
+    throw new PairingError("The Halo app is not running.", 0, { cause: error });
+  }
+  if (!response.ok) throw new PairingError("Automatic pairing was refused.", response.status);
+  const payload = (await response.json().catch(() => undefined)) as { token?: unknown } | undefined;
+  if (typeof payload?.token !== "string" || !payload.token) {
+    throw new PairingError("Bad pairing reply from the backend.", response.status);
+  }
+  return payload.token;
+}

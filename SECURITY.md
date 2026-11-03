@@ -15,6 +15,8 @@ Halo hears your meetings, so this file says exactly what it exposes and how each
 
 The backend prints a 6-digit code at start. The code works once. The extension trades it for a random 32-byte token (`secrets.token_urlsafe`). The backend keeps only the token's SHA-256 hash, so the token survives restarts but is never stored in clear text on the backend side.
 
+Since 2026-11-04 the popup pairs on its own: `POST /pair/auto` mints a token only when the request's `Origin` is the pinned Halo extension (`chrome-extension://dbngpodihegmipdmikpbkflahdkfpgif`); any other Origin, or none, gets 403. A web page cannot set that Origin. A program already running on your PC could, but such a program can already read `data/`, so automatic pairing gives it nothing new. The 6-digit code stays as the fallback.
+
 ## Keys
 
 - Model keys live in `.env`, which git ignores (`.gitignore`: `.env`, `.env.*`, except `.env.example`).

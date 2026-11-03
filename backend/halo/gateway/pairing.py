@@ -57,6 +57,13 @@ class PairingStore:
         self._write()
         return token
 
+    def issue(self) -> str:
+        """Mint a token without a code: only for the pinned extension's Origin (`POST /pair/auto`)."""
+        token = _mint_token()
+        self._hashes.add(_hash(token))
+        self._write()
+        return token
+
     def check(self, token: object) -> bool:
         """True when `token` was issued by this backend (any boot)."""
         if not isinstance(token, str) or not token:

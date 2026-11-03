@@ -1,4 +1,4 @@
-/* Toolbar popup, "Three steps" (Karim's pick, Planning/ui/drafts/popup draft 2).
+/* Toolbar popup, sections (Karim 2026-11-04): status pill, This call, About this meeting, Preferences, footer.
    Sage & Clay tokens from the Notes page (docs/ui/notes-v2.html?palette=2). */
 :root{
   --font:'Inter','IBM Plex Sans Arabic',system-ui,sans-serif;
@@ -24,9 +24,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 .logo i{width:10px;height:10px;border-radius:50%;background:var(--logo-dot);box-shadow:var(--sh-logo)}
 .sp{flex:1}
 .tiny{font-size:11.5px;color:var(--faint)}
-.steps{display:flex;gap:6px;padding:0 14px 8px}
-.steps i{flex:1;height:4px;border-radius:4px;background:var(--hair)}
-.steps i.done{background:var(--sage)}
+.pill{font-size:11.5px;font-weight:600;padding:2px 10px 2px 8px;border-radius:999px;border:1px solid var(--rim);background:var(--glass-hi);display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--rim)}
+.pill[data-tone=ok]{color:var(--dec)} .pill[data-tone=ok]::before{background:var(--dec)}
+.pill[data-tone=bad]{color:var(--urg-hi)} .pill[data-tone=bad]::before{background:var(--urg-hi)}
+.down{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.down p{margin:0}
+.down code{font:600 13px ui-monospace,Consolas,monospace;padding:4px 9px;border-radius:8px;background:var(--glass-hi);border:1px solid var(--rim);user-select:all}
+.down .btn{margin-top:4px}
+#pair-section>p.tiny{margin:0}
+.foot{display:flex;align-items:baseline;gap:6px;margin:2px 14px 4px;font-size:12px}
+.foot b{font-weight:600}
 
 .glass{background:var(--glass);backdrop-filter:blur(20px) saturate(115%);border:1px solid var(--rim);border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
 .card{padding:10px 12px;margin:0 14px 8px;display:flex;flex-direction:column;gap:6px}
@@ -35,9 +43,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .title{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:13px;font-weight:600}
 .title b,b.title{font-weight:600}
 .title .tiny{font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.num{width:20px;height:20px;border-radius:50%;flex:none;display:inline-grid;place-items:center;font-size:11px;font-weight:700;background:var(--sage);color:var(--on-accent)}
 .card.todo{opacity:.75}
-.card.todo .num{background:transparent;border:1.5px solid var(--rim);color:var(--muted)}
 
 .f{display:block;font-size:12px;color:var(--muted);font-weight:600}
 label.f .in{margin-top:4px}
@@ -46,7 +52,7 @@ label.f .in{margin-top:4px}
 textarea.in{resize:none;height:48px}
 .row{display:flex;gap:8px;align-items:center}
 .row.end{justify-content:flex-end}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 #roles{display:flex;flex-direction:column;gap:5px}
 .person{display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;align-items:center;padding:4px 5px;border-radius:999px;border:1px solid var(--rim);background:var(--glass)}
@@ -54,8 +60,7 @@ textarea.in{resize:none;height:48px}
 .person .role-name{font-weight:600}
 .av{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:hsl(var(--h,200) 27% 33%);color:#fdfbf6;font-weight:700;font-size:12px}
 
-.drawer summary{cursor:pointer;font-weight:600;font-size:13px}
-#viewer-prefs{margin-top:8px;justify-content:space-between}
+#viewer-prefs{justify-content:space-between}
 .seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--rim);background:var(--glass)}
 .seg label{position:relative;padding:2px 11px;border-radius:999px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
 .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
@@ -96,3 +101,4 @@ textarea.in{resize:none;height:48px}
 #mic-state{padding-left:15px}
 #mic-state[data-tone=warn]{color:var(--urg-mid,#77590d)}
 #halo-build{margin:0 14px 12px;font-size:11px;color:var(--faint)}
+#consent-state:empty,#start-error:empty{display:none}

@@ -76,3 +76,19 @@ def test_audio_before_pairing_is_dropped(tmp_path):
         ws.send_text("not json")  # a reply proves the bytes frame was processed first
         ws.receive_json()
     assert got == []
+
+
+def test_auto_pair_only_for_the_halo_extension_origin(tmp_path):
+    """Karim 2026-11-04: the popup pairs on its own. Only the pinned extension's
+    Origin gets a token (a web page cannot send a chrome-extension:// Origin);
+    the token then works on the socket exactly like a code-issued one."""
+    client, app = make_client(tmp_path)
+    ok = client.post("/pair/auto", headers={"origin": "chrome-extension://test-id"})
+    assert ok.status_code == 200
+    token = ok.json()["token"]
+    assert app.state.gateway.pairing.check(token) is True
+    for bad in ("chrome-extension://other-id", "https://meet.google.com", "null"):
+        assert client.post("/pair/auto", headers={"origin": bad}).status_code == 403
+    assert client.post("/pair/auto").status_code == 403  # no Origin at all
+    # The 6-digit code still works as the fallback.
+    assert client.post("/pair", json={"code": app.state.gateway.pairing.current_code}).status_code == 200

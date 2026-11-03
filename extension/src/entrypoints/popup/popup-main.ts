@@ -9,6 +9,7 @@
  */
 import "./style.css";
 import { initPopup } from "../../setup_panel/popup";
+import { pairAuto } from "../../setup_panel/pairing";
 import { chromeSetupStorage, MIC_STATE_KEY, type MicState } from "../../setup_panel/storage";
 import {
   parseMeetTab,
@@ -120,6 +121,9 @@ void initPopup(root, {
   // Stop: the hub ends the meeting (reason "left") and stops its capture.
   onStop: () => { chrome.runtime.sendMessage({ type: "halo/hub.stop" }).catch(() => {}); },
   meetingRunning,
+  // Automatic pairing (Karim 2026-11-04): the backend trusts this extension's Origin, no code to type.
+  checkBackend: async () => (await fetch("http://127.0.0.1:8765/healthz").catch(() => undefined))?.ok === true,
+  autoPair: () => pairAuto(),
   onMeetCall: async () => parseMeetTab((await activeTab())?.url).ok,
   watchMicState: (onChange) => {
     chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {

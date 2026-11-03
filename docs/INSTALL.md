@@ -68,9 +68,11 @@ Leave this window open while you use Halo.
 1. In Chrome, open `chrome://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and pick the `extension\.output\chrome-mv3` folder.
 3. Click the Halo icon in the toolbar (pin it from the puzzle-piece menu if you don't see it).
-4. Type the 6-digit code from the backend window and press **Pair**.
+4. The popup pairs on its own while the backend is running: the pill at the top says **Connected**. Nothing to type.
 
-**Check:** the popup says "Paired". Pairing survives backend restarts, so you do this once. A code works only once; a restart prints a fresh one.
+**Check:** the pill says "Connected" and the footer says "Paired with this computer". Pairing survives backend restarts.
+
+If the pill says "Halo app not running", start `uv run halo` (step 4) and press **Try again**. If automatic pairing is refused (for example the extension was loaded under a different id), the popup asks for the 6-digit code from the backend window instead; a code works only once, and a restart prints a fresh one.
 
 ## 6. Your first meeting
 
