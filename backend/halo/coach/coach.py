@@ -174,8 +174,9 @@ class Coach:
 
     async def _on_ended(self, envelope: dict[str, Any]) -> None:
         meetingid = envelope.get("meetingid")
-        if isinstance(meetingid, str):
-            self._ended.add(meetingid)
+        if not isinstance(meetingid, str):
+            return
+        self._ended.add(meetingid)
         for store in (self._turns, self._contexts, self._self_names, self._tips, self._people, self._alerts,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)

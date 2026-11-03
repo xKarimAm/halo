@@ -139,7 +139,7 @@ class LLMClient:
         self._cooldown = cooldown_s
         self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s))
         self._primary_down_until = 0.0
-        self._last_engine = PRIMARY_ENGINE
+        self._last_engine = PRIMARY_ENGINE if self._keys[PRIMARY_ENGINE] else FAILOVER_ENGINE
 
     def close(self) -> None:
         self._http.close()
@@ -170,7 +170,13 @@ class LLMClient:
     ) -> LLMResult:
         """One validated JSON completion, with retry + per-call failover."""
         engines = [PRIMARY_ENGINE, FAILOVER_ENGINE]
-        if self._clock() < self._primary_down_until:
+        # No Spark Open key is a supported setup (README): the contributor is the
+        # engine by design, not a failover, so the primary is not even tried.
+        if not self._keys[PRIMARY_ENGINE] and PRIMARY_ENGINE not in self._key_warned:
+            self._key_warned.add(PRIMARY_ENGINE)
+            log.warning("llm %s has no key in %s; every call runs on %s", PRIMARY_ENGINE,
+                        self._primary["key_var"] or "HALO_PRIMARY_KEY_VAR (unset)", FAILOVER_ENGINE)
+        if not self._keys[PRIMARY_ENGINE] or self._clock() < self._primary_down_until:
             engines = [FAILOVER_ENGINE]
         last = LLMResult(ok=False, engine=engines[-1],
                          error={"code": "engine_error", "message": "no engine attempted"})

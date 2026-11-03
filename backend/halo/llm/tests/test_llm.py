@@ -477,3 +477,21 @@ def test_overridden_host_without_key_var_never_gets_the_baseten_key():
     assert result.ok and result.engine == FAILOVER_ENGINE
     assert all(s["auth"] != "Bearer b-key" for s in seen)
     assert all("modal.run" not in s["url"] for s in seen)
+
+
+def test_no_primary_key_means_contributor_by_design_not_failover():
+    """2026-11-03: with only META_API_KEY, every call ran on the contributor and
+    the monitor logged "llm is failover" each time. No Spark Open key is a
+    supported setup, so health names the contributor and flags no failover."""
+    clock = Clock()
+    script = Script(clock)
+    script.failover.append((200, GOOD, 0.1))
+    client = LLMClient(meta_key="test-meta", transport=httpx.MockTransport(script.handler),
+                       clock=clock, sleep=lambda s: None, env={})
+    try:
+        assert client.health() == {"engine": FAILOVER_ENGINE, "failover": False}
+        assert client.complete_json(prompt=PROMPT, schema=SCHEMA).ok
+        assert client.health() == {"engine": FAILOVER_ENGINE, "failover": False}
+        assert primary_calls(script) == []
+    finally:
+        client.close()
