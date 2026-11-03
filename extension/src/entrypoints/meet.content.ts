@@ -17,6 +17,9 @@ import { adaptAudioContext, startLiveCapture } from "../hub_capture/capture_live
 import { createMicSender, MIC_PORT_NAME, MIC_START_MESSAGE } from "../hub_capture/mic_relay";
 import { MIC_DEVICE_KEY } from "../hub_capture/mic_device";
 import { createSamDetect, encodeJpeg, SAM_PORT_NAME, SamFaceSource } from "../face_detector/sam";
+import { createOffNudge, mountOffNudge } from "../overlay/off_nudge";
+import { MEETING_RUNNING_KEY } from "../hub_capture/hub";
+import { CALL_LEFT_GRACE_MS } from "../meet_adapter/port_sync";
 
 declare const chrome: any;
 
@@ -54,6 +57,7 @@ export async function bootMeetPage(): Promise<void> {
     onFaces: (update) => { overlay.applyFaces(update); overlay.requestRender(); },
   }).start();
   createPortSync(portProxy, adapter);
+  wireOffNudge(adapter);
 
   const connect = (): void => {
     // Halo was reloaded: this copy of the script is orphaned and every
@@ -85,6 +89,32 @@ export async function bootMeetPage(): Promise<void> {
     attempts = 0;
     if (retryTimer) clearTimeout(retryTimer);
     connect();
+  });
+}
+
+/**
+ * "Halo is off" toast: in a call (tiles on screen; a gap shorter than the
+ * call.left grace is not leaving) while the hub reports no running meeting.
+ */
+function wireOffNudge(adapter: MeetDomAdapter): void {
+  const ui = mountOffNudge(document, {
+    onStart: () => chrome.runtime.sendMessage({ type: "halo/open.setup" })
+      .then((r: { ok?: boolean } | undefined) => r?.ok === true, () => false),
+    onDismiss: () => nudge.dismiss(),
+  });
+  const nudge = createOffNudge(ui);
+  let leftTimer: ReturnType<typeof setTimeout> | undefined;
+  const onTiles = (count: number) => {
+    clearTimeout(leftTimer);
+    if (count > 0) nudge.setInCall(true);
+    else leftTimer = setTimeout(() => nudge.setInCall(false), CALL_LEFT_GRACE_MS);
+  };
+  onTiles(adapter.tiles().length);
+  adapter.onTiles((tiles) => onTiles(tiles.length));
+  void chrome.storage.local.get([MEETING_RUNNING_KEY])
+    .then((items: Record<string, unknown>) => nudge.setRunning(items?.[MEETING_RUNNING_KEY] === true), () => {});
+  chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
+    if (MEETING_RUNNING_KEY in changes) nudge.setRunning(changes[MEETING_RUNNING_KEY].newValue === true);
   });
 }
 

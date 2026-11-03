@@ -21,6 +21,7 @@ Implement extension/src/overlay per its PLAN.md (Frame mode first); done ONLY wh
 - `extension/src/overlay/overlay.ts`: store + layout + renderer + consent/badge models.
 - `extension/src/overlay/overlay.test.ts`: Done-case tests with a fake DOM.
 - `extension/src/overlay/index.ts`: Meet-page boot for the hub content wrapper.
+- `extension/src/overlay/off_nudge.ts`: the "Halo is off" toast (2026-11-04): shows 20 s into a call when Halo never started, at once when it stops mid-call; Start Halo opens the setup panel (`halo/open.setup`, `chrome.action.openPopup`), else points at the toolbar icon; Not this call quiets it until the next call. Tests: `off_nudge.test.ts`. Wired in `src/entrypoints/meet.content.ts`.
 
 ## Current step
 Urgency mark (DECISIONS: words default + symbols, viewer setting): chip carries a draft-2 word tab (localised EN/AR) or a draft-1 seal at 14px (~25% under the 19px draft); style from `halo.urgencyStyle` with live `storage.onChanged` switch; 21 overlay tests green, `tsc --noEmit` clean. Face-mode projection is unit-tested and activates when face_detector lands; L3 ±4 px runs once hub_capture/meet_adapter merge.

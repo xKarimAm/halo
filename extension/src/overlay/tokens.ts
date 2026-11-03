@@ -70,6 +70,9 @@ export const OVERLAY_CSS = `
 .halo-toast{display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:8px 8px 8px 12px;border-radius:14px}
 .halo-toast[hidden]{display:none}
 .halo-toast a{color:${HALO_GOLD}}
+.halo-nudge .halo-btn{padding:4px 10px}
+@media (prefers-reduced-motion:no-preference){.halo-nudge:not([hidden]){animation:halo-nudge-in 320ms cubic-bezier(.22,1,.36,1) both}}
+@keyframes halo-nudge-in{from{opacity:0;transform:translateY(-6px)}}
 .halo-dismiss{border:0;background:none;color:#cfd3da;font:inherit;font-size:16px;line-height:1;cursor:pointer}
 /* Coach: left edge, vertically centred, clear of Meet's tiles' name pills. */
 .halo-coach{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:2147483647;width:min(260px,calc(100vw - 24px));box-sizing:border-box;padding:10px 12px 12px;border-radius:16px;${PANEL};color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif;pointer-events:auto}
