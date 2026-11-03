@@ -162,7 +162,7 @@ def test_list_and_project_filter(tmp_path):
     assert meetings == [{"meeting_id": MEETING, "subject": "Launch readiness",
                          "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None,
                          "t0_ms": T0, "minutes": 0,  # card facts (locked design)
-                         "archived": False, "meeting_type": None,
+                         "archived": False, "meeting_type": None, "self_name": "Karim",
                          "counts": {"decision": 1, "question": 0, "pushback": 0, "urgent": 0}}]
     assert client.get("/api/meetings", params={"project_id": "halo-q4"}).json() == meetings
     assert client.get("/api/meetings", params={"project_id": "other"}).json() == []

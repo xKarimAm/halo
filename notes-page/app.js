@@ -63,6 +63,26 @@
       noSummary: "No AI summary yet. Meetings get one when they end.",
       newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
       noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open notes",
+      // Home (Karim 2026-11-04, AV)
+      lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
+      tabOthers: "With others", tabArchived: "Archived", noCapture: "Nothing captured", archivedTag: "Archived",
+      sinceHead: "Since your last visit ({w}):", nothingNew: "Nothing new since your last visit ({w}).",
+      nNew1: "1 new meeting", nNew: "{n} new meetings", nMine1: "1 action item for you", nMine: "{n} action items for you",
+      nAct1: "1 action item", nAct: "{n} action items", nUrg: "{n} urgent", seen: "Mark as seen", unseen: "Show again",
+      newTip: "New since your last visit", sortedBy: "Sorted by Halo", allClear: "All clear. Nothing needs you right now.",
+      emptyTab: "No meetings here yet.", renameF: "Rename folder", deleteF: "Delete folder", save: "Save", cancel: "Cancel",
+      deleteQ: "Delete “{n}”? Its meetings stay, just unfiled.", del: "Delete",
+      folderDeleted: "Folder deleted. Its meetings are still here.", notSaved: "Not saved. Try again.",
+      following: "Following {n}", followIn: "in {k} of {t} meetings", followStop: "Stop following",
+      sumT: "Summary", noOwner: "No owner", nMore: "+ {n} more", nothing: "Nothing was captured in this meeting.",
+      recView: "Recording view", simple: "Simple", detailed: "Detailed", replay: "Replay", stop: "Stop",
+      kQ: "Question", kTall: "Tall mark: urgent", recording: "Recording", norecShort: "No recording",
+      playRec: "Play recording", pauseRec: "Pause recording", archive: "Archive", unarchive: "Unarchive",
+      archivedToast: "Archived. It left Needs action.", undo: "Undo",
+      typeLabel: "Meeting type", typeByHalo: "sorted by Halo", typeByYou: "set by you",
+      typeHalo: "Halo's pick", typePick: "Set a type",
+      t_sprint: "Sprint", t_planning: "Planning", t_discovery: "Product discovery", t_sales: "Sales",
+      t_induction: "Induction", t_one_on_one: "1:1", t_interview: "Interview", t_other: "Other",
       mailSubject: "Action item from \u201C{m}\u201D: {a}",
       mailBody: "Hi {o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes"
     },
@@ -115,6 +135,25 @@
       noSummary: "لا يوجد ملخص آلي بعد. يُكتب عند انتهاء الاجتماع.",
       newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
       noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الملاحظات",
+      lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
+      tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
+      sinceHead: "منذ زيارتك الأخيرة ({w}):", nothingNew: "لا جديد منذ زيارتك الأخيرة ({w}).",
+      nNew1: "اجتماع جديد واحد", nNew: "اجتماعات جديدة: {n}", nMine1: "مهمة واحدة لك", nMine: "مهام لك: {n}",
+      nAct1: "مهمة واحدة", nAct: "مهام: {n}", nUrg: "عاجل: {n}", seen: "تمت المشاهدة", unseen: "أظهرها مجدداً",
+      newTip: "جديد منذ زيارتك الأخيرة", sortedBy: "رتّبها Halo", allClear: "لا شيء يحتاجك الآن.",
+      emptyTab: "لا اجتماعات هنا بعد.", renameF: "إعادة تسمية المجلد", deleteF: "حذف المجلد", save: "حفظ", cancel: "إلغاء",
+      deleteQ: "حذف «{n}»؟ تبقى اجتماعاته، بلا مجلد.", del: "حذف",
+      folderDeleted: "حُذف المجلد. اجتماعاته ما زالت هنا.", notSaved: "لم يُحفظ. حاول مرة أخرى.",
+      following: "تتابع {n}", followIn: "في {k} من {t} اجتماعات", followStop: "إيقاف المتابعة",
+      sumT: "الملخص", noOwner: "بلا مسؤول", nMore: "+ {n} أخرى", nothing: "لم يُلتقط شيء في هذا الاجتماع.",
+      recView: "عرض التسجيل", simple: "مبسّط", detailed: "مفصّل", replay: "إعادة", stop: "إيقاف",
+      kQ: "سؤال", kTall: "العلامة الطويلة: عاجل", recording: "التسجيل", norecShort: "لا تسجيل",
+      playRec: "شغّل التسجيل", pauseRec: "أوقف التسجيل مؤقتاً", archive: "أرشفة", unarchive: "إلغاء الأرشفة",
+      archivedToast: "تمت الأرشفة. خرج من «يحتاج إجراء».", undo: "تراجع",
+      typeLabel: "نوع الاجتماع", typeByHalo: "رتّبه Halo", typeByYou: "حدّدته أنت",
+      typeHalo: "اختيار Halo", typePick: "حدّد النوع",
+      t_sprint: "سبرنت", t_planning: "تخطيط", t_discovery: "استكشاف المنتج", t_sales: "مبيعات",
+      t_induction: "تهيئة موظف", t_one_on_one: "فردي", t_interview: "مقابلة", t_other: "أخرى",
       mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
       mailBody: "مرحباً {o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo"
     }
@@ -462,36 +501,6 @@
     // ponytail: no addresses are stored, so the To field is left for the user
     return "mailto:?subject=" + encodeURIComponent(t(lang, "mailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "mailBody", vars));
-  }
-
-  function meetingCard(app, meeting, lang) {
-    var btn = el("button", "mtg-card glass");
-    btn.dataset.open = meeting.meeting_id;
-    var stack = el("span", "stack");
-    var people = meeting.people || [];
-    people.slice(0, 4).forEach(function (name) {
-      stack.appendChild(avatar(name));
-    });
-    if (people.length > 4) stack.appendChild(el("span", "av more", "+" + (people.length - 4)));
-    if (!people.length) stack.appendChild(el("span", "av none"));  // keeps titles on one edge
-    btn.appendChild(stack);
-    var info = el("span");
-    info.style.flex = "1";
-    var title = el("b", null, titleOf(meeting));
-    info.appendChild(title);
-    info.appendChild(el("br"));
-    // Locked design: date · length · what came out of it (zero counts are left out)
-    var bits = [fmtDate(meeting.t0_ms) || meeting.date || ""]; // local day, not the server's UTC one
-    if (meeting.minutes) bits.push(t(lang, "cMin", { n: meeting.minutes }));
-    var c = meeting.counts || {};
-    [["decision", "cDec", "cDecs"], ["question", "cQ", "cQs"], ["pushback", "cPush", "cPushes"],
-      ["urgent", "cUrg", "cUrgs"]].forEach(function (k) {
-      if (c[k[0]]) bits.push(t(lang, c[k[0]] > 1 ? k[2] : k[1], { n: c[k[0]] }));
-    });
-    info.appendChild(el("span", "sub", bits.join(" · ")));
-    if (meeting.title && meeting.title !== meeting.subject) info.appendChild(el("span", "sub2", meeting.subject));
-    btn.appendChild(info);
-    return btn;
   }
 
   function hitRow(app, hit, lang) {
@@ -854,49 +863,6 @@
     view.appendChild(wrap);
   }
 
-  function renderList(app, view, lang) {
-    view.appendChild(el("h1", null, t(lang, "meetings")));
-    var label = el("label", "search glass");
-    var icon = el("span", null, "\u2315");
-    icon.setAttribute("aria-hidden", "true");
-    label.appendChild(icon);
-    label.appendChild(el("span", "sr", t(lang, "search")));
-    var input = document.createElement("input");
-    input.id = "q";
-    input.type = "search";
-    input.value = app.q;
-    input.placeholder = t(lang, "search");
-    label.appendChild(input);
-    view.appendChild(label);
-    view.appendChild(askForm(app, lang));
-    if (app.ask) view.appendChild(askPanel(app, app.ask, lang));
-    view.appendChild(foldersBar(app, lang));
-    var grid = el("div", "listgrid");
-    var listSection = el("section");
-    listSection.setAttribute("aria-label", t(lang, "meetings"));
-    var shown = app.meetings.filter(function (m) { return !app.folder || m.folder_id === app.folder; });
-    shown.forEach(function (m) { listSection.appendChild(meetingCard(app, m, lang)); });
-    // The preview starts on the newest meeting instead of an empty "hover" panel.
-    if (!app.previewId && shown.length && app.setPreview) {
-      Promise.resolve().then(function () { app.setPreview(shown[0].meeting_id); });
-    }
-    grid.appendChild(listSection);
-    if (app.q.trim()) {
-      var hitsSection = el("section", "hits glass");
-      hitsSection.setAttribute("aria-live", "polite");
-      hitsSection.appendChild(el("h2", null, t(lang, "results")));
-      var hits = el("div");
-      hits.id = "hits";
-      app.hits.forEach(function (h) { hits.appendChild(hitRow(app, h, lang)); });
-      if (app.hits.length === 0) hits.appendChild(el("p", "empty", t(lang, "noHits")));
-      hitsSection.appendChild(hits);
-      grid.appendChild(hitsSection);
-    } else {
-      grid.appendChild(previewPanel(app, lang));
-    }
-    view.appendChild(grid);
-  }
-
   // Ask across meetings (POST /api/ask): Spark answers from stored passages;
   // the cited rows are store text and open the meeting at that line.
   function askForm(app, lang) {
@@ -939,26 +905,315 @@
     return section;
   }
 
-  function foldersBar(app, lang) {
-    var bar = el("nav", "folders");
-    bar.setAttribute("aria-label", t(lang, "moveTo"));
-    var all = el("button", "fchip", t(lang, "allMeetings"));
-    all.dataset.folder = "";
-    all.setAttribute("aria-pressed", app.folder ? "false" : "true");
-    bar.appendChild(all);
-    app.folders.forEach(function (f) {
-      var b = el("button", "fchip", f.name + " ");
-      b.dataset.folder = f.folder_id;
-      b.setAttribute("aria-pressed", app.folder === f.folder_id ? "true" : "false");
-      b.appendChild(el("em", null, String(f.count || 0)));
-      bar.appendChild(b);
+  // ---- Home (Karim 2026-11-04, "AV" from docs/ui/drafts/landing/av-home.html) ----
+  // Each meeting is a call strip: every point at the second it was said. The
+  // preview has a living recording line, Simple and Detailed views, Replay,
+  // and coloured plates whose items jump to their mark. Tabs: All, Urgent,
+  // Needs action, With others, folders, Archived; Halo's meeting types sort
+  // underneath. "Since your last visit" counts what is new until Mark as seen.
+  var MTYPES = ["sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other"];
+  var LAST_KEY = "halo-notes-lastvisit";
+  var MODE_KEY = "halo-notes-view";
+
+  function stored(key, value) {
+    try {
+      if (arguments.length === 1) return window.localStorage.getItem(key);
+      if (value == null) window.localStorage.removeItem(key);
+      else window.localStorage.setItem(key, value);
+    } catch (e) { /* private window: this visit only */ }
+    return null;
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
+  }
+
+  function stillMotion() {
+    return !window.matchMedia || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function clock(ms) {
+    var s = Math.max(0, Math.round((ms || 0) / 1000));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function lenText(ms, lang) {
+    var s = Math.round((ms || 0) / 1000);
+    return s < 60 ? t(lang, "lenSec", { n: s }) : t(lang, "cMin", { n: Math.round(s / 60) });
+  }
+
+  function avHTML(name, focusable) {
+    return '<span class="av" style="--h:' + hueOf(name) + '" title="' + esc(name) + '" data-follow="' + esc(name) + '"' +
+      (focusable ? ' role="button" tabindex="0"' : "") + ">" + esc(initials(name)) + "</span>";
+  }
+
+  function stackHTML(people, max, focusable) {
+    var h = people.slice(0, max).map(function (n) { return avHTML(n, focusable); }).join("");
+    if (people.length > max) h += '<span class="av more">+' + (people.length - max) + "</span>";
+    return '<span class="stack">' + h + "</span>";
+  }
+
+  // The page JSON as the home needs it: times are recording offsets, so a mark,
+  // the audio and the transcript agree on the same second.
+  function homeModel(page) {
+    var lines = page.transcript_lines || [];
+    var byTurn = {};
+    lines.forEach(function (l) { byTurn[l.turn_id] = l; });
+    var base = lines.length ? lines[0].ts_start_ms : (page.meeting.t0_ms || 0);
+    var off = function (l) {
+      return typeof l.recording_offset_ms === "number" ? l.recording_offset_ms : Math.max(0, l.ts_start_ms - base);
+    };
+    var dur = 0;
+    lines.forEach(function (l) { dur = Math.max(dur, off(l) + Math.max(0, (l.ts_end_ms || 0) - (l.ts_start_ms || 0))); });
+    var points = (page.points || []).map(function (p) {
+      var l = byTurn[(p.turn_ids || [])[0]];
+      return {
+        id: p.point_id, kind: KIND_KEYS.indexOf(p.kind) >= 0 ? p.kind : "point", text: p.text,
+        who: p.speaker_name || "", urgency: urgOf(p), at: l ? Math.min(off(l), dur) : null
+      };
+    });
+    var atOf = {};
+    points.forEach(function (p) { atOf[p.id] = p.at; });
+    var actions = (page.actions || []).map(function (a) {
+      return {
+        id: a.action_id, text: a.text, owner: a.owner || "", status: a.status, urgency: urgOf(a),
+        at: atOf[a.point_id] != null ? atOf[a.point_id] : null
+      };
+    });
+    var people = [];
+    var add = function (n) { if (n && people.indexOf(n) < 0) people.push(n); };
+    (page.people || []).forEach(function (p) { add(p.name); });
+    lines.forEach(function (l) { add(l.speaker_name); });
+    return {
+      id: page.meeting.meeting_id, title: titleOf(page.meeting), summary: page.meeting.summary || "",
+      t0: page.meeting.t0_ms, duration: dur, points: points, actions: actions, people: people
+    };
+  }
+
+  function modelOf(app, id) {
+    if (!app.previews[id]) return null;
+    if (!app.models[id]) app.models[id] = homeModel(app.previews[id]);
+    return app.models[id];
+  }
+
+  function listed(app, id) {
+    return app.meetings.filter(function (x) { return x.meeting_id === id; })[0] || null;
+  }
+
+  function hasActions(app, it) {
+    var m = modelOf(app, it.meeting_id);
+    return m ? m.actions.length > 0 : ((it.counts || {}).urgent || 0) > 0;
+  }
+
+  function tabsOf(app, lang) {
+    var tabs = [
+      { id: "all", label: t(lang, "tabAll"), f: function () { return true; } },
+      { id: "urgent", cls: "t-urg", label: t(lang, "tabUrgent"), f: function (m) { return !m.archived && ((m.counts || {}).urgent || 0) > 0; } },
+      { id: "action", label: t(lang, "tabAction"), f: function (m) { return !m.archived && hasActions(app, m); } },
+      { id: "others", label: t(lang, "tabOthers"), f: function (m) { return (m.people || []).length > 1; } }
+    ];
+    app.folders.forEach(function (f) {
+      tabs.push({ id: "f:" + f.folder_id, folder: f, label: f.name, f: function (m) { return m.folder_id === f.folder_id; } });
+    });
+    if (app.meetings.some(function (m) { return m.archived; }) || app.tab === "archived") {
+      tabs.push({ id: "archived", label: t(lang, "tabArchived"), f: function (m) { return m.archived; } });
+    }
+    return tabs;
+  }
+
+  function currentTab(app, lang) {
+    var tabs = tabsOf(app, lang);
+    return tabs.filter(function (x) { return x.id === app.tab; })[0] || tabs[0];
+  }
+
+  function followed(app, list) {
+    return app.follow ? list.filter(function (m) { return (m.people || []).indexOf(app.follow) >= 0; }) : list;
+  }
+
+  function visibleMeetings(app, lang) {
+    var tab = currentTab(app, lang);
+    return followed(app, app.meetings.filter(tab.f)).filter(function (m) { return !app.mtype || m.meeting_type === app.mtype; });
+  }
+
+  function sinceStart(app) {
+    var last = +stored(LAST_KEY) || 0;
+    if (last) return last;
+    // First visit: count from the start of the day before the newest meeting.
+    var d = new Date((app.meetings[0] || {}).t0_ms || Date.now());
+    d.setDate(d.getDate() - 1);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  function sinceHTML(app, lang) {
+    if (!app.meetings.length) return "";
+    var w = new Date(app.since).toLocaleString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    var fresh = app.meetings.filter(function (m) { return (m.t0_ms || 0) > app.since; });
+    if (!fresh.length) {
+      return esc(t(lang, "nothingNew", { w: w })) + ' <button class="seen" id="unseen" type="button">' + esc(t(lang, "unseen")) + "</button>";
+    }
+    var me = app.meetings[0].self_name || "";
+    var mine = 0;
+    var urgent = 0;
+    fresh.forEach(function (it) {
+      urgent += (it.counts || {}).urgent || 0;
+      var m = modelOf(app, it.meeting_id);
+      if (m) mine += m.actions.filter(function (a) { return me ? a.owner === me : true; }).length;
+    });
+    var parts = ["<b>" + esc(t(lang, fresh.length === 1 ? "nNew1" : "nNew", { n: fresh.length })) + "</b>"];
+    parts.push(esc(t(lang, me ? (mine === 1 ? "nMine1" : "nMine") : (mine === 1 ? "nAct1" : "nAct"), { n: mine })));
+    if (urgent) parts.push('<button class="urg-link" type="button" data-tab="urgent">' + esc(t(lang, "nUrg", { n: urgent })) + "</button>");
+    return esc(t(lang, "sinceHead", { w: w })) + " " + parts.join(", ") + '. <button class="seen" id="seen" type="button">' + esc(t(lang, "seen")) + "</button>";
+  }
+
+  function stripHTML(m, follow) {
+    if (!m) return '<div class="strip wait"></div>';
+    if (!m.duration) return '<div class="strip empty"></div>';
+    var n = 0;
+    return '<div class="strip">' + m.points.map(function (p, i) {
+      if (p.at == null) return "";
+      var dim = follow && p.who !== follow ? " dim" : "";
+      return '<i class="' + p.kind + (p.urgency === "urgent" ? " urgent" : "") + dim + '" style="left:' +
+        Math.min(100, (p.at / m.duration) * 100).toFixed(2) + "%;--n:" + (n++) + '" data-i="' + i + '"></i>';
+    }).join("") + "</div>";
+  }
+
+  function factsHTML(it, lang) {
+    var c = it.counts || {};
+    var out = [];
+    if (c.decision) out.push(esc(t(lang, c.decision > 1 ? "cDecs" : "cDec", { n: c.decision })));
+    if (c.question) out.push(esc(t(lang, c.question > 1 ? "cQs" : "cQ", { n: c.question })));
+    if (c.pushback) out.push(esc(t(lang, c.pushback > 1 ? "cPushes" : "cPush", { n: c.pushback })));
+    if (c.urgent) out.push('<span class="urg-link" data-tab="urgent">' + esc(t(lang, c.urgent > 1 ? "cUrgs" : "cUrg", { n: c.urgent })) + "</span>");
+    var h = out.join(" · ") || esc(t(lang, "noCapture"));
+    if (it.meeting_type) h += '<span class="tchip" data-mt="' + esc(it.meeting_type) + '">' + esc(t(lang, "t_" + it.meeting_type)) + "</span>";
+    if (it.archived) h += '<span class="arch-tag">' + esc(t(lang, "archivedTag")) + "</span>";
+    return h;
+  }
+
+  function sameDay(a, b) {
+    var x = new Date(a);
+    var y = new Date(b);
+    return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+  }
+
+  function rowsHTML(app, list, lang) {
+    var i = 0;
+    var last = null;
+    var h = "";
+    list.forEach(function (it) {
+      var day = fmtDate(it.t0_ms) || it.date || "";
+      if (day !== last) {
+        h += '<h2 class="day" style="--i:' + (i++) + '">' + esc(it.t0_ms && sameDay(it.t0_ms, Date.now()) ? t(lang, "today") : day) + "</h2>";
+        last = day;
+      }
+      var m = modelOf(app, it.meeting_id);
+      var len = m && m.duration ? lenText(m.duration, lang) : (it.minutes ? t(lang, "cMin", { n: it.minutes }) : "");
+      var isNew = (it.t0_ms || 0) > app.since;
+      h += '<button class="row mtg-card" type="button" data-sel="' + esc(it.meeting_id) + '" style="--d:' + (i + 4) + ";--i:" + (i++) +
+        '" aria-current="' + (it.meeting_id === app.previewId) + '"><span class="rtop">' + stackHTML(it.people || [], 4, false) +
+        '<b dir="auto">' + esc(titleOf(it)) + "</b>" + (isNew ? '<i class="newdot" title="' + esc(t(lang, "newTip")) + '"></i>' : "") +
+        "<time>" + esc(len) + '</time></span><span class="rfacts">' + factsHTML(it, lang) + "</span>" + stripHTML(m, app.follow) + "</button>";
+    });
+    return h;
+  }
+
+  function tabsBar(app, lang) {
+    var bar = el("div", "tabs");
+    bar.setAttribute("role", "tablist");
+    var cur = currentTab(app, lang);
+    var base = followed(app, app.meetings);
+    bar.innerHTML = '<span class="ind" id="ind"></span>' + tabsOf(app, lang).map(function (tb) {
+      var n = base.filter(tb.f).length;
+      return '<button role="tab" type="button" data-tab="' + esc(tb.id) + '" aria-selected="' + (tb.id === cur.id) + '" class="' +
+        (tb.cls || "") + (tb.cls && n ? " has" : "") + '">' + esc(tb.label) + "<em>" + n + "</em></button>";
+    }).join("");
     return bar;
   }
 
-  // Wispr-Flow-style preview of the hovered meeting (Karim 2026-11-02).
+  function typesBar(app, lang) {
+    var tab = currentTab(app, lang);
+    var list = followed(app, app.meetings.filter(tab.f));
+    var counts = {};
+    list.forEach(function (m) { if (m.meeting_type) counts[m.meeting_type] = (counts[m.meeting_type] || 0) + 1; });
+    var present = MTYPES.filter(function (k) { return counts[k]; });
+    if (!present.length && !app.mtype) return null;
+    var bar = el("div", "types");
+    bar.setAttribute("aria-label", t(lang, "sortedBy"));
+    bar.innerHTML = "<span>" + esc(t(lang, "sortedBy")) + "</span>" + present.map(function (k) {
+      return '<button type="button" class="tchip-f" data-mtype="' + k + '" aria-pressed="' + (app.mtype === k) + '">' +
+        esc(t(lang, "t_" + k)) + "<em>" + counts[k] + "</em></button>";
+    }).join("");
+    return bar;
+  }
+
+  function folderTools(app, lang) {
+    var tab = currentTab(app, lang);
+    if (!tab.folder) return null;
+    var box = el("div", "ftools");
+    box.dataset.folderId = tab.folder.folder_id;
+    if (app.folderEdit === "rename") {
+      box.innerHTML = '<input class="in" id="frename" aria-label="' + esc(t(lang, "renameF")) + '" value="' + esc(tab.folder.name) + '">' +
+        '<button type="button" class="btn-2" data-fdo="rename-save">' + esc(t(lang, "save")) + '</button><button type="button" class="link" data-fdo="cancel">' + esc(t(lang, "cancel")) + "</button>";
+    } else if (app.folderEdit === "delete") {
+      box.innerHTML = "<span>" + esc(t(lang, "deleteQ", { n: tab.folder.name })) + '</span><button type="button" class="btn-2 danger" data-fdo="delete-yes">' +
+        esc(t(lang, "del")) + '</button><button type="button" class="link" data-fdo="cancel">' + esc(t(lang, "cancel")) + "</button>";
+    } else {
+      box.innerHTML = '<button type="button" class="link" data-fdo="rename">' + esc(t(lang, "renameF")) + '</button><button type="button" class="link" data-fdo="delete">' + esc(t(lang, "deleteF")) + "</button>";
+    }
+    return box;
+  }
+
+  function followBar(app, lang) {
+    var bar = el("div", "follow");
+    var n = followed(app, app.meetings).length;
+    bar.innerHTML = avHTML(app.follow, false) + "<span>" + esc(t(lang, "following", { n: app.follow })) + " · " +
+      esc(t(lang, "followIn", { k: n, t: app.meetings.length })) + '</span><button type="button" class="link" data-follow="">' + esc(t(lang, "followStop")) + "</button>";
+    return bar;
+  }
+
+  function platesHTML(m, lang) {
+    var h = "";
+    if (m.summary) h += '<section class="plate p-sum"><h3>' + esc(t(lang, "sumT")) + '</h3><p dir="auto">' + esc(m.summary) + "</p></section>";
+    if (m.actions.length) {
+      h += '<section class="plate p-act"><h3>' + esc(t(lang, "actions")) + " <em>" + m.actions.length + "</em></h3><ul>";
+      m.actions.slice().sort(function (a, b) { return URG_ORDER.indexOf(a.urgency) - URG_ORDER.indexOf(b.urgency); }).forEach(function (a) {
+        h += '<li data-act="' + m.actions.indexOf(a) + '" class="u-' + esc(a.urgency) + '"><i class="udot"></i><span dir="auto">' + esc(a.text) +
+          "</span><small>" + esc(a.owner || t(lang, "noOwner")) + (a.status === "suggested" ? " · " + esc(t(lang, "suggested")) : "") +
+          " · " + esc(t(lang, a.urgency).split(" /")[0]) + (a.at != null ? " · " + clock(a.at) : "") + "</small></li>";
+      });
+      h += "</ul></section>";
+    }
+    [["decision", "decsShort"], ["question", "qs"], ["pushback", "pushes"]].forEach(function (k) {
+      var ps = m.points.filter(function (p) { return p.kind === k[0]; });
+      if (!ps.length) return;
+      h += '<section class="plate p-' + k[0] + '"><h3>' + esc(t(lang, k[1])) + " <em>" + ps.length + "</em></h3><ul>";
+      ps.slice(0, 3).forEach(function (p) {
+        h += '<li data-pt="' + m.points.indexOf(p) + '"><span dir="auto">' + esc(p.text) + "</span><small>" + esc(p.who) +
+          (p.at != null ? " · " + clock(p.at) : "") + "</small></li>";
+      });
+      if (ps.length > 3) h += '<li class="more">' + esc(t(lang, "nMore", { n: ps.length - 3 })) + "</li>";
+      h += "</ul></section>";
+    });
+    return h || '<section class="plate p-sum"><h3>' + esc(t(lang, "sumT")) + "</h3><p>" + esc(t(lang, "nothing")) + "</p></section>";
+  }
+
+  function viewSegHTML(mode, lang) {
+    return '<div class="vseg" role="group" aria-label="' + esc(t(lang, "recView")) + '"><span class="vknob"></span>' +
+      '<button type="button" data-view="simple" aria-pressed="' + (mode === "simple") + '">' + esc(t(lang, "simple")) + "</button>" +
+      '<button type="button" data-view="detailed" aria-pressed="' + (mode === "detailed") + '">' + esc(t(lang, "detailed")) + "</button></div>";
+  }
+
+  function keyHTML(lang) {
+    return '<div class="key"><span style="--c:var(--dec)">' + esc(t(lang, "decision")) + '</span><span style="--c:var(--q)">' + esc(t(lang, "kQ")) +
+      '</span><span style="--c:var(--push)">' + esc(t(lang, "pushback")) + '</span><span style="--c:var(--pt)">' + esc(t(lang, "point")) +
+      '</span><span class="k-act" style="--c:var(--med)">' + esc(t(lang, "action")) + "</span><span>" + esc(t(lang, "kTall")) + "</span></div>";
+  }
+
   function previewPanel(app, lang) {
-    var panel = el("section", "preview glass");
+    var panel = el("section", "preview pv");
     panel.id = "preview";
     panel.setAttribute("aria-live", "polite");
     var page = app.previewId ? app.previews[app.previewId] : null;
@@ -966,57 +1221,581 @@
       panel.appendChild(el("p", "empty", t(lang, "preview")));
       return panel;
     }
-    var m = page.meeting;
-    panel.appendChild(el("h2", null, titleOf(m)));
-    panel.appendChild(el("p", "sub", fmtDate(m.t0_ms) + (m.title && m.title !== m.subject ? " \u00B7 " + m.subject : "")));
-    panel.appendChild(el("p", "pv-summary", m.summary || t(lang, "noSummary")));
-    var counts = URG_ORDER.map(function (u) {
-      var n = page.actions.filter(function (a) { return urgOf(a) === u; }).length;
-      return t(lang, u).split(" /")[0] + " " + n;
-    });
-    panel.appendChild(el("p", "pv-counts", counts.join(" \u00B7 ")));
-    var top = byUrg(page.actions).reduce(function (all, pair) { return all.concat(pair[1]); }, []).slice(0, 3);
-    if (top.length) {
-      panel.appendChild(el("h3", null, t(lang, "actions")));
-      var ul = el("ul", "pv-list");
-      top.forEach(function (a) {
-        var li = el("li", "u-" + urgOf(a), a.text);
-        if (a.owner) li.appendChild(el("small", null, " \u00B7 " + a.owner));
-        ul.appendChild(li);
-      });
-      panel.appendChild(ul);
-    }
-    var decs = page.points.filter(function (p) { return p.kind === "decision"; }).slice(0, 3);
-    if (decs.length) {
-      panel.appendChild(el("h3", null, t(lang, "decsShort")));
-      var dl = el("ul", "pv-list");
-      decs.forEach(function (p) { dl.appendChild(el("li", null, p.text)); });
-      panel.appendChild(dl);
-    }
-    var fold = el("div", "pv-folder");
+    var m = modelOf(app, app.previewId);
+    var it = listed(app, m.id) || {};
+    panel.dataset.id = m.id;
+    var h = '<div class="phead"><h2 dir="auto">' + esc(m.title) + "</h2>" +
+      (m.duration ? '<button class="rp-btn" id="replay" type="button">' + esc(t(lang, "replay")) + "</button>" + viewSegHTML(app.homeMode, lang) : "") + "</div>";
+    h += '<div class="pmeta">' + stackHTML(m.people, 5, true) + "<span>" + esc(fmtDate(m.t0)) + (m.duration ? " · " + esc(lenText(m.duration, lang)) : "") +
+      " · " + m.people.map(esc).join(", ") + "</span></div>";
+    h += '<div class="ptype">' + (it.meeting_type ? '<span class="tchip">' + esc(t(lang, "t_" + it.meeting_type)) + "</span><small>" +
+      esc(t(lang, it.type_by === "you" ? "typeByYou" : "typeByHalo")) + "</small>" : "") +
+      '<label><span class="sr">' + esc(t(lang, "typeLabel")) + '</span><select class="mtype-set" data-meeting="' + esc(m.id) + '">' +
+      '<option value="">' + esc(t(lang, it.meeting_type && it.type_by !== "you" ? "typeHalo" : "typePick")) + "</option>" +
+      MTYPES.map(function (k) {
+        return '<option value="' + k + '"' + (it.type_by === "you" && it.meeting_type === k ? " selected" : "") + ">" + esc(t(lang, "t_" + k)) + "</option>";
+      }).join("") + "</select></label></div>";
+    if (m.duration) h += '<div class="timeline ' + app.homeMode + '"></div>' + keyHTML(lang) + '<div class="tip"></div>';
+    h += '<div class="plates">' + platesHTML(m, lang) + "</div>";
+    panel.innerHTML = h;
+    var foot = el("div", "pfoot");
     var sel = el("select", "move-folder");
     sel.setAttribute("aria-label", t(lang, "moveTo"));
-    sel.dataset.meeting = m.meeting_id;
-    var listed = app.meetings.filter(function (x) { return x.meeting_id === m.meeting_id; })[0];
+    sel.dataset.meeting = m.id;
     [{ folder_id: "", name: t(lang, "noFolder") }].concat(app.folders).forEach(function (f) {
       var o = el("option", null, f.name);
       o.value = f.folder_id;
-      o.selected = ((listed && listed.folder_id) || "") === f.folder_id;
+      o.selected = (it.folder_id || "") === f.folder_id;
       sel.appendChild(o);
     });
-    fold.appendChild(sel);
+    foot.appendChild(sel);
     var input = el("input", "new-folder in");
     input.placeholder = t(lang, "newFolder");
     input.setAttribute("aria-label", t(lang, "newFolder"));
-    fold.appendChild(input);
-    var create = el("button", "create-folder btn glass", t(lang, "createFolder"));
-    create.dataset.meeting = m.meeting_id;
-    fold.appendChild(create);
-    panel.appendChild(fold);
-    var open = el("button", "btn glass pv-open", t(lang, "openNotes"));
-    open.dataset.open = m.meeting_id;
-    panel.appendChild(open);
+    foot.appendChild(input);
+    var create = el("button", "create-folder btn-2", t(lang, "createFolder"));
+    create.type = "button";
+    create.dataset.meeting = m.id;
+    foot.appendChild(create);
+    foot.appendChild(el("span", "sp"));
+    var arch = el("button", "btn-2", t(lang, it.archived ? "unarchive" : "archive"));
+    arch.type = "button";
+    arch.dataset.archive = m.id;
+    arch.dataset.on = it.archived ? "0" : "1";
+    foot.appendChild(arch);
+    var open = el("button", "btn pv-open", t(lang, "openNotes"));
+    open.type = "button";
+    open.dataset.open = m.id;
+    foot.appendChild(open);
+    panel.appendChild(foot);
     return panel;
+  }
+
+  // ---- The preview's recording line: audio, marks, tip, flag, Replay, the living line ----
+  var LIVING = { sg: 60, follow: 0.12, k: 0.08, damp: 0.78, phs: 0.045 };
+  var lineSeq = 0;
+
+  function stopHome(H) {
+    if (H.audio) { try { H.audio.pause(); } catch (e) { /* gone */ } }
+    H.audio = null;
+    cancelAnimationFrame(H.raf || 0);
+    cancelAnimationFrame(H.rpRaf || 0);
+    H.raf = H.rpRaf = 0;
+  }
+
+  function markInfo(H, mk) {
+    var m = H.m;
+    var lang = H.app.lang;
+    if (mk.dataset.a != null) {
+      var a = m.actions[+mk.dataset.a];
+      return { at: a.at, tone: a.urgency, head: t(lang, "action") + " · " + (a.owner || t(lang, "noOwner")) + " · " + t(lang, a.urgency).split(" /")[0],
+        text: a.text, sel: '.p-act li[data-act="' + mk.dataset.a + '"]', label: t(lang, "action") };
+    }
+    var p = m.points[+mk.dataset.i];
+    return { at: p.at, tone: p.kind, head: p.who + " · " + t(lang, p.kind === "question" ? "kQ" : p.kind) + (p.urgency === "urgent" ? " · " + t(lang, "urgent") : ""),
+      text: p.text, sel: '.plate li[data-pt="' + mk.dataset.i + '"]', label: t(lang, p.kind === "question" ? "kQ" : p.kind) };
+  }
+
+  function showTip(H, mk) {
+    if (!mk) return;
+    var x = markInfo(H, mk);
+    var tip = H.pv.querySelector(".tip");
+    tip.className = "tip t-" + x.tone;
+    tip.innerHTML = "<small>" + clock(x.at) + " · " + esc(x.head) + '</small><br><span dir="auto">' + esc(x.text) + "</span>";
+  }
+
+  function pin(H, mk, keep, quiet) {
+    H.pv.querySelectorAll(".big .on, .plate li.lit").forEach(function (x) { x.classList.remove("on", "lit"); });
+    if (H.pinned === mk && !keep) { H.pinned = null; return; }
+    H.pinned = mk;
+    mk.classList.add("on");
+    showTip(H, mk);
+    var tip = H.pv.querySelector(".tip");
+    tip.classList.remove("pop");
+    void tip.offsetWidth;
+    tip.classList.add("pop");
+    var li = H.pv.querySelector(markInfo(H, mk).sel);
+    if (li) {
+      li.classList.add("lit");
+      if (!quiet && li.scrollIntoView) li.scrollIntoView({ block: "nearest", behavior: stillMotion() ? "auto" : "smooth" });
+    }
+  }
+
+  function flag(H, big, mk) {
+    var f = big.querySelector(".flag");
+    if (!f) { f = H.app.doc.createElement("span"); big.appendChild(f); }
+    var x = markInfo(H, mk);
+    var r = mk.getBoundingClientRect();
+    var b = big.getBoundingClientRect();
+    f.className = "flag f-" + x.tone;
+    f.textContent = clock(x.at) + " · " + x.label;
+    f.style.left = (r.left - b.left + r.width / 2) + "px";
+    f.style.top = (r.top - b.top) + "px";
+    void f.offsetWidth;
+    f.classList.add("show");
+    clearTimeout(f._t);
+    f._t = setTimeout(function () { f.classList.remove("show"); }, 2200);
+  }
+
+  function laneHTML(m, who) {
+    var n = 0;
+    return '<div class="strip">' + m.points.map(function (p, i) {
+      if (p.at == null || (who && p.who !== who)) return "";
+      return '<i class="' + p.kind + (p.urgency === "urgent" ? " urgent" : "") + '" style="left:' + Math.min(100, (p.at / m.duration) * 100).toFixed(2) +
+        "%;--n:" + (n++) + '" data-i="' + i + '"></i>';
+    }).join("") + "</div>";
+  }
+
+  function railHTML(m) {
+    return '<div class="strip arail">' + m.actions.map(function (a, j) {
+      if (a.at == null) return "";
+      return '<b class="am u-' + a.urgency + '" style="left:calc(6px + (100% - 12px) * ' + Math.min(1, a.at / m.duration).toFixed(4) + ')" data-a="' + j + '"></b>';
+    }).join("") + "</div>";
+  }
+
+  function renderTimeline(H, unfold) {
+    var m = H.m;
+    var lang = H.app.lang;
+    var mode = H.app.homeMode;
+    var r = 0;
+    var row = function (lab, strip) {
+      return '<div class="lab" style="--r:' + r + '">' + lab + "</div>" + strip.replace('class="strip', 'style="--r:' + (r++) + '" class="strip');
+    };
+    var play = '<button class="play" type="button" aria-label="' + esc(t(lang, "playRec")) + '" disabled><svg viewBox="0 0 16 16" aria-hidden="true">' +
+      '<path class="i-play" d="M5 3.2v9.6l7.6-4.8z"/><g class="i-pause"><rect x="3.5" y="3.2" width="3" height="9.6" rx="1"/><rect x="9.5" y="3.2" width="3" height="9.6" rx="1"/></g></svg></button>';
+    var h;
+    if (mode === "simple") h = row(play, laneHTML(m)) + row("", railHTML(m));
+    else {
+      h = row(play + '<span class="rlab">' + esc(t(lang, "recording")) + "</span>", '<div class="strip track"></div>');
+      m.people.forEach(function (p) { h += row(avHTML(p, false) + "<span>" + esc(p) + "</span>", laneHTML(m, p)); });
+      h += row('<span class="adia"></span><span>' + esc(t(lang, "actions")) + "</span>", railHTML(m));
+    }
+    var tl = H.pv.querySelector(".timeline");
+    tl.className = "timeline " + mode;
+    tl.innerHTML = '<div class="big ' + mode + (unfold ? " unfold" : "") + '">' + h + '</div><div class="axisrow"><span></span><div class="axis"><span><span class="tnow">0:00</span></span><span>' +
+      clock(m.duration) + "</span></div></div>";
+    wireBig(H, tl.querySelector(".big"));
+    bindPlay(H);
+  }
+
+  function setupAudio(H) {
+    var a = new Audio();
+    a.preload = "metadata";
+    a.src = "/api/audio?meeting_id=" + encodeURIComponent(H.m.id);
+    a._ok = false;
+    a._last = 0;
+    H.audio = a;
+    a.addEventListener("loadedmetadata", function () { if (H.audio !== a) return; a._ok = true; bindPlay(H); });
+    a.addEventListener("error", function () { if (H.audio !== a) return; a._ok = false; a._none = true; bindPlay(H); });
+    a.addEventListener("ended", function () { if (H.audio !== a) return; bindPlay(H); });
+  }
+
+  function bindPlay(H) {
+    var btn = H.pv.querySelector(".play");
+    var a = H.audio;
+    if (!btn || !a) return;
+    var lang = H.app.lang;
+    btn.disabled = !a._ok;
+    btn.classList.toggle("playing", !a.paused && !a.ended);
+    btn.setAttribute("aria-label", t(lang, a.paused ? "playRec" : "pauseRec"));
+    if (a._none) {
+      btn.title = t(lang, "norecShort");
+      var lab = H.pv.querySelector(".rlab");
+      var now = H.pv.querySelector(".tnow");
+      if (lab) lab.innerHTML = '<span class="norec-s">' + esc(t(lang, "norecShort")) + "</span>";
+      else if (now) { now.textContent = t(lang, "norecShort"); now.className = "tnow norec-s"; }
+    }
+    btn.onclick = function () {
+      if (!a._ok) return;
+      if (a.paused) { var p = a.play(); if (p && p.catch) p.catch(function () {}); } else a.pause();
+    };
+    a.onplay = function () { bindPlay(H); tick(H); };
+    a.onpause = function () { bindPlay(H); };
+    paint(H);
+  }
+
+  function tick(H) {
+    cancelAnimationFrame(H.raf || 0);
+    var step = function () {
+      if (!H.audio || H.audio.paused) return;
+      paint(H);
+      H.raf = requestAnimationFrame(step);
+    };
+    H.raf = requestAnimationFrame(step);
+  }
+
+  function paint(H) {
+    var big = H.pv.querySelector(".big");
+    var a = H.audio;
+    if (!big || !a) return;
+    var m = H.m;
+    var f = Math.min(1, (a.currentTime * 1000) / m.duration) || 0;
+    var s = big.querySelector(".strip:not(.arail)").getBoundingClientRect();
+    var b = big.getBoundingClientRect();
+    big._pf = f;
+    if (big._kick) big._kick();
+    var ph = big.querySelector(".phd");
+    ph.style.transform = "translateX(" + (s.left - b.left + f * s.width) + "px)";
+    ph.classList.toggle("show", a.currentTime > 0);
+    var now = H.pv.querySelector(".tnow");
+    if (now && !a._none) now.textContent = clock(f * m.duration);
+    var last = a._last;
+    a._last = f;
+    if (a.paused || f <= last) return;
+    big.querySelectorAll(".strip i, .strip b").forEach(function (mk) {
+      var at = markInfo(H, mk).at / m.duration;
+      if (at > last && at <= f) {
+        mk.classList.remove("pass");
+        void mk.offsetWidth;
+        mk.classList.add("pass");
+        if (!H.pinned) showTip(H, mk);
+      }
+    });
+  }
+
+  function seek(H, f) {
+    var a = H.audio;
+    if (!a || !a._ok) return;
+    a.currentTime = (f * H.m.duration) / 1000;
+    a._last = f;
+    paint(H);
+  }
+
+  // The recording line as a living shape (Karim's pick "5 Living"): it swells
+  // under the cursor with a soft spring and breathes while the hand is near.
+  function setupLines(H, big) {
+    var detailed = big.classList.contains("detailed");
+    var out = [];
+    big.querySelectorAll(".strip:not(.arail)").forEach(function (st) {
+      st.classList.add("live");
+      var w = st.clientWidth;
+      var h = st.clientHeight;
+      var id = "ln" + (++lineSeq);
+      st.insertAdjacentHTML("afterbegin", '<svg class="line" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '" aria-hidden="true"><defs>' +
+        '<clipPath id="' + id + 'h"><rect height="' + h + '" width="0"/></clipPath><clipPath id="' + id + 'p"><rect height="' + h + '" width="0"/></clipPath></defs>' +
+        '<path class="l-base"/><path class="l-hov" clip-path="url(#' + id + 'h)"/><path class="l-play" clip-path="url(#' + id + 'p)"/></svg>');
+      var svg = st.firstChild;
+      out.push({ st: st, w: w, mid: detailed ? 13 : 15, base: detailed ? 2 : 4, x: w / 2, tx: w / 2, a: 0, va: 0, ta: 0, hf: 0, thf: 0, ph: 0,
+        paths: Array.prototype.slice.call(svg.querySelectorAll("path")), rh: svg.querySelector("#" + id + "h rect"), rp: svg.querySelector("#" + id + "p rect") });
+    });
+    var raf2 = 0;
+    function draw(o) {
+      var N = 90;
+      var top = [];
+      var bot = [];
+      var scale = detailed ? 0.7 : 1;
+      for (var i = 0; i <= N; i++) {
+        var x = (o.w * i) / N;
+        var g = Math.exp(-Math.pow((x - o.x) / LIVING.sg, 2)) * scale;
+        var th = Math.max(o.base * 0.7, o.base + o.a * (2.1 + 0.4 * Math.sin(o.ph)) * g);
+        top.push(x.toFixed(1) + " " + (o.mid - th / 2).toFixed(2));
+        bot.unshift(x.toFixed(1) + " " + (o.mid + th / 2).toFixed(2));
+      }
+      var d = "M" + top.join(" L") + " L" + bot.join(" L") + "Z";
+      o.paths.forEach(function (p) { p.setAttribute("d", d); });
+      o.rh.setAttribute("width", (o.hf * o.w).toFixed(1));
+      o.rp.setAttribute("width", ((big._pf || 0) * o.w).toFixed(1));
+    }
+    function step() {
+      var moving = false;
+      var still = stillMotion();
+      out.forEach(function (o) {
+        if (still) { o.x = o.tx; o.a = o.ta; o.va = 0; o.hf = o.thf; }
+        else {
+          o.x += (o.tx - o.x) * LIVING.follow;
+          o.va = (o.va + (o.ta - o.a) * LIVING.k) * LIVING.damp;
+          o.a += o.va;
+          o.hf += (o.thf - o.hf) * 0.18;
+          o.ph += LIVING.phs;
+        }
+        draw(o);
+        if (Math.abs(o.tx - o.x) > 0.3 || Math.abs(o.ta - o.a) > 0.01 || Math.abs(o.va) > 0.01 || Math.abs(o.thf - o.hf) > 0.001 || (!still && o.a > 0.01)) moving = true;
+      });
+      raf2 = moving && big.isConnected ? requestAnimationFrame(step) : 0;
+    }
+    big._kick = function () { if (!raf2) raf2 = requestAnimationFrame(step); };
+    out.forEach(draw);
+    return out;
+  }
+
+  function wireBig(H, big) {
+    var doc = H.app.doc;
+    var m = H.m;
+    var marks = Array.prototype.slice.call(big.querySelectorAll(".strip i, .strip b"));
+    var cur = doc.createElement("span");
+    cur.className = "cur";
+    cur.setAttribute("aria-hidden", "true");
+    cur.appendChild(doc.createElement("em"));
+    big.appendChild(cur);
+    var lines = setupLines(H, big);
+    var ph = doc.createElement("span");
+    ph.className = "phd";
+    ph.setAttribute("aria-hidden", "true");
+    big.appendChild(ph);
+    marks.forEach(function (mk) {
+      var x = markInfo(H, mk);
+      mk.tabIndex = 0;
+      mk.setAttribute("role", "button");
+      mk.setAttribute("aria-label", clock(x.at) + ", " + x.head + ": " + x.text);
+      mk.addEventListener("focus", function () { if (!H.pinned) showTip(H, mk); });
+      mk.addEventListener("click", function (e) { e.stopPropagation(); pin(H, mk); seek(H, x.at / m.duration); });
+      mk.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pin(H, mk); } });
+    });
+    var near = null;
+    var frac = function (e) {
+      var s = big.querySelector(".strip:not(.arail)").getBoundingClientRect();
+      return { s: s, f: Math.max(0, Math.min(1, (e.clientX - s.left) / s.width)) };
+    };
+    big.addEventListener("mousemove", function (e) {
+      var q = frac(e);
+      var b = big.getBoundingClientRect();
+      big.classList.add("tracking");
+      cur.style.transform = "translateX(" + (q.s.left - b.left + q.f * q.s.width) + "px)";
+      cur.firstChild.textContent = clock(q.f * m.duration);
+      cur.classList.add("show");
+      // Lens: marks within 70px swell up to 1.35x, the nearest most.
+      marks.forEach(function (mk) {
+        var r = mk.getBoundingClientRect();
+        var dx = Math.abs(r.left + r.width / 2 - e.clientX);
+        mk.style.setProperty("--mag", (1 + 0.35 * Math.max(0, 1 - dx / 70)).toFixed(3));
+      });
+      var det = big.classList.contains("detailed");
+      var lane = null;
+      if (det) {
+        big.querySelectorAll(".strip").forEach(function (st) {
+          var r = st.getBoundingClientRect();
+          if (e.clientY >= r.top - 2 && e.clientY <= r.bottom + 2) lane = st;
+        });
+        big.querySelectorAll(".lane-on").forEach(function (x) { x.classList.remove("lane-on"); });
+        if (lane) {
+          lane.classList.add("lane-on");
+          if (lane.previousElementSibling) lane.previousElementSibling.classList.add("lane-on");
+        }
+      }
+      lines.forEach(function (o) {
+        o.tx = q.f * o.w;
+        o.thf = q.f;
+        o.ta = !det || o.st === lane ? 1 : 0;
+      });
+      big._kick();
+      var best = null;
+      var bd = 14;
+      marks.forEach(function (mk) {
+        var r = mk.getBoundingClientRect();
+        var d = Math.hypot(r.left + r.width / 2 - e.clientX, (r.top + r.height / 2 - e.clientY) * 0.6);
+        if (d < bd) { bd = d; best = mk; }
+      });
+      if (best !== near) {
+        if (near) near.classList.remove("near");
+        near = best;
+        if (near) { near.classList.add("near"); if (!H.pinned) showTip(H, near); }
+      }
+    });
+    big.addEventListener("mouseleave", function () {
+      big.classList.remove("tracking");
+      marks.forEach(function (mk) { mk.style.removeProperty("--mag"); });
+      lines.forEach(function (o) { o.ta = 0; o.thf = 0; });
+      big._kick();
+      big.querySelectorAll(".lane-on").forEach(function (x) { x.classList.remove("lane-on"); });
+      cur.classList.remove("show");
+      if (near) near.classList.remove("near");
+      near = null;
+    });
+    // A click on the line (not a mark or the button) jumps the recording there.
+    big.addEventListener("click", function (e) {
+      if (e.target.closest(".play,.lab") || !e.target.closest(".strip")) return;
+      seek(H, frac(e).f);
+      if (H.audio && H.audio._ok && H.audio.paused) { var p = H.audio.play(); if (p && p.catch) p.catch(function () {}); }
+    });
+    // Every plate item knows its mark: hover lights it, click jumps there with a small flag.
+    H.pv.querySelectorAll(".plate li[data-pt], .p-act li[data-act]").forEach(function (li) {
+      var mk = li.dataset.act != null ? big.querySelector('.am[data-a="' + li.dataset.act + '"]') : big.querySelector('.strip i[data-i="' + li.dataset.pt + '"]');
+      if (!mk) return;
+      li.classList.add("has-mark");
+      li.tabIndex = 0;
+      li.onmouseenter = function () { mk.classList.add("near"); };
+      li.onmouseleave = function () { mk.classList.remove("near"); };
+      var go = function () {
+        pin(H, mk, true);
+        seek(H, markInfo(H, mk).at / m.duration);
+        if (big.scrollIntoView) big.scrollIntoView({ block: "nearest", behavior: stillMotion() ? "auto" : "smooth" });
+        flag(H, big, mk);
+      };
+      li.onclick = go;
+      li.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+    });
+  }
+
+  function moveKnob(H) {
+    var on = H.pv.querySelector(".vseg [aria-pressed=true]");
+    var knob = H.pv.querySelector(".vknob");
+    if (on && knob) knob.style.transform = "translateX(" + on.offsetLeft + "px) scaleX(" + on.offsetWidth + ")";
+  }
+
+  // Replay: the line fills over 6 s; each mark nods as it is reached, its words
+  // take the box and its plate item lights. A second press stops it.
+  function replay(H) {
+    var big = H.pv.querySelector(".big");
+    var btn = H.pv.querySelector("#replay");
+    if (!big) return;
+    var lang = H.app.lang;
+    var ph = big.querySelector(".phd");
+    if (H.rpRaf) {
+      cancelAnimationFrame(H.rpRaf);
+      H.rpRaf = 0;
+      btn.textContent = t(lang, "replay");
+      big._pf = 0;
+      big._kick();
+      ph.classList.remove("show");
+      return;
+    }
+    if (H.audio && !H.audio.paused) H.audio.pause();
+    var marks = Array.prototype.slice.call(big.querySelectorAll(".strip i, .strip b")).map(function (mk) {
+      return { mk: mk, f: markInfo(H, mk).at / H.m.duration };
+    }).sort(function (a, b) { return a.f - b.f; });
+    var T = stillMotion() ? 0 : 6000;
+    var t0 = performance.now();
+    var next = 0;
+    btn.textContent = t(lang, "stop");
+    var frame = function (now) {
+      var f = T ? Math.min(1, (now - t0) / T) : 1;
+      var s = big.querySelector(".strip:not(.arail)").getBoundingClientRect();
+      var b = big.getBoundingClientRect();
+      big._pf = f;
+      big._kick();
+      ph.style.transform = "translateX(" + (s.left - b.left + f * s.width) + "px)";
+      ph.classList.add("show");
+      var tn = H.pv.querySelector(".tnow");
+      if (tn && !(H.audio && H.audio._none)) tn.textContent = clock(f * H.m.duration);
+      while (next < marks.length && marks[next].f <= f) {
+        var mk = marks[next++].mk;
+        mk.classList.remove("pass");
+        void mk.offsetWidth;
+        mk.classList.add("pass");
+        pin(H, mk, true, true);
+      }
+      if (f < 1 && big.isConnected) H.rpRaf = requestAnimationFrame(frame);
+      else {
+        H.rpRaf = 0;
+        btn.textContent = t(lang, "replay");
+        setTimeout(function () { ph.classList.remove("show"); big._pf = 0; big._kick(); }, 900);
+      }
+    };
+    H.rpRaf = requestAnimationFrame(frame);
+  }
+
+  // Called after every list render and preview swap: slides the tab underline
+  // and wires the preview once per element.
+  function wireHome(app) {
+    var doc = app.doc;
+    var H = app.home;
+    var ind = doc.getElementById("ind");
+    var on = doc.querySelector(".tabs [aria-selected=true]");
+    if (ind && on) {
+      var to = "translateX(" + on.offsetLeft + "px) scaleX(" + on.offsetWidth + ")";
+      if (H.ind && H.ind !== to && !stillMotion()) {
+        ind.style.transition = "none";
+        ind.style.transform = H.ind;
+        void ind.offsetWidth;
+        ind.style.transition = "";
+      }
+      ind.style.transform = to;
+      H.ind = to;
+    }
+    var pv = doc.getElementById("preview");
+    if (!pv || !pv.dataset.id || H.pv === pv) return;
+    stopHome(H);
+    H.app = app;
+    H.pv = pv;
+    H.m = modelOf(app, pv.dataset.id);
+    H.pinned = null;
+    pv.addEventListener("click", function (e) {
+      if (e.target.closest("#replay")) { replay(H); return; }
+      var v = e.target.closest("[data-view]");
+      if (!v || v.dataset.view === app.homeMode) return;
+      app.homeMode = v.dataset.view;
+      stored(MODE_KEY, app.homeMode);
+      pv.querySelectorAll(".vseg [data-view]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === v)); });
+      moveKnob(H);
+      H.pinned = null;
+      renderTimeline(H, true);
+    });
+    if (!H.m || !H.m.duration) return;
+    setupAudio(H);
+    renderTimeline(H, false);
+    var first = pv.querySelector(".big .strip i, .big .strip b");
+    if (first) showTip(H, first);
+    moveKnob(H);
+  }
+
+  function renderList(app, view, lang) {
+    view.classList.add("home");
+    var head = el("div", "home-head");
+    var left = el("div");
+    left.appendChild(el("h1", null, t(lang, "meetings")));
+    var finding = el("p", "finding");
+    finding.id = "finding";
+    finding.innerHTML = sinceHTML(app, lang);
+    left.appendChild(finding);
+    head.appendChild(left);
+    head.appendChild(askForm(app, lang));
+    view.appendChild(head);
+    var label = el("label", "search");
+    var icon = el("span", null, "⌕");
+    icon.setAttribute("aria-hidden", "true");
+    label.appendChild(icon);
+    label.appendChild(el("span", "sr", t(lang, "search")));
+    var input = document.createElement("input");
+    input.id = "q";
+    input.type = "search";
+    input.value = app.q;
+    input.placeholder = t(lang, "search");
+    label.appendChild(input);
+    view.appendChild(label);
+    if (app.ask) view.appendChild(askPanel(app, app.ask, lang));
+    if (app.follow) view.appendChild(followBar(app, lang));
+    view.appendChild(tabsBar(app, lang));
+    var tools = el("div", "subbar");
+    var types = typesBar(app, lang);
+    if (types) tools.appendChild(types);
+    var ft = folderTools(app, lang);
+    if (ft) tools.appendChild(ft);
+    if (tools.firstChild) view.appendChild(tools);
+    var grid = el("div", "listgrid");
+    var listSection = el("section", "list");
+    listSection.id = "list";
+    listSection.setAttribute("aria-label", t(lang, "meetings"));
+    var shown = visibleMeetings(app, lang);
+    listSection.innerHTML = rowsHTML(app, shown, lang);
+    if (!shown.length) {
+      var calm = app.tab === "urgent" || app.tab === "action";
+      listSection.appendChild(el("p", calm ? "allclear" : "finding", t(lang, calm ? "allClear" : "emptyTab")));
+    }
+    // The preview starts on the first meeting shown instead of an empty panel.
+    if (shown.length && app.setPreview && !shown.some(function (m) { return m.meeting_id === app.previewId; })) {
+      Promise.resolve().then(function () { app.setPreview(shown[0].meeting_id); });
+    }
+    grid.appendChild(listSection);
+    if (app.q.trim()) {
+      var hitsSection = el("section", "hits");
+      hitsSection.setAttribute("aria-live", "polite");
+      hitsSection.appendChild(el("h2", null, t(lang, "results")));
+      var hits = el("div");
+      hits.id = "hits";
+      app.hits.forEach(function (h) { hits.appendChild(hitRow(app, h, lang)); });
+      if (app.hits.length === 0) hits.appendChild(el("p", "empty", t(lang, "noHits")));
+      hitsSection.appendChild(hits);
+      grid.appendChild(hitsSection);
+    } else {
+      grid.appendChild(previewPanel(app, lang));
+    }
+    view.appendChild(grid);
+    // Arrival: the page draws itself once per visit.
+    if (!app.arrived && app.meetings.length && !stillMotion()) {
+      app.arrived = true;
+      view.classList.add("arrive");
+      setTimeout(function () { view.classList.remove("arrive"); }, 2600);
+    }
   }
 
   function render(app) {
@@ -1049,14 +1828,18 @@
     var focused = doc.activeElement && doc.activeElement.id && view.contains(doc.activeElement)
       ? { id: doc.activeElement.id, at: doc.activeElement.selectionStart } : null;
     view.textContent = "";
+    view.classList.remove("home");
     // Motion is feedback: the screen eases in only when it really changes (another
     // meeting, person, filter or folder), never on a keystroke re-render.
-    var key = app.view === "list" || !app.page ? "list:" + (app.folder || "")
+    var key = app.view === "list" || !app.page ? "list:" + app.tab + ":" + app.mtype + ":" + (app.follow || "")
       : "m:" + app.page.meeting.meeting_id + ":" + (app.person || "") + ":" + (app.cat || "");
     view.classList.toggle("enter", key !== app.viewKey);
     app.viewKey = key;
+    if (app.view !== "list") stopHome(app.home);
+    app.home.pv = null; // the old preview element is gone
     if (app.view === "list" || !app.page) renderList(app, view, lang);
     else renderMeeting(app, view, lang);
+    if (app.view === "list") wireHome(app);
     var again = focused && doc.getElementById(focused.id);
     if (again) {
       again.focus();
@@ -1064,12 +1847,18 @@
     }
   }
 
-  function toast(app, message) {
+  function toast(app, message, undoLabel, onUndo) {
     var node = app.doc.getElementById("toast");
     node.textContent = message;
+    if (undoLabel) {
+      var undo = el("button", "toast-undo", undoLabel);
+      undo.type = "button";
+      undo.onclick = function () { node.classList.remove("show"); onUndo(); };
+      node.appendChild(undo);
+    }
     node.classList.add("show");
     clearTimeout(app.toastTimer);
-    app.toastTimer = setTimeout(function () { node.classList.remove("show"); }, 2200);
+    app.toastTimer = setTimeout(function () { node.classList.remove("show"); }, undoLabel ? 5000 : 2200);
   }
 
   function exportMarkdown(page, lang) {
@@ -1168,7 +1957,15 @@
       folders: [],
       folder: "",
       previewId: null,
-      previews: {}
+      previews: {},
+      models: {},
+      home: {},
+      tab: "all",
+      mtype: "",
+      follow: null,
+      folderEdit: null,
+      homeMode: stored(MODE_KEY) === "detailed" ? "detailed" : "simple",
+      since: 0
     };
     var postJson = opts.postJson || function () { return Promise.reject(new Error("no postJson")); };
     var win = opts.win || { history: { pushState: function () {} } };
@@ -1176,7 +1973,34 @@
     app.showList = function (meetings) {
       app.view = "list";
       app.meetings = (meetings || []).map(function (m) { return tidyPage({ meeting: m }).meeting; });
+      app.since = sinceStart(app);
       render(app);
+      // Every row draws its call strip from its page.
+      // ponytail: one request per meeting; add the marks to /api/meetings if lists grow past ~50.
+      var missing = app.meetings.filter(function (m) { return !app.previews[m.meeting_id]; }).slice(0, 60);
+      if (!missing.length) return;
+      Promise.all(missing.map(function (m) {
+        return app.fetchJson("/api/meetings/" + encodeURIComponent(m.meeting_id)).then(function (page) {
+          app.previews[m.meeting_id] = tidyPage(page);
+          delete app.models[m.meeting_id];
+        }).catch(function () {});
+      })).then(function () {
+        if (app.view !== "list") return;
+        var list = app.doc.getElementById("list");
+        if (!list) return;
+        // Only the rows and the counts change: keep the preview (and its audio) as it is.
+        var fresh = app.doc.createElement("div");
+        renderList(app, fresh, app.lang);
+        var keep = app.doc.getElementById("preview");
+        var tabs = app.doc.querySelector("#view .tabs");
+        var fl = fresh.querySelector("#list");
+        list.innerHTML = fl.innerHTML;
+        if (tabs) tabs.replaceWith(fresh.querySelector(".tabs"));
+        var find = app.doc.getElementById("finding");
+        if (find) find.innerHTML = fresh.querySelector("#finding").innerHTML;
+        if (!keep || !keep.dataset.id) showPreview();
+        wireHome(app);
+      });
     };
 
     app.showMeeting = function (page) {
@@ -1221,9 +2045,21 @@
     function showPreview() {
       var old = app.doc.getElementById("preview");
       if (!old) { render(app); return; }
-      var fresh = previewPanel(app, app.lang);
-      fresh.classList.add("swap");
-      old.replaceWith(fresh);
+      if (old.dataset.id && old.dataset.id === app.previewId) return; // already showing it
+      var swap = function () {
+        var fresh = previewPanel(app, app.lang);
+        old.replaceWith(fresh);
+        app.doc.querySelectorAll("#list .row").forEach(function (r) {
+          r.setAttribute("aria-current", String(r.dataset.sel === app.previewId));
+        });
+        wireHome(app);
+      };
+      if (app.doc.startViewTransition && !stillMotion()) app.doc.startViewTransition(swap);
+      else swap();
+    }
+
+    function refreshList() {
+      return app.loadMeetings(false);
     }
 
     app.setPreview = function (id) {
@@ -1232,6 +2068,7 @@
       if (app.previews[id]) { showPreview(); return; }
       app.fetchJson("/api/meetings/" + encodeURIComponent(id)).then(function (page) {
         app.previews[id] = tidyPage(page);
+        delete app.models[id];
         if (app.previewId === id && app.view === "list") showPreview();
       }).catch(function () {});
     };
@@ -1301,13 +2138,77 @@
         onRetag(b.dataset.retag, b.dataset.val, b.dataset.action === "1");
         return;
       }
-      if ((b = g("[data-lang]"))) {
-        app.setLang(b.dataset.lang);
+      if ((b = g("[data-follow]"))) {
+        app.follow = b.dataset.follow || null;
+        render(app);
         return;
       }
-      if ((b = g("[data-folder]"))) {
-        app.folder = b.dataset.folder;
+      if ((b = g("[data-tab]"))) {
+        app.tab = b.dataset.tab;
+        app.mtype = "";
+        app.folderEdit = null;
         render(app);
+        return;
+      }
+      if ((b = g("[data-mtype]"))) {
+        app.mtype = app.mtype === b.dataset.mtype ? "" : b.dataset.mtype;
+        render(app);
+        return;
+      }
+      if ((b = g("[data-sel]"))) {
+        app.setPreview(b.dataset.sel);
+        return;
+      }
+      if ((b = g("#seen"))) {
+        app.since = Date.now();
+        stored(LAST_KEY, String(app.since));
+        render(app);
+        return;
+      }
+      if ((b = g("#unseen"))) {
+        stored(LAST_KEY, null);
+        app.since = sinceStart(app);
+        render(app);
+        return;
+      }
+      if ((b = g("[data-archive]"))) {
+        var mid = b.dataset.archive;
+        var on = b.dataset.on === "1";
+        var setArch = function (state) {
+          return postJson("/api/meetings/archive", { meeting_id: mid, archived: state }).then(refreshList);
+        };
+        setArch(on).then(function () {
+          if (on) toast(app, t(app.lang, "archivedToast"), t(app.lang, "undo"), function () { setArch(false); });
+        }).catch(function () { toast(app, t(app.lang, "notSaved")); });
+        return;
+      }
+      if ((b = g("[data-fdo]"))) {
+        var fbox = closest(b, app.doc, ".ftools");
+        var fid = fbox && fbox.dataset.folderId;
+        var act = b.dataset.fdo;
+        if (act === "rename" || act === "delete") { app.folderEdit = act; render(app); return; }
+        if (act === "cancel") { app.folderEdit = null; render(app); return; }
+        if (act === "rename-save") {
+          var nm = (app.doc.getElementById("frename") || {}).value || "";
+          if (!nm.trim()) return;
+          postJson("/api/folders/rename", { folder_id: fid, name: nm.trim() }).then(function () {
+            app.folderEdit = null;
+            return refreshList();
+          }).catch(function () { toast(app, t(app.lang, "notSaved")); });
+          return;
+        }
+        if (act === "delete-yes") {
+          postJson("/api/folders/delete", { folder_id: fid }).then(function () {
+            app.folderEdit = null;
+            app.tab = "all";
+            return refreshList();
+          }).then(function () { toast(app, t(app.lang, "folderDeleted")); })
+            .catch(function () { toast(app, t(app.lang, "notSaved")); });
+        }
+        return;
+      }
+      if ((b = g("[data-lang]"))) {
+        app.setLang(b.dataset.lang);
         return;
       }
       if ((b = g(".create-folder"))) {
@@ -1379,13 +2280,15 @@
       }
     }
 
-    function onHover(event) {
-      var card = closest(event.target, app.doc, ".mtg-card[data-open]");
-      if (card) app.setPreview(card.dataset.open);
-    }
+    function onHover() { /* Karim 2026-11-03 (AV): a click picks the preview, hover only lights the row. */ }
 
     function onChange(event) {
       var sel = event.target;
+      if (sel && sel.classList && sel.classList.contains("mtype-set")) {
+        postJson("/api/meetings/type", { meeting_id: sel.dataset.meeting, meeting_type: sel.value || null })
+          .then(refreshList).catch(function () { toast(app, t(app.lang, "notSaved")); });
+        return;
+      }
       if (sel && sel.classList && sel.classList.contains("move-folder")) {
         saveFolder("/api/folders/move", { meeting_id: sel.dataset.meeting, folder_id: sel.value || null });
       }
@@ -1403,6 +2306,9 @@
       if (event.key !== "Escape") return;
       if (app.person) {
         app.person = null;
+        render(app);
+      } else if (app.follow) {
+        app.follow = null;
         render(app);
       }
     }

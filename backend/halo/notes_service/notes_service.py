@@ -409,11 +409,11 @@ class NotesService:
             conn.row_factory = sqlite3.Row
             if project_id is not None:
                 rows = conn.execute(
-                    "SELECT meeting_id, subject, project_id, t0_ms FROM meetings"
+                    "SELECT meeting_id, subject, project_id, t0_ms, self_name FROM meetings"
                     " WHERE project_id = ? ORDER BY t0_ms DESC", (project_id,))
             else:
                 rows = conn.execute(
-                    "SELECT meeting_id, subject, project_id, t0_ms FROM meetings"
+                    "SELECT meeting_id, subject, project_id, t0_ms, self_name FROM meetings"
                     " ORDER BY t0_ms DESC")
             out = []
             filed = self._load_folders()
@@ -434,6 +434,7 @@ class NotesService:
                         (meeting["t0_ms"] or 0) / 1000, UTC).strftime("%a %d %b"),
                     "folder_id": in_folder.get(meeting["meeting_id"]),
                     "t0_ms": meeting["t0_ms"] or 0,  # the page formats the date in local time
+                    "self_name": meeting["self_name"] or "",  # "action items for you" on the home
                 }
                 if isinstance(ready.get("title"), str) and ready["title"].strip():
                     item["title"] = ready["title"].strip()

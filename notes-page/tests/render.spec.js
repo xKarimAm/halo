@@ -39,6 +39,7 @@ const postedTags = [];
 const folders = { list: [], byMeeting: {} };
 const status = { meta_key: true };
 const audio = { status: 404, hits: 0 };
+const home = { archived: false, type: null, typeBy: null, urgent: 1, posts: [] };
 
 function send(res, status, body, type) {
   res.writeHead(status, { "Content-Type": type || "application/json" });
@@ -60,7 +61,10 @@ test.beforeAll(async () => {
     if (req.method === "GET" && url.pathname === "/api/meetings") {
       return send(res, 200, JSON.stringify([
         { meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, title: GOLDEN.meeting.title,
-          people: ["Layla"], date: "Tue 28 Oct", folder_id: folders.byMeeting[MEETING_ID] || null },
+          people: ["Layla"], date: "Tue 28 Oct", folder_id: folders.byMeeting[MEETING_ID] || null,
+          t0_ms: GOLDEN.meeting.t0_ms, self_name: "Layla", minutes: 1,
+          counts: { decision: 1, question: 0, pushback: 0, urgent: home.urgent },
+          archived: home.archived, meeting_type: home.type, ...(home.typeBy ? { type_by: home.typeBy } : {}) },
       ]));
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/" + MEETING_ID) {
@@ -86,6 +90,27 @@ test.beforeAll(async () => {
           }]
         : [];
       return send(res, 200, JSON.stringify({ hits }));
+    }
+    if (req.method === "POST" && ["/api/meetings/archive", "/api/meetings/type", "/api/folders/rename",
+      "/api/folders/delete", "/api/folders/move"].includes(url.pathname)) {
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        const body = JSON.parse(raw);
+        home.posts.push({ path: url.pathname, body });
+        if (url.pathname === "/api/meetings/archive") home.archived = body.archived;
+        if (url.pathname === "/api/meetings/type") { home.type = body.meeting_type; home.typeBy = body.meeting_type ? "you" : null; }
+        if (url.pathname === "/api/folders/delete") {
+          folders.list.splice(folders.list.findIndex((f) => f.folder_id === body.folder_id), 1);
+          for (const k of Object.keys(folders.byMeeting)) if (folders.byMeeting[k] === body.folder_id) delete folders.byMeeting[k];
+        }
+        if (url.pathname === "/api/folders/rename") folders.list.find((f) => f.folder_id === body.folder_id).name = body.name;
+        if (url.pathname === "/api/folders/move") {
+          if (body.folder_id) folders.byMeeting[body.meeting_id] = body.folder_id; else delete folders.byMeeting[body.meeting_id];
+        }
+        send(res, 200, "{}");
+      });
+      return;
     }
     if (url.pathname === "/api/folders") {
       if (req.method === "GET") {
@@ -148,6 +173,7 @@ test.beforeEach(async ({ page }) => {
   status.meta_key = true;
   audio.status = 404;
   audio.hits = 0;
+  Object.assign(home, { archived: false, type: null, typeBy: null, urgent: 1, posts: [] });
   folders.list.length = 0;
   for (const k of Object.keys(folders.byMeeting)) delete folders.byMeeting[k];
 });
@@ -155,7 +181,9 @@ test.beforeEach(async ({ page }) => {
 test("(1) list view renders meetings and search hits with highlights", async ({ page }) => {
   await page.goto(baseURL + "/");
   await expect(page.getByRole("heading", { name: "Meetings" })).toBeVisible();
-  await expect(page.locator(".mtg-card", { hasText: "Launch readiness" })).toBeVisible();
+  const row = page.locator("#list .row", { hasText: GOLDEN.meeting.title });
+  await expect(row).toBeVisible();
+  await expect(row.locator(".strip i.decision")).toHaveCount(1); // the call strip marks each point at its second
   await expect(page.locator("#q")).toBeVisible();
   await page.locator("#q").fill("launch");
   const hit = page.locator(".hit").first();
@@ -236,7 +264,7 @@ test("(8) browser Back and Forward move between the list and a meeting", async (
   await page.goto(baseURL + "/");
   const title = page.getByRole("heading", { level: 1, name: GOLDEN.meeting.title });
   await expect(page.locator("#preview h2")).toBeVisible(); // the newest meeting is previewed first
-  await page.locator(".mtg-card").first().click();
+  await page.locator("#preview .pv-open").click();
   await expect(title).toBeVisible();
   expect(new URL(page.url()).pathname).toBe("/notes/" + MEETING_ID);
   await page.goBack();
@@ -245,33 +273,106 @@ test("(8) browser Back and Forward move between the list and a meeting", async (
   await expect(title).toBeVisible();
 });
 
-test("(9) hovering a meeting previews its title, summary and action counts", async ({ page }) => {
+test("(9) clicking a meeting previews it: title, summary, plates, and a Simple / Detailed line", async ({ page }) => {
   await page.goto(baseURL + "/");
-  await expect(page.locator(".mtg-card").first()).toContainText(GOLDEN.meeting.title);
-  await page.locator(".mtg-card").first().hover();
+  await page.locator("#list .row").first().click();
   const preview = page.locator("#preview");
-  await expect(preview).toContainText(GOLDEN.meeting.title);
-  await expect(preview).toContainText(GOLDEN.meeting.summary);
-  await expect(preview).toContainText(GOLDEN.actions[0].text);
-  await expect(preview.locator(".pv-counts")).toContainText("Medium 1");
+  await expect(preview.locator("h2")).toHaveText(GOLDEN.meeting.title);
+  await expect(preview.locator(".p-sum")).toContainText(GOLDEN.meeting.summary);
+  await expect(preview.locator(".p-act li")).toContainText(GOLDEN.actions[0].text);
+  await expect(preview.locator(".big.simple .strip i.decision")).toHaveCount(1);
+  await preview.locator("[data-view=detailed]").click();
+  await expect(preview.locator(".big.detailed .lab", { hasText: "Layla" })).toBeVisible();
+  // A plate item knows its mark: clicking it pins the mark and the tip says what it is.
+  await preview.locator(".p-decision li").first().click();
+  await expect(preview.locator(".big .strip i.on")).toHaveCount(1);
+  await expect(preview.locator(".tip")).toContainText(GOLDEN.points[0].text);
 });
 
-test("(10) create a folder from a meeting, then filter the list by it", async ({ page }) => {
+test("(10) a folder: create it from a meeting, filter by it, rename it, delete it (the meeting stays)", async ({ page }) => {
   await page.goto(baseURL + "/");
-  await page.locator(".mtg-card").first().hover();
   await page.locator("#preview .new-folder").fill("Launch");
   await page.locator("#preview .create-folder").click();
-  const folder = page.locator(".folders [data-folder]", { hasText: "Launch" });
-  await expect(folder).toContainText("1");
-  await folder.click();
-  await expect(page.locator(".mtg-card")).toHaveCount(1);
-  await page.locator(".folders [data-folder='']").click();
-  await expect(page.locator(".mtg-card")).toHaveCount(1);
+  const tab = page.locator(".tabs [data-tab^='f:']", { hasText: "Launch" });
+  await expect(tab).toContainText("1");
+  await tab.click();
+  await expect(page.locator("#list .row")).toHaveCount(1);
+  await page.locator("[data-fdo=rename]").click();
+  await page.locator("#frename").fill("Q4 launch");
+  await page.locator("[data-fdo=rename-save]").click();
+  await expect(page.locator(".tabs [data-tab^='f:']")).toContainText("Q4 launch");
+  await page.locator("[data-fdo=delete]").click();
+  await page.locator("[data-fdo=delete-yes]").click();
+  await expect(page.locator(".tabs [data-tab^='f:']")).toHaveCount(0);
+  await expect(page.locator(".tabs [aria-selected=true]")).toContainText("All meetings");
+  await expect(page.locator("#list .row")).toHaveCount(1);
+});
+
+test("(H1) Urgent is red and clickable: the row's urgent count opens the Urgent tab; none left reads All clear", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const urgentTab = page.locator(".tabs [data-tab=urgent]");
+  await expect(urgentTab).toHaveClass(/has/);
+  await expect(urgentTab).toContainText("1");
+  await page.locator("#list .row .urg-link").first().click();
+  await expect(urgentTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#list .row")).toHaveCount(1);
+  home.urgent = 0;
+  await page.goto(baseURL + "/");
+  await urgentTab.click();
+  await expect(page.locator(".allclear")).toHaveText("All clear. Nothing needs you right now.");
+});
+
+test("(H2) archive a meeting, then undo it", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview [data-archive]").click();
+  await expect(page.locator("#list .row .arch-tag")).toHaveText("Archived");
+  expect(home.posts.at(-1)).toEqual({ path: "/api/meetings/archive", body: { meeting_id: MEETING_ID, archived: true } });
+  await expect(page.locator(".tabs [data-tab=archived]")).toContainText("1");
+  await page.locator("#toast .toast-undo").click();
+  await expect(page.locator("#list .row .arch-tag")).toHaveCount(0);
+  expect(home.posts.at(-1).body.archived).toBe(false);
+});
+
+test("(H3) Halo sorts meetings by type; the user can set their own", async ({ page }) => {
+  home.type = "planning";
+  home.typeBy = "halo";
+  await page.goto(baseURL + "/");
+  await expect(page.locator("#list .row .tchip")).toHaveText("Planning");
+  await expect(page.locator(".types [data-mtype=planning]")).toContainText("1");
+  await expect(page.locator("#preview .ptype")).toContainText("sorted by Halo");
+  await page.locator("#preview .mtype-set").selectOption("sales");
+  await expect(page.locator("#list .row .tchip")).toHaveText("Sales");
+  await expect(page.locator("#preview .ptype")).toContainText("set by you");
+  expect(home.posts.at(-1)).toEqual({ path: "/api/meetings/type", body: { meeting_id: MEETING_ID, meeting_type: "sales" } });
+});
+
+test("(H4) since your last visit: new meetings and your action items until Mark as seen", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const finding = page.locator("#finding");
+  await expect(finding).toContainText("1 new meeting");
+  await expect(finding).toContainText("1 action item for you");
+  await expect(page.locator("#list .row .newdot")).toHaveCount(1);
+  await page.locator("#seen").click();
+  await expect(finding).toContainText("Nothing new since your last visit");
+  await expect(page.locator("#list .row .newdot")).toHaveCount(0);
+  await page.reload();
+  await expect(finding).toContainText("Nothing new since your last visit");
+  await page.locator("#unseen").click();
+  await expect(finding).toContainText("1 new meeting");
+});
+
+test("(H5) follow a person: click a face, the list shows only their meetings", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .pmeta [data-follow=Layla]").click();
+  await expect(page.locator(".follow")).toContainText("Following Layla");
+  await expect(page.locator(".follow")).toContainText("in 1 of 1 meetings");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".follow")).toHaveCount(0);
 });
 
 test("(11) an assigned action has an email link carrying its text and the meeting", async ({ page }) => {
   await page.goto(baseURL + "/");
-  await page.locator(".mtg-card").first().click();
+  await page.locator("#preview .pv-open").click();
   const mail = page.locator("a.mail").first();
   const href = decodeURIComponent(await mail.getAttribute("href"));
   expect(href.startsWith("mailto:?")).toBe(true);
@@ -351,3 +452,4 @@ test("(18) the recording is checked once per meeting; a live meeting says it com
   await expect(page.locator(".norec")).toBeVisible();
   expect(audio.hits).toBe(1);
 });
+
