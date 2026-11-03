@@ -6,7 +6,7 @@ Each scripted turn goes on the bus exactly as the Correlator would publish it
 (`turn.attributed`), so Insight, the Classifier, the Coach and the Notes Builder
 run on the real Meta models; only the microphone, Meet and speech-to-text are
 skipped. The meetings land in the normal data folder, so `uv run halo` then
-shows them on the notes page. Needs META_API_KEY in .env (about 2 minutes,
+shows them on the notes page. Needs META_API_KEY in .env (about 3 minutes,
 roughly 40 model calls). Safe to run while `uv run halo` is running.
 """
 

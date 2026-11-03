@@ -1,6 +1,6 @@
 # Optional SAM 3.1 face worker (Halo mode). Needs an NVIDIA GPU with CUDA 12.8 drivers.
 # Versions are the ones measured on 2026-11-02 (3080 Ti, ~220 ms/frame, 2 GB VRAM).
-# Install: see "Halo mode (optional)" in README.md.
+# Install: see step 8, "Optional: Halo mode", in docs/INSTALL.md.
 --extra-index-url https://download.pytorch.org/whl/cu128
 torch==2.10.0+cu128
 transformers==5.22.1

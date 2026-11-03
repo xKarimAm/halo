@@ -113,11 +113,10 @@ Then run it in a second PowerShell window each time (the first run downloads the
 
 **Check:** it prints `Halo SAM worker on http://127.0.0.1:8766`. Measured on an RTX 3080 Ti: about 220 ms per frame and 2 GB of video memory. Without the worker, Halo stays in Frame mode.
 
-## Try it without a call or without a key
+## Try it without a call, or test it without a key
 
 - **Demo meetings (needs your Meta key):** `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real models. It skips only Meet, the mic and speech-to-text. It takes about 3 minutes and prints a notes link for each. It is safe to run while the backend runs.
-- **No key at all:** `$env:HALO_FAKES = "1"; uv run halo` boots on offline fake engines. It stays in fake mode for that PowerShell window only.
-- **Tests (no key, no network):** `uv run pytest backend contracts -q` and `npm --prefix extension test`. A plain `uv run pytest` also runs the end-to-end rig, which starts its own backend on port 8765 and drives Chromium, so stop your own `uv run halo` first.
+- **Tests (no key, no network):** `uv run pytest backend contracts -q` and `npm --prefix extension test`. A plain `uv run pytest` also runs the end-to-end rig: it starts its own backend, fake engines and fake Meet page on free ports and drives Chromium, so your running `uv run halo` is untouched.
 
 ## Update
 

@@ -39,7 +39,7 @@ Architecture: `docs/ARCHITECTURE.md`.
 
 - **Who said it.** Meet's speaking highlight trails the audio. The correlator uses a lag window, locks a speaker after 3 agreeing turns, and drops echo from your own mic.
 - **Speed.** A point has to land while it is still relevant. Points trigger at the speaker's pause rather than at the end of the sentence, the model replies are short, and a slow call fails over per call. Points typically land 3 to 5 s after the words. **[check]**: confirm this on your live run.
-- **A coach that knows when to stay quiet.** I tuned it in blind-judged loops on 10 scripted meetings, English and Arabic. One model wrote the tips and a separate judge scored old against new without knowing which was which. The last round cut invented owners and dates from 4 to 1 and dropped median latency from 5.1 s to 4.6 s.
+- **A coach that knows when to stay quiet.** I tuned it in blind-judged loops on 10 scripted meetings, English and Arabic. Spark wrote the tips and a separate Claude agent (a development tool, never part of Halo) scored old against new without knowing which was which. The last round cut invented owners and dates from 4 to 1 and dropped median latency from 5.1 s to 4.6 s.
 - **Bilingual speech.** Mixed Arabic/English sentences flow through the whole pipeline. The notes page and the overlay render each quote in its own script direction.
 
 ## Reproduce it

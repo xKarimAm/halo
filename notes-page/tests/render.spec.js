@@ -38,6 +38,7 @@ const postedTags = [];
 // Fake folder store, same shapes as the Notes Service /api/folders.
 const folders = { list: [], byMeeting: {} };
 const status = { meta_key: true };
+const audio = { status: 404, hits: 0 };
 
 function send(res, status, body, type) {
   res.writeHead(status, { "Content-Type": type || "application/json" });
@@ -47,6 +48,11 @@ function send(res, status, body, type) {
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
+    if (req.method === "GET" && url.pathname === "/api/audio") {
+      audio.hits += 1;
+      send(res, audio.status, JSON.stringify({ detail: "no recording yet" }));
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/status") {
       send(res, 200, JSON.stringify(status));
       return;
@@ -140,6 +146,8 @@ test.afterAll(async () => {
 test.beforeEach(async ({ page }) => {
   postedTags.length = 0;
   status.meta_key = true;
+  audio.status = 404;
+  audio.hits = 0;
   folders.list.length = 0;
   for (const k of Object.keys(folders.byMeeting)) delete folders.byMeeting[k];
 });
@@ -181,6 +189,7 @@ test("(3) action board groups Urgent/Medium/Later with assigned style", async ({
 });
 
 test("(4) point click jumps to the transcript line and recording position", async ({ page }) => {
+  audio.status = 206; // this meeting has a recording
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
   await page.locator(".pt-main").first().click();
   const active = page.locator("#lines .ln.on");
@@ -332,4 +341,13 @@ test("(17) no Meta key: a banner says how to fix it, in both languages; with a k
   await page.getByRole("button", { name: "عربي" }).click();
   await expect(page.locator("#keybar")).toContainText("META_API_KEY");
   await expect(page.locator("#keybar")).toContainText("مفتاح");
+});
+
+test("(18) the recording is checked once per meeting; a live meeting says it comes at the end", async ({ page }) => {
+  audio.status = 429; // the backend's answer while the meeting is still open
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".norec")).toHaveText("The recording is ready when the meeting ends.");
+  await page.locator(".pt-main").first().click(); // re-renders the transcript panel
+  await expect(page.locator(".norec")).toBeVisible();
+  expect(audio.hits).toBe(1);
 });

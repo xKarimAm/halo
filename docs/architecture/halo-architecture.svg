@@ -202,7 +202,7 @@
 <text x="44" y="695" font-size="11" font-weight="400" fill="#57544b" text-anchor="start">captions, notes ready</text>
 </g>
 <g>
-<title>rig/fakes, rig/fake_meet, rig/replayer, backend/halo/coach/eval. CI runs them on every pull request.</title>
+<title>rig/fakes, rig/fake_meet and rig/replayer run in CI on every pull request. The coach eval (backend/halo/coach/eval) needs a Meta key and runs by hand.</title>
 <rect x="988" y="600" width="260" height="150" rx="10" fill="#efe9de"/>
 <text x="1000" y="622" font-size="13" font-weight="600" fill="#2a2924" text-anchor="start">Tested without a call</text>
 <text x="1000" y="639" font-size="11" font-weight="400" fill="#57544b" text-anchor="start">fake Voice + fake Spark on the real</text>

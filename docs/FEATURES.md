@@ -15,7 +15,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Feature | What it does | Status |
 |---|---|---|
 | Speech bubbles | A glass bubble appears on the speaker's tile a few seconds after they say something that matters: a point, a question, a decision or a pushback. Colour is urgency (red urgent, amber medium, blue later) and the glyph is the kind (• ? ✓ ≠). | Live |
-| Bilingual speech | Arabic, English and mixed sentences all go through. Each quote shows in its own script direction. | Tested (the demo run plays an Arabic and a mixed meeting) |
+| Bilingual speech | Arabic, English and mixed sentences all go through. Each quote shows in its own script direction. | Tested for text: the demo run sends Arabic and mixed turns through the real Spark calls, but skips speech-to-text. Arabic speech on a live call is not checked yet. |
 | Points language | You read the points in English or Arabic, whatever language was spoken. Switch it mid-call from the Halo menu. | Tested |
 | The exact words | Click a bubble to see the kind, the speaker, the point and the exact words said. | Tested |
 | Urgent items stay | Urgent points stay until you archive them; others fade after 60 s. | Tested |
@@ -52,6 +52,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Transcript and recording | A chat-style transcript. Each item's play button jumps to that moment in the recording (call audio and your mic). | Live (recordings saved on live calls) |
 | Ask your meetings | Ask in English or Arabic; get a short answer in the same language and the exact stored lines it came from. Click one to open that meeting at that line. If the notes don't say, it says so. | Tested, plus checked by hand on the demo meetings |
 | Meetings list | Cards with who spoke, length and counts; hover to preview; folders; search. | Live |
+| Missing-key banner | Without a Meta key, the page says so and how to fix it. | Tested |
 | Export Markdown | The whole meeting as Markdown, ready to paste into an AI. | Live |
 | English / Arabic | The whole page switches language, Arabic right to left. | Live |
 | Back and Forward | Every view has its own address. | Live |
@@ -63,7 +64,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Two transcripts kept apart | The call (diarized, who is talking) and your mic ("you") are separate Voice sessions. | Live |
 | Who said it | Matches each turn to the right tile using Meet's speaking highlight, with a lag window because the highlight trails the audio. | Live |
 | Failover | With a Spark Open key, a slow or failing call moves to Spark 1.3 contributor, per call. | Tested |
-| Health file | `data/health.json` every 5 s, with problems in plain words ("no mic audio for 60 s"). | Live |
+| Health file | `data/health.json` every 5 s, with problems in plain words ("no mic audio for N s during an open meeting"). | Live |
 | Everything local | SQLite database, recordings and logs stay in `data/`. | Live |
 
 ## Not built yet

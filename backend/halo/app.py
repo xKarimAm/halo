@@ -160,7 +160,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     @app.get("/api/status")
     async def status() -> dict:
         """Read by the notes page to tell a keyless user why nothing happens."""
-        return {"meta_key": os.environ.get("HALO_FAKES") == "1" or bool(os.environ.get("META_API_KEY"))}
+        return {"meta_key": bool(os.environ.get("META_API_KEY"))}
 
     return app
 
@@ -174,7 +174,7 @@ def main() -> None:
     if os.environ.get("HALO_FAKES") != "1":
         if not os.environ.get("META_API_KEY"):
             print("warning: META_API_KEY is empty in .env: no transcripts, points or notes until you add it "
-                  "(or set HALO_FAKES=1 to try Halo offline)")
+                  "(the tests need no key: uv run pytest backend contracts -q)")
         if not os.environ.get(os.environ.get("HALO_PRIMARY_KEY_VAR") or "BASETEN_API_KEY"):
             print("note: no Spark Open key, so every text call runs on muse-spark-1.3-contributor (fine)")
     # Check the port before the banner: a judge saw "Halo backend on ..." and then a bind error.

@@ -24,7 +24,7 @@ The backend prints a 6-digit code at start. The code works once. The extension t
 ## Your data
 
 - Transcripts, notes, recordings and logs stay in `data/` (git-ignored). Delete the folder to wipe everything.
-- What leaves your PC: the call and mic audio go to Meta's speech-to-text, and the transcript text goes to Meta's text models. Video frames never leave the PC; in Halo mode they go only to the local SAM worker.
+- What leaves your PC: the call and mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at Baseten, Modal or your own server when you set a Spark Open key). Video frames never leave the PC; in Halo mode they go only to the local SAM worker.
 
 ## Reporting a problem
 

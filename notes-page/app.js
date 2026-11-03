@@ -55,9 +55,10 @@
       degraded: "AI summary failed, showing live notes.",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
       norec: "No recording for this meeting. The notes and transcript are complete.",
+      reclive: "The recording is ready when the meeting ends.",
       nokey: "Meta Model API key missing: put it after META_API_KEY= in .env and restart uv run halo. Until then there are no live transcripts, points, notes or answers.",
       none: "Nothing here.", draftOnly: "Draft: only this meeting is filled in.",
-      translated: "Translated", video: "Video",
+      translated: "Translated",
       allMeetings: "All meetings", preview: "Hover a meeting to preview it",
       noSummary: "No AI summary yet. Meetings get one when they end.",
       newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
@@ -104,11 +105,12 @@
       orig: "الأصل", hide: "إخفاء الأصل", jump: "انتقل إلى السطر", play: "شغّل التسجيل من هنا",
       recAt: "التسجيل: {p} عند {t}", close: "إغلاق الملف", role: "الدور من الإعداد",
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
-      keep: "صوت المكالمة وميكروفونك، محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
-      norec: "لا يوجد تسجيل لهذا الاجتماع. الملاحظات والنص كاملة.",
+      keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
+      norec: "لا يوجد تسجيل لهذا الاجتماع، لكن الملاحظات والنص الكامل متاحة.",
+      reclive: "يصبح التسجيل جاهزاً عند انتهاء الاجتماع.",
       nokey: "مفتاح Meta Model API غير موجود: ضعه بعد META_API_KEY= في ملف .env وأعد تشغيل uv run halo. حتى ذلك الحين لا يوجد نص مباشر ولا نقاط ولا ملاحظات ولا إجابات.",
       none: "لا شيء هنا.", draftOnly: "مسودة: هذا الاجتماع فقط مكتمل.",
-      translated: "مترجم", video: "الفيديو",
+      translated: "مترجم",
       allMeetings: "كل الاجتماعات", preview: "مرّر على اجتماع لمعاينته",
       noSummary: "لا يوجد ملخص آلي بعد. يُكتب عند انتهاء الاجتماع.",
       newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
@@ -708,23 +710,44 @@
     player.appendChild(row);
     // Recording file served by the Notes Service audio endpoint, using the
     // recorder's recordings/{meeting_id}.webm convention from the page JSON.
-    var audio = app.doc.createElement("audio");
-    audio.id = "rec";
-    audio.className = "rec";
-    audio.controls = true;
-    // metadata, not none: a missing file (404) must show up before anyone presses play.
-    audio.preload = "metadata";
-    audio.src = "/api/audio?meeting_id=" + encodeURIComponent(page.meeting.meeting_id);
-    player.appendChild(audio);
-    var keep = el("div", "keep", t(lang, "keep"));
-    player.appendChild(keep);
-    var norec = el("div", "norec", t(lang, "norec"));
-    norec.hidden = true;
-    player.appendChild(norec);
-    audio.addEventListener("error", function () {
-      row.hidden = audio.hidden = keep.hidden = true;
-      norec.hidden = false;
-    });
+    var id = page.meeting.meeting_id;
+    var src = "/api/audio?meeting_id=" + encodeURIComponent(id);
+    var note = el("div", "norec");
+    var showNote = function (state) {
+      row.hidden = true;
+      note.textContent = t(lang, state === "live" ? "reclive" : "norec");
+      player.appendChild(note);
+    };
+    app.recState = app.recState || {};
+    var state = app.recState[id];
+    if (state === "none" || state === "live") {
+      showNote(state);
+    } else {
+      var audio = app.doc.createElement("audio");
+      audio.id = "rec";
+      audio.className = "rec";
+      audio.controls = true;
+      audio.preload = "none";
+      audio.src = src;
+      player.appendChild(audio);
+      var keep = el("div", "keep", t(lang, "keep"));
+      player.appendChild(keep);
+      // One 1-byte probe per meeting (the panel re-renders on every click):
+      // 404 = no file, 429 = the meeting is still open.
+      var win = app.doc.defaultView;
+      if (state === undefined && win && win.fetch) {
+        app.recState[id] = "probing";
+        win.fetch(src, { headers: { Range: "bytes=0-0" } }).then(function (res) {
+          app.recState[id] = res.ok ? "ok" : res.status === 429 ? "live" : "none";
+          // Redraw whichever panel is showing now (it may be newer than this one).
+          var shown = app.doc.getElementById("rec");
+          var host = shown && shown.parentNode && shown.parentNode.parentNode;
+          if (!res.ok && host && app.page && app.page.meeting.meeting_id === id) {
+            renderTranscript(app, host, app.lang);
+          }
+        }).catch(function () { delete app.recState[id]; });
+      }
+    }
     if (cur) {
       player.appendChild(el("div", "recoff", t(lang, "recAt", {
         p: page.recording.path, t: fmtMs(cur.recording_offset_ms)

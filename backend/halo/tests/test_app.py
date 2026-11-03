@@ -15,8 +15,5 @@ def test_status_says_whether_the_meta_key_is_set(monkeypatch):
     monkeypatch.delenv("HALO_FAKES", raising=False)
     monkeypatch.setenv("META_API_KEY", "")
     assert client.get("/api/status").json() == {"meta_key": False}
-    monkeypatch.setenv("HALO_FAKES", "1")  # the fake engines need no key
-    assert client.get("/api/status").json() == {"meta_key": True}
-    monkeypatch.delenv("HALO_FAKES")
     monkeypatch.setenv("META_API_KEY", "set")
     assert client.get("/api/status").json() == {"meta_key": True}

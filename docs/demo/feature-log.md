@@ -1,6 +1,6 @@
 # Halo feature log (for the demo and slides)
 
-Every feature and small detail, newest first. Karim asked for this on 2026-11-02 so the demo and slides show the small things too. Commits are on branch `local/live-fixes` (not pushed yet).
+Every feature and small detail with the commit that added it, kept for the demo video and slides. The user-facing list, with what has been checked live, is [FEATURES.md](../FEATURES.md).
 
 ## In the Meet call (overlay)
 
@@ -31,6 +31,8 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 
 | Feature | What you see | Since |
 |---|---|---|
+| Missing-key banner | Without META_API_KEY the notes page says so and how to fix it, in English and Arabic (`GET /api/status`). | 6ecc0b2 (2026-11-03) |
+| Honest recording panel | Says the recording is call audio + your mic, kept until you delete `data/`; a meeting with no file says so, a running meeting says the recording comes at the end. Checked once per meeting. | 95e28fd + this commit (2026-11-03) |
 | Ask your meetings | A box on the meetings list: ask in English or Arabic ("who owns the signup numbers?"), get a short answer in the same language plus the exact stored lines it used; click one to open that meeting at that line. Says so when the notes don't cover it. Spark expands the question into EN+AR keywords; no embedding model. ~6-9 s. | 95c0da7, 3cb7db0 (2026-11-03) |
 | Back works | Every view has its own address, so the browser Back and Forward buttons move between the list and a meeting. | bd83b39 |
 | Hover preview | Hover a meeting in the list: its AI title, summary, Urgent/Medium/Later counts, top action items and decisions show on the right (Wispr-Flow style). | bd83b39 |

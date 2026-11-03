@@ -69,7 +69,7 @@ Halo runs on one PC: the person who presses Start. Nothing is hosted, so there i
 
 ## Privacy
 
-- **What leaves your PC:** the call audio goes to Meta's speech-to-text, and the transcript text goes to Meta's text models. That's all.
+- **What leaves your PC:** the call audio and your mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at the Spark Open host you set). That's all.
 - **What stays on your PC:** recordings, transcripts and notes stay in the `data` folder. Video frames never leave it either; in Halo mode they go only to the SAM worker on your own GPU.
 - **Wiping everything:** delete the `data` folder.
 - **Consent:** tell everyone in the call before you press Start.

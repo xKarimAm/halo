@@ -49,7 +49,7 @@ Everything runs on your PC: a Chrome extension plus a small Python backend on `1
 3. `uv run halo`, then open http://127.0.0.1:8765. You get the meetings list, the notes, the action items board and the speaking panel. Try **Ask your meetings** at the top, for example "Who owns the signup numbers?" or, in Arabic, "ماذا قررنا بشأن موعد إطلاق النسخة 3.0؟".
 4. Live: load the extension, pair, join a Google Meet call with a headset and press **Start** ([steps 5 and 6](docs/INSTALL.md#5-load-the-extension-and-pair)).
 
-No key? `$env:HALO_FAKES = "1"; uv run halo` boots offline, and the tests need no key at all: `uv run pytest backend contracts -q` and `npm --prefix extension test`.
+No key? The tests need none: `uv run pytest backend contracts -q` and `npm --prefix extension test`.
 
 ## Quick start
 
@@ -89,7 +89,7 @@ The Chrome extension calls no models itself; it talks to the local backend and, 
 
 The [architecture page](docs/architecture/index.html) (open it locally) explains why each part exists and what was left out on purpose. [ARCHITECTURE.md](docs/ARCHITECTURE.md) walks one meeting end to end.
 
-**What was hard.** Meet's speaking highlight trails the audio, so the correlator uses a lag window and locks a speaker after 3 agreeing turns. Points have to land while they still matter, so they trigger at the speaker's pause rather than the end of the sentence. The coach has to know when to stay quiet: I tuned it in blind-judged loops on 10 scripted meetings, where one model wrote the tips and a separate judge scored old against new without knowing which was which. The last round cut invented owners and dates from 4 to 1.
+**What was hard.** Meet's speaking highlight trails the audio, so the correlator uses a lag window and locks a speaker after 3 agreeing turns. Points have to land while they still matter, so they trigger at the speaker's pause rather than the end of the sentence. The coach has to know when to stay quiet: I tuned it in blind-judged loops on 10 scripted meetings (`backend/halo/coach/eval/`). Spark wrote the tips, and a separate Claude agent, a development tool and never part of Halo, scored old against new without knowing which was which. In my last round, invented owners and dates went from 4 to 1 (the eval output is not in the repo).
 
 ## What's in here, and why
 
@@ -102,8 +102,12 @@ The [architecture page](docs/architecture/index.html) (open it locally) explains
 | [`packaging/`](packaging/) | `demo.py` (three meetings without a call), `sam_worker.py` (the optional SAM 3.1 worker) and the release check. |
 | [`rig/`](rig/) | The offline test rig: fake Voice and Spark servers on the real wire protocols, a fake Meet page that loads the real extension, and a replayer. It is how the pipeline is tested without a call or a key. |
 | [`docs/`](docs/) | Install, features, user guide, troubleshooting, architecture and [DECISIONS.md](docs/DECISIONS.md), the locked decisions with their reasons. |
-| `AGENTS.md`, `CLAUDE.md`, `.agents/`, per-folder `PLAN.md` / `STATE.md` | Instructions for the coding agents I built Halo with: each module has a plan and a file map, so an agent reads one folder instead of the whole repo. |
-| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Runs on every PR: contracts, codegen drift, Python tests, Ruff, import lanes, mypy, the extension's typecheck and tests, and the notes page's render tests in Chromium. |
+| `AGENTS.md`, `CLAUDE.md`, `.agents/`, `docs/PLAN.md`, `docs/agents/`, per-folder `PLAN.md` / `STATE.md` | Instructions for the coding agents I built Halo with: the build plan, the issue conventions, and per module a plan and a file map, so an agent reads one folder instead of the whole repo. |
+| `opencode.json`, `.claude/settings.json` | Coding-tool config. OpenCode points at Muse Spark 1.3 on api.meta.ai through its OpenAI-compatible adapter (the npm name `@ai-sdk/openai` is the adapter, not OpenAI's models); `.claude/` holds Claude Code's permissions. Halo never loads either. |
+| [`docs/ui/`](docs/ui/) | The design sources the UI was built from: the notes page design (`notes-v2.html`), overlay mocks, urgency drafts and screenshots. |
+| `docs/SUBMISSION_WRITEUP.md`, `docs/demo/feature-log.md` | The draft for the hackathon portal, and the feature log with commits for the demo video. |
+| `conftest.py`, `.ignore`, `.gitattributes`, `.github/pull_request_template.md` | Puts the repo root on pytest's import path; keeps lockfiles out of code search; fixes line endings; the PR checklist. |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Runs on every PR: contracts, codegen drift, Python tests, Ruff, import lanes, mypy (report only), the extension's typecheck and tests, and the notes page's render tests in Chromium. |
 
 ## What's deliberately not here
 
@@ -119,7 +123,7 @@ The [architecture page](docs/architecture/index.html) (open it locally) explains
 
 ## Built with
 
-Claude Code (Anthropic) and Muse Code / OpenCode on Muse Spark 1.3 were my coding tools: they wrote code, tests and docs with me. Gemini was used for research only. None of them is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. Every model Halo itself calls is a Meta model ([table](#meta-models-used-and-where)).
+Claude Code (Anthropic) and Muse Code / OpenCode on Muse Spark 1.3 were my coding tools: they wrote code, tests and docs with me. Gemini was used for research only, and a Claude agent judged the coach eval. None of them is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. Every model Halo itself calls is a Meta model ([table](#meta-models-used-and-where)).
 
 `git log` shows the whole history from Oct 30, 2026. No code came from older projects.
 
