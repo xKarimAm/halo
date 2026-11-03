@@ -583,3 +583,8 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .big .lab{direction:inherit}
 #view.home .tabs button{display:inline-flex;align-items:baseline;gap:6px}
 #view.home .tabs button em{margin:0}
+/* Disagreement arcs above the recording line: colour is how it ended. */
+#view.home .big .strip .arcs{position:absolute;left:0;bottom:100%;margin-bottom:-6px;overflow:visible;z-index:2;pointer-events:none}
+#view.home .arc{fill:none;stroke-width:1.6;stroke:var(--push);opacity:.55;pointer-events:stroke;cursor:pointer;transition:opacity 180ms,stroke-width 180ms}
+#view.home .arc.o-settled{stroke:var(--dec)} #view.home .arc.o-parked{stroke:var(--med)}
+#view.home .arc:hover,#view.home .arc:focus-visible{opacity:1;stroke-width:2.4;outline:none}

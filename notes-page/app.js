@@ -988,7 +988,8 @@
     lines.forEach(function (l) { add(l.speaker_name); });
     return {
       id: page.meeting.meeting_id, title: titleOf(page.meeting), summary: page.meeting.summary || "",
-      t0: page.meeting.t0_ms, duration: dur, points: points, actions: actions, people: people
+      t0: page.meeting.t0_ms, duration: dur, points: points, actions: actions, people: people,
+      disagreements: page.meeting.disagreements || []
     };
   }
 
@@ -1528,6 +1529,7 @@
     cur.appendChild(doc.createElement("em"));
     big.appendChild(cur);
     var lines = setupLines(H, big);
+    drawArcs(H, big);
     var ph = doc.createElement("span");
     ph.className = "phd";
     ph.setAttribute("aria-hidden", "true");
@@ -1624,6 +1626,75 @@
       li.onclick = go;
       li.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
     });
+  }
+
+  // Disagreements on the line (Karim 2026-11-04): a thin arc joins the two
+  // sides' moments. Disagreements name people, not points, so each side is
+  // the speaker's pushback (else any point) nearest the other side in time.
+  // ponytail: nearest-pair heuristic; give disagreements point ids if arcs land wrong.
+  function arcPairs(m) {
+    var out = [];
+    m.disagreements.forEach(function (d) {
+      var sides = (d.sides || []).slice(0, 2);
+      if (sides.length < 2) return;
+      var pick = function (who) {
+        var mine = m.points.filter(function (p) { return p.at != null && p.who === who; });
+        var push = mine.filter(function (p) { return p.kind === "pushback"; });
+        return push.length ? push : mine;
+      };
+      var a = pick(sides[0].name);
+      var b = pick(sides[1].name);
+      var best = null;
+      a.forEach(function (pa) {
+        b.forEach(function (pb) {
+          var gap = Math.abs(pa.at - pb.at);
+          if (!best || gap < best.gap) best = { gap: gap, a: pa, b: pb };
+        });
+      });
+      if (best) out.push({ d: d, a: best.a, b: best.b });
+    });
+    return out;
+  }
+
+  function drawArcs(H, big) {
+    if (!big.classList.contains("simple")) return;
+    var st = big.querySelector(".strip:not(.arail)");
+    var pairs = arcPairs(H.m);
+    if (!st || !pairs.length) return;
+    var w = st.clientWidth;
+    var lang = H.app.lang;
+    var outcomes = { settled: "disSettled", parked: "disParked", open: "disOpen" };
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = H.app.doc.createElementNS(ns, "svg");
+    svg.setAttribute("class", "arcs");
+    svg.setAttribute("width", String(w));
+    svg.setAttribute("height", "22");
+    svg.setAttribute("viewBox", "0 0 " + w + " 22");
+    pairs.forEach(function (pr) {
+      var x1 = (Math.min(pr.a.at, pr.b.at) / H.m.duration) * w;
+      var x2 = (Math.max(pr.a.at, pr.b.at) / H.m.duration) * w;
+      if (x2 - x1 < 6) x2 = x1 + 6;
+      var lift = Math.min(18, 6 + (x2 - x1) / 12);
+      var path = H.app.doc.createElementNS(ns, "path");
+      path.setAttribute("d", "M" + x1.toFixed(1) + " 22 Q" + ((x1 + x2) / 2).toFixed(1) + " " + (22 - 2 * lift).toFixed(1) + " " + x2.toFixed(1) + " 22");
+      path.setAttribute("class", "arc o-" + (pr.d.outcome || "open"));
+      path.setAttribute("tabindex", "0");
+      path.setAttribute("role", "button");
+      var head = t(lang, "dis") + " · " + t(lang, outcomes[pr.d.outcome] || "disOpen");
+      var text = pr.d.topic + ": " + pr.d.sides.slice(0, 2).map(function (x) { return x.name + " — " + x.view; }).join(" / ");
+      path.setAttribute("aria-label", head + ". " + text);
+      var show = function () {
+        var tip = H.pv.querySelector(".tip");
+        if (!tip || H.pinned) return;
+        tip.className = "tip t-pushback";
+        tip.innerHTML = "<small>" + clock(Math.min(pr.a.at, pr.b.at)) + " · " + esc(head) + '</small><br><span dir="auto">' + esc(text) + "</span>";
+      };
+      path.addEventListener("mouseenter", show);
+      path.addEventListener("focus", show);
+      path.addEventListener("click", function (e) { e.stopPropagation(); show(); seek(H, Math.min(pr.a.at, pr.b.at) / H.m.duration); });
+      svg.appendChild(path);
+    });
+    st.appendChild(svg);
   }
 
   function moveKnob(H) {
