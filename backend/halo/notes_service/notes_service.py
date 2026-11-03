@@ -54,7 +54,8 @@ def owner_for(text: str, speaker: str, names: list[str]) -> str:
     keeps a copy of this (lanes never import each other)."""
     found: list[tuple[int, str]] = []
     for name in names:
-        for form in {name, name.split()[0]}:
+        parts = name.split()
+        for form in ({name, parts[0]} if parts else ()):  # an empty name matches nothing
             if len(form) < 3:
                 continue
             m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, re.IGNORECASE)

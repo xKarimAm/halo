@@ -434,3 +434,8 @@ def test_an_action_belongs_to_the_person_it_names():
     assert owner_for("Will pull the numbers by Thursday.", "Omar", people) == "Omar"  # nobody named
     assert owner_for("karim sends the deck.", "Layla", people) == "Karim Amer"  # first name, any case
     assert owner_for("Romario fixes the bug.", "Layla", people) == "Layla"  # no partial-word match
+
+
+def test_an_empty_speaker_name_does_not_break_the_owner():
+    from halo.notes_builder.notes_builder import owner_for
+    assert owner_for("Omar sends it.", "", ["", "  ", "Omar"]) == "Omar"
