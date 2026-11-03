@@ -136,8 +136,10 @@ class EventStore:
     # -- write path ----------------------------------------------------
 
     def tap(self, envelope: Envelope) -> None:
-        """Bus tap: appends every accepted envelope (sync is fine)."""
-        self.append(envelope)
+        """Bus tap: appends every accepted envelope (sync is fine), except
+        live captions: transcript.final already stores the words."""
+        if envelope.get("type") != "transcript.partial":
+            self.append(envelope)
 
     def append(self, envelope: Envelope) -> bool:
         """Store one envelope. False when its id was already stored."""

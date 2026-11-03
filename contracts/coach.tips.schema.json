@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/coach.tips",
+  "title": "coach.tips",
+  "description": "Meeting coach: 0-3 short tips on how to steer the meeting, plus an optional alert (a short command to the viewer, e.g. 'De-escalate now.') when a moment needs action now. Sent within seconds of new words or a long silence; each new event replaces the last.",
+  "type": "object",
+  "properties": {
+    "tips": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "minItems": 0,
+      "maxItems": 3
+    },
+    "alert": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar"
+      ]
+    }
+  },
+  "required": [
+    "tips",
+    "lang"
+  ],
+  "additionalProperties": false
+}

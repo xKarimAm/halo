@@ -170,3 +170,21 @@ def test_hello_never_reaches_the_bus(tmp_path):
         assert seen == [] and session.paired is True
 
     asyncio.run(run())
+
+
+def test_a_meeting_id_that_is_not_a_uuid_publishes_nothing(tmp_path):
+    # Review 2026-11-03: meeting ids become recording file names; "../x" must not.
+    import asyncio
+
+    async def run():
+        gateway = Gateway(Bus(), data_dir=tmp_path, extension_id="test-id")
+        published: list = []
+        gateway.bus.subscribe("points.upsert", published.append)
+        session, _ = await paired(gateway)
+        env = kit("duplicate.json")["envelope"]
+        env["meetingid"] = "../../evil"
+        ack = await session.handle_text(json.dumps(env))
+        assert ack["error"]["code"] == "invalid_schema" and validate_ack(ack) == []
+        assert published == []
+
+    asyncio.run(run())

@@ -17,6 +17,11 @@ from jsonschema import Draft202012Validator
 from rig.fakes.scripts import LlmReply
 
 MALFORMED = "{not json"
+# The Coach calls on every new word batch, and its prompt holds the whole
+# transcript, so it would match (and burn) the replies scripted for Insight.
+# Answer it here instead: no tips, no alert, nothing published.
+COACH_MARKER = "live meeting coach"
+COACH_QUIET = {"tips": [], "alert": ""}
 
 
 class FakeLLM:
@@ -39,7 +44,7 @@ class FakeLLM:
         """One chat.completion body. `enforce` = the engine enforces the
         caller's schema (Meta API): a canned reply that fails it raises.
         Without it (Spark Open on Baseten) the reply goes out unchecked."""
-        idx = self._pick(prompt)
+        idx = None if COACH_MARKER in prompt else self._pick(prompt)
         call = self.calls
         self.calls += 1
         self.last_latency_ms = self._latency_spread.get(call, 0)
@@ -48,7 +53,8 @@ class FakeLLM:
         if self._malformed(call):
             content = MALFORMED
         else:
-            response = self._script[idx].response if idx is not None else {}
+            response = (COACH_QUIET if COACH_MARKER in prompt
+                        else self._script[idx].response if idx is not None else {})
             if schema is not None and enforce:
                 errors = [e.message for e in Draft202012Validator(schema).iter_errors(response)]
                 if errors:

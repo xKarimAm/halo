@@ -1,7 +1,8 @@
-"""Transcriber: binary audio in, transcript.final envelopes out.
+"""Transcriber: binary audio in, transcript.final envelopes out,
+plus transcript.partial live captions (not stored).
 
 Two engine sessions (tab = diarization, mic = endpointing as "you") fed
-from the bounded Gateway queues. Finals only. Both sessions close on the
+from the bounded Gateway queues. Both sessions close on the
 first meeting.ended per meeting_id.
 """
 
@@ -113,6 +114,18 @@ class Transcriber:
             turn = await self._out.get()
             if self._active is None:
                 continue
+            if turn.get("partial"):
+                await self._bus.publish({
+                    "specversion": "1.0",
+                    "id": str(uuid.uuid4()),
+                    "type": "transcript.partial",
+                    "source": "halo/transcriber",
+                    "time": _utcnow(),
+                    "meetingid": self._active,
+                    "datacontenttype": "application/json",
+                    "data": {"stream": turn["stream"], "text": turn["text"]},
+                })
+                continue
             await self._bus.publish({
                 "specversion": "1.0",
                 "id": str(uuid.uuid4()),
@@ -131,6 +144,10 @@ class Transcriber:
                     "ts_end_ms": turn["ts_end_ms"],
                 },
             })
+
+    def live(self) -> dict[str, Any]:
+        """Per-stream live view of the open meeting (empty between meetings)."""
+        return {stream: s.live() for stream, s in self._sessions.items()}
 
     def health_status(self) -> str:
         states = [s.health for s in self._sessions.values()]

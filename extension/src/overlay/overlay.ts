@@ -5,7 +5,7 @@
 import type {
   FacesUpdate, PointsUpsert, SpeakerActive, TagsSet, TilesSnapshot, TilesSnapshotTiles,
 } from "../../../contracts/ext/gen/types";
-import { AGEING_FRACTION, KIND_COLORS, POINT_LIFETIME_MS } from "./tokens";
+import { AGEING_FRACTION, KIND_GLYPHS, POINT_LIFETIME_MS } from "./tokens";
 
 export type PointUpsert = PointsUpsert;
 
@@ -44,21 +44,6 @@ export interface El {
 }
 export interface DocLike {
   createElement(tag: string): El;
-}
-
-export const CONSENT_NOTICE =
-  "Halo is recording and transcribing this meeting on this PC to show live points and notes. " +
-  "Recordings and notes stay on this PC until deleted. / " +
-  "يقوم Halo بتسجيل هذا الاجتماع ونسخه على هذا الجهاز لعرض النقاط والملاحظات المباشرة. " +
-  "تبقى التسجيلات والملاحظات على هذا الجهاز حتى يتم حذفها.";
-
-/** Copy the (possibly user-edited) notice; the user pastes it into Meet chat. */
-export async function copyConsentNotice(
-  clipboard: { writeText(text: string): unknown },
-  text: string = CONSENT_NOTICE,
-): Promise<string> {
-  await clipboard.writeText(text); // clipboard only; Meet chat DOM is never touched
-  return text;
 }
 
 // ponytail: the backend is always local (DECISIONS 10: one app on 127.0.0.1:8765).
@@ -114,14 +99,23 @@ export class Overlay {
   hidden = false;
   status: unknown = null;
   notesToast: unknown = null;
+  // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
+  coach: { tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
   perFace = 3;
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];
   private faces = new Map<string, FacesUpdate["face"]>();
   private seenEnvelopes = new Set<string>();
+  private archived = new Set<string>();
   private thinkingStart = new Map<string, number>();
+  // Live caption (transcript.partial): the words being said per stream, and
+  // the tile Meet last marked speaking (kept after speaking=false: the words
+  // arrive 1-2 s after the highlight).
+  private captions = { tab: "", mic: "" };
+  private speakingTile: string | null = null;
   private layers = new Map<string, El>();
   private overflowEls = new Map<string, El>();
+  private expanded = new Set<string>(); // tiles whose +N the viewer opened
   urgencyStyle: UrgencyStyle = "words";
 
   constructor(private clock: { now: number }) {}
@@ -137,15 +131,25 @@ export class Overlay {
     for (const t of snapshot.tiles) this.tiles.set(t.tile_id, t);
   }
 
+  /** Set by boot(): redraw now (faces arrive outside backend envelopes). */
+  requestRender: () => void = () => {};
+
   applyFaces(update: FacesUpdate): void {
     this.faces.set(update.tile_id, update.face);
   }
 
   applySpeakerActive(active: SpeakerActive): void {
-    if (!active.speaking) this.thinkingStart.set(active.tile_id, this.clock.now);
+    if (active.speaking) this.speakingTile = active.tile_id;
+    else this.thinkingStart.set(active.tile_id, this.clock.now);
   }
 
   applyEnvelope(env: { id: string; type: string; data: Record<string, unknown> }): void {
+    if (env.type === "transcript.partial") {
+      // ponytail: no dedupe, a repeat caption is harmless; keeps seenEnvelopes small
+      const { stream, text } = env.data as { stream: "tab" | "mic"; text: string };
+      this.captions[stream] = text;
+      return;
+    }
     if (this.seenEnvelopes.has(env.id)) return; // dedupe by envelope id
     this.seenEnvelopes.add(env.id);
     const data = env.data as never;
@@ -158,6 +162,7 @@ export class Overlay {
       }
     } else if (env.type === "system.status") this.status = env.data;
     else if (env.type === "notes.ready") this.notesToast = env.data;
+    else if (env.type === "coach.tips") this.coach = env.data as never;
   }
 
   applyPointsUpsert(point: PointsUpsert, _envelopeId?: string): void {
@@ -184,18 +189,32 @@ export class Overlay {
     if (tag.urgency) stored.urgency = tag.urgency;
   }
 
+  /** Urgent points stay until archived (Karim 2026-11-01); others age out. */
   private live(tileId: string): StoredPoint[] {
+    const urgent = (p: StoredPoint) => (p.urgency === "urgent" ? 0 : 1);
     return [...this.points.values()]
-      .filter((p) => p.tile_id === tileId && this.clock.now - p.arrivedMs < POINT_LIFETIME_MS)
-      .sort((a, b) => a.rank - b.rank || a.arrivedMs - b.arrivedMs);
+      .filter((p) => p.tile_id === tileId && !this.archived.has(p.point_id)
+        && (p.urgency === "urgent" || this.clock.now - p.arrivedMs < POINT_LIFETIME_MS))
+      .sort((a, b) => urgent(a) - urgent(b) || a.rank - b.rank || a.arrivedMs - b.arrivedMs);
+  }
+
+  /** The viewer handled it: gone from the bubbles (the notes keep it). */
+  archive(pointId: string): void {
+    this.archived.add(pointId); // ponytail: per page load; a reload brings urgent points back
   }
 
   visiblePoints(tileId: string): StoredPoint[] {
     return this.live(tileId).slice(0, this.maxVisible(tileId));
   }
 
+  /** The +N chip opens every live point on the tile; "Less" folds them back. */
+  toggleExpanded(tileId: string): void {
+    if (!this.expanded.delete(tileId)) this.expanded.add(tileId);
+  }
+
   /** Chips that fit above the captions floor (normal cap when no floor). */
-  private maxVisible(tileId: string): number {
+  private maxVisible(tileId: string, folded = false): number {
+    if (!folded && this.expanded.has(tileId)) return Infinity; // ponytail: an open stack may run past the captions floor
     const cap = Math.min(this.perFace, 3);
     const { stackPos, floorY } = this.layout(tileId);
     if (floorY === null) return cap;
@@ -226,6 +245,7 @@ export class Overlay {
     stackPos: { x: number; y: number };
     floorY: number | null;
     faceBox?: { x: number; y: number; w: number; h: number };
+    side?: "right" | "left"; // face mode: which side of the face the stack sits on
   } {
     const tile = this.tiles.get(tileId);
     const face = this.faces.get(tileId);
@@ -237,15 +257,21 @@ export class Overlay {
     if (tile && face && index >= 0 && index < 6) {
       const box = projectFaceBox(tile, face.box);
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
-      const stackX = roomRight >= box.x - tile.rect[0]
+      const right = roomRight >= box.x - tile.rect[0];
+      const stackX = right
         ? box.x + box.w + Math.max(10, tile.rect[2] * 0.026)
         : Math.max(tile.rect[0] + 10, box.x - 160);
+      // The box is page space; the tile's layer is already placed at the
+      // tile, so positions are made tile-local (live 2026-11-02: they were
+      // offset twice). The name's anchor is its bottom centre, above the head.
+      const [rx, ry] = tile.rect;
       return {
         mode: "face",
-        namePos: { x: box.x + box.w / 2, y: Math.max(tile.rect[1] + 21, box.y - 6) },
-        stackPos: { x: stackX, y: box.y },
-        floorY: captionsTop,
+        namePos: { x: box.x + box.w / 2 - rx, y: Math.max(21, box.y - 6 - ry) },
+        stackPos: { x: stackX - rx, y: box.y - ry },
+        floorY: captionsTop !== null ? captionsTop - ry : null,
         faceBox: box,
+        side: right ? "right" : "left",
       };
     }
     // Frame mode (this PR's shipped path): name + stack pinned inside the tile.
@@ -279,12 +305,18 @@ export class Overlay {
     quoteDir: "rtl" | "ltr"; urgentWord?: string;
   } | null {
     const p = this.points.get(pointId);
-    if (!p) return null;
+    if (!p || this.archived.has(pointId)) return null;
     return {
       kind: p.kind, speaker: p.speaker_name, text: p.text, quote: p.quote,
       quoteDir: quoteDirection(p.quote),
-      urgentWord: p.urgency === "urgent" ? "Urgent" : undefined, // plain text only, no bubble mark
+      urgentWord: p.urgency === "urgent" ? ["Urgent", p.why].filter(Boolean).join(" · ") : undefined, // plain text only, no bubble mark
     };
+  }
+
+  /** Caption text for a tile: mic words on the self tile, tab words on the speaking tile. */
+  caption(tileId: string): string {
+    const self = this.tiles.get(tileId)?.is_self;
+    return (self ? this.captions.mic : tileId === this.speakingTile ? this.captions.tab : "");
   }
 
   render(doc: DocLike, root: El & { children?: El[] }, _now?: number): void {
@@ -317,13 +349,25 @@ export class Overlay {
       name.textContent = this.tiles.get(tileId)?.name ?? "";
       name.style.setProperty("left", `${layout.namePos.x}px`);
       name.style.setProperty("top", `${layout.namePos.y}px`);
+      if (layout.mode === "face") name.style.setProperty("transform", "translate(-50%, -100%)");
       layer.appendChild(name);
       const stack = doc.createElement("div");
       stack.classList.add("halo-stack");
+      // DECISIONS 1: in face mode each bubble's tail points back at the face.
+      if (layout.side) stack.classList.add(layout.side === "right" ? "halo-tail-l" : "halo-tail-r");
       stack.style.setProperty("left", `${layout.stackPos.x}px`);
       stack.style.setProperty("top", `${layout.stackPos.y}px`);
       layer.appendChild(stack);
       if (this.hidden) continue;
+      const words = this.caption(tileId);
+      if (words) {
+        // ponytail: the caption is not counted in the captions-floor fit rule
+        const cap = doc.createElement("div");
+        cap.classList.add("halo-caption");
+        cap.setAttribute("dir", "auto");
+        cap.textContent = words;
+        stack.appendChild(cap);
+      }
       for (const stored of this.visiblePoints(tileId)) {
         if (!stored.el) {
           stored.el = doc.createElement("button");
@@ -336,8 +380,9 @@ export class Overlay {
         chip.textContent = "";
         const mark = doc.createElement("span");
         mark.classList.add("halo-kind");
-        mark.style.setProperty("background", KIND_COLORS[stored.kind]);
+        mark.textContent = KIND_GLYPHS[stored.kind] ?? "";
         chip.appendChild(mark);
+        for (const u of ["urgent", "medium", "later"]) chip.classList.toggle(`halo-chip-${u}`, stored.urgency === u);
         if (stored.urgency) {
           const urg = doc.createElement("span");
           const words = this.urgencyStyle === "words";
@@ -345,6 +390,7 @@ export class Overlay {
           urg.classList.add(`halo-u-${stored.urgency}`);
           urg.textContent = words
             ? URGENCY_WORDS[stored.lang === "ar" ? "ar" : "en"][stored.urgency]
+              + (stored.urgency === "urgent" && stored.why ? ` · ${stored.why}` : "") // "Urgent · today"
             : URGENCY_GLYPHS[stored.urgency];
           chip.appendChild(urg);
         }
@@ -354,13 +400,18 @@ export class Overlay {
         stack.appendChild(chip);
       }
       const overflow = this.overflowCount(tileId);
-      if (overflow > 0) {
+      const canFold = this.expanded.has(tileId)
+        && this.live(tileId).length > this.maxVisible(tileId, true);
+      if (overflow > 0 || canFold) {
         let el = this.overflowEls.get(tileId);
         if (!el) {
-          el = doc.createElement("span");
+          el = doc.createElement("button");
+          el.classList.add("halo-more");
+          el.setAttribute("data-expand-tile", tileId);
           this.overflowEls.set(tileId, el);
         }
-        el.textContent = `+${overflow}`;
+        el.textContent = canFold ? "Less" : `+${overflow}`;
+        el.setAttribute("aria-label", canFold ? "Show fewer points" : `Show ${overflow} more points`);
         stack.appendChild(el);
       }
     }

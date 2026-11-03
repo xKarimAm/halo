@@ -115,7 +115,7 @@ Every Halo surface uses the same material: point chips, the name pill, `+N`, the
 | Kind glyph | A 1.1 em inline SVG with a 2.2 px stroke: question mark, check (decision), return arrow (pushback, mirrored in RTL). The dot versus a glyph is the non-colour cue. The mark never dims, so it keeps 3:1 |
 | Rank 1 | Only when the stack holds 2 or more points: a brighter glass edge (`inset 0 1px 0 rgba(255,255,255,.24)`, `inset 0 0 0 1px rgba(255,255,255,.18)`). No extra colour |
 | Lifetime hairline | 1.5 px `rgba(255,255,255,.3)`, 3 px above the bottom, inset 12 px. `scaleX` = remaining life. JS writes it every frame on the hairline element only, never on the glass chip itself, so it freezes when paused. Its origin flips in RTL |
-| Overflow | Points over the cap fold into a `+N` chip (11 px / 600, `#cfd3da`, chip glass, radius 999 px) at the end of the stack. The `+N` chip is built once per stack and toggled with `hidden`. It is not interactive |
+| Overflow | Points over the cap fold into a `+N` chip (11 px / 600, `#cfd3da`, chip glass, radius 999 px) at the end of the stack. The `+N` chip is built once per stack and toggled with `hidden`. A click opens every live point on that tile and the chip reads "Less" until clicked again (Karim 2026-11-02) |
 
 **Size steps.** These are container queries on the tile width.
 

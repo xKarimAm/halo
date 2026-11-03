@@ -22,12 +22,19 @@ class Ack(BaseModel):
     status: Literal["ok", "error"]
     error: AckError | None = None
 
+class CoachTips(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    tips: list[str]
+    alert: str | None = None
+    lang: Literal["en", "ar"]
+
 class Envelope(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     specversion: Literal["1.0"]
     id: UUID
-    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready"]
+    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready", "coach.tips"]
     source: str
     time: datetime
     meetingid: UUID | None
@@ -64,6 +71,22 @@ class LlmHealth(BaseModel):
     engine: str
     p90_ms: int
 
+class MeetingPageMeetingDisagreementsSides(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    name: str
+    view: str
+
+
+class MeetingPageMeetingDisagreements(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    topic: str
+    sides: list[MeetingPageMeetingDisagreementsSides]
+    outcome: Literal["settled", "parked", "open"]
+    resolution: str | None = None
+
+
 class MeetingPageMeeting(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -72,6 +95,9 @@ class MeetingPageMeeting(BaseModel):
     degraded: bool
     project_id: str | None = None
     t0_ms: int
+    title: str | None = None
+    summary: str | None = None
+    disagreements: list[MeetingPageMeetingDisagreements] | None = None
 
 
 class MeetingPagePeople(BaseModel):
@@ -189,6 +215,22 @@ class NotesReadyPeople(BaseModel):
     actions: list[NotesReadyPeopleActions]
 
 
+class NotesReadyDisagreementsSides(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    name: str
+    view: str
+
+
+class NotesReadyDisagreements(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    topic: str
+    sides: list[NotesReadyDisagreementsSides]
+    outcome: Literal["settled", "parked", "open"]
+    resolution: str | None = None
+
+
 class NotesReady(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -197,6 +239,10 @@ class NotesReady(BaseModel):
     url: str
     degraded: bool
     people: list[NotesReadyPeople]
+    title: str | None = None
+    summary: str | None = None
+    meeting_type: Literal["sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other"] | None = None
+    disagreements: list[NotesReadyDisagreements] | None = None
 
 class PairHello(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -228,6 +274,7 @@ class PointsUpsert(BaseModel):
     rank: int
     attribution: Literal["provisional", "locked"]
     urgency: Literal["urgent", "medium", "later"] | None = None
+    why: str | None = None
     is_action: bool
     engine: str
     replaces: UUID | None = None
@@ -308,6 +355,12 @@ class TranscriptFinal(BaseModel):
     lang: Literal["ar", "en", "mixed"]
     ts_start_ms: int
     ts_end_ms: int
+
+class TranscriptPartial(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    stream: Literal["tab", "mic"]
+    text: str
 
 class TurnAttributed(BaseModel):
     model_config = ConfigDict(extra='forbid')

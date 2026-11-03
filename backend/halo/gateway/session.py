@@ -10,6 +10,7 @@ dedupe (so a resend on a reconnected socket is not re-published).
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -18,7 +19,24 @@ from contracts.validate import known_type, validate_envelope
 Envelope = dict[str, Any]
 
 #: Bus types the Gateway forwards to paired sockets (the Overlay).
-FORWARD_TYPES = ("points.upsert", "tags.set", "speaker.mapped", "notes.ready")
+FORWARD_TYPES = ("points.upsert", "tags.set", "speaker.mapped", "notes.ready", "transcript.partial",
+                 "coach.tips")
+
+
+def _non_uuid_ids(msg: Envelope) -> list[str]:
+    """Meeting ids become recording file names, so they must be real UUIDs
+    (the schema says `format: uuid`, but the validator does not enforce formats)."""
+    data = msg.get("data")
+    ids = [msg.get("meetingid"), data.get("meeting_id") if isinstance(data, dict) else None]
+    errors = []
+    for mid in ids:
+        if mid is None:
+            continue
+        try:
+            uuid.UUID(str(mid))
+        except ValueError:
+            errors.append(f"meeting id {str(mid)[:40]!r} is not a UUID")
+    return errors
 
 
 def _ack(ack_of: object, status: str, code: str | None = None, message: str = "") -> dict[str, Any]:
@@ -56,7 +74,7 @@ class SocketSession:
         mtype = msg.get("type")
         if not known_type(mtype):
             return _ack(msg.get("id"), "error", "unknown_type", f"unknown type {mtype!r}")
-        errors = validate_envelope(msg)
+        errors = validate_envelope(msg) + _non_uuid_ids(msg)
         if errors:
             return _ack(msg.get("id"), "error", "invalid_schema", "; ".join(errors))
         mid = msg["id"]

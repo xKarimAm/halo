@@ -44,6 +44,16 @@ export default defineBackground(() => {
         void takeStart().then(reply, () => reply(null));
         return true; // async reply
       }
+      // "Start Halo" on the Halo-is-off toast: open the setup panel over the
+      // Meet tab's window (chrome.action.openPopup, Chrome 127+). Replies
+      // false when Chrome refuses, so the toast can point at the icon instead.
+      if (msg?.type === "halo/open.setup") {
+        const windowId = (_sender as { tab?: { windowId?: number } })?.tab?.windowId;
+        Promise.resolve()
+          .then(() => chrome.action.openPopup(windowId != null ? { windowId } : undefined))
+          .then(() => reply({ ok: true }), () => reply({ ok: false }));
+        return true; // async reply
+      }
       if (msg?.type !== "halo/hub.start") return false;
       void (async () => {
         await chrome.storage.local.set({ [PENDING_START_KEY]: { msg, at: Date.now() } });

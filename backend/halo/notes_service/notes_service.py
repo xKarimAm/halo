@@ -3,17 +3,20 @@
 Read-only over the Event Store SQLite file (`meetings` + `events`; the
 documented points/tags semantics mirrored in Python, own copy — lane
 independence), plus the static `notes-page/` dir and the `recordings/`
-files. The only write path is `POST /api/tags`, which publishes `tags.set`
-(`source: user`) on the bus. No `notes.ready` consumption: the page is
+files. Write paths: `POST /api/tags`, which publishes `tags.set`
+(`source: user`) on the bus, and the folders in `data/folders.json` (this
+lane's own file; Karim 2026-11-02). No `notes.ready` consumption: the page is
 assembled here; people/actions prefer the latest stored `notes.ready`
 event, falling back to live state before the builder runs.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -21,15 +24,26 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import ValidationError
 
+import contracts
 from contracts.gen.pydantic.models import MeetingPage
+from halo.notes_service import ask as ask_mod
+from halo.notes_service.speaking import speaking_insights
 
 log = logging.getLogger("halo.notes_service")
 
 Envelope = dict[str, Any]
 SEARCH_CAP = 100
+MAX_FOLDERS = 200
+# Karim 2026-11-04: meeting types the list sorts by; the contract holds the one list.
+MEETING_TYPES = tuple(json.loads(
+    (Path(contracts.__file__).parent / "notes.ready.schema.json").read_text(encoding="utf-8")
+)["properties"]["meeting_type"]["enum"])
+# The shell and its files change with every update: browsers must revalidate
+# (live 2026-11-02: Chrome kept the old app.js after an update).
+NO_CACHE = {"Cache-Control": "no-cache"}
 
 KINDS = ("point", "question", "decision", "pushback")
 URGENCIES = ("urgent", "medium", "later")
@@ -38,6 +52,32 @@ URGENCIES = ("urgent", "medium", "later")
 def action_id_for(point_id: str) -> str:
     """Stable action ids: deterministic over the point, shared with notes_builder."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{point_id}"))
+
+
+def owner_for(text: str, speaker: str, names: list[str]) -> str:
+    """The person an action names ("Omar owns the numbers"), else its speaker.
+    E2E 2026-11-03: every action was credited to whoever said it.
+    ponytail: name match on speakers' full or first names; the notes service
+    keeps a copy of this (lanes never import each other)."""
+    found: list[tuple[int, str]] = []
+    firsts = [n.split()[0] for n in names if n.split()]
+    for name in names:
+        parts = name.split()
+        if not parts:
+            continue  # an empty name matches nothing
+        forms = [(name, re.IGNORECASE)]
+        if parts[0] != name and firsts.count(parts[0]) == 1:
+            # A first name alone must be capitalised and belong to one person:
+            # "Ali" between Ali Hassan and Ali Khan stays the speaker's, and a
+            # tile "Meeting Room" never claims "schedule the meeting" (review).
+            forms.append((parts[0], re.NOFLAG))
+        for form, flags in forms:
+            if len(form) < 3:
+                continue
+            m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, flags)
+            if m:
+                found.append((m.start(), name))
+    return min(found)[1] if found else speaker
 
 
 class NotesService:
@@ -49,8 +89,10 @@ class NotesService:
         *,
         data_dir: Path | str | None = None,
         static_dir: Path | str | None = None,
+        llm: Any = None,
     ) -> None:
         self._bus = bus
+        self._llm = llm  # the shared model client, only for Ask
         self._data_dir = Path(data_dir) if data_dir is not None else Path(
             os.environ.get("HALO_DATA_DIR") or "data")
         self._db_path = self._data_dir / "events.sqlite"
@@ -58,6 +100,90 @@ class NotesService:
             self._static = Path(static_dir)
         else:
             self._static = Path(__file__).resolve().parents[3] / "notes-page"
+
+    # -- folders (data/folders.json) -----------------------------------------
+
+    def _folders_path(self) -> Path:
+        return self._data_dir / "folders.json"
+
+    def _load_folders(self) -> dict[str, Any]:
+        try:
+            data = json.loads(self._folders_path().read_text(encoding="utf-8"))
+            return {"folders": list(data.get("folders", [])), "meetings": dict(data.get("meetings", {})),
+                    "archived": list(data.get("archived", [])), "types": dict(data.get("types", {}))}
+        except (OSError, ValueError, AttributeError):
+            return {"folders": [], "meetings": {}, "archived": [], "types": {}}
+
+    def _save_folders(self, data: dict[str, Any]) -> None:
+        # ponytail: whole-file rewrite, fine for a handful of folders on one PC
+        tmp = self._folders_path().with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(self._folders_path())
+
+    def folders(self) -> list[dict[str, Any]]:
+        data = self._load_folders()
+        counts: dict[str, int] = {}
+        for folder_id in data["meetings"].values():
+            counts[folder_id] = counts.get(folder_id, 0) + 1
+        return [{**f, "count": counts.get(f["folder_id"], 0)} for f in data["folders"]]
+
+    def create_folder(self, name: str, meeting_id: str | None = None) -> dict[str, Any]:
+        data = self._load_folders()
+        if len(data["folders"]) >= MAX_FOLDERS:
+            raise ValueError("too many folders")
+        folder = {"folder_id": str(uuid.uuid4()), "name": name}
+        data["folders"].append(folder)
+        if meeting_id:
+            data["meetings"][meeting_id] = folder["folder_id"]
+        self._save_folders(data)
+        return folder
+
+    def move_to_folder(self, meeting_id: str, folder_id: str | None) -> bool:
+        """False when folder_id names no folder; None takes the meeting out."""
+        data = self._load_folders()
+        if folder_id is None:
+            data["meetings"].pop(meeting_id, None)
+        elif any(f["folder_id"] == folder_id for f in data["folders"]):
+            data["meetings"][meeting_id] = folder_id
+        else:
+            return False
+        self._save_folders(data)
+        return True
+
+    def rename_folder(self, folder_id: str, name: str) -> bool:
+        data = self._load_folders()
+        for folder in data["folders"]:
+            if folder["folder_id"] == folder_id:
+                folder["name"] = name
+                self._save_folders(data)
+                return True
+        return False
+
+    def delete_folder(self, folder_id: str) -> bool:
+        """The folder goes; its meetings stay, unfiled."""
+        data = self._load_folders()
+        kept = [f for f in data["folders"] if f["folder_id"] != folder_id]
+        if len(kept) == len(data["folders"]):
+            return False
+        data["folders"] = kept
+        data["meetings"] = {m: f for m, f in data["meetings"].items() if f != folder_id}
+        self._save_folders(data)
+        return True
+
+    def set_archived(self, meeting_id: str, archived: bool) -> None:
+        data = self._load_folders()
+        rest = [m for m in data["archived"] if m != meeting_id]
+        data["archived"] = rest + [meeting_id] if archived else rest
+        self._save_folders(data)
+
+    def set_type(self, meeting_id: str, meeting_type: str | None) -> None:
+        """The user's pick; None hands it back to the builder's."""
+        data = self._load_folders()
+        if meeting_type is None:
+            data["types"].pop(meeting_id, None)
+        else:
+            data["types"][meeting_id] = meeting_type
+        self._save_folders(data)
 
     # -- store reads --------------------------------------------------------
 
@@ -77,7 +203,7 @@ class NotesService:
         meeting = dict(row)
         turns = self._turns(conn, meeting_id)
         points = self._points(conn, meeting_id)
-        tags = self._tags(conn, [p["point_id"] for p in points])
+        tags = self._tags(conn, [p["point_id"] for p in points], meeting_id)
         context = self._context(conn, meeting_id)
         ready = self._latest_ready(conn, meeting_id)
         return {"meeting": meeting, "turns": turns, "points": points,
@@ -130,9 +256,18 @@ class NotesService:
         points.sort(key=lambda p: (p["rank"], p["seq"]))
         return points
 
-    def _tags(self, conn: sqlite3.Connection, point_ids: list[str]) -> dict[str, dict[str, str]]:
+    def _tags(self, conn: sqlite3.Connection, point_ids: list[str],
+              meeting_id: str | None = None) -> dict[str, dict[str, str]]:
+        # Latest user tag > latest model tag > guess (DECISIONS); rows come in order.
+        # One meeting reads only its own rows (review 2026-11-03: the list page
+        # scanned every tag of every meeting once per meeting).
         tags: dict[str, dict[str, str]] = {}
-        for (data,) in conn.execute("SELECT data FROM events WHERE type = 'tags.set' ORDER BY seq"):
+        by_user: set[tuple[str, str]] = set()
+        sql = "SELECT data FROM events WHERE type = 'tags.set'"
+        args: tuple[str, ...] = ()
+        if meeting_id is not None:
+            sql, args = sql + " AND meetingid = ?", (meeting_id,)
+        for (data,) in conn.execute(sql + " ORDER BY seq", args):
             try:
                 tag = json.loads(data)
             except ValueError:
@@ -141,9 +276,13 @@ class NotesService:
                 continue
             entry = tags.setdefault(tag["target_id"], {})
             for field in ("kind", "urgency"):
-                if tag.get(field) is not None and (
-                        tag.get("source") == "user" or field not in entry):
-                    entry[field] = tag[field]
+                if tag.get(field) is None:
+                    continue
+                if tag.get("source") == "user":
+                    by_user.add((tag["target_id"], field))
+                elif (tag["target_id"], field) in by_user:
+                    continue
+                entry[field] = tag[field]
         return tags
 
     def _context(self, conn: sqlite3.Connection, meeting_id: str) -> dict[str, Any]:
@@ -202,7 +341,7 @@ class NotesService:
                 continue
             item = {
                 "action_id": action_id_for(point["point_id"]), "text": point["text"],
-                "owner": point["speaker_name"], "status": "suggested",
+                "owner": owner_for(point["text"], point["speaker_name"], sorted({t["speaker"] for t in turns})), "status": "suggested",
                 "urgency": point["urgency"], "point_id": point["point_id"],
             }
             stored = ready_actions.get(item["action_id"])
@@ -247,12 +386,17 @@ class NotesService:
                 "turn_id": t["turn_id"], "speaker_name": t["speaker"],
                 "text": t["text"], "ts_start_ms": t["ts_start_ms"],
                 "ts_end_ms": t["ts_end_ms"],
-                "recording_offset_ms": t["ts_start_ms"] - t0_ms,
+                "recording_offset_ms": max(0, t["ts_start_ms"] - t0_ms),  # a turn begun before Start plays from 0
             } for t in turns],
             "recording": {"path": f"recordings/{meeting_id}.webm", "start_ts_ms": t0_ms},
         }
         if meeting["project_id"] is not None:
             page["meeting"]["project_id"] = meeting["project_id"]
+        for key in ("title", "summary"):  # AI, from the builder's notes.ready
+            if ready and isinstance(ready.get(key), str) and ready[key].strip():
+                page["meeting"][key] = ready[key].strip()
+        if ready and isinstance(ready.get("disagreements"), list) and ready["disagreements"]:
+            page["meeting"]["disagreements"] = ready["disagreements"]
         return page
 
     # -- list / search ---------------------------------------------------------
@@ -265,30 +409,129 @@ class NotesService:
             conn.row_factory = sqlite3.Row
             if project_id is not None:
                 rows = conn.execute(
-                    "SELECT meeting_id, subject, project_id, t0_ms FROM meetings"
+                    "SELECT meeting_id, subject, project_id, t0_ms, self_name FROM meetings"
                     " WHERE project_id = ? ORDER BY t0_ms DESC", (project_id,))
             else:
                 rows = conn.execute(
-                    "SELECT meeting_id, subject, project_id, t0_ms FROM meetings"
+                    "SELECT meeting_id, subject, project_id, t0_ms, self_name FROM meetings"
                     " ORDER BY t0_ms DESC")
             out = []
+            filed = self._load_folders()
+            in_folder = filed["meetings"]
             for row in rows:
                 meeting = dict(row)
                 turns = self._turns(conn, meeting["meeting_id"])
+                ready = self._latest_ready(conn, meeting["meeting_id"]) or {}
                 seen: list[str] = []
                 for turn in turns:
                     if turn["speaker"] not in seen:
                         seen.append(turn["speaker"])
-                out.append({
+                item = {
                     "meeting_id": meeting["meeting_id"],
                     "subject": meeting["subject"] or "Untitled meeting",
                     "people": seen,
                     "date": datetime.fromtimestamp(
                         (meeting["t0_ms"] or 0) / 1000, UTC).strftime("%a %d %b"),
-                })
+                    "folder_id": in_folder.get(meeting["meeting_id"]),
+                    "t0_ms": meeting["t0_ms"] or 0,  # the page formats the date in local time
+                    "self_name": meeting["self_name"] or "",  # "action items for you" on the home
+                }
+                if isinstance(ready.get("title"), str) and ready["title"].strip():
+                    item["title"] = ready["title"].strip()
+                item["archived"] = meeting["meeting_id"] in filed["archived"]
+                mine = filed["types"].get(meeting["meeting_id"])
+                halo = ready.get("meeting_type") if ready.get("meeting_type") in MEETING_TYPES else None
+                item["meeting_type"] = mine or halo
+                if item["meeting_type"]:
+                    item["type_by"] = "you" if mine else "halo"
+                item.update(self._card_counts(meeting["meeting_id"], meeting["t0_ms"] or 0, turns))
+                out.append(item)
             return out
         finally:
             conn.close()
+
+    def speaking_for(self, meeting_id: str) -> dict[str, Any] | None:
+        """The viewer is the self tile Meet showed (meeting.started often has no
+        name); a meeting with one speaker is that speaker's."""
+        conn = self._connect()
+        if conn is None:
+            return None
+        try:
+            row = conn.execute("SELECT t0_ms FROM meetings WHERE meeting_id = ?", (meeting_id,)).fetchone()
+            if row is None:
+                return None
+            turns = self._turns(conn, meeting_id)
+            me = ""
+            for (data,) in conn.execute(
+                    "SELECT data FROM events WHERE meetingid = ? AND type IN"
+                    " ('meeting.started', 'tiles.snapshot') ORDER BY seq DESC", (meeting_id,)):
+                try:
+                    loaded = json.loads(data)
+                except ValueError:
+                    continue
+                me = loaded.get("self_name") or next(
+                    (t.get("name") for t in loaded.get("tiles") or []
+                     if isinstance(t, dict) and t.get("is_self") and t.get("name")), "") or ""
+                if me:
+                    break
+        finally:
+            conn.close()
+        speakers = {t["speaker"] for t in turns}
+        if not me and len(speakers) == 1:
+            me = next(iter(speakers))
+        return speaking_insights(turns, me, row[0] or 0) if me else None
+
+    def _card_counts(self, meeting_id: str, t0_ms: int, turns: list[dict[str, Any]]) -> dict[str, Any]:
+        """The meeting card's facts (locked design: duration, decisions, open
+        questions, pushbacks, urgent actions), with the user's re-tags applied.
+        ponytail: builds each meeting's page; a SQL count if the list grows past ~100."""
+        page = self.page_for(meeting_id) or {"points": [], "actions": []}
+        kinds = [p["kind"] for p in page["points"]]
+        end = max((t["ts_end_ms"] or t["ts_start_ms"] for t in turns), default=t0_ms)
+        return {
+            "minutes": max(0, round((end - t0_ms) / 60000)) if turns and t0_ms else 0,
+            "counts": {"decision": kinds.count("decision"), "question": kinds.count("question"),
+                       "pushback": kinds.count("pushback"),
+                       "urgent": sum(a["urgency"] == "urgent" for a in page["actions"])},
+        }
+
+    def passages(self) -> list[dict[str, Any]]:
+        """Every meeting's AI summary, points and transcript lines, newest meeting
+        first, in the hit shape the page already renders (plus `date`)."""
+        conn = self._connect()
+        if conn is None:
+            return []
+        try:
+            conn.row_factory = sqlite3.Row
+            out: list[dict[str, Any]] = []
+            for m in conn.execute("SELECT meeting_id, subject, t0_ms FROM meetings ORDER BY t0_ms DESC"):
+                mid, ready = m["meeting_id"], self._latest_ready(conn, m["meeting_id"]) or {}
+                subject = str(ready.get("title") or m["subject"] or "Untitled meeting")
+                date = datetime.fromtimestamp((m["t0_ms"] or 0) / 1000, UTC).strftime("%Y-%m-%d")
+                base = {"meeting_id": mid, "subject": subject, "date": date}
+                if isinstance(ready.get("summary"), str) and ready["summary"].strip():
+                    out.append({**base, "snippet": ready["summary"].strip(), "line": None,
+                                "speaker": "", "scope": "summary", "kindLabel": "summary"})
+                points = self._points(conn, mid)
+                tags = self._tags(conn, [pt["point_id"] for pt in points], mid)
+                for pt in points:
+                    tag = tags.get(pt["point_id"], {})
+                    scope = "action" if pt["is_action"] else "point"
+                    kind = tag.get("kind", pt["kind"])
+                    out.append({**base, "snippet": pt["text"], "line": (pt["turn_ids"] or [None])[0],
+                                "speaker": pt["speaker_name"], "scope": scope, "kind": kind,
+                                "urgency": tag.get("urgency", pt["urgency"]), "kindLabel": kind})
+                for turn in self._turns(conn, mid):
+                    out.append({**base, "snippet": turn["text"], "line": turn["turn_id"],
+                                "speaker": turn["speaker"], "scope": "transcript", "kindLabel": ""})
+            return out
+        finally:
+            conn.close()
+
+    def ask(self, question: str) -> dict[str, Any]:
+        if self._llm is None:
+            return {"error": "no_model", "answer": ask_mod.FAILED[ask_mod.lang_of(question)], "citations": []}
+        return ask_mod.answer(self._llm, question, self.passages())
 
     def search(self, query: str) -> list[dict[str, Any]]:
         needle = query.lower()
@@ -417,6 +660,16 @@ def _snippet(text: str, needle: str, window: int = 60) -> str:
 router = APIRouter()
 
 
+def _foreign_origin(request: Request) -> JSONResponse | None:
+    """Writes come only from the notes page itself. The Host check already pins
+    loopback; a browser also sends Origin on every cross-site POST, so another
+    site open in Chrome cannot tag or file meetings (security review 2026-11-02)."""
+    origin = request.headers.get("origin")
+    if origin is not None and origin != f"http://{request.headers.get('host', '')}":
+        return JSONResponse({"detail": "foreign origin rejected"}, status_code=403)
+    return None
+
+
 def _service(request: Request) -> NotesService:
     return request.app.state.notes_service
 
@@ -426,7 +679,7 @@ async def notes_app_js(request: Request):  # type: ignore[no-untyped-def]
     path = _service(request).static_file("app.js")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="application/javascript")
+    return FileResponse(path, media_type="application/javascript", headers=NO_CACHE)
 
 
 @router.get("/notes/styles.css")
@@ -434,7 +687,22 @@ async def notes_styles(request: Request):  # type: ignore[no-untyped-def]
     path = _service(request).static_file("styles.css")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="text/css")
+    return FileResponse(path, media_type="text/css", headers=NO_CACHE)
+
+
+@router.get("/notes")
+async def notes_no_slash() -> RedirectResponse:
+    """The shell loads ./app.js and ./styles.css, which only resolve under /notes/."""
+    return RedirectResponse("/notes/")
+
+
+@router.get("/notes/")
+async def notes_list_shell(request: Request):  # type: ignore[no-untyped-def]
+    """The meetings list's own address (browser Back lands here, #102)."""
+    path = _service(request).static_file("index.html")
+    if path is None:
+        return JSONResponse({"detail": "notes shell not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html", headers=NO_CACHE)
 
 
 @router.get("/notes/{meeting_id}")
@@ -445,7 +713,7 @@ async def notes_shell(meeting_id: str, request: Request):  # type: ignore[no-unt
     path = service.static_file("index.html")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)
-    return FileResponse(path, media_type="text/html")
+    return FileResponse(path, media_type="text/html", headers=NO_CACHE)
 
 
 @router.get("/api/meetings")
@@ -467,6 +735,12 @@ async def api_meeting_page(meeting_id: str, request: Request):  # type: ignore[n
     return page
 
 
+@router.get("/api/meetings/{meeting_id}/speaking")
+async def api_speaking(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    """Private facts about how the viewer talked (speaking.py); null when too little."""
+    return _service(request).speaking_for(meeting_id)
+
+
 @router.get("/api/search")
 async def api_search(request: Request, q: str | None = None):  # type: ignore[no-untyped-def]
     if q is None:
@@ -476,8 +750,30 @@ async def api_search(request: Request, q: str | None = None):  # type: ignore[no
     return {"hits": _service(request).search(q.strip())}
 
 
+ASK_MAX_CHARS = 300
+
+
+@router.post("/api/ask")
+async def api_ask(request: Request):  # type: ignore[no-untyped-def]
+    """A question across every meeting, answered by Spark from stored passages.
+    POST + the Origin check: each question costs model calls, so no other site may send one."""
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    try:
+        body = await request.json()
+    except ValueError:
+        return JSONResponse({"detail": "malformed JSON"}, status_code=400)
+    q = body.get("q") if isinstance(body, dict) else None
+    if not isinstance(q, str) or not q.strip() or len(q) > ASK_MAX_CHARS:
+        return JSONResponse({"detail": f"q must be 1-{ASK_MAX_CHARS} characters"}, status_code=400)
+    result = await asyncio.to_thread(_service(request).ask, q.strip())
+    return JSONResponse(result, status_code=502 if result.get("error") else 200)
+
+
 @router.post("/api/tags", status_code=201)
 async def api_tags(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
     service = _service(request)
     try:
         body = await request.json()
@@ -508,6 +804,104 @@ async def api_tags(request: Request):  # type: ignore[no-untyped-def]
     }
     await service._bus.publish(envelope)
     return envelope
+
+
+@router.get("/api/folders")
+async def api_folders(request: Request):  # type: ignore[no-untyped-def]
+    return _service(request).folders()
+
+
+@router.post("/api/folders", status_code=201)
+async def api_create_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    name = body.get("name") if isinstance(body, dict) else None
+    if not isinstance(name, str) or not name.strip():
+        return JSONResponse({"detail": "folder name required"}, status_code=400)
+    meeting_id = body.get("meeting_id")
+    try:
+        return _service(request).create_folder(
+            name.strip()[:80], meeting_id if isinstance(meeting_id, str) else None)
+    except ValueError:
+        return JSONResponse({"detail": "folder limit reached"}, status_code=409)
+
+
+@router.post("/api/folders/move")
+async def api_move_to_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("meeting_id"), str):
+        return JSONResponse({"detail": "meeting_id required"}, status_code=400)
+    folder_id = body.get("folder_id")
+    if folder_id is not None and not isinstance(folder_id, str):
+        return JSONResponse({"detail": "folder_id must be a string or null"}, status_code=400)
+    if not _service(request).move_to_folder(body["meeting_id"], folder_id):
+        return JSONResponse({"detail": "unknown folder"}, status_code=404)
+    return {"meeting_id": body["meeting_id"], "folder_id": folder_id}
+
+
+async def _body(request: Request) -> dict[str, Any]:
+    try:
+        body = await request.json()
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+@router.post("/api/folders/rename")
+async def api_rename_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    name, folder_id = body.get("name"), body.get("folder_id")
+    if not isinstance(name, str) or not name.strip() or not isinstance(folder_id, str):
+        return JSONResponse({"detail": "folder_id and name required"}, status_code=400)
+    if not _service(request).rename_folder(folder_id, name.strip()[:80]):
+        return JSONResponse({"detail": "unknown folder"}, status_code=404)
+    return {"folder_id": folder_id, "name": name.strip()[:80]}
+
+
+@router.post("/api/folders/delete")
+async def api_delete_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    folder_id = (await _body(request)).get("folder_id")
+    if not isinstance(folder_id, str):
+        return JSONResponse({"detail": "folder_id required"}, status_code=400)
+    if not _service(request).delete_folder(folder_id):
+        return JSONResponse({"detail": "unknown folder"}, status_code=404)
+    return {"folder_id": folder_id, "deleted": True}
+
+
+@router.post("/api/meetings/archive")
+async def api_archive(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    if not isinstance(body.get("meeting_id"), str) or not isinstance(body.get("archived"), bool):
+        return JSONResponse({"detail": "meeting_id and archived required"}, status_code=400)
+    _service(request).set_archived(body["meeting_id"], body["archived"])
+    return {"meeting_id": body["meeting_id"], "archived": body["archived"]}
+
+
+@router.post("/api/meetings/type")
+async def api_meeting_type(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    kind = body.get("meeting_type")
+    if not isinstance(body.get("meeting_id"), str) or (kind is not None and kind not in MEETING_TYPES):
+        return JSONResponse({"detail": f"meeting_type must be one of {list(MEETING_TYPES)} or null"}, status_code=400)
+    _service(request).set_type(body["meeting_id"], kind)
+    return {"meeting_id": body["meeting_id"], "meeting_type": kind}
 
 
 @router.get("/api/audio")

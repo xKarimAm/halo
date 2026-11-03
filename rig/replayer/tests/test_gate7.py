@@ -248,7 +248,7 @@ def events_of(data_dir: Path, type_: str) -> list[dict]:
 
 
 def classifier_replies(n: int) -> list[LlmReply]:
-    return [LlmReply(match="assign tags to a meeting point",
+    return [LlmReply(match="check the tags of one live meeting point",
                      response={"kind": "point", "urgency": "medium"})
             for _ in range(n)]
 
@@ -367,10 +367,10 @@ def test_llm_failover_keeps_points_flowing(monkeypatch: Any, tmp_path: Path) -> 
         classifier_replies(2) + [
             LlmReply(match="Launch moves", response={
                 "kind": "decision", "text": "Launch moves to Nov 12",
-                "quote": turn1, "rank": 1, "urgency": "medium", "is_action": False}),
+                "rank": 1, "urgency": "medium", "is_action": False}),
             LlmReply(match="Beta cohort", response={
                 "kind": "point", "text": "Beta cohort grows",
-                "quote": turn2, "rank": 1, "urgency": "medium", "is_action": False}),
+                "rank": 1, "urgency": "medium", "is_action": False}),
         ],
         llm_errors={PRIMARY_MODEL: 500})
     data_dir = tmp_path / "data"

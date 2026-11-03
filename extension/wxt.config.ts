@@ -26,7 +26,7 @@ export default defineConfig({
     // activeTab: the popup reads the active tab's URL to refuse Start
     // outside a Meet call (granted by the popup click itself, no warning).
     permissions: ["tabCapture", "offscreen", "storage", "alarms", "activeTab"],
-    host_permissions: ["http://127.0.0.1:8765/*", "ws://127.0.0.1:8765/*", "https://meet.google.com/*"],
+    host_permissions: ["http://127.0.0.1:8765/*", "ws://127.0.0.1:8765/*", "http://127.0.0.1:8766/*", "https://meet.google.com/*"],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },

@@ -11,10 +11,16 @@ export interface Ack {
   error?: AckError;
 }
 
+export interface CoachTips {
+  tips: string[];
+  alert?: string;
+  lang: "en" | "ar";
+}
+
 export interface Envelope {
   specversion: "1.0";
   id: string;
-  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready";
+  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "transcript.partial" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready" | "coach.tips";
   source: string;
   time: string;
   meetingid: string | null;
@@ -46,12 +52,27 @@ export interface LlmHealth {
   p90_ms: number;
 }
 
+export interface MeetingPageMeetingDisagreementsSides {
+  name: string;
+  view: string;
+}
+
+export interface MeetingPageMeetingDisagreements {
+  topic: string;
+  sides: MeetingPageMeetingDisagreementsSides[];
+  outcome: "settled" | "parked" | "open";
+  resolution?: string;
+}
+
 export interface MeetingPageMeeting {
   meeting_id: string;
   subject: string;
   degraded: boolean;
   project_id?: string;
   t0_ms: number;
+  title?: string;
+  summary?: string;
+  disagreements?: MeetingPageMeetingDisagreements[];
 }
 
 export interface MeetingPagePeople {
@@ -149,12 +170,28 @@ export interface NotesReadyPeople {
   actions: NotesReadyPeopleActions[];
 }
 
+export interface NotesReadyDisagreementsSides {
+  name: string;
+  view: string;
+}
+
+export interface NotesReadyDisagreements {
+  topic: string;
+  sides: NotesReadyDisagreementsSides[];
+  outcome: "settled" | "parked" | "open";
+  resolution?: string;
+}
+
 export interface NotesReady {
   meeting_id: string;
   project_id?: string;
   url: string;
   degraded: boolean;
   people: NotesReadyPeople[];
+  title?: string;
+  summary?: string;
+  meeting_type?: "sprint" | "planning" | "discovery" | "sales" | "induction" | "one_on_one" | "interview" | "other";
+  disagreements?: NotesReadyDisagreements[];
 }
 
 export interface PairHello {
@@ -182,6 +219,7 @@ export interface PointsUpsert {
   rank: number;
   attribution: "provisional" | "locked";
   urgency?: "urgent" | "medium" | "later";
+  why?: string;
   is_action: boolean;
   engine: string;
   replaces?: string;
@@ -251,6 +289,11 @@ export interface TranscriptFinal {
   lang: "ar" | "en" | "mixed";
   ts_start_ms: number;
   ts_end_ms: number;
+}
+
+export interface TranscriptPartial {
+  stream: "tab" | "mic";
+  text: string;
 }
 
 export interface TurnAttributed {

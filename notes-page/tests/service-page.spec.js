@@ -42,6 +42,11 @@ test.beforeAll(async () => {
     if (req.method === "GET" && url.pathname === "/api/meetings/" + MEETING_ID) {
       return send(res, 200, JSON.stringify(SERVICE));
     }
+    if (req.method === "GET" && url.pathname === "/api/audio") {
+      res.writeHead(206, { "Content-Type": "audio/webm" });
+      res.end("x");
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/search") {
       return send(res, 200, JSON.stringify({ hits: [] }));
     }

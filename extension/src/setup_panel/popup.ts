@@ -31,11 +31,25 @@ export interface PopupDeps {
   /** True when the active tab is a Meet call (drives "Ready for meeting"). */
   onMeetCall?: () => Promise<boolean>;
   /** Live `halo.micState` updates (the Meet tab writes it when the mic opens). */
-  watchMicState?: (onChange: (state: MicState) => void) => void;
+  watchMicState?: (onChange: (state: MicState, label?: string) => void) => void;
   /** Ends the running meeting; the Stop button exists only when this is given. */
   onStop?: () => void | Promise<void>;
   pairFn?: (code: string) => Promise<string>;
+  /** True when the local Halo app answers (`/healthz`). Absent: assumed up. */
+  checkBackend?: () => Promise<boolean>;
+  /** Automatic pairing (`POST /pair/auto`). Absent or refused: the 6-digit code shows. */
+  autoPair?: () => Promise<string>;
+  /** Defaults to navigator.clipboard (tests pass a fake). */
+  clipboard?: { writeText(text: string): unknown };
 }
+
+/** Pasted into Meet chat by the user at the start (DECISIONS 10). Karim
+ * 2026-11-02: lives here beside Start, no longer on the Meet overlay. */
+export const CONSENT_NOTICE =
+  "Halo is recording and transcribing this meeting on this PC to show live points and notes. " +
+  "Recordings and notes stay on this PC until deleted. / " +
+  "يقوم Halo بتسجيل هذا الاجتماع ونسخه على هذا الجهاز لعرض النقاط والملاحظات المباشرة. " +
+  "تبقى التسجيلات والملاحظات على هذا الجهاز حتى يتم حذفها.";
 
 function el(tag: string, attrs: Record<string, string> = {}, text = ""): HTMLElement {
   const node = document.createElement(tag);
@@ -52,14 +66,13 @@ function field(container: HTMLElement, labelText: string, input: HTMLElement): v
   container.appendChild(label);
 }
 
-/** A numbered step card ("Three steps" design): number disc + title row. */
-function stepCard(id: string, num: string, title: HTMLElement): { card: HTMLElement; head: HTMLElement; disc: HTMLElement } {
-  const card = el("section", { id, class: "card glass" });
-  const disc = el("span", { class: "num", "aria-hidden": "true" }, num);
+/** A section card: a title row, then its body. */
+function card(id: string, title: HTMLElement): { card: HTMLElement; head: HTMLElement } {
+  const node = el("section", { id, class: "card glass" });
   const head = el("div", { class: "head" });
-  head.append(disc, title);
-  card.appendChild(head);
-  return { card, head, disc };
+  head.append(title);
+  node.appendChild(head);
+  return { card: node, head };
 }
 
 /** Stable per-person hue for the initial avatar (same name, same colour). */
@@ -89,19 +102,24 @@ function flash(node: HTMLElement, text: string, ms = 1500): void {
   setTimeout(() => node.setAttribute("hidden", "true"), ms);
 }
 
-export function micStatusText(state: SavedSetup["micState"]): string {
-  if (state === "granted") return "Microphone: ready";
+export function micStatusText(state: SavedSetup["micState"], label?: string): string {
+  // Chrome labels read "Microphone (Arctis Nova Pro Wireless) (1038:12e0)": keep the name.
+  const name = (label ?? "").replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, "").replace(/^Microphone \((.*)\)$/, "$1").trim();
+  if (state === "granted") return name ? `Microphone: ${name}` : "Microphone: ready";
   if (state === "denied") return "Microphone: blocked in Meet, tab audio only";
   return "Microphone: starts with Start";
 }
 
 /**
- * Boot the toolbar popup ("Three steps": Pair, About this meeting, Start;
- * Sage & Clay tokens in entrypoints/popup/style.css). Restores the saved
- * token + context, prefills role rows from participant names, and wires
- * Pair / Save / Start with busy, done and error states. Start is
+ * Boot the toolbar popup (Karim 2026-11-04: sections, not steps). A status
+ * pill on top; This call (Start) first; About this meeting (optional,
+ * folds to its subject); Preferences (save on change); Pair again in the
+ * footer. Pairing is automatic when the Halo app answers; the 6-digit code
+ * shows only when that is missing or refused. Busy, done and error states
+ * on every button. Start is
  * idempotent: once running it shows Running and further presses do
- * nothing. Contains no consent UI: consent lives in the Overlay lane only.
+ * nothing. "Copy consent notice" beside Start puts the notice on the
+ * clipboard for Meet chat; nothing automates Meet chat.
  */
 export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<void> {
   const saved: SavedSetup = await deps.storage.load();
@@ -120,28 +138,34 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
     rows = [{ name: "", role: "" }];
   }
 
-  // Header + progress strip. The step shown is the first unfinished one.
   let paired = Boolean(saved.token);
   let savedOnce = Boolean(saved.context);
   let running = runningAtOpen;
   let micState = saved.micState;
+  let micLabel = saved.micLabel;
+  let backendUp: boolean | undefined; // undefined: not checked (no checkBackend)
+  let connecting = false;
+  let autoRefused = false;
+  let changing = false; // Pair again asked for the code
   const header = el("header", { class: "top" });
   const logo = el("h1", { class: "logo" }, "Halo");
   logo.prepend(el("i"));
-  const stepLabel = el("span", { id: "step-label", class: "tiny" });
-  header.append(logo, el("span", { class: "sp" }), stepLabel);
-  const bars = el("div", { class: "steps", "aria-hidden": "true" });
-  for (let i = 0; i < 3; i += 1) bars.appendChild(el("i"));
-  root.append(header, bars);
+  const conn = el("span", { id: "conn", class: "pill", role: "status" });
+  header.append(logo, el("span", { class: "sp" }), conn);
+  root.append(header);
 
-  // Step 1: Pair. Folds to one "Paired" line once paired; Change reopens it.
-  const pairTitle = el("div", { class: "title" });
-  const pairState = el("b", { id: "pair-state" });
-  const pairHint = el("span", { class: "tiny" });
-  pairTitle.append(pairState, pairHint);
-  const { card: pairSection, head: pairHead, disc: pairDisc } = stepCard("pair-section", "1", pairTitle);
-  const changeButton = el("button", { id: "pair-change", type: "button", class: "link" }, "Change") as HTMLButtonElement;
-  pairHead.append(el("span", { class: "sp" }), changeButton);
+  // Pairing: only shown when something is needed (app down, or a code).
+  const pairSection = el("section", { id: "pair-section", class: "card glass" });
+  const downNote = el("div", { class: "down" });
+  downNote.append(
+    el("b", {}, "The Halo app isn't running"),
+    el("p", { class: "tiny" }, "Open a terminal in the Halo folder and run:"),
+    el("code", {}, "uv run halo"),
+  );
+  const retryButton = el("button", { id: "retry", type: "button", class: "btn" }) as HTMLButtonElement;
+  setButton(retryButton, "idle", "Try again");
+  downNote.appendChild(retryButton);
+  const pairPrompt = el("p", { class: "tiny" });
   const pairForm = el("div", { class: "row" });
   const codeInput = el("input", {
     id: "pair-code",
@@ -155,59 +179,98 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   setButton(pairButton, "idle", "Pair");
   pairForm.append(codeInput, pairButton);
   const pairError = el("p", { id: "pair-error", class: "err", role: "alert", hidden: "true" });
-  pairSection.append(pairForm, pairError);
+  pairSection.append(downNote, pairPrompt, pairForm, pairError);
   root.appendChild(pairSection);
 
-  // Step 2: About this meeting. A saved meeting folds to one line (its
-  // subject) so Start stays in view; Edit reopens it.
+  // This call: readiness, mic, Start / Stop, consent.
+  const { card: startSection } = card("start-section", el("b", { class: "title" }, "This call"));
+  const readyState = el("p", { id: "ready-state", class: "ready", role: "status" });
+  const micLine = el("p", { id: "mic-state", class: "tiny" });
+
+  // About this meeting: optional. A saved meeting folds to its subject.
   const formTitle = el("div", { class: "title" });
   const formSummary = el("span", { class: "tiny" });
   formTitle.append(el("b", {}, "About this meeting"), formSummary);
-  const { card: form, head: formHead, disc: formDisc } = stepCard("meeting-form", "2", formTitle);
+  const { card: form, head: formHead } = card("meeting-form", formTitle);
   const saveState = el("span", { id: "save-state", class: "ok", role: "status", hidden: "true" });
   const editButton = el("button", { id: "meeting-edit", type: "button", class: "link" }, "Edit") as HTMLButtonElement;
   formHead.append(el("span", { class: "sp" }), saveState, editButton);
   let editing = false;
 
-  // Step 3: Start, with one readiness line and the mic detail under it.
-  const { card: startSection } = stepCard("start-section", "3", el("b", { class: "title" }, "Start"));
-  const readyState = el("p", { id: "ready-state", class: "ready", role: "status" });
-  const micLine = el("p", { id: "mic-state", class: "tiny" });
-
   const subjectInput = el("input", { id: "subject", class: "in" }) as HTMLInputElement;
   subjectInput.value = saved.context?.subject ?? "";
 
+  // Footer: which computer this is paired with, and Pair again.
+  const footer = el("footer", { class: "foot" });
+  const pairState = el("b", { id: "pair-state" });
+  const pairHint = el("span", { class: "tiny" });
+  const changeButton = el("button", { id: "pair-change", type: "button", class: "link" }, "Pair again") as HTMLButtonElement;
+  footer.append(pairState, pairHint, el("span", { class: "sp" }), changeButton);
+
   const renderSteps = (): void => {
-    const step = !paired ? 1 : !savedOnce ? 2 : 3;
-    stepLabel.textContent = running ? "Running" : `Step ${step} of 3`;
-    bars.querySelectorAll("i").forEach((bar, i) => bar.classList.toggle("done", running || i < step));
+    const down = backendUp === false;
+    conn.textContent = down ? "Halo app not running" : paired ? "Connected" : connecting ? "Connecting" : "Not paired";
+    conn.dataset.tone = down ? "bad" : paired ? "ok" : "wait";
+    const wantCode = changing || (!paired && (!deps.autoPair || autoRefused));
+    pairSection.hidden = !down && paired && !changing;
+    downNote.hidden = !down;
+    pairForm.hidden = down || !wantCode;
+    pairPrompt.hidden = down;
+    pairPrompt.textContent = wantCode ? "Enter the 6-digit code the Halo app printed." : "Connecting to the Halo app…";
     pairState.textContent = paired ? "Paired" : "Not paired";
-    pairHint.textContent = paired ? "with this computer" : "enter the code from the Halo app";
-    pairDisc.textContent = paired ? "✓" : "1";
-    changeButton.hidden = !paired;
-    pairForm.hidden = paired;
+    pairHint.textContent = paired ? "with this computer" : "";
     const folded = savedOnce && !editing;
     form.classList.toggle("folded", folded);
-    formDisc.textContent = savedOnce ? "✓" : "2";
-    formSummary.textContent = folded ? subjectInput.value : "";
+    formSummary.textContent = folded ? subjectInput.value : savedOnce ? "" : "optional";
     editButton.hidden = !folded;
-    startSection.classList.toggle("todo", !paired);
+    startSection.classList.toggle("todo", !paired || down);
     // One readiness line: what Start will do, or what is missing first.
     const ready = running
       ? { text: "Running: Halo is listening to the call", tone: "live" }
-      : !paired
-        ? { text: "Pair first", tone: "wait" }
-        : !onMeetCall
-          ? { text: "Open your Meet call, then press Start", tone: "wait" }
-          : { text: "Ready for meeting", tone: "ok" };
+      : down
+        ? { text: "Start the Halo app first", tone: "wait" }
+        : !paired
+          ? { text: "Pair first", tone: "wait" }
+          : !onMeetCall
+            ? { text: "Open your Meet call, then press Start", tone: "wait" }
+            : { text: "Ready for meeting", tone: "ok" };
     readyState.textContent = ready.text;
     readyState.dataset.tone = ready.tone;
-    micLine.textContent = micStatusText(micState);
+    micLine.textContent = micStatusText(micState, micLabel);
     micLine.dataset.tone = micState === "denied" ? "warn" : "";
   };
+
+  /** Check the app, then pair on our own when we can. `force` re-pairs (Pair again). */
+  const connect = async (force = false): Promise<void> => {
+    if (deps.checkBackend) backendUp = await deps.checkBackend().catch(() => false);
+    if (backendUp !== false && deps.autoPair && (!paired || force)) {
+      connecting = true;
+      renderSteps();
+      try {
+        await deps.storage.saveToken(await deps.autoPair());
+        paired = true;
+        changing = false;
+        autoRefused = false;
+      } catch (error) {
+        if (error instanceof PairingError && error.status === 0) backendUp = false;
+        else { autoRefused = true; if (force) changing = true; }
+      }
+      connecting = false;
+    }
+    renderSteps();
+  };
+
+  retryButton.addEventListener("click", () => {
+    if (retryButton.dataset.state !== "idle") return;
+    setButton(retryButton, "busy", "Checking");
+    void connect().finally(() => setButton(retryButton, "idle", "Try again"));
+  });
   changeButton.addEventListener("click", () => {
-    pairForm.hidden = !pairForm.hidden;
-    if (!pairForm.hidden) codeInput.focus();
+    pairError.setAttribute("hidden", "true");
+    if (deps.autoPair && !autoRefused) { void connect(true); return; }
+    changing = true;
+    renderSteps();
+    codeInput.focus();
   });
   editButton.addEventListener("click", () => {
     editing = true;
@@ -225,6 +288,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
         const token = await pairFn(codeInput.value);
         await deps.storage.saveToken(token);
         paired = true;
+        changing = false;
         renderSteps();
       } catch (error) {
         const message =
@@ -287,13 +351,14 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   form.appendChild(el("span", { class: "f" }, "People and roles"));
   form.appendChild(rolesBox);
 
-  // Preferences drawer: points language, project, urgency-mark style.
-  const drawer = el("details", { class: "drawer" });
-  drawer.appendChild(el("summary", {}, "Preferences"));
+  // Preferences: points language, project, urgency-mark style. Each saves on change.
+  const { card: prefsSection } = card("prefs-section", el("b", { class: "title" }, "Preferences"));
+  const prefsSaved = el("span", { id: "prefs-saved", class: "ok", role: "status", hidden: "true" });
+  prefsSection.querySelector(".head")?.append(el("span", { class: "sp" }), prefsSaved);
   const prefsGrid = el("div", { class: "two" });
   field(prefsGrid, "My points language", langSelect);
   field(prefsGrid, "Project", projectInput);
-  drawer.appendChild(prefsGrid);
+  prefsSection.appendChild(prefsGrid);
   // Viewer preference: bubble urgency-mark style. Writes immediately so the
   // overlay (watching the same key) switches live; restored on every open.
   const prefs = el("div", { id: "viewer-prefs", class: "row" });
@@ -315,8 +380,29 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
     seg.appendChild(option);
   }
   prefs.append(urgencySaved, seg);
-  drawer.appendChild(prefs);
-  form.appendChild(drawer);
+  prefsSection.appendChild(prefs);
+
+  /** Builds the meeting context from the form, stores it and sends it to the hub. */
+  const saveContext = async (): Promise<void> => {
+    const formState: SetupForm = {
+      subject: subjectInput.value,
+      agendaText: agendaInput.value,
+      rows,
+      viewerLang: langSelect.value === "ar" ? "ar" : "en",
+      projectId: projectInput.value,
+    };
+    const data = buildMeetingContext(formState);
+    await deps.storage.saveContext(data);
+    deps.port.postMessage({ type: "meeting.context", data });
+  };
+  for (const input of [langSelect, projectInput]) {
+    input.addEventListener("change", () => {
+      void saveContext().then(
+        () => flash(prefsSaved, "Saved ✓"),
+        () => flash(prefsSaved, "Not saved", 3000),
+      );
+    });
+  }
 
   const saveRow = el("div", { class: "row end" });
   const saveError = el("p", { id: "save-error", class: "err", role: "alert", hidden: "true" });
@@ -328,16 +414,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
       saveError.setAttribute("hidden", "true");
       setButton(saveButton, "busy", "Saving");
       try {
-        const formState: SetupForm = {
-          subject: subjectInput.value,
-          agendaText: agendaInput.value,
-          rows,
-          viewerLang: langSelect.value === "ar" ? "ar" : "en",
-          projectId: projectInput.value,
-        };
-        const data = buildMeetingContext(formState);
-        await deps.storage.saveContext(data);
-        deps.port.postMessage({ type: "meeting.context", data });
+        await saveContext();
         flash(saveState, "Saved ✓");
         savedOnce = true;
         editing = false;
@@ -352,15 +429,15 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   });
   saveRow.append(saveError, saveButton);
   form.appendChild(saveRow);
-  root.appendChild(form);
 
   // The mic is opened by the Meet tab at Start under Meet's own permission,
   // so there is nothing to grant here; the line follows it live.
   const micSection = el("div", { id: "mic-section", class: "mic" });
   micSection.append(readyState, micLine);
   startSection.appendChild(micSection);
-  deps.watchMicState?.((state) => {
+  deps.watchMicState?.((state, label) => {
     micState = state;
+    if (label !== undefined) micLabel = label;
     renderSteps();
   });
 
@@ -417,7 +494,20 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
       renderStart();
     })();
   });
-  startSection.append(startButton, stopButton, startMessage);
-  root.appendChild(startSection);
+  const consentButton = el("button", { id: "consent-btn", type: "button", class: "btn block" }, "Copy consent notice") as HTMLButtonElement;
+  const consentState = el("p", { id: "consent-state", class: "tiny", role: "status" });
+  consentButton.addEventListener("click", () => {
+    void (async () => {
+      try {
+        await (deps.clipboard ?? navigator.clipboard).writeText(CONSENT_NOTICE);
+        consentState.textContent = "Copied. Paste it into Meet chat.";
+      } catch {
+        consentState.textContent = "Copy failed. Try again.";
+      }
+    })();
+  });
+  startSection.append(startButton, stopButton, startMessage, consentButton, consentState);
+  root.append(startSection, form, prefsSection, footer);
   renderStart();
+  void connect();
 }

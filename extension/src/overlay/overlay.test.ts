@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CONSENT_NOTICE,
   FakeClock,
   Overlay,
-  copyConsentNotice,
   projectFaceBox,
   type El,
   type PointUpsert,
@@ -97,6 +95,30 @@ describe("layout", () => {
     expect(box.y).toBeGreaterThan(50);
     const flipped = projectFaceBox({ ...tile, is_self: true }, [0.25, 0.2, 0.2, 0.4]);
     expect(flipped.x).toBeGreaterThan(box.x); // mirrored self tile flips x
+  });
+
+  it("face mode positions are tile-local: the tile's layer already sits at the tile", () => {
+    const clock = new FakeClock(0);
+    const overlay = new Overlay(clock);
+    const tile = { tile_id: "t", name: "Karim", is_self: false, rect: [238, 64, 1388, 781] as number[],
+      video_w: 1280, video_h: 720, fit: "contain" as const, captions_rect: [600, 853, 600, 80] as number[] };
+    overlay.applyTiles({ tiles: [tile] });
+    overlay.applyFaces({ tile_id: "t", frame_ts_ms: 0, engine: "sam", space: { frame_w: 1280, frame_h: 720 },
+      face: { box: [0.4, 0.4, 0.15, 0.35], head_anchor: [0.475, 0.4], conf: 0.9 } });
+    const layout = overlay.layout("t");
+    const page = projectFaceBox(tile, [0.4, 0.4, 0.15, 0.35]);
+    expect(layout.mode).toBe("face");
+    expect(layout.namePos.x).toBeCloseTo(page.x + page.w / 2 - 238);
+    expect(layout.namePos.y).toBeCloseTo(page.y - 6 - 64);
+    expect(layout.stackPos.y).toBeCloseTo(page.y - 64);
+    expect(layout.floorY).toBe(853 - 64);
+    // DECISIONS 1: bubbles carry a tail toward the face; room on the right puts the
+    // stack right of the face, so the tail is on the stack's left.
+    expect(layout.side).toBe("right");
+    overlay.applyFaces({ tile_id: "t", frame_ts_ms: 1, engine: "sam", space: { frame_w: 1280, frame_h: 720 },
+      face: { box: [0.8, 0.4, 0.15, 0.35], head_anchor: [0.875, 0.4], conf: 0.9 } });
+    expect(overlay.layout("t").side).toBe("left");
+    expect(make().overlay.layout("tile-1").side).toBeUndefined(); // frame mode: no tail
   });
 });
 
@@ -229,6 +251,16 @@ describe("thinking, hide, language", () => {
 
 // (7) popover model; (8) consent copy touches only the clipboard
 describe("popover and consent", () => {
+  it("an urgent point shows its why: Urgent · today", () => {
+    const { overlay } = make();
+    const p = point({ urgency: "urgent", why: "today" });
+    overlay.applyPointsUpsert(p, "env-why");
+    expect(overlay.popover(p.point_id)?.urgentWord).toBe("Urgent · today");
+    const root = new FakeEl();
+    overlay.render(doc as never, root as never, 0);
+    expect(root.find((e) => e.classes.has("halo-utab"))[0]?.textContent).toMatch(/· today$/);
+  });
+
   it("urgent shows plain-text Urgent in the popover (bubble marks are covered below)", () => {
     const { overlay } = make();
     const p = point({ urgency: "urgent", kind: "decision" });
@@ -241,13 +273,26 @@ describe("popover and consent", () => {
     const chip = root.find((e) => e.attrs.has("data-point-id"))[0];
     expect(chip.attrs.has("data-urgency-mark")).toBe(false);
   });
+});
 
-  it("copy notice puts the bilingual notice on the clipboard only", async () => {
-    const written: string[] = [];
-    const text = await copyConsentNotice({ writeText: (t: string) => { written.push(t); } });
-    expect(text).toBe(CONSENT_NOTICE);
-    expect(written).toEqual([CONSENT_NOTICE]);
-    expect(CONSENT_NOTICE).toMatch(/record/i);
+// Karim 2026-11-02: the +N chip opens the folded points; "Less" folds them back.
+describe("expand +N", () => {
+  it("a +N toggle shows every live point on that tile, then folds back", () => {
+    const { overlay } = make();
+    for (let i = 0; i < 5; i += 1) overlay.applyPointsUpsert(point());
+    const root = new FakeEl();
+    const chips = () => root.find((e) => e.attrs.has("data-point-id")).length;
+    const toggle = () => root.find((e) => e.attrs.get("data-expand-tile") === "tile-1")[0];
+    overlay.render(doc as never, root as never, 0);
+    expect(chips()).toBe(3);
+    expect(toggle().textContent).toBe("+2");
+    overlay.toggleExpanded("tile-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(chips()).toBe(5);
+    expect(toggle().textContent).toBe("Less");
+    overlay.toggleExpanded("tile-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(chips()).toBe(3);
   });
 });
 
@@ -337,5 +382,73 @@ describe("urgency mark", () => {
     expect(marksOf(root)).toHaveLength(0);
     overlay.setUrgencyStyle("bogus");
     expect(overlay.urgencyStyle).toBe("words");
+  });
+});
+
+// Live 2026-11-01 (Karim): urgent points vanished after a minute; they must
+// stay until handled. Colour means urgency only; kind is a glyph.
+describe("urgent points stick until archived", () => {
+  it("an urgent point outlives the lifetime and leads the stack; archive removes it", () => {
+    const { overlay, clock } = make();
+    overlay.applyPointsUpsert(point({ point_id: "u1", urgency: "urgent", rank: 3 }), "env-s1");
+    overlay.applyPointsUpsert(point({ point_id: "m1", urgency: "medium", rank: 1 }), "env-s2");
+    expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["u1", "m1"]);
+    clock.now += 10 * 60_000;
+    expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["u1"]);
+    overlay.archive("u1");
+    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect(overlay.popover("u1")).toBeNull();
+  });
+
+  it("the kind mark is a glyph on a neutral disc, not a second colour", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point({ kind: "question", urgency: "later" }), "env-s3");
+    overlay.render(doc as never, root as never, 0);
+    const mark = root.find((e) => e.classes.has("halo-kind"))[0];
+    expect(mark.textContent).toBe("?");
+    expect(root.find((e) => e.classes.has("halo-chip-later"))).toHaveLength(1);
+  });
+});
+
+// Step 1 live caption: transcript.partial shows the words being said, at
+// the top of the speaker's stack (tab = the tile Meet last marked speaking,
+// mic = the self tile); "" clears it.
+describe("live caption", () => {
+  const partial = (id: string, stream: "tab" | "mic", text: string) =>
+    ({ id, type: "transcript.partial", data: { stream, text } });
+  const captionOf = (root: FakeEl, tileId: string) =>
+    root.find((e) => e.attrs.get("data-tile-id") === tileId)[0]
+      ?.find((e) => e.classes.has("halo-caption"))[0]?.textContent;
+
+  it("puts tab words on the last speaking tile, mic words on the self tile, and clears", () => {
+    const overlay = new Overlay(new FakeClock(0));
+    overlay.applyTiles({
+      tiles: [
+        { tile_id: "tile-1", name: "Karim", is_self: true, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+        { tile_id: "tile-2", name: "Layla", is_self: false, rect: [408, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null },
+      ],
+    });
+    const root = new FakeEl();
+    overlay.applyEnvelope(partial("e1", "tab", "nobody marked yet"));
+    overlay.render(doc, root);
+    expect(captionOf(root, "tile-2")).toBeUndefined();
+
+    overlay.applySpeakerActive({ tile_id: "tile-2", speaking: true, ts_ms: 0 });
+    overlay.applySpeakerActive({ tile_id: "tile-2", speaking: false, ts_ms: 500 }); // words lag the highlight
+    overlay.applyEnvelope(partial("e2", "tab", "launch moves to"));
+    overlay.applyEnvelope(partial("e3", "mic", "my own words"));
+    overlay.applyPointsUpsert(point({ tile_id: "tile-2" }));
+    overlay.render(doc, root);
+    expect(captionOf(root, "tile-2")).toBe("launch moves to");
+    expect(captionOf(root, "tile-1")).toBe("my own words");
+    const stack = root.find((e) => e.classes.has("halo-stack") && e.parent?.attrs.get("data-tile-id") === "tile-2")[0];
+    expect(stack.children[0].classes.has("halo-caption")).toBe(true); // above the bubbles
+
+    overlay.applyEnvelope(partial("e4", "tab", ""));
+    overlay.handleKey({ altKey: true, ctrlKey: false, key: "h", repeat: false });
+    overlay.render(doc, root);
+    expect(captionOf(root, "tile-2")).toBeUndefined();
+    expect(captionOf(root, "tile-1")).toBeUndefined(); // Alt+H hides captions too
   });
 });

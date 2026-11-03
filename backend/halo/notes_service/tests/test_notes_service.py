@@ -40,7 +40,7 @@ def assert_valid_page(page):
     MeetingPage.model_validate(page)
 
 
-def seed_db(path, *, ended=True, ready=True, user_tag=False):
+def seed_db(path, *, ended=True, ready=True, user_tag=False, summary=False):
     conn = sqlite3.connect(str(path))
     conn.executescript(MINI_DDL)
     conn.execute(
@@ -91,7 +91,13 @@ def seed_db(path, *, ended=True, ready=True, user_tag=False):
             " VALUES (?, 'notes.ready', ?, ?, 'halo/notes_builder', 'application/json', ?)",
             (str(uuid.uuid4()), "2026-10-31T09:00:00Z", MEETING, json.dumps({
                 "meeting_id": MEETING, "project_id": "halo-q4",
-                "url": f"/notes/{MEETING}", "degraded": False, "people": [{
+                "url": f"/notes/{MEETING}", "degraded": False,
+                **({"title": "Launch date moves to Nov 12", "meeting_type": "planning",
+                    "summary": "The launch moves to Nov 12. Layla owns it.",
+                    "disagreements": [{"topic": "Launch date", "outcome": "settled",
+                                       "sides": [{"name": "Layla", "view": "Nov 12."}]}]}
+                   if summary else {}),
+                "people": [{
                     "name": "Layla", "role": "Engineering lead", "why": "Owns RTL.",
                     "relevant_points": [], "own_points": [P1], "actions": [{
                         "action_id": action_id_for(P1), "text": "Launch moves to Nov 12",
@@ -126,6 +132,8 @@ def test_shell_and_static(tmp_path):
     assert client.get("/notes/unknown-id").status_code == 404
     assert client.get("/notes/app.js").status_code == 200
     assert client.get("/notes/styles.css").status_code == 200
+    for url in (f"/notes/{MEETING}", "/notes/app.js", "/notes/styles.css"):
+        assert client.get(url).headers["cache-control"] == "no-cache"  # updates show at once
 
 
 def test_page_json_matches_schema(tmp_path):
@@ -152,7 +160,10 @@ def test_list_and_project_filter(tmp_path):
     client, _, _ = make_client(tmp_path)
     meetings = client.get("/api/meetings").json()
     assert meetings == [{"meeting_id": MEETING, "subject": "Launch readiness",
-                         "people": ["Layla", "Omar"], "date": "Thu 09 Oct"}]
+                         "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None,
+                         "t0_ms": T0, "minutes": 0,  # card facts (locked design)
+                         "archived": False, "meeting_type": None, "self_name": "Karim",
+                         "counts": {"decision": 1, "question": 0, "pushback": 0, "urgent": 0}}]
     assert client.get("/api/meetings", params={"project_id": "halo-q4"}).json() == meetings
     assert client.get("/api/meetings", params={"project_id": "other"}).json() == []
 
@@ -211,3 +222,139 @@ def test_user_tags_reach_page_and_search(tmp_path):
     assert page["points"][0]["urgency"] == "urgent"
     hits = client.get("/api/search", params={"q": "launch"}).json()["hits"]
     assert next(h for h in hits if h["scope"] == "point")["urgency"] == "urgent"
+
+
+def test_ai_title_and_summary_from_notes_ready(tmp_path):
+    """Karim 2026-11-02: the builder's AI title + summary reach the page and the list."""
+    client, _, _ = make_client(tmp_path, summary=True)
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    assert_valid_page(page)
+    assert page["meeting"]["title"] == "Launch date moves to Nov 12"
+    assert page["meeting"]["summary"] == "The launch moves to Nov 12. Layla owns it."
+    assert page["meeting"]["disagreements"][0]["topic"] == "Launch date"
+    assert client.get("/api/meetings").json()[0]["title"] == "Launch date moves to Nov 12"
+
+
+def test_list_shell_address(tmp_path):
+    """/notes/ is the list's own address, so browser Back lands on it (#102)."""
+    client, _, _ = make_client(tmp_path)
+    assert client.get("/notes/").status_code == 200
+    assert "shell" in client.get("/notes").text
+    # 2026-11-03: /notes served the shell, whose ./app.js then 404'd; it redirects now.
+    bare = client.get("/notes", follow_redirects=False)
+    assert bare.status_code == 307 and bare.headers["location"] == "/notes/"
+
+
+def test_folders_create_move_and_persist(tmp_path):
+    client, bus, data = make_client(tmp_path)
+    assert client.get("/api/folders").json() == []
+    res = client.post("/api/folders", json={"name": "Launch", "meeting_id": MEETING})
+    assert res.status_code == 201
+    folder = res.json()
+    assert folder["name"] == "Launch"
+    assert client.get("/api/folders").json() == [{**folder, "count": 1}]
+    assert client.get("/api/meetings").json()[0]["folder_id"] == folder["folder_id"]
+    assert client.post("/api/folders/move", json={"meeting_id": MEETING, "folder_id": None}).status_code == 200
+    assert client.get("/api/meetings").json()[0]["folder_id"] is None
+    assert client.post("/api/folders", json={"name": "  "}).status_code == 400
+    assert client.post("/api/folders/move", json={"meeting_id": MEETING, "folder_id": "nope"}).status_code == 404
+    # A fresh service (backend restart) reads the same folders back.
+    from halo.notes_service.notes_service import NotesService
+    again = NotesService(bus, data_dir=data)
+    assert [f["name"] for f in again.folders()] == ["Launch"]
+
+
+def test_writes_refuse_other_sites(tmp_path):
+    """Another site open in Chrome cannot POST to the notes API."""
+    client, _, _ = make_client(tmp_path)
+    evil = {"origin": "https://evil.example"}
+    assert client.post("/api/folders", json={"name": "x"}, headers=evil).status_code == 403
+    assert client.post("/api/folders/move", json={"meeting_id": MEETING, "folder_id": None},
+                       headers=evil).status_code == 403
+    assert client.post("/api/tags", json={"target": "point", "target_id": P1, "urgency": "urgent"},
+                       headers=evil).status_code == 403
+    own = {"origin": "http://127.0.0.1:8765"}
+    assert client.post("/api/folders", json={"name": "x"}, headers=own).status_code == 201
+
+
+def test_the_latest_model_tag_wins_but_never_over_a_user_tag(tmp_path):
+    """DECISIONS: latest user tag > latest model tag > guess. Live 2026-11-02:
+    the page kept the first model tag, so a corrected kind never showed."""
+    client, _, data = make_client(tmp_path, user_tag=True)  # user set urgency=urgent
+    conn = sqlite3.connect(data / "events.sqlite")
+    for kind, urgency in (("pushback", "later"), ("point", "medium")):  # model, in order
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'tags.set', ?, ?, 'halo/classifier', 'application/json', ?)",
+            (str(uuid.uuid4()), "2026-10-31T09:01:00Z", MEETING, json.dumps({
+                "target": "point", "target_id": P1, "kind": kind, "urgency": urgency,
+                "source": "model", "model": "x"})))
+    conn.commit()
+    conn.close()
+    point = client.get(f"/api/meetings/{MEETING}").json()["points"][0]
+    assert point["kind"] == "point"  # the latest model tag
+    assert point["urgency"] == "urgent"  # the user's tag still wins
+
+
+def test_the_service_owner_rule_matches_the_builder():
+    from halo.notes_service.notes_service import owner_for
+    assert owner_for("Omar sends it.", "", ["", "Omar"]) == "Omar"
+    assert owner_for("Ali sends it.", "Omar", ["Ali Hassan", "Ali Khan", "Omar"]) == "Omar"
+
+
+def test_folders_rename_and_delete_keep_the_meetings(tmp_path):
+    """Karim 2026-11-04: a folder can be renamed or deleted; its meetings stay, just unfiled."""
+    client, _, _ = make_client(tmp_path)
+    folder = client.post("/api/folders", json={"name": "Halo", "meeting_id": MEETING}).json()
+    fid = folder["folder_id"]
+    assert client.post("/api/folders/rename", json={"folder_id": fid, "name": " Launch "}).status_code == 200
+    assert client.get("/api/folders").json() == [{"folder_id": fid, "name": "Launch", "count": 1}]
+    assert client.post("/api/folders/rename", json={"folder_id": fid, "name": " "}).status_code == 400
+    assert client.post("/api/folders/rename", json={"folder_id": "nope", "name": "x"}).status_code == 404
+    assert client.post("/api/folders/delete", json={"folder_id": fid}).status_code == 200
+    assert client.get("/api/folders").json() == []
+    listed = client.get("/api/meetings").json()
+    assert len(listed) == 1 and listed[0]["folder_id"] is None
+    assert client.post("/api/folders/delete", json={"folder_id": fid}).status_code == 404
+
+
+def test_archive_a_meeting_and_bring_it_back(tmp_path):
+    client, _, data = make_client(tmp_path)
+    assert client.get("/api/meetings").json()[0]["archived"] is False
+    assert client.post("/api/meetings/archive", json={"meeting_id": MEETING, "archived": True}).status_code == 200
+    assert client.get("/api/meetings").json()[0]["archived"] is True
+    from halo.notes_service.notes_service import NotesService
+    assert NotesService(Bus(), data_dir=data).list_meetings()[0]["archived"] is True  # survives a restart
+    assert client.post("/api/meetings/archive", json={"meeting_id": MEETING, "archived": False}).status_code == 200
+    assert client.get("/api/meetings").json()[0]["archived"] is False
+    assert client.post("/api/meetings/archive", json={"meeting_id": MEETING}).status_code == 400
+
+
+def test_meeting_type_from_the_builder_and_set_by_hand(tmp_path):
+    """Karim 2026-11-04: Halo sorts each meeting by type; the user can change it."""
+    client, _, _ = make_client(tmp_path, summary=True)
+    item = client.get("/api/meetings").json()[0]
+    assert (item["meeting_type"], item["type_by"]) == ("planning", "halo")
+    assert client.post("/api/meetings/type", json={"meeting_id": MEETING, "meeting_type": "sales"}).status_code == 200
+    item = client.get("/api/meetings").json()[0]
+    assert (item["meeting_type"], item["type_by"]) == ("sales", "you")
+    assert client.post("/api/meetings/type", json={"meeting_id": MEETING, "meeting_type": "party"}).status_code == 400
+    # null hands it back to Halo's pick.
+    assert client.post("/api/meetings/type", json={"meeting_id": MEETING, "meeting_type": None}).status_code == 200
+    assert client.get("/api/meetings").json()[0]["type_by"] == "halo"
+
+
+def test_meeting_without_a_type_has_none(tmp_path):
+    client, _, _ = make_client(tmp_path)
+    item = client.get("/api/meetings").json()[0]
+    assert item["meeting_type"] is None and "type_by" not in item
+
+
+def test_new_writes_refuse_other_sites(tmp_path):
+    client, _, _ = make_client(tmp_path)
+    evil = {"origin": "https://evil.example"}
+    for path, body in [("/api/folders/rename", {"folder_id": "x", "name": "y"}),
+                       ("/api/folders/delete", {"folder_id": "x"}),
+                       ("/api/meetings/archive", {"meeting_id": MEETING, "archived": True}),
+                       ("/api/meetings/type", {"meeting_id": MEETING, "meeting_type": "sales"})]:
+        assert client.post(path, json=body, headers=evil).status_code == 403, path

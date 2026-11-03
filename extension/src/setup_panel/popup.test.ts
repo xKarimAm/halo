@@ -5,7 +5,7 @@ import type { PortMeetingContext } from "../../../contracts/ext/port";
 import type { MeetingContext } from "../../../contracts/ext/gen/types";
 import goldenContext from "../../../contracts/golden/meeting.context.json";
 import { PairingError } from "./pairing";
-import { initPopup, type PopupDeps } from "./popup";
+import { CONSENT_NOTICE, initPopup, type PopupDeps } from "./popup";
 import { memorySetupStorage } from "./storage";
 
 const golden = goldenContext.data as unknown as MeetingContext;
@@ -285,43 +285,119 @@ describe("popup readiness and feedback", () => {
   });
 });
 
-describe("popup three steps", () => {
-  it("folds finished steps to one line; Change and Edit reopen them", async () => {
+describe("popup sections and automatic pairing (Karim 2026-11-04)", () => {
+  it("pairs on its own when the Halo app answers, with no code to type", async () => {
+    const deps = depsWith({ checkBackend: async () => true, autoPair: async () => "tok-auto" });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    await flush();
+    expect((await deps.storage.load()).token).toBe("tok-auto");
+    expect(root.querySelector("#conn")?.textContent).toBe("Connected");
+    expect((root.querySelector("#pair-section") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("says the Halo app is not running, with the command, and Try again pairs once it is", async () => {
+    let up = false;
+    const deps = depsWith({ checkBackend: async () => up, autoPair: async () => "tok-late" });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    await flush();
+    expect(root.querySelector("#conn")?.textContent).toBe("Halo app not running");
+    expect(root.querySelector("#pair-section")?.textContent).toMatch(/uv run halo/);
+    up = true;
+    (root.querySelector("#retry") as HTMLButtonElement).click();
+    await flush();
+    await flush();
+    expect(root.querySelector("#conn")?.textContent).toBe("Connected");
+    expect((await deps.storage.load()).token).toBe("tok-late");
+  });
+
+  it("falls back to the 6-digit code when automatic pairing is refused", async () => {
+    const deps = depsWith({
+      checkBackend: async () => true,
+      autoPair: async () => { throw new PairingError("refused", 403); },
+    });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    await flush();
+    expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(false);
+    expect(root.querySelector("#conn")?.textContent).toBe("Not paired");
+  });
+
+  it("puts This call first; a saved meeting folds to its subject; Edit and Pair again reopen", async () => {
     const deps = depsWith();
     await deps.storage.saveToken("tok-abc");
     await deps.storage.saveContext(golden);
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
-    expect(root.querySelector("#step-label")?.textContent).toBe("Step 3 of 3");
+    const ids = Array.from(root.querySelectorAll("section")).map((s) => s.id);
+    expect(ids.indexOf("start-section")).toBeLessThan(ids.indexOf("meeting-form"));
+    expect(ids.indexOf("meeting-form")).toBeLessThan(ids.indexOf("prefs-section"));
     const form = root.querySelector("#meeting-form") as HTMLElement;
     expect(form.classList.contains("folded")).toBe(true);
     expect(form.textContent).toMatch(/Launch readiness/);
-    expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(true);
+    expect((root.querySelector("#pair-section") as HTMLElement).hidden).toBe(true);
     (root.querySelector("#meeting-edit") as HTMLButtonElement).click();
     expect(form.classList.contains("folded")).toBe(false);
     (root.querySelector("#pair-change") as HTMLButtonElement).click();
+    expect((root.querySelector("#pair-section") as HTMLElement).hidden).toBe(false);
     expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(false);
   });
 
-  it("a fresh popup starts on step 1 with the code field open", async () => {
+  it("a fresh popup without automatic pairing shows the code field", async () => {
     const deps = depsWith();
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
-    expect(root.querySelector("#step-label")?.textContent).toBe("Step 1 of 3");
     expect((root.querySelector("#pair-code")?.parentElement as HTMLElement).hidden).toBe(false);
     expect(root.querySelector("#meeting-form")?.classList.contains("folded")).toBe(false);
   });
-});
 
-describe("popup consent", () => {
-  it("contains no consent control (consent lives in the Overlay)", async () => {
+  it("a points-language change saves and sends the meeting context on its own", async () => {
     const deps = depsWith();
+    await deps.storage.saveToken("tok-abc");
+    await deps.storage.saveContext(golden);
     const root = document.createElement("div");
     document.body.appendChild(root);
     await initPopup(root, deps);
-    expect(root.innerHTML).not.toMatch(/consent/i);
+    const lang = root.querySelector("#viewer-lang") as HTMLSelectElement;
+    lang.value = "ar";
+    lang.dispatchEvent(new Event("change"));
+    await flush();
+    expect(deps.posted.at(-1)?.data.viewer_lang).toBe("ar");
+    expect((await deps.storage.load()).context?.viewer_lang).toBe("ar");
+  });
+});
+
+// Karim 2026-11-02: the consent notice moved here from the Meet overlay,
+// next to Start, where it is copied before pasting into Meet chat.
+describe("popup consent", () => {
+  it("Copy consent notice puts the bilingual notice on the clipboard and confirms", async () => {
+    const written: string[] = [];
+    const deps = depsWith({ clipboard: { writeText: async (t: string) => { written.push(t); } } });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    (root.querySelector("#consent-btn") as HTMLButtonElement).click();
+    await flush();
+    expect(written).toEqual([CONSENT_NOTICE]);
+    expect(CONSENT_NOTICE).toMatch(/record/i);
+    expect(CONSENT_NOTICE).toMatch(/[؀-ۿ]/); // Arabic half
+    expect(root.querySelector("#consent-state")?.textContent).toBe("Copied. Paste it into Meet chat.");
+  });
+
+  it("says so when the clipboard refuses", async () => {
+    const deps = depsWith({ clipboard: { writeText: async () => { throw new Error("denied"); } } });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    (root.querySelector("#consent-btn") as HTMLButtonElement).click();
+    await flush();
+    expect(root.querySelector("#consent-state")?.textContent).toBe("Copy failed. Try again.");
   });
 });
 
@@ -426,4 +502,14 @@ describe("popup Stop", () => {
 
 beforeEach(() => {
   document.body.textContent = "";
+});
+
+describe("mic line names the device (Karim 2026-11-01)", () => {
+  it("shows the mic Halo opened, without Chrome's USB id", async () => {
+    const { micStatusText } = await import("./popup");
+    expect(micStatusText("granted", "Microphone (Arctis Nova Pro Wireless) (1038:12e0)"))
+      .toBe("Microphone: Arctis Nova Pro Wireless");
+    expect(micStatusText("granted")).toBe("Microphone: ready");
+    expect(micStatusText(undefined)).toBe("Microphone: starts with Start");
+  });
 });

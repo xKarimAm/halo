@@ -291,6 +291,16 @@ export class MeetDomAdapter implements MeetingAdapter {
     this.speakingCbs.forEach((cb) => cb(full));
   }
 
+  /** The tile's playing `<video>` (Halo mode reads its frames), or null. */
+  video(id: string): HTMLVideoElement | null {
+    for (const el of Array.from(this.scope.querySelectorAll(TILE_SELECTOR))) {
+      if ((el.getAttribute(CONVENTIONS.tileAttr) ?? "") !== id) continue;
+      const video = el.querySelector("video");
+      if (video && video.videoWidth > 0) return video;
+    }
+    return null;
+  }
+
   private findTileRoot(id: string): Element | null {
     for (const el of Array.from(this.scope.querySelectorAll(TILE_SELECTOR))) {
       if (el.getAttribute("role") === CONVENTIONS.excludedRole) {

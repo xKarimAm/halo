@@ -2,9 +2,28 @@
   "meeting": {
     "meeting_id": "22222222-2222-4222-8222-222222222222",
     "subject": "Launch readiness",
+    "title": "Launch date moves to Nov 12",
+    "summary": "The team agreed to move the launch to Nov 12. Layla owns the date change. The Arabic store listing is still open.",
     "project_id": "halo-q4",
     "degraded": false,
-    "t0_ms": 1760000000000
+    "t0_ms": 1760000000000,
+    "disagreements": [
+      {
+        "topic": "Beta launch date",
+        "sides": [
+          {
+            "name": "Layla",
+            "view": "Launch on November 12 if payments QA clears."
+          },
+          {
+            "name": "Omar",
+            "view": "QA is not done; wait for December."
+          }
+        ],
+        "outcome": "settled",
+        "resolution": "Launch November 12; Omar signs off QA by Friday."
+      }
+    ]
   },
   "people": [
     {

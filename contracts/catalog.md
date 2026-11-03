@@ -18,12 +18,14 @@ ACK lives on the extension ⇄ Gateway socket only. Inside the backend, `bus.pub
 | `tiles.snapshot` | `tiles.snapshot.schema.json` | Meet Adapter | Overlay + Frame Source in-tab; Correlator + Event Store via hub/socket |
 | `speaker.active` | `speaker.active.schema.json` | Meet Adapter | Overlay in-tab; Correlator + Event Store via hub/socket |
 | `transcript.final` | `transcript.final.schema.json` | Transcriber | Correlator, Event Store |
+| `transcript.partial` | `transcript.partial.schema.json` | Transcriber (open-turn words, `""` at turn end) | Overlay live caption (via Gateway); never stored |
 | `turn.attributed` | `turn.attributed.schema.json` | Correlator | Insight, Event Store |
 | `speaker.mapped` | `speaker.mapped.schema.json` | Correlator | Insight, Overlay (via Gateway), Event Store |
 | `points.upsert` | `points.upsert.schema.json` | Insight | Classifier, Overlay (via Gateway), Event Store |
 | `llm.health` | `llm.health.schema.json` | Insight (engine change, else ≤30 s) | Gateway, Event Store |
 | `tags.set` | `tags.set.schema.json` | Classifier (model); Notes Service on POST /api/tags (user) | Overlay (via Gateway), Event Store, Classifier (skip set) |
 | `notes.ready` | `notes.ready.schema.json` | Notes Builder | Event Store, Overlay toast (via Gateway) |
+| `coach.tips` | `coach.tips.schema.json` | Coach (meeting so far; new words at most every 8 s, or a 15 s silence) | Overlay coach panel (via Gateway), Event Store |
 | envelope | `envelope.schema.json` | every envelope sender | every receiver |
 | ACK | `ack.schema.json` | Gateway (socket); `bus.publish()` return value | Hub; backend publishers |
 | `faces.update` (in-tab) | `faces.update.schema.json` | Face Detector | Overlay |

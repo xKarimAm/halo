@@ -18,7 +18,7 @@ export interface Detection {
 }
 
 export interface DetectorEngine {
-  name: "mediapipe" | "yunet" | "sam";
+  name: "sam";
   detect(frame: TileFrameLike): Detection | null;
 }
 

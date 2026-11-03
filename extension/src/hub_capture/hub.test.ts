@@ -236,6 +236,18 @@ describe("binary frames", () => {
     expect(kinds).toEqual([3, 1]);
     expect(packRecFrame(1, 5, new Uint8Array(0))[0]).toBe(3);
   });
+
+  it("no recording chunk leaves before Start or after the meeting ended", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    hub.setRecorder(true);
+    hub.sendRec(new Uint8Array([9]), 900);
+    hub.start(started);
+    hub.sendRec(new Uint8Array([9]), 1000);
+    hub.stop("left");
+    hub.sendRec(new Uint8Array([9]), 1100); // the recorder's last chunk after stop
+    expect(socket.binary.map((b) => b[0])).toEqual([3]);
+  });
 });
 
 // Capture helpers: 100 ms chunking + local replay so the user hears the call

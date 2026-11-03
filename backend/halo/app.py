@@ -8,15 +8,18 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import socket
 from collections.abc import MutableMapping
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from halo.bus import Bus
 from halo.classifier import Classifier
+from halo.coach import Coach
 from halo.correlator import Correlator
 from halo.event_store import EventStore
 from halo.gateway import Gateway, host_check, router
@@ -76,11 +79,13 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.gateway.start()
     app.state.insight.start()
     app.state.classifier.start()
+    app.state.coach.start()
     app.state.recorder.start()
     health = asyncio.create_task(health_loop(app, _data_dir()))
     yield
     health.cancel()
     app.state.recorder.stop()
+    app.state.coach.stop()
     app.state.classifier.stop()
     app.state.insight.stop()
     app.state.gateway.stop()
@@ -101,6 +106,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # failures are typed results, so wiring never needs keys to exist yet.
     app.state.llm = LLMClient()
     app.state.bus.register_health("llm", app.state.llm.health)
+    app.state.bus.register_health("llm_spend", app.state.llm.usage)  # tokens + estimated USD
     # Gateway owns /ws, /pair and the Host + Origin checks.
     app.state.gateway = Gateway(
         app.state.bus,
@@ -130,21 +136,32 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Classifier: post-hoc kind/urgency tags via the shared model client.
     app.state.classifier = Classifier(app.state.bus, app.state.llm)
     app.state.bus.register_health("tagger", app.state.classifier.health)
+    # Coach: the slow lane, 1-3 steering tips about once a minute.
+    app.state.coach = Coach(app.state.bus, app.state.llm)
     # Notes Builder: meeting.ended in, one validated notes.ready out.
     # The store file is the Event Store's own; this lane only ever reads it.
     app.state.notes_builder = NotesBuilder(
         app.state.bus, app.state.llm, db_path=_data_dir() / "events.sqlite")
     # Notes service: stateless HTTP reads over the store file + notes-page
     # shell; no background loop, so nothing joins the lifespan.
-    app.state.notes_service = NotesService(app.state.bus, data_dir=_data_dir())
+    app.state.notes_service = NotesService(app.state.bus, data_dir=_data_dir(), llm=app.state.llm)
     app.include_router(notes_router)
     # Recorder: rec queue drain loop; files + index under the data dir.
     app.state.recorder = Recorder(app.state.bus, data_dir=_data_dir(),
                                   rec_queue=app.state.rec_queue)
 
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse("/notes/")  # the meetings list is the front page
+
     @app.get("/healthz")
     async def healthz() -> dict:
         return {"status": "ok", "bus_health": app.state.bus.health()}
+
+    @app.get("/api/status")
+    async def status() -> dict:
+        """Read by the notes page to tell a keyless user why nothing happens."""
+        return {"meta_key": bool(os.environ.get("META_API_KEY"))}
 
     return app
 
@@ -156,9 +173,19 @@ app = create_app()
 
 def main() -> None:
     if os.environ.get("HALO_FAKES") != "1":
-        missing = [k for k in ("META_API_KEY", "BASETEN_API_KEY") if not os.environ.get(k)]
-        if missing:
-            print(f"warning: missing keys in .env: {', '.join(missing)} (backend still boots; live engines need them)")
+        if not os.environ.get("META_API_KEY"):
+            print("warning: META_API_KEY is empty in .env: no transcripts, points or notes until you add it "
+                  "(the tests need no key: uv run pytest backend contracts -q)")
+        if not os.environ.get(os.environ.get("HALO_PRIMARY_KEY_VAR") or "BASETEN_API_KEY"):
+            print("note: no Spark Open key, so every text call runs on muse-spark-1.3-contributor (fine)")
+    # Check the port before the banner: a judge saw "Halo backend on ..." and then a bind error.
+    with socket.socket() as probe:
+        try:
+            probe.bind((HOST, PORT))
+        except OSError:
+            print(f"Port {PORT} is already in use: another Halo backend is probably running. "
+                  "Close that window (or use it) and try again.")
+            raise SystemExit(1) from None
     print(f"Halo backend on http://{HOST}:{PORT} - pairing code: {app.state.gateway.pairing.current_code}",
           flush=True)
     _data_dir().mkdir(parents=True, exist_ok=True)

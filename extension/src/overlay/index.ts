@@ -2,10 +2,10 @@
 // and in-tab feeds into the overlay and renders into the Meet page.
 import type { ToPagePortMessage } from "../../../contracts/ext/port";
 import {
-  CONSENT_NOTICE, Overlay, SystemClock, copyConsentNotice, notesHref,
+  Overlay, SystemClock, notesHref,
   type DocLike, type El, type UrgencyStyle,
 } from "./overlay";
-import { OVERLAY_CSS } from "./tokens";
+import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
 
 // Viewer urgency-mark setting, shared with the setup panel (no ambient
 // chrome types in this lane: structural access keeps the two lanes' globals
@@ -80,9 +80,11 @@ export function boot(context: { port: PortIn }): Overlay {
       rerender();
     }
   });
+  overlay.requestRender = rerender;
   watchUrgencyStyle(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
-  syncPopover = mountPopover(document, overlay, root as unknown as Element);
+  syncPopover = mountPopover(document, overlay, root as unknown as Element, rerender);
+  bindExpand(root as unknown as Element, overlay, rerender);
   bindHideKey(document, overlay, () => { rerender(); refresh(); });
   return overlay;
 }
@@ -99,7 +101,7 @@ const KIND_LABELS: Record<string, string> = {
  * re-rendered in place, so clicks are resolved on the overlay root by
  * data-point-id. Returns sync(), called after every render: it closes the
  * card when its point is gone or hidden, and refreshes a corrected point. */
-export function mountPopover(doc: Document, overlay: Overlay, root: Element): () => void {
+export function mountPopover(doc: Document, overlay: Overlay, root: Element, onChange: () => void = () => {}): () => void {
   const pop = doc.createElement("div");
   pop.className = "halo-popover";
   pop.setAttribute("role", "dialog");
@@ -128,7 +130,20 @@ export function mountPopover(doc: Document, overlay: Overlay, root: Element): ()
     quote.textContent = p.quote;
     quote.dir = p.quoteDir;
     quote.lang = p.quoteDir === "rtl" ? "ar" : "en";
-    pop.replaceChildren(head, text, quote);
+    // Handled: the point leaves the bubbles (urgent ones stay until this).
+    const archive = doc.createElement("button");
+    archive.type = "button";
+    archive.className = "halo-btn";
+    archive.textContent = "Archive";
+    archive.addEventListener("click", () => {
+      overlay.archive(id);
+      close(false);
+      onChange();
+    });
+    const actions = doc.createElement("div");
+    actions.className = "halo-pop-actions";
+    actions.append(archive);
+    pop.replaceChildren(head, text, quote, actions);
     return true;
   };
   root.addEventListener("click", (ev) => {
@@ -156,6 +171,16 @@ export function mountPopover(doc: Document, overlay: Overlay, root: Element): ()
     if (openId === null) return;
     if (overlay.hidden || !fill(openId)) close(false);
   };
+}
+
+/** A click on a tile's +N chip opens its folded points; "Less" folds them. */
+export function bindExpand(root: Element, overlay: Overlay, rerender: () => void): void {
+  root.addEventListener("click", (ev) => {
+    const id = (ev.target as Element).closest?.("[data-expand-tile]")?.getAttribute("data-expand-tile");
+    if (!id) return;
+    overlay.toggleExpanded(id);
+    rerender();
+  });
 }
 
 /** Alt+H hides/shows the bubbles. Capture phase, so Meet never sees a key
@@ -200,15 +225,15 @@ async function saveViewerLang(lang: ViewerLang): Promise<void> {
   }
 }
 
-/** Badge, points-language picker, consent dialog and notes-ready toast,
- * fixed top-left above Meet.
+/** Halo badge, its menu (points language + legend) and the notes-ready
+ * toast, fixed top-left above Meet. Karim 2026-11-02: one Halo pill holds
+ * everything; the consent notice moved to the toolbar popup.
  * Refreshes after every Port message (registered after boot's listener, so
  * the overlay store is already updated). Returns the refresh function. */
 export function mountControls(
   doc: Document,
   overlay: Overlay,
   port: PortIn,
-  clipboard: { writeText(text: string): unknown } = navigator.clipboard,
 ): () => void {
   const make = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "") => {
     const e = doc.createElement(tag);
@@ -223,37 +248,21 @@ export function mountControls(
     return b;
   };
 
-  // Consent dialog (DECISIONS 10): editable notice, "Copy notice" puts it on
-  // the clipboard; the user pastes it into Meet chat. Meet chat is never touched.
-  const dialog = make("dialog", "halo-dialog");
-  dialog.setAttribute("aria-labelledby", "halo-consent-title");
-  const title = make("h2", "", "Consent notice");
-  title.id = "halo-consent-title";
-  const help = make("p", "", "Copy this notice, then paste it into Meet chat.");
-  const notice = make("textarea", "halo-notice");
-  notice.value = CONSENT_NOTICE;
-  notice.dir = "auto";
-  notice.rows = 7;
-  notice.setAttribute("aria-label", "Consent notice text");
-  const copyStatus = make("p", "halo-copy-status");
-  copyStatus.setAttribute("role", "status");
-  const actions = make("div", "halo-actions");
-  actions.append(
-    button("halo-btn", "Close", () => dialog.close()),
-    button("halo-btn halo-primary", "Copy notice", async () => {
-      try {
-        await copyConsentNotice(clipboard, notice.value);
-        copyStatus.textContent = "Copied. Paste it into Meet chat.";
-      } catch {
-        copyStatus.textContent = "Copy failed. Select the text and copy it.";
-      }
-    }),
-  );
-  dialog.append(title, help, notice, copyStatus, actions);
-
-  // Badge (never cut, DECISIONS 8) + the consent entry + the notes toast.
+  // Badge (never cut, DECISIONS 8): a click opens the Halo menu.
   const bar = make("div", "halo-controls");
-  const badge = make("span", "halo-badge");
+  const menu = make("div", "halo-menu");
+  menu.id = "halo-menu";
+  menu.hidden = true;
+  const showMenu = (open: boolean): void => {
+    menu.hidden = !open;
+    badge.setAttribute("aria-expanded", String(open));
+  };
+  const badge = button("halo-badge", "", () => showMenu(menu.hidden));
+  doc.addEventListener("click", (ev) => {
+    if (!menu.hidden && !(ev.target as Element).closest?.(".halo-controls")) showMenu(false);
+  });
+  badge.setAttribute("aria-expanded", "false");
+  badge.setAttribute("aria-controls", "halo-menu");
   const toast = make("div", "halo-toast");
   toast.setAttribute("role", "status");
   const link = make("a", "", "Open notes");
@@ -280,22 +289,57 @@ export function mountControls(
     void saveViewerLang(v);
   });
 
-  bar.append(
-    badge,
-    lang,
-    button("halo-btn", "Consent notice", () => {
-      copyStatus.textContent = "";
-      dialog.showModal();
-    }),
-    toast,
-  );
-  doc.body.append(bar, dialog);
+  // Legend (Karim 2026-11-01): what each colour and glyph means.
+  const legend = make("div", "halo-legend");
+  for (const [u, word] of [["urgent", "Urgent (stays until you archive it)"], ["medium", "Medium"], ["later", "Later"]] as const) {
+    const swatch = make("span", "halo-swatch");
+    swatch.style.background = URGENCY_COLORS[u];
+    legend.append(swatch, make("span", "", word));
+  }
+  for (const [k, word] of [["point", "Point"], ["question", "Question"], ["decision", "Decision"], ["pushback", "Pushback"]] as const) {
+    legend.append(make("span", "halo-kind", KIND_GLYPHS[k]), make("span", "", word));
+  }
+  menu.append(lang, legend);
+
+  bar.append(badge, toast, menu);
+  doc.body.append(bar);
+
+  // Meeting coach (Karim 2026-11-02): 0-3 tips on steering the meeting plus
+  // an optional alert ("De-escalate now."), left side, replaced within
+  // seconds of new words; x hides it until the next tips.
+  const coach = make("aside", "halo-coach");
+  coach.setAttribute("aria-label", "Meeting coach");
+  coach.setAttribute("aria-live", "polite");
+  const tipList = make("ul", "");
+  let shownTips: unknown = null;
+  let dismissedTips: unknown = null;
+  const closeCoach = button("halo-dismiss", "×", () => {
+    dismissedTips = overlay.coach;
+    refresh();
+  });
+  closeCoach.setAttribute("aria-label", "Hide tips");
+  const coachHead = make("div", "halo-coach-head");
+  coachHead.append(make("span", "", "Coach"), closeCoach);
+  const alert = make("p", "halo-coach-alert");
+  alert.setAttribute("role", "alert");
+  coach.append(coachHead, alert, tipList);
+  doc.body.append(coach);
 
   const refresh = (): void => {
     badge.textContent = overlay.badgeText();
     const href = notesHref((overlay.notesToast as { url?: unknown } | null)?.url);
     toast.hidden = href === null;
     if (href) link.href = href;
+    const tips = overlay.coach;
+    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || tips === dismissedTips;
+    if (tips && tips !== shownTips) {
+      shownTips = tips;
+      coach.dir = tips.lang === "ar" ? "rtl" : "ltr";
+      coach.lang = tips.lang;
+      alert.textContent = tips.alert ?? "";
+      alert.hidden = !tips.alert;
+      tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
+    }
   };
   port.onMessage.addListener(refresh);
   refresh();

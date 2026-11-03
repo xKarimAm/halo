@@ -28,7 +28,8 @@ def test_alert_flood_is_one_line_per_template_per_window(tmp_path):
 
 
 def test_check_flags_what_no_module_logs():
-    gateway = {"sessions": 5, "sockets_opened": 9, "audio_age_s": {"tab": 2.0, "mic": 45.0}}
+    gateway = {"sessions": 5, "meetings_open": 1, "sockets_opened": 9,
+               "audio_age_s": {"tab": 2.0, "mic": 45.0}}
     snap = {
         "queues": {"tab": [10, 200], "mic": [190, 200], "rec": [0, 200]},
         "modules": {"gateway": gateway, "asr": "reconnecting", "tagger": "ok",
@@ -40,6 +41,17 @@ def test_check_flags_what_no_module_logs():
     snap["queues"]["mic"] = [0, 200]
     snap["modules"].update(asr="ok", llm={"engine": "spark", "failover": False})
     assert check(snap, opens_minute_ago=9) == {}
+
+
+def test_no_audio_between_meetings_is_not_a_problem():
+    # Live 2026-11-01: the hub keeps its socket after Leave, so every 5 s
+    # health.json and alerts.jsonl said "no mic audio" with no meeting open.
+    gateway = {"sessions": 1, "meetings_open": 0, "sockets_opened": 1,
+               "audio_age_s": {"tab": 300.0, "mic": 300.0}}
+    snap = {"queues": {}, "modules": {"gateway": gateway}}
+    assert check(snap, opens_minute_ago=1) == {}
+    gateway["meetings_open"] = 1
+    assert set(check(snap, opens_minute_ago=1)) == {"audio.tab", "audio.mic"}
 
 
 def test_log_config_writes_backend_log_and_alerts(tmp_path):
@@ -55,3 +67,13 @@ def test_log_config_writes_backend_log_and_alerts(tmp_path):
     assert "turn final" in text and "voice closed 1008" in text and "boom" in text
     alerts = (tmp_path / "alerts.jsonl").read_text(encoding="utf-8")
     assert "voice closed 1008" in alerts and "boom" in alerts and "turn final" not in alerts
+
+
+def test_mic_pure_silence_is_a_problem_within_10_s():
+    # Live 2026-11-01: every mic sample was 0 while Karim talked; nothing said so for 60 s.
+    gateway = {"sessions": 1, "meetings_open": 1, "sockets_opened": 1, "audio_age_s": {"tab": 0.1, "mic": 0.1}}
+    mic = {"frames": 120, "level_rms": 0, "silent_s": 12.0}
+    snap = {"queues": {}, "modules": {"gateway": gateway}, "streams": {"mic": mic}}
+    assert set(check(snap, opens_minute_ago=1)) == {"mic.zero"}
+    mic["level_rms"] = 40  # faint room noise: a live mic, user just quiet
+    assert check(snap, opens_minute_ago=1) == {}

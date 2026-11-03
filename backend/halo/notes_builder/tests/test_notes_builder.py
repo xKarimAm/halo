@@ -65,9 +65,19 @@ class FakeLLM:
         self._clock = clock
         self._replies = list(replies)
         self.calls: list[str] = []
+        self.summary_calls: list[str] = []
+        self.summary_reply: dict | None = {"title": "Launch date moves to Nov 12",
+                                           "summary": "Layla moved the launch to Nov 12.",
+                                           "meeting_type": "planning"}
 
     def complete_json(self, *, prompt, schema, schema_name="notes.page",
                       system=None, prompt_cache_key=None):
+        if schema_name == "notes.summary":  # the AI title + summary call
+            self.summary_calls.append(prompt)
+            if self.summary_reply is None:
+                return SimpleNamespace(ok=False, engine="spark-open", data=None,
+                                       error={"code": "engine_error", "message": "down"})
+            return SimpleNamespace(ok=True, engine="spark-open", data=self.summary_reply, error=None)
         self.calls.append(prompt)
         reply = self._replies.pop(0) if self._replies else "repair"
         self._clock.advance(0.05)
@@ -335,5 +345,114 @@ def test_action_ids_match_the_notes_service(tmp_path):
         layla = next(p for p in ready[0]["data"]["people"] if p["name"] == "Layla")
         assert layla["actions"][0]["action_id"] == str(
             uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{P1}"))
+
+    asyncio.run(run())
+
+
+def test_ai_title_and_summary_ride_on_notes_ready(tmp_path):
+    """Karim 2026-11-02: Spark writes a title + 3-5 line summary at meeting end."""
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert validate_envelope(ready[0]) == []
+        assert ready[0]["data"]["title"] == "Launch date moves to Nov 12"
+        assert ready[0]["data"]["summary"] == "Layla moved the launch to Nov 12."
+        assert ready[0]["data"]["meeting_type"] == "planning"  # Karim 2026-11-04: auto-sort
+        assert len(llm.summary_calls) == 1
+        assert "Layla: Launch moves to Nov 12." in llm.summary_calls[0]
+
+    asyncio.run(run())
+
+
+def test_summary_failure_still_emits_notes(tmp_path):
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        llm.summary_reply = None
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert len(ready) == 1 and "title" not in ready[0]["data"]
+
+    asyncio.run(run())
+
+
+def test_disagreements_ride_on_notes_ready_and_bad_ones_drop(tmp_path):
+    """Karim 2026-11-02: who disagreed on what, each side's view, how it ended."""
+    good = {"topic": "Launch date", "outcome": "settled", "resolution": "Nov 12.",
+            "sides": [{"name": "Layla", "view": "Nov 12."}, {"name": "Omar", "view": "December."}]}
+
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        llm.summary_reply = {**llm.summary_reply, "disagreements": [
+            good, {"topic": "", "outcome": "maybe", "sides": []}]}
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert validate_envelope(ready[0]) == []
+        assert ready[0]["data"]["disagreements"] == [good]
+        assert "disagreements:" in llm.summary_calls[0]
+
+    asyncio.run(run())
+
+
+def test_the_latest_model_tag_wins_but_never_over_a_user_tag(tmp_path):
+    """DECISIONS: latest user tag > latest model tag > guess."""
+    path = tmp_path / "events.sqlite"
+    _bus, _llm, builder, _ready, _ = setup(path, [])
+    conn = sqlite3.connect(str(path))
+    for source, kind, urgency in (("user", None, "urgent"), ("model", "pushback", "later"),
+                                  ("model", "point", "medium")):
+        tag = {"target": "point", "target_id": P1, "source": source,
+               **({"kind": kind} if kind else {}), "urgency": urgency}
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'tags.set', ?, ?, 'halo/test', 'application/json', ?)",
+            (str(uuid.uuid4()), "2026-10-31T09:01:00Z", MEETING, json.dumps(tag)))
+    conn.commit()
+    conn.close()
+    assert builder._read_store(MEETING)["tags"][P1] == {"kind": "point", "urgency": "urgent"}
+
+
+def test_a_turn_begun_before_start_still_validates(tmp_path):
+    # E2E 2026-11-03: a first turn a few seconds before meeting.started gave a
+    # negative recording offset, failed V1 and degraded the whole page.
+    async def run():
+        path = tmp_path / "events.sqlite"
+        bus, llm, _, ready, _ = setup(path, [])
+        conn = sqlite3.connect(str(path))
+        conn.execute("UPDATE meetings SET t0_ms = ?", (T0 + 5000,))
+        conn.commit()
+        conn.close()
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert len(ready) == 1 and llm.calls == [] and ready[0]["data"]["degraded"] is False
+
+    asyncio.run(run())
+
+
+def test_an_action_belongs_to_the_person_it_names():
+    from halo.notes_builder.notes_builder import owner_for
+    people = ["Karim Amer", "Omar", "Layla"]
+    assert owner_for("Omar owns signup numbers by Thursday, Layla confirms QA.", "Karim Amer", people) == "Omar"
+    assert owner_for("Will pull the numbers by Thursday.", "Omar", people) == "Omar"  # nobody named
+    assert owner_for("Karim sends the deck.", "Layla", people) == "Karim Amer"  # first name
+    assert owner_for("karim amer sends it.", "Layla", people) == "Karim Amer"  # full name, any case
+    assert owner_for("Ali sends the deck.", "Omar", ["Ali Hassan", "Ali Khan", "Omar"]) == "Omar"
+    assert owner_for("Schedule the meeting.", "Omar", ["Meeting Room", "Omar"]) == "Omar"
+    assert owner_for("Romario fixes the bug.", "Layla", people) == "Layla"  # no partial-word match
+
+
+def test_an_empty_speaker_name_does_not_break_the_owner():
+    from halo.notes_builder.notes_builder import owner_for
+    assert owner_for("Omar sends it.", "", ["", "  ", "Omar"]) == "Omar"
+
+
+def test_an_unknown_meeting_type_is_left_out(tmp_path):
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        llm.summary_reply = {"title": "T", "summary": "S.", "meeting_type": "party"}
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert validate_envelope(ready[0]) == []
+        assert "meeting_type" not in ready[0]["data"]
 
     asyncio.run(run())

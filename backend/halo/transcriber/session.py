@@ -34,7 +34,11 @@ SILENCE_LEVEL_FRACTION = 0.4
 LEVEL_WINDOW_FRAMES = 100
 MAX_GAP_PAD_FRAMES = 300  # 30 s, the Gateway's bound; a longer gap pads no more
 SOFT_CUT_SILENCE_MS = 600  # pause length that soft-cuts an open turn
+# Live 2026-11-01: slow speech cut "Can" / "anyone hear" / "me?" into lines
+# of their own. Fewer new words wait for the next pause or the turn's end.
+MIN_CUT_WORDS = 3
 MIC_SILENT_ALERT_MS = 60_000  # one warning per silent run this long on the mic
+PARTIAL_WORDS = 12  # live caption: the open turn's last words (a monologue is one wire turn)
 
 
 class TransportError(RuntimeError):
@@ -77,6 +81,7 @@ class TranscriptionSession:
         self.rotation_after_s = rotation_after_s
         self.soft_cut_silence_ms = soft_cut_silence_ms
         self._silence_run_ms = 0
+        self._silence_peak = 0.0  # loudest frame RMS in the current silence run
         # Audio position (position_ms scale, ≈ engine audioProcessedMs) where
         # the current silence run began; None while speech is arriving.
         self._silence_start_ms: int | None = None
@@ -108,6 +113,29 @@ class TranscriptionSession:
         self._assembler = TurnAssembler()
         self._opened_at = 0.0
         self._streak = 0
+        self.frames = 0  # real frames received (pads not counted)
+        self.turns = 0
+        self.last_turn = ""
+        self._caption = ""  # last caption text sent out
+        self._caption_due: str | None = None  # new caption text not yet taken
+
+    def take_caption(self) -> str | None:
+        """New live-caption text since the last call ("" = the turn ended), else None."""
+        due, self._caption_due = self._caption_due, None
+        return due
+
+    def live(self) -> dict[str, Any]:
+        """What this stream is hearing now, for health.json (every 5 s)."""
+        last_second = list(self._levels)[-10:]
+        return {
+            "frames": self.frames,
+            "level_rms": round(max(last_second, default=0.0)),  # 0 = digital silence
+            "silent_s": round(self._silence_run_ms / 1000, 1),
+            "hearing": self._assembler.open_text()[-120:],
+            "turns": self.turns,
+            "last_turn": self.last_turn[:120],
+            "health": self.health,
+        }
 
     async def open(self, key: str, keywords: list[str] | None = None) -> None:
         self._key = key
@@ -144,16 +172,23 @@ class TranscriptionSession:
             self._clock_pos.append(self.position_ms)
             self._clock_delta.append(delta)
         frame_ms = len(pcm) // BYTES_PER_MS
+        self.frames += 1
         rms = self._rms(pcm)
         self._levels.append(rms)
         floor = max(SILENCE_RMS_THRESHOLD, SILENCE_LEVEL_FRACTION * statistics.median(self._levels))
         if rms < floor:
             if self._silence_run_ms == 0:
                 self._silence_start_ms = self.position_ms
+                self._silence_peak = 0.0
             self._silence_run_ms += frame_ms
+            self._silence_peak = max(self._silence_peak, rms)
             # Live 2026-10-31: Chrome used the wrong mic and nothing said so.
+            # Live 2026-11-01: the level tells pure zeros (muted or capture
+            # broken) from faint noise (a live but wrong or quiet mic).
             if self.stream == "mic" and self._silence_run_ms - frame_ms < MIC_SILENT_ALERT_MS <= self._silence_run_ms:
-                log.warning("transcriber mic silent for %d s (muted, or the wrong mic?)", MIC_SILENT_ALERT_MS // 1000)
+                log.warning("transcriber mic silent for %d s, loudest RMS %d, speech floor %d"
+                            " (0 = no signal: muted or capture broken; above 0 = wrong or quiet mic)",
+                            MIC_SILENT_ALERT_MS // 1000, round(self._silence_peak), SILENCE_RMS_THRESHOLD)
         else:
             self._silence_run_ms = 0
             self._silence_start_ms = None
@@ -162,6 +197,9 @@ class TranscriptionSession:
         try:
             await self.transport.send_audio(pcm, ts_ms)
             turns = await self._drain()
+            caption = " ".join(self._assembler.open_text().split()[-PARTIAL_WORDS:])
+            if caption != self._caption:
+                self._caption = self._caption_due = caption
             if turns:
                 self._pending_pause_ms = None  # the turn completed: nothing to cut
             # One cut per pause (live check: cutting at every late partial
@@ -171,14 +209,20 @@ class TranscriptionSession:
             if self._silence_run_ms >= self.soft_cut_silence_ms and not self._cut_this_pause:
                 self._pending_pause_ms = self._silence_start_ms
             if self._pending_pause_ms is not None:
-                piece = self._assembler.maybe_cut(
-                    pause_start_ms=self._pending_pause_ms - self._session_ms)
+                pause = self._pending_pause_ms - self._session_ms
+                piece = self._assembler.maybe_cut(pause_start_ms=pause, min_words=MIN_CUT_WORDS)
                 if piece is not None:
+                    turns.append(self._map(piece))
+                if piece is not None or self._assembler.covers(pause):
+                    # Cut, or too few words to cut: this pause is spent.
                     self._cut_this_pause = True
                     self._pending_pause_ms = None
-                    turns.append(self._map(piece))
             self._streak = 0
             self.health = "ok"
+            for t in turns:
+                self.turns += 1
+                self.last_turn = t["text"]
+                log.info("transcript %s %s: %s", self.stream, t["speaker"], t["text"][:120])
             return turns
         except Exception as exc:  # noqa: BLE001 -- any engine failure routes to reconnect/down
             await self._on_transport_error(exc)
@@ -314,6 +358,9 @@ class TranscriptionSession:
             sent_ms += len(pcm) // BYTES_PER_MS
             for turn in await self.feed_frame(seq, ts_ms, pcm):
                 out.put_nowait(turn)
+            caption = self.take_caption()
+            if caption is not None:
+                out.put_nowait({"partial": True, "stream": self.stream, "text": caption})
 
     async def close(self) -> None:
         if self.closed:

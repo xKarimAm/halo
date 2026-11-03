@@ -52,11 +52,11 @@ TURNS = [
 ]
 POINTS = [
     {"match": "Launch moves", "response": {"kind": "decision", "text": "Launch moves to Nov 12",
-     "quote": TURNS[0]["text"], "rank": 1, "urgency": "medium", "is_action": False}},
+     "rank": 1, "urgency": "medium", "is_action": False}},
     {"match": "Beta cohort", "response": {"kind": "point", "text": "Beta cohort grows to 20% on Friday",
-     "quote": TURNS[1]["text"], "rank": 1, "urgency": "medium", "is_action": False}},
+     "rank": 1, "urgency": "medium", "is_action": False}},
     {"match": "address form", "response": {"kind": "point", "text": "Address form stays in v2.1",
-     "quote": TURNS[2]["text"], "rank": 1, "urgency": "later", "is_action": False}},
+     "rank": 1, "urgency": "later", "is_action": False}},
 ]
 # The Classifier (wired into app.py since the day-1 integration) is a
 # second LLM consumer: one call per point, and FakeLLM replies are
@@ -65,7 +65,7 @@ POINTS = [
 # matched on its instruction line (Insight prompts never contain it), so
 # the two consumers can interleave in any order: one reply per point.
 CLASSIFIER_REPLIES = [
-    {"match": "assign tags to a meeting point",
+    {"match": "check the tags of one live meeting point",
      "response": {"kind": "point", "urgency": "medium"}}
     for _ in POINTS
 ]

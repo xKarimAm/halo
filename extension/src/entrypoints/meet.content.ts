@@ -15,6 +15,11 @@ import { createPortSync } from "../meet_adapter/port_sync";
 import { boot as bootOverlay } from "../overlay/index";
 import { adaptAudioContext, startLiveCapture } from "../hub_capture/capture_live";
 import { createMicSender, MIC_PORT_NAME, MIC_START_MESSAGE } from "../hub_capture/mic_relay";
+import { MIC_DEVICE_KEY } from "../hub_capture/mic_device";
+import { createSamDetect, encodeJpeg, SAM_PORT_NAME, SamFaceSource } from "../face_detector/sam";
+import { createOffNudge, mountOffNudge } from "../overlay/off_nudge";
+import { MEETING_RUNNING_KEY } from "../hub_capture/hub";
+import { CALL_LEFT_GRACE_MS } from "../meet_adapter/port_sync";
 
 declare const chrome: any;
 
@@ -37,13 +42,35 @@ export async function bootMeetPage(): Promise<void> {
   const adapter = new MeetDomAdapter({});
   overlay.applyTiles({ tiles: adapter.tiles() });
   adapter.onTiles((tiles) => overlay.applyTiles({ tiles }));
-  adapter.onSpeaking((event) => overlay.applySpeakerActive(event));
+  let speaking: string | null = null;
+  adapter.onSpeaking((event) => {
+    overlay.applySpeakerActive(event);
+    if (event.speaking) speaking = event.tile_id;
+  });
+  // Halo mode (SAM 3.1 on the local worker): face boxes for the speaking
+  // tile. Without the worker every tile stays in Frame mode.
+  new SamFaceSource({
+    speakingTile: () => speaking,
+    video: (id) => adapter.video(id),
+    encode: encodeJpeg,
+    detect: createSamDetect(() => chrome.runtime.connect({ name: SAM_PORT_NAME })),
+    onFaces: (update) => { overlay.applyFaces(update); overlay.requestRender(); },
+  }).start();
   createPortSync(portProxy, adapter);
+  wireOffNudge(adapter);
 
   const connect = (): void => {
+    // Halo was reloaded: this copy of the script is orphaned and every
+    // chrome.runtime call throws "Extension context invalidated". Stop.
+    if (!chrome.runtime?.id) return;
     attempts += 1;
     try { current?.disconnect?.(); } catch { /* already dead */ }
-    current = chrome.runtime.connect({ name: "halo-hub" });
+    try {
+      current = chrome.runtime.connect({ name: "halo-hub" });
+    } catch {
+      current = null;
+      return;
+    }
     const port = current;
     port.onMessage.addListener((msg: unknown) => {
       for (const fn of listeners) fn(msg);
@@ -66,6 +93,32 @@ export async function bootMeetPage(): Promise<void> {
 }
 
 /**
+ * "Halo is off" toast: in a call (tiles on screen; a gap shorter than the
+ * call.left grace is not leaving) while the hub reports no running meeting.
+ */
+function wireOffNudge(adapter: MeetDomAdapter): void {
+  const ui = mountOffNudge(document, {
+    onStart: () => chrome.runtime.sendMessage({ type: "halo/open.setup" })
+      .then((r: { ok?: boolean } | undefined) => r?.ok === true, () => false),
+    onDismiss: () => nudge.dismiss(),
+  });
+  const nudge = createOffNudge(ui);
+  let leftTimer: ReturnType<typeof setTimeout> | undefined;
+  const onTiles = (count: number) => {
+    clearTimeout(leftTimer);
+    if (count > 0) nudge.setInCall(true);
+    else leftTimer = setTimeout(() => nudge.setInCall(false), CALL_LEFT_GRACE_MS);
+  };
+  onTiles(adapter.tiles().length);
+  adapter.onTiles((tiles) => onTiles(tiles.length));
+  void chrome.storage.local.get([MEETING_RUNNING_KEY])
+    .then((items: Record<string, unknown>) => nudge.setRunning(items?.[MEETING_RUNNING_KEY] === true), () => {});
+  chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
+    if (MEETING_RUNNING_KEY in changes) nudge.setRunning(changes[MEETING_RUNNING_KEY].newValue === true);
+  });
+}
+
+/**
  * Mic stream 1, started by the popup's Start. A content script's
  * getUserMedia runs under meet.google.com's permission, which the user
  * already gave Meet, so there is no prompt and no extra page. Frames go to
@@ -81,9 +134,10 @@ export function listenForMicStart(): void {
       mediaDevices: navigator.mediaDevices,
       createContext: () => adaptAudioContext(new AudioContext()),
       sendAudio: (_stream, pcm, tsMs) => send(pcm, tsMs),
-      setMicState: (state) => void chrome.storage.local.set({ "halo.micState": state }),
+      setMicState: (state, label) => void chrome.storage.local.set({ "halo.micState": state, "halo.micLabel": label ?? "" }),
       now: () => Date.now(),
-    }).then((res) => { micStarted = res.mic; }); // denied: a later Start may retry
+    }, { mic: true, micDeviceId: document.documentElement.dataset[MIC_DEVICE_KEY] })
+      .then((res) => { micStarted = res.mic; }); // denied: a later Start may retry
     return false;
   });
 }

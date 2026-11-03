@@ -22,11 +22,24 @@ function degradedPage() {
   return page;
 }
 
+// Model text as it arrives live: no capital, no end mark, a title ending in ".".
+function messyPage() {
+  const page = JSON.parse(JSON.stringify(GOLDEN));
+  page.meeting.title = "launch readiness review.";
+  page.points[0].text = "launch  moves to nov 12";
+  return page;
+}
+
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 
 let server;
 let baseURL;
 const postedTags = [];
+// Fake folder store, same shapes as the Notes Service /api/folders.
+const folders = { list: [], byMeeting: {} };
+const status = { meta_key: true };
+const audio = { status: 404, hits: 0 };
+const home = { archived: false, type: null, typeBy: null, urgent: 1, posts: [] };
 
 function send(res, status, body, type) {
   res.writeHead(status, { "Content-Type": type || "application/json" });
@@ -36,13 +49,29 @@ function send(res, status, body, type) {
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
+    if (req.method === "GET" && url.pathname === "/api/audio") {
+      audio.hits += 1;
+      send(res, audio.status, JSON.stringify({ detail: "no recording yet" }));
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/status") {
+      send(res, 200, JSON.stringify(status));
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/meetings") {
       return send(res, 200, JSON.stringify([
-        { meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, people: ["Layla"], date: "Tue 28 Oct" },
+        { meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, title: GOLDEN.meeting.title,
+          people: ["Layla"], date: "Tue 28 Oct", folder_id: folders.byMeeting[MEETING_ID] || null,
+          t0_ms: GOLDEN.meeting.t0_ms, self_name: "Layla", minutes: 1,
+          counts: { decision: 1, question: 0, pushback: 0, urgent: home.urgent },
+          archived: home.archived, meeting_type: home.type, ...(home.typeBy ? { type_by: home.typeBy } : {}) },
       ]));
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/" + MEETING_ID) {
       return send(res, 200, JSON.stringify(GOLDEN));
+    }
+    if (req.method === "GET" && url.pathname === "/api/meetings/messy") {
+      return send(res, 200, JSON.stringify(messyPage()));
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/degraded") {
       return send(res, 200, JSON.stringify(degradedPage()));
@@ -61,6 +90,58 @@ test.beforeAll(async () => {
           }]
         : [];
       return send(res, 200, JSON.stringify({ hits }));
+    }
+    if (req.method === "POST" && ["/api/meetings/archive", "/api/meetings/type", "/api/folders/rename",
+      "/api/folders/delete", "/api/folders/move"].includes(url.pathname)) {
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        const body = JSON.parse(raw);
+        home.posts.push({ path: url.pathname, body });
+        if (url.pathname === "/api/meetings/archive") home.archived = body.archived;
+        if (url.pathname === "/api/meetings/type") { home.type = body.meeting_type; home.typeBy = body.meeting_type ? "you" : null; }
+        if (url.pathname === "/api/folders/delete") {
+          folders.list.splice(folders.list.findIndex((f) => f.folder_id === body.folder_id), 1);
+          for (const k of Object.keys(folders.byMeeting)) if (folders.byMeeting[k] === body.folder_id) delete folders.byMeeting[k];
+        }
+        if (url.pathname === "/api/folders/rename") folders.list.find((f) => f.folder_id === body.folder_id).name = body.name;
+        if (url.pathname === "/api/folders/move") {
+          if (body.folder_id) folders.byMeeting[body.meeting_id] = body.folder_id; else delete folders.byMeeting[body.meeting_id];
+        }
+        send(res, 200, "{}");
+      });
+      return;
+    }
+    if (url.pathname === "/api/folders") {
+      if (req.method === "GET") {
+        return send(res, 200, JSON.stringify(folders.list.map((f) => ({
+          ...f, count: Object.values(folders.byMeeting).filter((id) => id === f.folder_id).length,
+        }))));
+      }
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        const body = JSON.parse(raw);
+        const folder = { folder_id: "f" + (folders.list.length + 1), name: body.name };
+        folders.list.push(folder);
+        if (body.meeting_id) folders.byMeeting[body.meeting_id] = folder.folder_id;
+        send(res, 201, JSON.stringify(folder));
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/ask") {
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        const q = JSON.parse(raw).q;
+        if (q === "fail") return send(res, 502, JSON.stringify({ error: "model_failed", answer: "x", citations: [] }));
+        send(res, 200, JSON.stringify({
+          answer: "Launch moves to Nov 12, said Layla.",
+          citations: [{ meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, snippet: GOLDEN.points[0].text,
+                        line: TURN_ID, speaker: "Layla", scope: "point", kindLabel: "decision" }],
+        }));
+      });
+      return;
     }
     if (req.method === "POST" && url.pathname === "/api/tags") {
       let raw = "";
@@ -89,12 +170,20 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   postedTags.length = 0;
+  status.meta_key = true;
+  audio.status = 404;
+  audio.hits = 0;
+  Object.assign(home, { archived: false, type: null, typeBy: null, urgent: 1, posts: [] });
+  folders.list.length = 0;
+  for (const k of Object.keys(folders.byMeeting)) delete folders.byMeeting[k];
 });
 
 test("(1) list view renders meetings and search hits with highlights", async ({ page }) => {
   await page.goto(baseURL + "/");
   await expect(page.getByRole("heading", { name: "Meetings" })).toBeVisible();
-  await expect(page.locator(".mtg-card", { hasText: "Launch readiness" })).toBeVisible();
+  const row = page.locator("#list .row", { hasText: GOLDEN.meeting.title });
+  await expect(row).toBeVisible();
+  await expect(row.locator(".strip i.decision")).toHaveCount(1); // the call strip marks each point at its second
   await expect(page.locator("#q")).toBeVisible();
   await page.locator("#q").fill("launch");
   const hit = page.locator(".hit").first();
@@ -104,7 +193,8 @@ test("(1) list view renders meetings and search hits with highlights", async ({ 
 
 test("(2) meeting view: avatar selects person with why, points, actions, filter counts", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
-  await expect(page.getByRole("heading", { name: "Launch readiness" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: GOLDEN.meeting.title })).toBeVisible();
+  await expect(page.locator(".mtg-summary")).toHaveText(GOLDEN.meeting.summary);
   await page.locator('.person[data-person="Layla"]').click();
   const panel = page.locator(".panel");
   await expect(panel).toBeVisible();
@@ -127,6 +217,7 @@ test("(3) action board groups Urgent/Medium/Later with assigned style", async ({
 });
 
 test("(4) point click jumps to the transcript line and recording position", async ({ page }) => {
+  audio.status = 206; // this meeting has a recording
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
   await page.locator(".pt-main").first().click();
   const active = page.locator("#lines .ln.on");
@@ -164,4 +255,217 @@ test("(7) Arabic toggle renders RTL with Arabic labels and no overflow at 560px"
     () => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+// Karim 2026-11-02: browser Back must work, a hovered meeting previews on
+// the right (like Wispr Flow), meetings go into folders, and an assigned
+// action can be emailed to its owner.
+test("(8) browser Back and Forward move between the list and a meeting", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const title = page.getByRole("heading", { level: 1, name: GOLDEN.meeting.title });
+  await expect(page.locator("#preview h2")).toBeVisible(); // the newest meeting is previewed first
+  await page.locator("#preview .pv-open").click();
+  await expect(title).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/notes/" + MEETING_ID);
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 1, name: "Meetings" })).toBeVisible();
+  await page.goForward();
+  await expect(title).toBeVisible();
+});
+
+test("(9) clicking a meeting previews it: title, summary, plates, and a Simple / Detailed line", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#list .row").first().click();
+  const preview = page.locator("#preview");
+  await expect(preview.locator("h2")).toHaveText(GOLDEN.meeting.title);
+  await expect(preview.locator(".p-sum")).toContainText(GOLDEN.meeting.summary);
+  await expect(preview.locator(".p-act li")).toContainText(GOLDEN.actions[0].text);
+  await expect(preview.locator(".big.simple .strip i.decision")).toHaveCount(1);
+  await preview.locator("[data-view=detailed]").click();
+  await expect(preview.locator(".big.detailed .lab", { hasText: "Layla" })).toBeVisible();
+  // A plate item knows its mark: clicking it pins the mark and the tip says what it is.
+  await preview.locator(".p-decision li").first().click();
+  await expect(preview.locator(".big .strip i.on")).toHaveCount(1);
+  await expect(preview.locator(".tip")).toContainText(GOLDEN.points[0].text);
+});
+
+test("(10) a folder: create it from a meeting, filter by it, rename it, delete it (the meeting stays)", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .new-folder").fill("Launch");
+  await page.locator("#preview .create-folder").click();
+  const tab = page.locator(".tabs [data-tab^='f:']", { hasText: "Launch" });
+  await expect(tab).toContainText("1");
+  await tab.click();
+  await expect(page.locator("#list .row")).toHaveCount(1);
+  await page.locator("[data-fdo=rename]").click();
+  await page.locator("#frename").fill("Q4 launch");
+  await page.locator("[data-fdo=rename-save]").click();
+  await expect(page.locator(".tabs [data-tab^='f:']")).toContainText("Q4 launch");
+  await page.locator("[data-fdo=delete]").click();
+  await page.locator("[data-fdo=delete-yes]").click();
+  await expect(page.locator(".tabs [data-tab^='f:']")).toHaveCount(0);
+  await expect(page.locator(".tabs [aria-selected=true]")).toContainText("All meetings");
+  await expect(page.locator("#list .row")).toHaveCount(1);
+});
+
+test("(H1) Urgent is red and clickable: the row's urgent count opens the Urgent tab; none left reads All clear", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const urgentTab = page.locator(".tabs [data-tab=urgent]");
+  await expect(urgentTab).toHaveClass(/has/);
+  await expect(urgentTab).toContainText("1");
+  await page.locator("#list .row .urg-link").first().click();
+  await expect(urgentTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#list .row")).toHaveCount(1);
+  home.urgent = 0;
+  await page.goto(baseURL + "/");
+  await urgentTab.click();
+  await expect(page.locator(".allclear")).toHaveText("All clear. Nothing needs you right now.");
+});
+
+test("(H2) archive a meeting, then undo it", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview [data-archive]").click();
+  await expect(page.locator("#list .row .arch-tag")).toHaveText("Archived");
+  expect(home.posts.at(-1)).toEqual({ path: "/api/meetings/archive", body: { meeting_id: MEETING_ID, archived: true } });
+  await expect(page.locator(".tabs [data-tab=archived]")).toContainText("1");
+  await page.locator("#toast .toast-undo").click();
+  await expect(page.locator("#list .row .arch-tag")).toHaveCount(0);
+  expect(home.posts.at(-1).body.archived).toBe(false);
+});
+
+test("(H3) Halo sorts meetings by type; the user can set their own", async ({ page }) => {
+  home.type = "planning";
+  home.typeBy = "halo";
+  await page.goto(baseURL + "/");
+  await expect(page.locator("#list .row .tchip")).toHaveText("Planning");
+  await expect(page.locator(".types [data-mtype=planning]")).toContainText("1");
+  await expect(page.locator("#preview .ptype")).toContainText("sorted by Halo");
+  await page.locator("#preview .mtype-set").selectOption("sales");
+  await expect(page.locator("#list .row .tchip")).toHaveText("Sales");
+  await expect(page.locator("#preview .ptype")).toContainText("set by you");
+  expect(home.posts.at(-1)).toEqual({ path: "/api/meetings/type", body: { meeting_id: MEETING_ID, meeting_type: "sales" } });
+});
+
+test("(H4) since your last visit: new meetings and your action items until Mark as seen", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const finding = page.locator("#finding");
+  await expect(finding).toContainText("1 new meeting");
+  await expect(finding).toContainText("1 action item for you");
+  await expect(page.locator("#list .row .newdot")).toHaveCount(1);
+  await page.locator("#seen").click();
+  await expect(finding).toContainText("Nothing new since your last visit");
+  await expect(page.locator("#list .row .newdot")).toHaveCount(0);
+  await page.reload();
+  await expect(finding).toContainText("Nothing new since your last visit");
+  await page.locator("#unseen").click();
+  await expect(finding).toContainText("1 new meeting");
+});
+
+test("(H5) follow a person: click a face, the list shows only their meetings", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .pmeta [data-follow=Layla]").click();
+  await expect(page.locator(".follow")).toContainText("Following Layla");
+  await expect(page.locator(".follow")).toContainText("in 1 of 1 meetings");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".follow")).toHaveCount(0);
+});
+
+test("(11) an assigned action has an email link carrying its text and the meeting", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .pv-open").click();
+  const mail = page.locator("a.mail").first();
+  const href = decodeURIComponent(await mail.getAttribute("href"));
+  expect(href.startsWith("mailto:?")).toBe(true);
+  expect(href).toContain(GOLDEN.actions[0].text);
+  expect(href).toContain(GOLDEN.meeting.title);
+});
+
+test("(12) shown text is tidy: capital first letter, end period, titles without one, Inter headers", async ({ page }) => {
+  await page.goto(baseURL + "/?meeting=messy");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Launch readiness review");
+  await expect(page.locator(".txt").first()).toHaveText("Launch moves to nov 12.");
+  const h1Font = await page.locator("h1").first().evaluate((e) => getComputedStyle(e).fontFamily);
+  expect(h1Font).toContain("Inter");
+  expect(h1Font).not.toContain("Instrument Serif");
+});
+
+test("(13) disagreements: topic, each side's view, outcome and resolution", async ({ page }) => {
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const board = page.locator(".dis");
+  await expect(board.locator("h2")).toHaveText("Disagreements");
+  const item = board.locator(".dis-item").first();
+  await expect(item.locator("h3")).toHaveText("Beta launch date");
+  await expect(item.locator(".dis-out")).toHaveText("Settled");
+  await expect(item.locator(".dis-sides li")).toHaveText([
+    "Layla Launch on November 12 if payments QA clears.",
+    "Omar QA is not done; wait for December."]);
+  await expect(item.locator(".dis-res")).toHaveText("Launch November 12; Omar signs off QA by Friday.");
+});
+
+test("(14) ask your meetings: the answer, its cited line opens the meeting, a failure says so", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#askq").fill("When is the launch?");
+  await page.locator("#askq").press("Enter");
+  await expect(page.locator(".answer .atext")).toHaveText("Launch moves to Nov 12, said Layla.");
+  await expect(page.locator("#askq")).toHaveValue("When is the launch?");
+  await page.locator(".answer .hit").first().click();
+  await expect(page).toHaveURL(new RegExp("/notes/" + MEETING_ID));
+  await page.goto(baseURL + "/");
+  await page.locator("#askq").fill("fail");
+  await page.locator(".ask .askbtn").click();
+  await expect(page.locator(".answer .atext")).toHaveText("Halo could not answer. Try again.");
+});
+
+test("(15) a half-typed question survives a language switch", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#askq").fill("ماذا قررنا");
+  await page.getByRole("button", { name: "عربي" }).click();
+  await expect(page.locator("#askq")).toHaveValue("ماذا قررنا");
+});
+
+test("(16) a meeting with no recording hides the player and says so", async ({ page }) => {
+  // The test server answers /api/audio with 404, like the backend before a recording exists.
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".norec")).toHaveText("No recording for this meeting. The notes and transcript are complete.");
+  await expect(page.locator(".player .prow")).toBeHidden();
+  await expect(page.locator("audio#rec")).toBeHidden();
+  await expect(page.getByText(/auto-deletes/)).toHaveCount(0);
+});
+
+test("(17) no Meta key: a banner says how to fix it, in both languages; with a key, none", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await expect(page.locator("#keybar")).toBeHidden();
+  status.meta_key = false;
+  await page.goto(baseURL + "/");
+  await expect(page.locator("#keybar")).toHaveText(
+    "Meta Model API key missing: put it after META_API_KEY= in .env and restart uv run halo. Until then there are no live transcripts, points, notes or answers.");
+  await page.getByRole("button", { name: "عربي" }).click();
+  await expect(page.locator("#keybar")).toContainText("META_API_KEY");
+  await expect(page.locator("#keybar")).toContainText("مفتاح");
+});
+
+test("(18) the recording is checked once per meeting; a live meeting says it comes at the end", async ({ page }) => {
+  audio.status = 429; // the backend's answer while the meeting is still open
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".norec")).toHaveText("The recording is ready when the meeting ends.");
+  await page.locator(".pt-main").first().click(); // re-renders the transcript panel
+  await expect(page.locator(".norec")).toBeVisible();
+  expect(audio.hits).toBe(1);
+});
+
+
+test("(H6) a disagreement is an arc between the two sides' moments on the line", async ({ page }) => {
+  const withOmar = JSON.parse(JSON.stringify(GOLDEN));
+  withOmar.transcript_lines.push({ turn_id: "00000031-0000-4000-8000-000000000031", speaker_name: "Omar",
+    text: "QA is not done.", ts_start_ms: GOLDEN.transcript_lines[0].ts_start_ms + 3000,
+    ts_end_ms: GOLDEN.transcript_lines[0].ts_start_ms + 5000, recording_offset_ms: 4000 });
+  withOmar.points.push({ ...GOLDEN.points[0], point_id: "00000041-0000-4000-8000-000000000041", speaker_name: "Omar",
+    kind: "pushback", text: "QA is not done", is_action: false, turn_ids: ["00000031-0000-4000-8000-000000000031"] });
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(withOmar) }));
+  await page.goto(baseURL + "/");
+  const arc = page.locator("#preview .big .arc");
+  await expect(arc).toHaveCount(1);
+  await expect(arc).toHaveClass(/o-settled/);
+  await arc.dispatchEvent("mouseenter");
+  await expect(page.locator("#preview .tip")).toContainText("Beta launch date");
 });

@@ -12,13 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
-import unicodedata
 import uuid
 from collections import deque
 from datetime import UTC, datetime
-from difflib import SequenceMatcher
 from functools import partial
 from typing import Any
 
@@ -27,62 +24,55 @@ log = logging.getLogger("halo.insight")
 Envelope = dict[str, Any]
 
 SPEAKER_WINDOW_S = 3.0
+# Live 2026-11-01: pauses cut sentences into scraps ("This is", "Is", "and
+# how") and each scrap became a point. A speaker's held words wait for at
+# least MIN_WORDS. Past that, a turn arriving IS the pause (the Transcriber
+# cuts only at a pause), so the call starts at once (2026-11-02: waiting for
+# a sentence end never fired, Voice partials carry no punctuation, so points
+# waited for 8 words or 6 s). A cut-off sentence comes back "none" and waits.
+MIN_WORDS = 3  # ponytail: a lone "Yes." never becomes a point; it rides with the next turn
+REHOLD_MAX_WORDS = 30  # an unfinished "none" waits for more words up to this size
+SENTENCE_END = (".", "?", "!", "؟")  # ؟ = Arabic question mark
 MAX_RPM = 30  # Karim 2026-11-01: 12 fit Baseten's basic tier, unused now; contributor allows 150
 RPM_WINDOW_S = 60.0
 HEALTH_INTERVAL_S = 30.0
 FLUSH_INTERVAL_S = 0.25
-PROMPT_CACHE_KEY = "insight-v1"
+PROMPT_CACHE_KEY = "insight-v3"
 
+# 2026-11-02: no model-written quote. The quote is the speaker's exact words
+# (always verbatim, #92), and a shorter reply plus shorter instructions cut
+# the contributor's median call from 3.96 s to 3.2 s (6 live calls each).
 POINT_RESULT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "kind": {"type": "string", "enum": ["point", "question", "decision", "pushback"]},
+        # "none": nothing worth a point (greeting, filler, mic check); never published.
+        "kind": {"type": "string", "enum": ["point", "question", "decision", "pushback", "none"]},
         "text": {"type": "string"},
-        "quote": {"type": "string"},
         "rank": {"type": "integer", "minimum": 1, "maximum": 3},
         "urgency": {"type": "string", "enum": ["urgent", "medium", "later"]},
         "is_action": {"type": "boolean"},
+        "why": {"type": "string"},
         "replaces": {"type": "string", "format": "uuid"},
     },
-    "required": ["kind", "text", "quote", "rank", "urgency", "is_action"],
+    "required": ["kind", "text", "rank", "urgency", "is_action"],
     "additionalProperties": False,
 }
 
 INSTRUCTIONS = (
-    "You turn meeting turns into live points for the viewer. "
-    "Reply with ONE JSON object: the single most important NEW point from "
-    "the new words below. kind is point|question|decision|pushback. "
-    "quote is copied character for character from the new words below: one "
-    "contiguous span, same order, same language, nothing translated, "
-    "reordered or fixed. "
-    "rank is 1-3 (1 = most important). urgency is urgent|medium|later. "
-    "is_action is true when the point asks someone to do something. "
-    "Set replaces only when this point supersedes an earlier point id."
+    "Live meeting note. Reply with one JSON object for the new words below. "
+    "kind: point|question|decision|pushback, or none for filler, greetings, "
+    "mic checks, small talk or a sentence cut off before its point. "
+    "text: the point as one short sentence (at most 12 words) with a capital "
+    "first letter, ending with a period (a question mark for a question), "
+    "in the viewer language. rank: 1-3 (1 = most important). "
+    "urgency: urgent only when it must happen today, blocks other people, or "
+    "is a live risk to customers or money; medium when it is needed soon; "
+    "later otherwise. why: only when urgent, 1-4 words on the deadline or "
+    "what it blocks (today, blocks signups). "
+    "is_action: true when someone is asked to do something. "
+    "replaces: only when this point supersedes an earlier point id. "
+    "Decide fast; do not deliberate."
 )
-
-
-def _word(token: str) -> str:
-    return "".join(c for c in token if not unicodedata.category(c).startswith("P")).casefold()
-
-
-def verbatim_quote(quote: str, source: str) -> str:
-    """`quote` if it is exact in `source`, else an exact span of `source`.
-
-    Same test as the Notes Builder's quote check (plain substring of the
-    point's joined turns). A miss snaps to the longest run of words both share
-    (compared without punctuation or case, sliced from `source` so it stays
-    exact); under half the quote's words shared, the whole source. Live
-    2026-11-01: a reordered quote made the meeting notes degraded (#92).
-    """
-    if quote and quote in source:
-        return quote
-    spans = [m.span() for m in re.finditer(r"\S+", source)]
-    quote_words = [_word(w) for w in quote.split()]
-    match = SequenceMatcher(None, [_word(source[a:b]) for a, b in spans], quote_words,
-                            autojunk=False).find_longest_match()
-    if match.size == 0 or match.size * 2 < len(quote_words):
-        return source.strip()
-    return source[spans[match.a][0]:spans[match.a + match.size - 1][1]]
 
 
 class Insight:
@@ -98,7 +88,11 @@ class Insight:
         max_rpm: int = MAX_RPM,
         health_interval_s: float = HEALTH_INTERVAL_S,
         flush_interval_s: float = FLUSH_INTERVAL_S,
+        min_words: int = MIN_WORDS,
     ) -> None:
+        self._min_words = min_words
+        # Words a "none" sent back to wait: no new call until more arrive.
+        self._rehold_words: dict[tuple[str, str], int] = {}
         self._bus = bus
         self._llm = llm
         self._clock = clock or time.monotonic
@@ -222,6 +216,10 @@ class Insight:
             log.error("insight call crashed", exc_info=task.exception())
 
     def _flushable(self, key: tuple[str, str], now: float) -> bool:
+        text = " ".join(str(t.get("text", "")) for t in self._held.get(key, [])).strip()
+        words = len(text.split())
+        if words < self._min_words or words <= self._rehold_words.get(key, 0):
+            return False
         if now - self._last_call.get(key, float("-inf")) < self._speaker_window:
             return False
         while self._call_times and self._call_times[0] <= now - RPM_WINDOW_S:
@@ -231,6 +229,7 @@ class Insight:
     async def _flush_speaker(self, key: tuple[str, str]) -> None:
         meetingid, _ = key
         turns = self._held.pop(key, [])
+        self._rehold_words.pop(key, None)
         if not turns:
             return
         now = self._clock()
@@ -260,6 +259,13 @@ class Insight:
         self._last_call[key] = now
         self._latencies.append(elapsed)
         del self._latencies[:-100]
+        if result.data["kind"] == "none":
+            text = " ".join(str(t.get("text", "")) for t in turns).strip()
+            if not text.endswith(SENTENCE_END) and len(text.split()) < REHOLD_MAX_WORDS:
+                # Cut off mid-sentence: the words wait for the rest of it.
+                self._held[key] = turns + self._held.get(key, [])
+                self._rehold_words[key] = len(text.split())
+            return  # filler: the turns are spent, no point
         latest = turns[-1]
         point: dict[str, Any] = {
             "point_id": str(uuid.uuid4()),
@@ -268,7 +274,7 @@ class Insight:
             "kind": result.data["kind"],
             "text": result.data["text"],
             "lang": viewer_lang,
-            "quote": verbatim_quote(result.data["quote"], " ".join(t.get("text", "") for t in turns)),
+            "quote": " ".join(str(t.get("text", "")) for t in turns).strip(),
             "turn_ids": [t["turn_id"] for t in turns],
             "rank": result.data["rank"],
             "attribution": latest.get("attribution", "provisional"),
@@ -276,6 +282,9 @@ class Insight:
             "is_action": result.data["is_action"],
             "engine": result.engine,
         }
+        why = str(result.data.get("why") or "").strip()
+        if point["urgency"] == "urgent" and why:
+            point["why"] = why[:40]
         if result.data.get("replaces"):
             point["replaces"] = result.data["replaces"]
         self._points.setdefault(meetingid, {})[point["point_id"]] = point

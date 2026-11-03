@@ -1,6 +1,6 @@
 """Gateway: the backend's only front door and its only socket.
 
-Owns `/ws`, `/pair` and the Host + Origin checks. Control side validates
+Owns `/ws`, `/pair`, `/pair/auto` and the Host + Origin checks. Control side validates
 every envelope against `/contracts`, dedupes by id gateway-wide, publishes
 on the bus, then ACKs. Data side (binary, no ACK) routes audio by stream and
 rec chunks to the bounded queues wired by the composition root. Builds
@@ -133,6 +133,7 @@ class Gateway:
     def health(self) -> dict[str, Any]:
         return {
             "sessions": len(self.sessions),
+            "meetings_open": len(self._meetings - self._ended - self._timeout_sent),
             "audio_gaps": self.audio.gaps,
             "audio_dropped": self.audio.dropped,
             "audio_age_s": self.audio.audio_age_s(),
@@ -318,6 +319,17 @@ async def pair_redeem(request: Request):  # type: ignore[no-untyped-def]
     return {"token": token}
 
 
+@router.post("/pair/auto")
+async def pair_auto(request: Request):  # type: ignore[no-untyped-def]
+    """Pair without a code (Karim 2026-11-04). Browsers set Origin themselves and a
+    web page cannot claim `chrome-extension://<pinned id>`, so this is as strong as
+    the `/ws` Origin check; the 6-digit code stays as the fallback."""
+    gateway: Gateway = request.app.state.gateway
+    if not gateway.origin_ok(request.headers.get("origin")):
+        return JSONResponse({"detail": "only the Halo extension can pair automatically"}, status_code=403)
+    return {"token": gateway.pairing.issue()}
+
+
 _socket_ids = itertools.count(1)
 
 
@@ -341,7 +353,8 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             if message.get("text") is not None:
                 await websocket.send_json(await session.handle_text(message["text"]))
             elif message.get("bytes") is not None:
-                gateway.audio.handle(message["bytes"], producer)
+                if session.paired:  # an unpaired socket feeds no audio or recording
+                    gateway.audio.handle(message["bytes"], producer)
             else:
                 break
     except WebSocketDisconnect:

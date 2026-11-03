@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { PairingError, pairWithCode, PAIR_URL } from "./pairing";
+import { pairAuto, PAIR_AUTO_URL } from "./pairing";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -46,5 +47,19 @@ describe("pairWithCode", () => {
   it("throws PairingError on a 200 without a token field", async () => {
     const fetchFn = vi.fn(async () => jsonResponse(200, { nope: true }));
     await expect(pairWithCode("123456", fetchFn)).rejects.toThrow(PairingError);
+  });
+});
+
+
+describe("pairAuto (Karim 2026-11-04)", () => {
+  it("posts to /pair/auto and returns the token", async () => {
+    const calls: string[] = [];
+    const token = await pairAuto(async (url) => { calls.push(url); return new Response(JSON.stringify({ token: "t1" }), { status: 200 }); });
+    expect(token).toBe("t1");
+    expect(calls).toEqual([PAIR_AUTO_URL]);
+  });
+  it("throws with the HTTP status when refused, and status 0 when the app is down", async () => {
+    await expect(pairAuto(async () => new Response("{}", { status: 403 }))).rejects.toMatchObject({ status: 403 });
+    await expect(pairAuto(async () => { throw new TypeError("Failed to fetch"); })).rejects.toMatchObject({ status: 0 });
   });
 });

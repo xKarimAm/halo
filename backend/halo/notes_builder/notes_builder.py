@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -51,11 +52,115 @@ REBUILD_INSTRUCTIONS = (
 )
 
 
+# Karim 2026-11-02: an AI title + short summary for the notes list preview
+# and the meeting page. One extra Spark call at meeting end; a failure only
+# leaves them out.
+# Karim 2026-11-04: the notes list sorts meetings by type; same call, one more field.
+MEETING_TYPES = ("sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other")
+
+SUMMARY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "summary": {"type": "string"},
+        "meeting_type": {"type": "string", "enum": list(MEETING_TYPES)},
+        "disagreements": {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string"},
+                "sides": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}, "view": {"type": "string"}},
+                    "required": ["name", "view"], "additionalProperties": False}},
+                "outcome": {"type": "string", "enum": ["settled", "parked", "open"]},
+                "resolution": {"type": "string"},
+            },
+            "required": ["topic", "sides", "outcome", "resolution"],
+            "additionalProperties": False}},
+    },
+    "required": ["title", "summary", "meeting_type", "disagreements"],
+    "additionalProperties": False,
+}
+SUMMARY_TRANSCRIPT_CHARS = 12_000  # ponytail: the meeting's last 12k chars; chunk + merge if long meetings need more
+
+
+def summary_prompt(store: dict[str, Any]) -> str:
+    lines = "\n".join(f"{t['speaker']}: {t['text']}" for t in store["turns"])
+    points = "\n".join(f"- [{p['kind']}] {p['text']}" for p in store["points"])
+    return (
+        "Write the notes header for this meeting. title: what the meeting was "
+        "about, at most 8 words, capital first letter, no quotes, no end period. "
+        "summary: 3 to 5 plain sentences, each ending with a period, "
+        "covering what was decided, who owns what, and what is still open. "
+        "disagreements: 0 to 5 places where people disagreed or pushed back: "
+        "topic (at most 6 words), sides (each person's name and their view in "
+        "at most 12 words), outcome settled (agreed in the meeting), parked "
+        "(moved to later or offline) or open, resolution (what was agreed or "
+        "the next step, or empty). meeting_type: sprint (sprint review, "
+        "standup or retro), planning (roadmap, launch or scheduling), discovery "
+        "(product discovery or user research), sales (a customer or prospect "
+        "call), induction (onboarding someone new), one_on_one (two people "
+        "about work or growth), interview (hiring), or other. Use "
+        "only what the transcript says. Write both in the language most of the "
+        "meeting used.\n\n"
+        f"Subject typed by the host: {store['meeting']['subject'] or 'none'}\n\n"
+        f"Points:\n{points or '- none'}\n\n"
+        f"Transcript:\n{lines[-SUMMARY_TRANSCRIPT_CHARS:]}"
+    )
+
+
+def clean_disagreements(raw: Any) -> list[dict[str, Any]]:
+    """The model's disagreements cut to the contract; a malformed one drops."""
+    out: list[dict[str, Any]] = []
+    for d in raw if isinstance(raw, list) else []:
+        if not isinstance(d, dict) or d.get("outcome") not in ("settled", "parked", "open"):
+            continue
+        topic = str(d.get("topic") or "").strip()[:80]
+        sides = [{"name": str(s["name"]).strip()[:80], "view": str(s["view"]).strip()[:160]}
+                 for s in d.get("sides") or []
+                 if isinstance(s, dict) and str(s.get("name") or "").strip()
+                 and str(s.get("view") or "").strip()][:4]
+        if not topic or not sides:
+            continue
+        item: dict[str, Any] = {"topic": topic, "sides": sides, "outcome": d["outcome"]}
+        resolution = str(d.get("resolution") or "").strip()[:200]
+        if resolution:
+            item["resolution"] = resolution
+        out.append(item)
+    return out[:5]
+
+
 def action_id_for(point_id: str) -> str:
     """Stable action id over its point. Must equal notes_service.action_id_for
     (own copy, lane independence): the page matches ready actions by it, and
     POST /api/tags resolves an action by it."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{point_id}"))
+
+
+def owner_for(text: str, speaker: str, names: list[str]) -> str:
+    """The person an action names ("Omar owns the numbers"), else its speaker.
+    E2E 2026-11-03: every action was credited to whoever said it.
+    ponytail: name match on speakers' full or first names; the notes service
+    keeps a copy of this (lanes never import each other)."""
+    found: list[tuple[int, str]] = []
+    firsts = [n.split()[0] for n in names if n.split()]
+    for name in names:
+        parts = name.split()
+        if not parts:
+            continue  # an empty name matches nothing
+        forms = [(name, re.IGNORECASE)]
+        if parts[0] != name and firsts.count(parts[0]) == 1:
+            # A first name alone must be capitalised and belong to one person:
+            # "Ali" between Ali Hassan and Ali Khan stays the speaker's, and a
+            # tile "Meeting Room" never claims "schedule the meeting" (review).
+            forms.append((parts[0], re.NOFLAG))
+        for form, flags in forms:
+            if len(form) < 3:
+                continue
+            m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, flags)
+            if m:
+                found.append((m.start(), name))
+    return min(found)[1] if found else speaker
 
 
 class NotesBuilder:
@@ -68,6 +173,7 @@ class NotesBuilder:
         self._lock = asyncio.Lock()
         self._emitted: set[str] = set()
         self._lkg: dict[str, dict[str, Any]] = {}
+        self._header: dict[str, dict[str, Any]] = {}  # AI title, summary, disagreements per meeting
         self.pending: set[asyncio.Task] = set()
         bus.subscribe("meeting.ended", self._on_ended)
 
@@ -97,6 +203,7 @@ class NotesBuilder:
         if store is None:
             log.warning("notes: unknown meeting %s, nothing emitted", meeting_id)
             return
+        await self._summarize(meeting_id, store)
         candidate = self.build_v1(meeting_id, store)
         problems = validate_page(candidate, store)
         if not problems:
@@ -122,6 +229,30 @@ class NotesBuilder:
             # the full-page rebuild hit the 10 s model timeout.
             log.warning("notes: rebuild failed for %s, emitting the live notes degraded", meeting_id)
             await self._emit_fresh(meeting_id, degrade(candidate))
+
+    async def _summarize(self, meeting_id: str, store: dict[str, Any]) -> None:
+        if meeting_id in self._header or not store["turns"]:
+            return
+        result = await asyncio.to_thread(
+            self._llm.complete_json,
+            prompt=summary_prompt(store),
+            schema=SUMMARY_SCHEMA,
+            schema_name="notes.summary",
+            prompt_cache_key="notes-summary-v3",
+        )
+        data = result.data if result.ok and isinstance(result.data, dict) else {}
+        header: dict[str, Any] = {
+            k: data[k].strip()[:700 if k == "summary" else 80] for k in ("title", "summary")
+            if isinstance(data.get(k), str) and data[k].strip()}
+        if data.get("meeting_type") in MEETING_TYPES:
+            header["meeting_type"] = data["meeting_type"]
+        disagreements = clean_disagreements(data.get("disagreements"))
+        if disagreements:
+            header["disagreements"] = disagreements
+        if header:
+            self._header[meeting_id] = header
+        else:
+            log.warning("notes: no AI title/summary for %s", meeting_id)
 
     # -- emission ----------------------------------------------------------
 
@@ -163,6 +294,7 @@ class NotesBuilder:
         }
         if meeting.get("project_id") is not None:
             data["project_id"] = meeting["project_id"]
+        data.update(self._header.get(meeting_id, {}))
         return {
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "notes.ready",
             "source": "halo/notes_builder", "time": datetime.now(UTC).isoformat(),
@@ -241,6 +373,7 @@ class NotesBuilder:
                 })
             points.sort(key=lambda p: (p["rank"], p["seq"]))
             tags: dict[str, dict[str, str]] = {}
+            by_user: set[tuple[str, str]] = set()
             for (data,) in conn.execute(
                     "SELECT data FROM events WHERE type = 'tags.set' ORDER BY seq"):
                 try:
@@ -249,11 +382,16 @@ class NotesBuilder:
                     continue
                 if tag.get("target") != "point" or not isinstance(tag.get("target_id"), str):
                     continue
+                # Latest user tag > latest model tag > guess (DECISIONS).
                 entry = tags.setdefault(tag["target_id"], {})
                 for field in ("kind", "urgency"):
-                    if tag.get(field) is not None and (
-                            tag.get("source") == "user" or field not in entry):
-                        entry[field] = tag[field]
+                    if tag.get(field) is None:
+                        continue
+                    if tag.get("source") == "user":
+                        by_user.add((tag["target_id"], field))
+                    elif (tag["target_id"], field) in by_user:
+                        continue
+                    entry[field] = tag[field]
             context: dict[str, Any] = {}
             row = conn.execute(
                 "SELECT data FROM events WHERE type = 'meeting.context' AND meetingid = ?"
@@ -296,13 +434,13 @@ class NotesBuilder:
             people.append({"name": name, "role": role, "why": role,
                            "relevant_points": [], "own_points": own})
         actions = [{
-            "action_id": action_id_for(p["point_id"]), "text": p["text"], "owner": p["speaker_name"],
+            "action_id": action_id_for(p["point_id"]), "text": p["text"], "owner": owner_for(p["text"], p["speaker_name"], speakers),
             "status": "assigned", "urgency": p["urgency"], "point_id": p["point_id"],
         } for p in points if p["is_action"]]
         lines = [{
             "turn_id": t["turn_id"], "speaker_name": t["speaker"],
             "text": t["text"], "ts_start_ms": t["ts_start_ms"], "ts_end_ms": t["ts_end_ms"],
-            "recording_offset_ms": t["ts_start_ms"] - t0_ms,
+            "recording_offset_ms": max(0, t["ts_start_ms"] - t0_ms),  # a turn begun before Start plays from 0
         } for t in store["turns"]]
         subject = meeting["subject"] or "Untitled meeting"
         page: dict[str, Any] = {

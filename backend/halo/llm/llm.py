@@ -57,6 +57,14 @@ ENGINES: dict[str, dict[str, str]] = {
     },
 }
 
+# List price per 1M tokens (input, cached input, output) for the spend estimate
+# in health.json (Karim 2026-11-04). Spark Open: Baseten's model page; the
+# contributor: DECISIONS line 50. The provider's billing page is the truth.
+PRICES_PER_M: dict[str, tuple[float, float, float]] = {
+    PRIMARY_ENGINE: (1.25, 0.15, 4.25),
+    FAILOVER_ENGINE: (0.10, 0.002, 0.20),
+}
+
 # The rig's FakeLLM HTTP server stands in for both engines wire-compatibly.
 # HALO_FAKE_PORT moves the whole fake rig off 18777 so parallel runs (and a
 # busy dev machine) do not share one fake server; unset keeps the default.
@@ -139,7 +147,8 @@ class LLMClient:
         self._cooldown = cooldown_s
         self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s))
         self._primary_down_until = 0.0
-        self._last_engine = PRIMARY_ENGINE
+        self._last_engine = PRIMARY_ENGINE if self._keys[PRIMARY_ENGINE] else FAILOVER_ENGINE
+        self._usage = {e: {"calls": 0, "in": 0, "cached": 0, "out": 0} for e in ENGINES}
 
     def close(self) -> None:
         self._http.close()
@@ -159,6 +168,29 @@ class LLMClient:
             "failover": self._clock() < self._primary_down_until,
         }
 
+    def usage(self) -> dict[str, Any]:
+        """Tokens and estimated USD per engine since this backend started
+        (health module `llm_spend`). A call past its time budget gets no reply,
+        so its tokens are not counted here, though the provider may bill them."""
+        out: dict[str, Any] = {}
+        for engine, u in self._usage.items():
+            p_in, p_cached, p_out = PRICES_PER_M[engine]
+            usd = ((u["in"] - u["cached"]) * p_in + u["cached"] * p_cached + u["out"] * p_out) / 1e6
+            out[engine] = {**u, "usd": round(usd, 4)}
+        out["usd_total"] = round(sum(v["usd"] for v in out.values()), 4)
+        return out
+
+    def _count(self, engine: str, response: httpx.Response) -> None:
+        try:
+            u = response.json().get("usage") or {}
+        except (ValueError, AttributeError):
+            return
+        tally = self._usage[engine]
+        tally["calls"] += 1
+        tally["in"] += int(u.get("prompt_tokens") or 0)
+        tally["cached"] += int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+        tally["out"] += int(u.get("completion_tokens") or 0)
+
     def complete_json(
         self,
         *,
@@ -170,7 +202,13 @@ class LLMClient:
     ) -> LLMResult:
         """One validated JSON completion, with retry + per-call failover."""
         engines = [PRIMARY_ENGINE, FAILOVER_ENGINE]
-        if self._clock() < self._primary_down_until:
+        # No Spark Open key is a supported setup (README): the contributor is the
+        # engine by design, not a failover, so the primary is not even tried.
+        if not self._keys[PRIMARY_ENGINE] and PRIMARY_ENGINE not in self._key_warned:
+            self._key_warned.add(PRIMARY_ENGINE)
+            log.warning("llm %s has no key in %s; every call runs on %s", PRIMARY_ENGINE,
+                        self._primary["key_var"] or "HALO_PRIMARY_KEY_VAR (unset)", FAILOVER_ENGINE)
+        if not self._keys[PRIMARY_ENGINE] or self._clock() < self._primary_down_until:
             engines = [FAILOVER_ENGINE]
         last = LLMResult(ok=False, engine=engines[-1],
                          error={"code": "engine_error", "message": "no engine attempted"})
@@ -287,6 +325,7 @@ class LLMClient:
         if status != 200:
             return fail("engine_error", f"{engine}: HTTP {status}", failover=True)
 
+        self._count(engine, response)
         data = _read_content(response, schema)
         if data is None:
             return fail("invalid_response", f"{engine}: reply failed schema", failover=True)

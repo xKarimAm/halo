@@ -59,11 +59,13 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
 
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extId}/popup.html`);
-    await popup.fill("#pair-code", process.env.HALO_PAIR_CODE || "");
-    await popup.click("#pair-btn");
-    await expect(popup.locator("#pair-state")).toContainText("Paired", { timeout: 15000 });
-    // The pairing code is single-use: the orchestrator's Mode A replays as
-    // this same extension, so hand it the token the popup just stored.
+    // Karim 2026-11-04: the popup pairs on its own (POST /pair/auto, pinned
+    // extension Origin). The 6-digit code is only the fallback, covered by
+    // the setup_panel unit tests.
+    await expect(popup.locator("#conn")).toHaveText("Connected", { timeout: 15000 });
+    await expect(popup.locator("#pair-state")).toContainText("Paired");
+    // The orchestrator's Mode A replays as this same extension, so hand it
+    // the token the popup just stored.
     const token = await popup.evaluate(
       () => new Promise((resolve) => chrome.storage.local.get("halo.token", (items) => resolve(items["halo.token"]))));
     writeFileSync(`${JOINED_DIR}/token.json`, JSON.stringify({ token }));
@@ -122,6 +124,8 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     await expect(chip).toBeHidden();
     await page.keyboard.press("Alt+KeyH");
     await expect(chip).toBeVisible();
+    // The language picker lives in the Halo menu the badge opens.
+    await page.locator("button.halo-badge").click();
     await expect(page.locator(".halo-lang")).toBeVisible();
 
     writeFileSync(`${JOINED_DIR}/result.json`, JSON.stringify({

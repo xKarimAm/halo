@@ -380,3 +380,29 @@ def test_stall_pads_do_not_shift_later_turns():
     # engine 1600 ms = 1000 ms of frames + 500 ms pad + 100 ms: browser +1100
     assert turn["ts_start_ms"] == ANCHOR + 1100
     assert turn["ts_end_ms"] == ANCHOR + 1900
+
+
+def test_a_pause_never_cuts_a_one_or_two_word_scrap():
+    """Live 2026-11-01: slow speech cut "Can" / "anyone hear" / "me?" into
+    lines of their own. A pause cut needs MIN_CUT_WORDS new words; fewer
+    wait for the next pause or the end of the turn."""
+    events = [
+        {"type": "speechStart", "turnId": 0, "audioProcessedMs": 0},
+        {"type": "transcript", "transcript": "can", "final": False, "audioProcessedMs": 1000},
+        {"type": "transcript", "transcript": "can anyone hear", "final": False,
+         "audioProcessedMs": 2500},
+        {"type": "transcript", "transcript": "can anyone hear me please now", "final": False,
+         "audioProcessedMs": 4000},
+    ]
+    transport = ReplayTransport(events, 0)
+    session = TranscriptionSession("tab", DIARIZATION, transport)
+
+    async def go() -> list[dict]:
+        await session.open("key")
+        out: list[dict] = []
+        for seq in range(50):  # three 700 ms pauses, at 1.0 s, 2.5 s and 4.0 s
+            pcm = SILENCE if (10 <= seq < 17 or 25 <= seq < 32 or 40 <= seq < 47) else SPEECH
+            out.extend(await session.feed_frame(seq, ANCHOR + seq * FRAME_MS, pcm))
+        return out
+
+    assert [t["text"] for t in asyncio.run(go())] == ["can anyone hear", "me please now"]

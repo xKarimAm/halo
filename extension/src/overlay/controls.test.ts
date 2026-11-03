@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CONSENT_NOTICE, FakeClock, Overlay, notesHref } from "./overlay";
-import { bindHideKey, mountControls, mountPopover } from "./index";
+import { FakeClock, Overlay, notesHref } from "./overlay";
+import { bindExpand, bindHideKey, mountControls, mountPopover } from "./index";
+import { OVERLAY_CSS } from "./tokens";
 
-// Badge, consent dialog and notes-ready toast (issue #73), on a real DOM.
+// Badge menu and notes-ready toast (issue #73), on a real DOM.
 type Listener = (msg: unknown) => void;
-function setup(clipboard: { writeText(t: string): unknown }) {
+function setup(_clipboard?: { writeText(t: string): unknown }) {
   const listeners: Listener[] = [];
   const posted: unknown[] = [];
   const overlay = new Overlay(new FakeClock());
@@ -13,7 +14,7 @@ function setup(clipboard: { writeText(t: string): unknown }) {
     onMessage: { addListener: (fn: Listener) => { listeners.push(fn); } },
     postMessage: (msg: unknown) => { posted.push(msg); },
   };
-  const refresh = mountControls(document, overlay, port, clipboard);
+  const refresh = mountControls(document, overlay, port);
   // What boot() does on the same Port: apply first, then the controls refresh.
   const deliver = (envelope: { id: string; type: string; data: Record<string, unknown> }) => {
     overlay.applyEnvelope(envelope);
@@ -71,33 +72,50 @@ describe("notes-ready toast", () => {
   });
 });
 
-describe("consent dialog", () => {
-  it("opens with the bilingual notice, RTL-safe", () => {
+// Karim 2026-11-02: one Halo menu. The badge opens the language picker and
+// the legend; the consent notice moved to the toolbar popup.
+describe("Halo menu", () => {
+  it("the badge opens and closes a menu holding the language and the legend; no consent, no ?", () => {
     setup({ writeText: () => {} });
-    byText("Consent notice").click();
-    expect($<HTMLDialogElement>(".halo-dialog").open).toBe(true);
-    const notice = $<HTMLTextAreaElement>(".halo-notice");
-    expect(notice.value).toBe(CONSENT_NOTICE);
-    expect(notice.dir).toBe("auto");
+    const badge = $<HTMLButtonElement>("button.halo-badge");
+    const menu = $<HTMLElement>(".halo-menu");
+    expect(menu.hidden).toBe(true);
+    badge.click();
+    expect(menu.hidden).toBe(false);
+    expect(badge.getAttribute("aria-expanded")).toBe("true");
+    expect(menu.querySelector(".halo-lang")).not.toBeNull();
+    expect(menu.textContent).toContain("Urgent");
+    badge.click();
+    expect(menu.hidden).toBe(true);
+    badge.click();
+    (menu.querySelector(".halo-lang") as HTMLElement).click(); // inside: stays open
+    expect(menu.hidden).toBe(false);
+    document.body.click(); // outside closes it
+    expect(menu.hidden).toBe(true);
+    expect(badge.getAttribute("aria-expanded")).toBe("false");
+    expect(document.body.textContent).not.toMatch(/consent/i);
+    expect(byText("?")).toBeUndefined();
   });
+});
 
-  it("Copy notice puts the (edited) notice on the clipboard and confirms", async () => {
-    const written: string[] = [];
-    setup({ writeText: async (t: string) => { written.push(t); } });
-    byText("Consent notice").click();
-    $<HTMLTextAreaElement>(".halo-notice").value = "edited notice";
-    byText("Copy notice").click();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(written).toEqual(["edited notice"]);
-    expect($(".halo-copy-status").textContent).toBe("Copied. Paste it into Meet chat.");
-  });
-
-  it("says so when the clipboard refuses", async () => {
-    setup({ writeText: async () => { throw new Error("denied"); } });
-    byText("Consent notice").click();
-    byText("Copy notice").click();
-    await new Promise((r) => setTimeout(r, 0));
-    expect($(".halo-copy-status").textContent).toBe("Copy failed. Select the text and copy it.");
+// The +N chip is a button: a click expands that tile's stack.
+describe("expand on click", () => {
+  it("clicking +N re-renders the tile with every point", () => {
+    const overlay = new Overlay(new FakeClock());
+    overlay.applyTiles({ tiles: [{ tile_id: "tile-1", name: "Layla", is_self: false, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null }] });
+    for (let i = 0; i < 4; i += 1) {
+      overlay.applyPointsUpsert({
+        point_id: `pt-${i}`, tile_id: "tile-1", speaker_name: "Layla", kind: "point", text: `p${i}`, lang: "en",
+        quote: "q", turn_ids: ["t"], rank: 1, attribution: "provisional", is_action: false, engine: "spark-open",
+      } as never);
+    }
+    const root = document.createElement("div");
+    document.body.append(root);
+    const rerender = () => overlay.render(document as never, root as never, 0);
+    rerender();
+    bindExpand(root, overlay, rerender);
+    root.querySelector<HTMLElement>('[data-expand-tile="tile-1"]')!.click();
+    expect(root.querySelectorAll("[data-point-id]").length).toBe(4);
   });
 });
 
@@ -304,5 +322,90 @@ describe("Alt+H is bare Alt+H only", () => {
     press({ altKey: true, repeat: true });
     expect(overlay.hidden).toBe(true);
     expect(changes).toBe(1);
+  });
+});
+
+describe("archive and legend (Karim 2026-11-01)", () => {
+  it("Archive in the card removes the point from the bubbles and re-renders", () => {
+    const overlay = new Overlay(new FakeClock());
+    overlay.applyTiles({ tiles: [{ tile_id: "tile-1", name: "Layla", is_self: false, rect: [0, 0, 400, 225], video_w: 640, video_h: 360, fit: "cover", captions_rect: null }] });
+    overlay.applyPointsUpsert({
+      point_id: "pt-9", tile_id: "tile-1", speaker_name: "Layla", kind: "point", text: "Fix the mic", lang: "en",
+      quote: "fix the mic", turn_ids: ["t-1"], rank: 1, attribution: "provisional", is_action: true,
+      engine: "spark-open", urgency: "urgent",
+    } as never, "env-9");
+    const root = document.createElement("div");
+    document.body.append(root);
+    let renders = 0;
+    const render = () => { renders += 1; overlay.render(document as never, root as never, 0); };
+    render();
+    mountPopover(document, overlay, root, render);
+    root.querySelector<HTMLButtonElement>('[data-point-id="pt-9"]')!.click();
+    byText("Archive").click();
+    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect($<HTMLElement>(".halo-popover").hidden).toBe(true);
+    expect(renders).toBe(2);
+  });
+
+  it("the Halo badge shows a legend of urgency colours and kind glyphs", () => {
+    // The real stylesheet: a display rule once beat [hidden] and the
+    // legend covered the bubbles (joined run 2026-11-01).
+    const style = document.createElement("style");
+    style.textContent = OVERLAY_CSS;
+    document.head.append(style);
+    setup({ writeText: () => {} });
+    const menu = $<HTMLElement>(".halo-menu");
+    const legend = $<HTMLElement>(".halo-legend");
+    expect(getComputedStyle(menu).display).toBe("none");
+    $<HTMLButtonElement>("button.halo-badge").click();
+    expect(getComputedStyle(menu).display).not.toBe("none");
+    expect(getComputedStyle(legend).display).toBe("grid");
+    for (const word of ["Urgent", "Medium", "Later", "Question", "Decision", "Pushback"]) {
+      expect(legend.textContent).toContain(word);
+    }
+  });
+});
+
+describe("meeting coach panel", () => {
+  const tips = (id: string, list: string[], lang = "en") => ({ id, type: "coach.tips", data: { tips: list, lang } });
+
+  it("is hidden until coach.tips, then shows the newest tips only", () => {
+    const { deliver } = setup();
+    const panel = $<HTMLElement>(".halo-coach");
+    expect(panel.hidden).toBe(true);
+    deliver(tips("c1", ["Ask Omar for a date.", "Nobody owns the checklist."]));
+    expect(panel.hidden).toBe(false);
+    expect([...panel.querySelectorAll("li")].map((li) => li.textContent))
+      .toEqual(["Ask Omar for a date.", "Nobody owns the checklist."]);
+    deliver(tips("c2", ["Layla has not spoken yet."]));
+    expect([...panel.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["Layla has not spoken yet."]);
+  });
+
+  it("shows an alert above the tips, and an alert alone still opens the panel", () => {
+    const { deliver } = setup();
+    const panel = $<HTMLElement>(".halo-coach");
+    const alert = $<HTMLElement>(".halo-coach-alert");
+    deliver(tips("c1", ["Ask Omar for a date."]));
+    expect(alert.hidden).toBe(true);
+    deliver({ id: "c2", type: "coach.tips", data: { tips: [], alert: "De-escalate now.", lang: "en" } });
+    expect(panel.hidden).toBe(false);
+    expect(alert.hidden).toBe(false);
+    expect(alert.textContent).toBe("De-escalate now.");
+    deliver({ id: "c3", type: "coach.tips", data: { tips: [], lang: "en" } });
+    expect(panel.hidden).toBe(true);
+  });
+
+  it("dismisses until the next tips, hides with Alt+H, and sets Arabic direction", () => {
+    const { overlay, deliver, refresh } = setup();
+    deliver(tips("c1", ["One."]));
+    $<HTMLButtonElement>(".halo-coach .halo-dismiss").click();
+    const panel = $<HTMLElement>(".halo-coach");
+    expect(panel.hidden).toBe(true);
+    deliver(tips("c2", ["اسأل عمر عن الموعد."], "ar"));
+    expect(panel.hidden).toBe(false);
+    expect(panel.getAttribute("dir")).toBe("rtl");
+    overlay.hidden = true;
+    refresh();
+    expect(panel.hidden).toBe(true);
   });
 });
