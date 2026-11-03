@@ -21,3 +21,10 @@ def test_speaking_facts_on_a_short_exchange() -> None:
     assert r["hedged"][0]["quote"].startswith("I think maybe"), r
     assert r["try_next"] == {"key": "cut_ins"}, r
     assert speaking_insights(demo[:2], "Karim", 0) is None
+
+
+def test_arabic_questions_count() -> None:
+    turns = [{"speaker": "Layla", "text": t, "ts_start_ms": i * 5000, "ts_end_ms": i * 5000 + 4000}
+             for i, t in enumerate(["متى نطلق؟ غدا.", "من المسؤول؟", "حسنا."])]
+    r = speaking_insights(turns, "Layla", 0)
+    assert r and r["questions"] == 2, r

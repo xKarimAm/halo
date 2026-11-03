@@ -131,7 +131,7 @@ class NotesService:
         meeting = dict(row)
         turns = self._turns(conn, meeting_id)
         points = self._points(conn, meeting_id)
-        tags = self._tags(conn, [p["point_id"] for p in points])
+        tags = self._tags(conn, [p["point_id"] for p in points], meeting_id)
         context = self._context(conn, meeting_id)
         ready = self._latest_ready(conn, meeting_id)
         return {"meeting": meeting, "turns": turns, "points": points,
@@ -184,11 +184,17 @@ class NotesService:
         points.sort(key=lambda p: (p["rank"], p["seq"]))
         return points
 
-    def _tags(self, conn: sqlite3.Connection, point_ids: list[str]) -> dict[str, dict[str, str]]:
+    def _tags(self, conn: sqlite3.Connection, point_ids: list[str],
+              meeting_id: str | None = None) -> dict[str, dict[str, str]]:
         # Latest user tag > latest model tag > guess (DECISIONS); rows come in order.
+        # One meeting reads only its own rows (review 2026-11-03: the list page
+        # scanned every tag of every meeting once per meeting).
         tags: dict[str, dict[str, str]] = {}
         by_user: set[tuple[str, str]] = set()
-        for (data,) in conn.execute("SELECT data FROM events WHERE type = 'tags.set' ORDER BY seq"):
+        sql, args = "SELECT data FROM events WHERE type = 'tags.set'", ()
+        if meeting_id is not None:
+            sql, args = sql + " AND meetingid = ?", (meeting_id,)
+        for (data,) in conn.execute(sql + " ORDER BY seq", args):
             try:
                 tag = json.loads(data)
             except ValueError:

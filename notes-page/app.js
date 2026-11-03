@@ -951,9 +951,17 @@
       if (app.person) crumb.appendChild(document.createTextNode(" / " + app.person));
     }
     var view = doc.getElementById("view");
+    // A rebuild must not steal the caret: typing in search re-renders per key.
+    var focused = doc.activeElement && doc.activeElement.id && view.contains(doc.activeElement)
+      ? { id: doc.activeElement.id, at: doc.activeElement.selectionStart } : null;
     view.textContent = "";
     if (app.view === "list" || !app.page) renderList(app, view, lang);
     else renderMeeting(app, view, lang);
+    var again = focused && doc.getElementById(focused.id);
+    if (again) {
+      again.focus();
+      if (typeof focused.at === "number" && again.setSelectionRange) again.setSelectionRange(focused.at, focused.at);
+    }
   }
 
   function toast(app, message) {
@@ -1106,13 +1114,20 @@
       });
     };
 
+    // Swap only the preview panel: a full render on hover/focus dropped
+    // keyboard focus and typed text (review 2026-11-03).
+    function showPreview() {
+      var old = app.doc.getElementById("preview");
+      if (old) old.replaceWith(previewPanel(app, app.lang)); else render(app);
+    }
+
     app.setPreview = function (id) {
       if (!id || id === app.previewId || app.view !== "list") return;
       app.previewId = id;
-      if (app.previews[id]) { render(app); return; }
+      if (app.previews[id]) { showPreview(); return; }
       app.fetchJson("/api/meetings/" + encodeURIComponent(id)).then(function (page) {
         app.previews[id] = tidyPage(page);
-        if (app.previewId === id && app.view === "list") render(app);
+        if (app.previewId === id && app.view === "list") showPreview();
       }).catch(function () {});
     };
 

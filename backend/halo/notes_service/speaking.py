@@ -27,11 +27,11 @@ COMMIT = re.compile(r"\b(i'll|i will|we'll|we will|i can|we can|by (monday|tuesd
 
 
 def _sentences(text: str) -> list[str]:
-    return [s.strip() for s in re.split(r"(?<=[.?!])\s+", text) if s.strip()]
+    return [s.strip() for s in re.split(r"(?<=[.?!؟])\s+", text) if s.strip()]
 
 
 def _is_question(sentence: str) -> bool:
-    return sentence.endswith("?") or bool(QUESTION_START.match(sentence))
+    return sentence.endswith(("?", "؟")) or bool(QUESTION_START.match(sentence))
 
 
 def speaking_insights(turns: list[dict[str, Any]], me: str, t0_ms: int) -> dict[str, Any] | None:
