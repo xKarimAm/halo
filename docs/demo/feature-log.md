@@ -43,11 +43,17 @@ Every feature and small detail, newest first. Karim asked for this on 2026-11-02
 | Export Markdown | One click exports the whole meeting as Markdown to hand to an AI. | earlier, liked by Karim |
 | English / Arabic | The whole page switches language (Arabic right-to-left). | earlier |
 
+| Meeting cards (landing) | Each card: everyone who spoke, length, and counts of decisions, open questions, pushbacks and urgent actions; the preview opens on the newest meeting. | 86469c6, f4e2867 |
+| Calmer meeting page | Date, length, people on one line; panels in balanced columns; transcript reads like a chat (one name per run); tools appear on hover; each fact said once. | 86469c6, a4f4de7 |
+| Your speaking | Private panel: talk share vs an even share, longest stretch, questions and follow-ups, cut-ins, pace, hedged commitments quoted, one thing to try next call. No score, no mood words. | f4e2867 |
+
 ## Backend (behind the scenes)
 
 - Two transcription streams kept apart: the call (diarized) and your mic ("you"); Arabic, English and mixed speech.
 - Points come from Meta's Spark model; the urgency classifier re-checks them every 10 s.
 - Everything stays on this PC: SQLite database, recordings, logs. Health file every 5 s with live problems ("no mic audio for 60 s", wrong or silent mic).
+
+- Coach (2026-11-03): tuned in blind-judged loops on 10 scripted meetings; quiet once an item is settled, rehearsal mode when alone, tips name what was just said, alerts say who, no alert twice. | 7c060e6
 
 ## Ideas Karim raised (not built)
 
