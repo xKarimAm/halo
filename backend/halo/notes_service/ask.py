@@ -75,7 +75,7 @@ STOP = {norm(w) for w in _STOP_WORDS.split()}
 
 
 def tokens(text: str) -> set[str]:
-    return {t for t in (norm(w) for w in re.findall(r"\w+", text)) if len(t) > 1 and t not in STOP}
+    return {t for t in (norm(w) for w in re.findall(r"\w+", _DIACRITICS.sub("", text))) if len(t) > 1 and t not in STOP}
 
 
 def _hit(term: str, toks: set[str]) -> bool:
@@ -103,6 +103,8 @@ def _terms(llm: Any, question: str) -> list[str]:
 def answer(llm: Any, question: str, passages: list[dict[str, Any]]) -> dict[str, Any]:
     """{answer, citations (store passages), engine} or {error, answer, citations: []}."""
     lang = lang_of(question)
+    if not passages:  # no meetings yet: no model call
+        return {"answer": NOTHING[lang], "citations": [], "engine": None}
     terms = _terms(llm, question)
     ranked = sorted(
         ((score(p["snippet"], terms) * SCOPE_WEIGHT.get(p.get("scope", ""), 1.0), -i, p)
@@ -126,11 +128,14 @@ def answer(llm: Any, question: str, passages: list[dict[str, Any]]) -> dict[str,
                                schema=ANSWER_SCHEMA, schema_name="ask.answer")
     if result is None or not result.ok or not isinstance(result.data, dict):
         return {"error": "model_failed", "answer": FAILED[lang], "citations": []}
+    text = str(result.data.get("answer", "")).strip()
+    if not text:  # a blank reply must not show an empty panel
+        return {"answer": NOTHING[lang], "citations": [], "engine": result.engine}
     seen: set[int] = set()
     citations = []
     for n in result.data.get("cites", []):
         if isinstance(n, int) and 1 <= n <= len(picked) and n not in seen:
             seen.add(n)
             citations.append(picked[n - 1])
-    return {"answer": str(result.data.get("answer", "")).strip(), "citations": citations,
+    return {"answer": text, "citations": citations,
             "engine": result.engine}

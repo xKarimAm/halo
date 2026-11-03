@@ -873,7 +873,7 @@
     input.dir = "auto";
     input.placeholder = t(lang, "ask");
     input.setAttribute("aria-label", t(lang, "ask"));
-    if (app.ask) input.value = app.ask.q;
+    input.value = app.askDraft != null ? app.askDraft : (app.ask ? app.ask.q : "");
     form.appendChild(input);
     var btn = el("button", "askbtn", t(lang, "askBtn"));
     btn.type = "submit";
@@ -1117,6 +1117,7 @@
       q: "",
       hits: [],
       ask: null,
+      askDraft: null,
       cat: "all",
       openQuote: {},
       userTags: {},
@@ -1211,6 +1212,7 @@
       q = (q || "").trim();
       if (!q || (app.ask && app.ask.busy)) return Promise.resolve(null);
       app.ask = { q: q, busy: true };
+      app.askDraft = null;
       render(app);
       return postJson("/api/ask", { q: q }).then(function (res) {
         app.ask = { q: q, answer: res.answer || "", citations: res.citations || [] };
@@ -1347,6 +1349,8 @@
       if (event.target && event.target.id === "q") {
         app.search(event.target.value);
       }
+      // A re-render (language toggle, folder chip, search) must keep a half-typed question.
+      if (event.target && event.target.id === "askq") app.askDraft = event.target.value;
     }
 
     function onKey(event) {

@@ -94,3 +94,16 @@ def test_api_ask_over_a_seeded_meeting(tmp_path):
                        ).status_code == 403
     assert client.post("/api/ask", json={"q": ""}, headers=host).status_code == 400
     assert client.post("/api/ask", json={"q": "a" * 301}, headers=host).status_code == 400
+
+
+def test_review_fixes_diacritics_blank_answer_and_empty_library():
+    # Review 2026-11-03: \w splits a word at its harakat; a blank answer showed an
+    # empty panel; an empty library still spent a model call.
+    from halo.notes_service.ask import tokens
+
+    assert norm("مُحَمَّد") in tokens("قال مُحَمَّد ذلك")
+    llm = FakeLLM([{"terms": ["launch"]}, {"answer": "  ", "cites": [1]}])
+    out = answer(llm, "launch?", [{**PASSAGES[0], "snippet": "launch now"}])
+    assert out["answer"] and out["citations"] == []
+    idle = FakeLLM([])
+    assert answer(idle, "anything?", [])["citations"] == [] and idle.prompts == []

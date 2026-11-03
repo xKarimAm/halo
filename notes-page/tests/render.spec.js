@@ -299,3 +299,10 @@ test("(14) ask your meetings: the answer, its cited line opens the meeting, a fa
   await page.locator(".ask .askbtn").click();
   await expect(page.locator(".answer .atext")).toHaveText("Halo could not answer. Try again.");
 });
+
+test("(15) a half-typed question survives a language switch", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#askq").fill("ماذا قررنا");
+  await page.getByRole("button", { name: "عربي" }).click();
+  await expect(page.locator("#askq")).toHaveValue("ماذا قررنا");
+});
