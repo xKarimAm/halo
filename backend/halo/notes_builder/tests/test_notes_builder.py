@@ -425,3 +425,12 @@ def test_a_turn_begun_before_start_still_validates(tmp_path):
         assert len(ready) == 1 and llm.calls == [] and ready[0]["data"]["degraded"] is False
 
     asyncio.run(run())
+
+
+def test_an_action_belongs_to_the_person_it_names():
+    from halo.notes_builder.notes_builder import owner_for
+    people = ["Karim Amer", "Omar", "Layla"]
+    assert owner_for("Omar owns signup numbers by Thursday, Layla confirms QA.", "Karim Amer", people) == "Omar"
+    assert owner_for("Will pull the numbers by Thursday.", "Omar", people) == "Omar"  # nobody named
+    assert owner_for("karim sends the deck.", "Layla", people) == "Karim Amer"  # first name, any case
+    assert owner_for("Romario fixes the bug.", "Layla", people) == "Layla"  # no partial-word match

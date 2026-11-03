@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -126,6 +127,22 @@ def action_id_for(point_id: str) -> str:
     (own copy, lane independence): the page matches ready actions by it, and
     POST /api/tags resolves an action by it."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{point_id}"))
+
+
+def owner_for(text: str, speaker: str, names: list[str]) -> str:
+    """The person an action names ("Omar owns the numbers"), else its speaker.
+    E2E 2026-11-03: every action was credited to whoever said it.
+    ponytail: name match on speakers' full or first names; the notes service
+    keeps a copy of this (lanes never import each other)."""
+    found: list[tuple[int, str]] = []
+    for name in names:
+        for form in {name, name.split()[0]}:
+            if len(form) < 3:
+                continue
+            m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, re.IGNORECASE)
+            if m:
+                found.append((m.start(), name))
+    return min(found)[1] if found else speaker
 
 
 class NotesBuilder:
@@ -397,7 +414,7 @@ class NotesBuilder:
             people.append({"name": name, "role": role, "why": role,
                            "relevant_points": [], "own_points": own})
         actions = [{
-            "action_id": action_id_for(p["point_id"]), "text": p["text"], "owner": p["speaker_name"],
+            "action_id": action_id_for(p["point_id"]), "text": p["text"], "owner": owner_for(p["text"], p["speaker_name"], speakers),
             "status": "assigned", "urgency": p["urgency"], "point_id": p["point_id"],
         } for p in points if p["is_action"]]
         lines = [{

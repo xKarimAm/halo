@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -44,6 +45,22 @@ URGENCIES = ("urgent", "medium", "later")
 def action_id_for(point_id: str) -> str:
     """Stable action ids: deterministic over the point, shared with notes_builder."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"halo-action:{point_id}"))
+
+
+def owner_for(text: str, speaker: str, names: list[str]) -> str:
+    """The person an action names ("Omar owns the numbers"), else its speaker.
+    E2E 2026-11-03: every action was credited to whoever said it.
+    ponytail: name match on speakers' full or first names; the notes service
+    keeps a copy of this (lanes never import each other)."""
+    found: list[tuple[int, str]] = []
+    for name in names:
+        for form in {name, name.split()[0]}:
+            if len(form) < 3:
+                continue
+            m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, re.IGNORECASE)
+            if m:
+                found.append((m.start(), name))
+    return min(found)[1] if found else speaker
 
 
 class NotesService:
@@ -269,7 +286,7 @@ class NotesService:
                 continue
             item = {
                 "action_id": action_id_for(point["point_id"]), "text": point["text"],
-                "owner": point["speaker_name"], "status": "suggested",
+                "owner": owner_for(point["text"], point["speaker_name"], sorted({t["speaker"] for t in turns})), "status": "suggested",
                 "urgency": point["urgency"], "point_id": point["point_id"],
             }
             stored = ready_actions.get(item["action_id"])
