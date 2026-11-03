@@ -890,6 +890,7 @@
       section.appendChild(el("p", "empty", t(lang, "askBusy")));
       return section;
     }
+    if (ask.fresh) { section.classList.add("arrive"); ask.fresh = false; }
     var text = el("p", "atext", ask.failed ? t(lang, "askFail") : ask.answer);
     text.dir = "auto";
     section.appendChild(text);
@@ -1012,6 +1013,12 @@
     var focused = doc.activeElement && doc.activeElement.id && view.contains(doc.activeElement)
       ? { id: doc.activeElement.id, at: doc.activeElement.selectionStart } : null;
     view.textContent = "";
+    // Motion is feedback: the screen eases in only when it really changes (another
+    // meeting, person, filter or folder), never on a keystroke re-render.
+    var key = app.view === "list" || !app.page ? "list:" + (app.folder || "")
+      : "m:" + app.page.meeting.meeting_id + ":" + (app.person || "") + ":" + (app.cat || "");
+    view.classList.toggle("enter", key !== app.viewKey);
+    app.viewKey = key;
     if (app.view === "list" || !app.page) renderList(app, view, lang);
     else renderMeeting(app, view, lang);
     var again = focused && doc.getElementById(focused.id);
@@ -1177,7 +1184,10 @@
     // keyboard focus and typed text (review 2026-11-03).
     function showPreview() {
       var old = app.doc.getElementById("preview");
-      if (old) old.replaceWith(previewPanel(app, app.lang)); else render(app);
+      if (!old) { render(app); return; }
+      var fresh = previewPanel(app, app.lang);
+      fresh.classList.add("swap");
+      old.replaceWith(fresh);
     }
 
     app.setPreview = function (id) {
@@ -1215,9 +1225,9 @@
       app.askDraft = null;
       render(app);
       return postJson("/api/ask", { q: q }).then(function (res) {
-        app.ask = { q: q, answer: res.answer || "", citations: res.citations || [] };
+        app.ask = { q: q, answer: res.answer || "", citations: res.citations || [], fresh: true };
       }).catch(function () {
-        app.ask = { q: q, failed: true, citations: [] };
+        app.ask = { q: q, failed: true, citations: [], fresh: true };
       }).then(function () {
         render(app);
         return app.ask;

@@ -53,6 +53,7 @@ export const OVERLAY_CSS = `
 .halo-chip-later{box-shadow:inset 3px 0 0 ${URGENCY_COLORS.later},inset 0 0 0 1px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.3),0 4px 14px rgba(0,0,0,.16)}
 .halo-menu{display:flex;flex-direction:column;gap:12px;width:max-content;padding:12px 14px;border-radius:16px;${PANEL}}
 .halo-menu[hidden]{display:none}
+.halo-menu:not([hidden]){animation:halo-pop-in 180ms cubic-bezier(.22,1,.36,1);transform-origin:top center}
 .halo-legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
 .halo-legend .halo-swatch{width:12px;height:12px;border-radius:3px}
 .halo-pop-actions{display:flex;gap:8px;margin-top:10px}
@@ -82,7 +83,7 @@ export const OVERLAY_CSS = `
 .halo-lang option{background:#16181d;color:#f5f7fa}
 .halo-popover{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));box-sizing:border-box;padding:16px 18px;border-radius:18px;background:rgba(16,18,22,.78);backdrop-filter:blur(24px) saturate(170%);box-shadow:0 16px 40px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.08);color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif;animation:halo-pop-in 180ms ease-out}
 @keyframes halo-pop-in{from{opacity:0;transform:translateY(-4px)}}
-@media (prefers-reduced-motion:reduce){.halo-popover{animation:none}}
+@media (prefers-reduced-motion:reduce){.halo-menu,.halo-popover{animation:none}}
 .halo-chip *{pointer-events:none}
 .halo-popover[hidden]{display:none}
 .halo-popover p{margin:0 0 6px}

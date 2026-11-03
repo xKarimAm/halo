@@ -282,3 +282,25 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 .answer{margin:0 0 16px}
 .answer .atext{font-size:15px;line-height:1.55;margin:6px 0 12px;white-space:pre-line}
 .answer h3{font-size:13px;font-weight:600;opacity:.7;margin:8px 0 4px}
+
+/* Motion (taste-skill app rules: feedback only, transform + opacity, reduced-motion safe) */
+:root{--ease-out:cubic-bezier(.22,1,.36,1);--t-press:140ms;--t-hover:180ms;--t-ui:240ms}
+.seg button,.filters button,.fchip,.btn,.askbtn,.retag summary,.hit,.person{transition:background-color var(--t-hover) ease,color var(--t-hover) ease,border-color var(--t-hover) ease,transform var(--t-press) var(--ease-out)}
+.seg button:active,.filters button:active,.btn:active,.askbtn:active,.hit:active,.person:active{transform:scale(.97)}
+@media (prefers-reduced-motion:no-preference){
+  #view.enter>*{animation:rise var(--t-ui) var(--ease-out) both}
+  #view.enter>*:nth-child(2){animation-delay:40ms}
+  #view.enter>*:nth-child(3){animation-delay:80ms}
+  #view.enter>*:nth-child(n+4){animation-delay:120ms}
+  #preview.swap{animation:fade 180ms var(--ease-out) both}
+  .answer.arrive{animation:rise var(--t-ui) var(--ease-out) both}
+  .answer.arrive .hit{animation:rise var(--t-ui) var(--ease-out) both}
+  .answer.arrive .hit:nth-child(2){animation-delay:50ms}
+  .answer.arrive .hit:nth-child(n+3){animation-delay:100ms}
+  .retag[open] .menu{animation:pop 160ms var(--ease-out) both;transform-origin:top left}
+  .toast{transform:translateY(8px);transition:opacity var(--t-ui) var(--ease-out),transform var(--t-ui) var(--ease-out)}
+  .toast.show{transform:none}
+}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.98)}}
