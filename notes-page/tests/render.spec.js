@@ -93,6 +93,20 @@ test.beforeAll(async () => {
       });
       return;
     }
+    if (req.method === "POST" && url.pathname === "/api/ask") {
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        const q = JSON.parse(raw).q;
+        if (q === "fail") return send(res, 502, JSON.stringify({ error: "model_failed", answer: "x", citations: [] }));
+        send(res, 200, JSON.stringify({
+          answer: "Launch moves to Nov 12, said Layla.",
+          citations: [{ meeting_id: MEETING_ID, subject: GOLDEN.meeting.subject, snippet: GOLDEN.points[0].text,
+                        line: TURN_ID, speaker: "Layla", scope: "point", kindLabel: "decision" }],
+        }));
+      });
+      return;
+    }
     if (req.method === "POST" && url.pathname === "/api/tags") {
       let raw = "";
       req.on("data", (chunk) => { raw += chunk; });
@@ -270,4 +284,18 @@ test("(13) disagreements: topic, each side's view, outcome and resolution", asyn
     "Layla Launch on November 12 if payments QA clears.",
     "Omar QA is not done; wait for December."]);
   await expect(item.locator(".dis-res")).toHaveText("Launch November 12; Omar signs off QA by Friday.");
+});
+
+test("(14) ask your meetings: the answer, its cited line opens the meeting, a failure says so", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#askq").fill("When is the launch?");
+  await page.locator("#askq").press("Enter");
+  await expect(page.locator(".answer .atext")).toHaveText("Launch moves to Nov 12, said Layla.");
+  await expect(page.locator("#askq")).toHaveValue("When is the launch?");
+  await page.locator(".answer .hit").first().click();
+  await expect(page).toHaveURL(new RegExp("/notes/" + MEETING_ID));
+  await page.goto(baseURL + "/");
+  await page.locator("#askq").fill("fail");
+  await page.locator(".ask .askbtn").click();
+  await expect(page.locator(".answer .atext")).toHaveText("Halo could not answer. Try again.");
 });

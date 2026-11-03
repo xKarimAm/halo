@@ -18,6 +18,9 @@
       notes: "Notes", meetings: "Meetings", people: "People", everyone: "Whole meeting",
       search: "Search every meeting: points, actions and transcripts",
       results: "Search results", noHits: "No matches.", inPoints: "Point", inTx: "Transcript",
+      ask: "Ask your meetings, e.g. what did we decide about the launch?", askBtn: "Ask",
+      askBusy: "Reading your meetings…", askFail: "Halo could not answer. Try again.",
+      answer: "Answer", sources: "From your meetings", summary: "AI summary",
       decision: "Decision", question: "Open question", pushback: "Pushback", point: "Point",
       decs: "Key decisions", qs: "Open questions", pushes: "Pushbacks", pts: "Points",
       dis: "Disagreements", disSettled: "Settled", disParked: "Parked", disOpen: "Still open",
@@ -64,6 +67,9 @@
       notes: "الملاحظات", meetings: "الاجتماعات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
       search: "ابحث في كل الاجتماعات: النقاط والمهام والنصوص",
       results: "نتائج البحث", noHits: "لا توجد نتائج.", inPoints: "نقطة", inTx: "النص",
+      ask: "اسأل اجتماعاتك، مثلاً: ماذا قررنا بشأن الإطلاق؟", askBtn: "اسأل",
+      askBusy: "أقرأ اجتماعاتك…", askFail: "لم يتمكن Halo من الإجابة. حاول مرة أخرى.",
+      answer: "الإجابة", sources: "من اجتماعاتك", summary: "ملخص",
       decision: "قرار", question: "سؤال مفتوح", pushback: "اعتراض", point: "نقطة",
       decs: "القرارات الرئيسية", qs: "أسئلة مفتوحة", pushes: "اعتراضات", pts: "نقاط",
       dis: "الخلافات", disSettled: "تم الحسم", disParked: "مؤجل", disOpen: "ما زال مفتوحا",
@@ -486,7 +492,7 @@
     var btn = el("button", "hit");
     btn.dataset.open = hit.meeting_id;
     if (hit.line) btn.dataset.line = hit.line;
-    var kind = el("span", "kind", hit.kindLabel || "");
+    var kind = el("span", "kind", hit.kindLabel ? t(lang, hit.kindLabel) : "");
     btn.appendChild(kind);
     var body = el("div");
     body.appendChild(markify(hit.snippet || "", app.q.trim()));
@@ -826,6 +832,8 @@
     input.placeholder = t(lang, "search");
     label.appendChild(input);
     view.appendChild(label);
+    view.appendChild(askForm(app, lang));
+    if (app.ask) view.appendChild(askPanel(app, app.ask, lang));
     view.appendChild(foldersBar(app, lang));
     var grid = el("div", "listgrid");
     var listSection = el("section");
@@ -851,6 +859,47 @@
       grid.appendChild(previewPanel(app, lang));
     }
     view.appendChild(grid);
+  }
+
+  // Ask across meetings (POST /api/ask): Spark answers from stored passages;
+  // the cited rows are store text and open the meeting at that line.
+  function askForm(app, lang) {
+    var form = el("form", "search ask glass");
+    form.id = "askform";
+    var input = document.createElement("input");
+    input.id = "askq";
+    input.type = "text";
+    input.maxLength = 300;
+    input.dir = "auto";
+    input.placeholder = t(lang, "ask");
+    input.setAttribute("aria-label", t(lang, "ask"));
+    if (app.ask) input.value = app.ask.q;
+    form.appendChild(input);
+    var btn = el("button", "askbtn", t(lang, "askBtn"));
+    btn.type = "submit";
+    if (app.ask && app.ask.busy) btn.disabled = true;
+    form.appendChild(btn);
+    return form;
+  }
+
+  function askPanel(app, ask, lang) {
+    var section = el("section", "hits answer glass");
+    section.setAttribute("aria-live", "polite");
+    section.appendChild(el("h2", null, t(lang, "answer")));
+    if (ask.busy) {
+      section.appendChild(el("p", "empty", t(lang, "askBusy")));
+      return section;
+    }
+    var text = el("p", "atext", ask.failed ? t(lang, "askFail") : ask.answer);
+    text.dir = "auto";
+    section.appendChild(text);
+    if (ask.citations && ask.citations.length) {
+      section.appendChild(el("h3", null, t(lang, "sources")));
+      var rows = el("div");
+      ask.citations.forEach(function (c) { rows.appendChild(hitRow(app, c, lang)); });
+      section.appendChild(rows);
+    }
+    return section;
   }
 
   function foldersBar(app, lang) {
@@ -1067,6 +1116,7 @@
       lineIndex: 0,
       q: "",
       hits: [],
+      ask: null,
       cat: "all",
       openQuote: {},
       userTags: {},
@@ -1156,6 +1206,29 @@
         return app.hits;
       });
     };
+
+    app.askQuestion = function (q) {
+      q = (q || "").trim();
+      if (!q || (app.ask && app.ask.busy)) return Promise.resolve(null);
+      app.ask = { q: q, busy: true };
+      render(app);
+      return postJson("/api/ask", { q: q }).then(function (res) {
+        app.ask = { q: q, answer: res.answer || "", citations: res.citations || [] };
+      }).catch(function () {
+        app.ask = { q: q, failed: true, citations: [] };
+      }).then(function () {
+        render(app);
+        return app.ask;
+      });
+    };
+
+    function onSubmit(event) {
+      if (event.target && event.target.id === "askform") {
+        event.preventDefault();
+        var input = app.doc.getElementById("askq");
+        app.askQuestion(input ? input.value : "");
+      }
+    }
 
     function onRetag(id, val, isAction) {
       var target = isAction ? findAction(app, id) : findPoint(app, id);
@@ -1288,6 +1361,7 @@
     app.doc.addEventListener("mouseover", onHover);
     app.doc.addEventListener("focusin", onHover);
     app.doc.addEventListener("change", onChange);
+    app.doc.addEventListener("submit", onSubmit);
     app.doc.addEventListener("input", onInput);
     app.doc.addEventListener("keydown", onKey);
     return app;

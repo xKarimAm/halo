@@ -274,3 +274,11 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 .sptry{margin:14px 0 0;padding:10px 14px;border-radius:12px;background:var(--tint);font-size:14px}
 /* One mark per urgency: the column's colour carries it; only a suggestion keeps its dashed edge. */
 .act:not(.sug) .body{border-inline-start:0;padding-inline-start:0}
+
+/* Ask your meetings */
+.ask input{flex:1;border:0;background:none;color:inherit;font:inherit;outline:none;min-width:0}
+.ask .askbtn{border:0;border-radius:999px;padding:6px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--knob);color:var(--on-accent)}
+.ask .askbtn:disabled{opacity:.5;cursor:default}
+.answer{margin:0 0 16px}
+.answer .atext{font-size:15px;line-height:1.55;margin:6px 0 12px;white-space:pre-line}
+.answer h3{font-size:13px;font-weight:600;opacity:.7;margin:8px 0 4px}
