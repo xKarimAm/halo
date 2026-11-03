@@ -106,6 +106,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # failures are typed results, so wiring never needs keys to exist yet.
     app.state.llm = LLMClient()
     app.state.bus.register_health("llm", app.state.llm.health)
+    app.state.bus.register_health("llm_spend", app.state.llm.usage)  # tokens + estimated USD
     # Gateway owns /ws, /pair and the Host + Origin checks.
     app.state.gateway = Gateway(
         app.state.bus,

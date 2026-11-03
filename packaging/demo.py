@@ -122,6 +122,9 @@ async def main() -> int:
             else:
                 print(f"  {ready.get('title') or 'Notes ready'}" + ("  (fallback notes)" if ready.get("degraded") else ""))
             print(f"  http://127.0.0.1:8765/notes/{mid}", flush=True)
+        spend = app.state.llm.usage()  # Karim 2026-11-04: what the run cost
+    calls = sum(v["calls"] for k, v in spend.items() if k != "usd_total")
+    print(f"Model calls: {calls}, estimated ${spend['usd_total']:.3f} at list price.")
     print("Done. Start the backend (uv run halo) if it is not running, then open the links above.")
     return 0
 

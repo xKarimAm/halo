@@ -495,3 +495,30 @@ def test_no_primary_key_means_contributor_by_design_not_failover():
         assert primary_calls(script) == []
     finally:
         client.close()
+
+
+def test_usage_counts_tokens_and_estimates_spend_per_engine():
+    """Karim 2026-11-04: see what a meeting costs. Every 200 reply's `usage`
+    is counted, even one that fails the schema (the tokens were billed)."""
+    clock = Clock()
+    script = Script(clock)
+    billed = {"usage": {"prompt_tokens": 1_000_000, "completion_tokens": 100_000,
+                        "prompt_tokens_details": {"cached_tokens": 200_000}}}
+    script.primary.append((200, {**GOOD, **billed}, 0.1))
+    script.primary.append((200, {**reply({"wrong": 1}), **billed}, 0.1))  # schema fails, still billed
+    script.primary.append((200, {**reply({"wrong": 1}), **billed}, 0.1))
+    script.failover.append((200, {**GOOD, "usage": {"prompt_tokens": 500_000, "completion_tokens": 0}}, 0.1))
+    sleeps: list = []
+    client = script.client(clock, sleeps)
+    try:
+        client.complete_json(prompt=PROMPT, schema=SCHEMA)
+        client.complete_json(prompt=PROMPT, schema=SCHEMA)  # bad twice: fails over
+        usage = client.usage()
+    finally:
+        client.close()
+    spark = usage[PRIMARY_ENGINE]
+    assert (spark["calls"], spark["in"], spark["cached"], spark["out"]) == (3, 3_000_000, 600_000, 300_000)
+    # Baseten list price: $1.25 in, $0.15 cached in, $4.25 out per 1M tokens.
+    assert spark["usd"] == round(3 * (0.8 * 1.25 + 0.2 * 0.15 + 0.1 * 4.25), 4)
+    assert usage[FAILOVER_ENGINE]["usd"] == round(0.5 * 0.10, 4)
+    assert usage["usd_total"] == round(spark["usd"] + 0.05, 4)

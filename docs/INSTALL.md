@@ -114,6 +114,8 @@ With a Spark Open key, every text call goes to Spark Open first and fails over t
 
 **Check:** after a restart, the backend no longer prints `note: no Spark Open key`.
 
+**What it costs.** `data/health.json` shows `llm_spend`: calls, tokens and an estimated USD per engine since the backend started, at list price ($1.25 in, $0.15 cached in, $4.25 out per 1M tokens on Baseten). In my run, `packaging/demo.py` (3 scripted meetings, 46 turns) made 101 calls for about $0.12 (`demo.py` prints this at the end). Calls that time out are billed by the provider but not counted here, so for the exact figure use Baseten's **Billing and usage** page, where you can also set a monthly budget that stops requests at the limit.
+
 ## 8. Optional: Halo mode (NVIDIA GPU)
 
 Halo mode puts the speaker's name above their head. It needs the SAM 3.1 worker running next to the backend. Set it up once:
