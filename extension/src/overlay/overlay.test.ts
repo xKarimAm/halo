@@ -112,6 +112,13 @@ describe("layout", () => {
     expect(layout.namePos.y).toBeCloseTo(page.y - 6 - 64);
     expect(layout.stackPos.y).toBeCloseTo(page.y - 64);
     expect(layout.floorY).toBe(853 - 64);
+    // DECISIONS 1: bubbles carry a tail toward the face; room on the right puts the
+    // stack right of the face, so the tail is on the stack's left.
+    expect(layout.side).toBe("right");
+    overlay.applyFaces({ tile_id: "t", frame_ts_ms: 1, engine: "sam", space: { frame_w: 1280, frame_h: 720 },
+      face: { box: [0.8, 0.4, 0.15, 0.35], head_anchor: [0.875, 0.4], conf: 0.9 } });
+    expect(overlay.layout("t").side).toBe("left");
+    expect(make().overlay.layout("tile-1").side).toBeUndefined(); // frame mode: no tail
   });
 });
 

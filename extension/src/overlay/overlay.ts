@@ -245,6 +245,7 @@ export class Overlay {
     stackPos: { x: number; y: number };
     floorY: number | null;
     faceBox?: { x: number; y: number; w: number; h: number };
+    side?: "right" | "left"; // face mode: which side of the face the stack sits on
   } {
     const tile = this.tiles.get(tileId);
     const face = this.faces.get(tileId);
@@ -256,7 +257,8 @@ export class Overlay {
     if (tile && face && index >= 0 && index < 6) {
       const box = projectFaceBox(tile, face.box);
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
-      const stackX = roomRight >= box.x - tile.rect[0]
+      const right = roomRight >= box.x - tile.rect[0];
+      const stackX = right
         ? box.x + box.w + Math.max(10, tile.rect[2] * 0.026)
         : Math.max(tile.rect[0] + 10, box.x - 160);
       // The box is page space; the tile's layer is already placed at the
@@ -269,6 +271,7 @@ export class Overlay {
         stackPos: { x: stackX - rx, y: box.y - ry },
         floorY: captionsTop !== null ? captionsTop - ry : null,
         faceBox: box,
+        side: right ? "right" : "left",
       };
     }
     // Frame mode (this PR's shipped path): name + stack pinned inside the tile.
@@ -350,6 +353,8 @@ export class Overlay {
       layer.appendChild(name);
       const stack = doc.createElement("div");
       stack.classList.add("halo-stack");
+      // DECISIONS 1: in face mode each bubble's tail points back at the face.
+      if (layout.side) stack.classList.add(layout.side === "right" ? "halo-tail-l" : "halo-tail-r");
       stack.style.setProperty("left", `${layout.stackPos.x}px`);
       stack.style.setProperty("top", `${layout.stackPos.y}px`);
       layer.appendChild(stack);

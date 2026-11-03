@@ -33,6 +33,9 @@ export const AGEING_FRACTION = 0.72;
 export const OVERLAY_CSS = `
 .halo-name{position:absolute;font:500 12px/1.25 Inter,system-ui,sans-serif;padding:4px 10px;border-radius:999px;color:#fff;${GLASS}}
 .halo-stack{position:absolute;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.halo-tail-l .halo-chip::before,.halo-tail-r .halo-chip::before{content:"";position:absolute;top:50%;width:6px;height:10px;margin-top:-5px;background:rgba(30,34,44,.55)}
+.halo-tail-l .halo-chip::before{left:-6px;clip-path:polygon(100% 0,0 50%,100% 100%)}
+.halo-tail-r{align-items:flex-end}.halo-tail-r .halo-chip::before{right:-6px;clip-path:polygon(0 0,100% 50%,0 100%)}
 .halo-caption{max-width:300px;margin-bottom:4px;padding:5px 10px;border-radius:9px;font:500 13px/1.35 Inter,system-ui,sans-serif;color:#fff;${GLASS}}
 .halo-chip{position:relative;display:flex;align-items:center;gap:6px;padding:5px 9px 5px 6px;border-radius:9px;font:500 12px/1.25 Inter,system-ui,sans-serif;color:#fff;${GLASS};border:0;cursor:pointer}
 .halo-more{pointer-events:auto;align-self:flex-start;padding:3px 10px;border:0;border-radius:999px;font:600 11px/1.4 Inter,system-ui,sans-serif;color:#eef1f5;cursor:pointer;${GLASS}}
