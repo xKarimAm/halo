@@ -222,3 +222,34 @@ def test_the_same_alert_never_shows_twice_and_alone_means_rehearsal():
         assert "alert" not in tips[1]["data"] and tips[1]["data"]["tips"] == ["Two."]
 
     asyncio.run(run())
+
+
+def test_a_reworded_alert_of_the_same_kind_never_shows_twice():
+    # Eval 2026-11-03: "Park it: Rami, Sophie, decide Friday." then "Park it Rami,
+    # Sophie: owner and date." slipped past the exact-text dedupe.
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"tips": ["One."], "alert": "Park it: Rami, Sophie, decide Friday."},
+            {"tips": ["Two."], "alert": "Park it Rami, Sophie: owner and date."}])
+        await bus.publish(turn("Rami says in place", name="Rami", n=2))
+        await coach.tick()
+        clock.now += 100
+        await bus.publish(turn("Sophie says replicate", name="Sophie", n=3))
+        await coach.tick()
+        assert tips[0]["data"]["alert"].startswith("Park it")
+        assert "alert" not in tips[1]["data"]
+
+    asyncio.run(run())
+
+
+def test_a_late_turn_after_the_meeting_ended_calls_nothing():
+    # Review 2026-11-03: a final turn flushed after meeting.ended revived the meeting.
+    async def run():
+        bus, llm, coach, tips, clock = setup([])
+        await bus.publish(env("meeting.ended", {"reason": "left"}, 91))
+        await bus.publish(turn("one last thing", n=2))
+        clock.now += 100
+        await coach.tick()
+        assert llm.prompts == [] and tips == []
+
+    asyncio.run(run())

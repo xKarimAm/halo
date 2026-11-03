@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 import uuid
 from datetime import UTC, datetime
@@ -58,9 +59,11 @@ INSTRUCTIONS = (
     "else turns personal or blames: Step in: <name>, back to <topic>. The "
     "viewer is sarcastic, heated or cuts someone off: You cut <name> off; "
     "hand it back. / Lower your tone. Team blame: Stop the blame; list the "
-    "options. The same point argued a third time with no new fact: Park it: "
-    "owner and date. The viewer talks over others or holds the floor too "
-    "long: Pause and invite others in.\n"
+    "options. The same claim said a third time with no new fact: Park it: get "
+    "<fact>. The viewer talks over others or holds the floor too long: "
+    "Pause and invite others in. Alert only on words already said; if two "
+    "sides blame each other, name both. Never add a name, owner or date "
+    "nobody said.\n"
     "tips: 0 to 3, each one sentence of at most 16 words ending with a "
     "period. Each tip names one concrete item from the recent words: a "
     "number, a claim nobody has checked (on paper, a guess, from the docs), "
@@ -69,8 +72,11 @@ INSTRUCTIONS = (
     "manager, the user problem and its evidence, a success metric, scope "
     "against value, a staged rollout, the revenue link; for sales, dig into "
     "the objection before discounting, who signs off, a next step with a "
-    "date. An item is closed once it has an owner, a time and a spoken yes; "
-    "never tip on a closed item, not even to confirm it. Silence after a "
+    "date. An item is closed once it has an owner, a day (today, tomorrow, "
+    "Thursday) and a spoken yes; never tip on a closed item, not even to "
+    "confirm it. When someone wraps up (that's all, next item, I'll send it) "
+    "while an item is open, tip on it now; a vague follow-up needs a date. "
+    "Silence after a "
     "question is thinking time: wait, then rephrase it or ask one person.\n"
     "Return empty tips when the previous tips still fit or everything is "
     "settled; never repeat or reword a previous tip. Write in the viewer "
@@ -80,6 +86,12 @@ REHEARSAL = ("The viewer is alone in the call, rehearsing: names are the future 
              "audience, so never tell them to ask or invite anyone, and a silence is a "
              "break (empty tips). Tips only on content and delivery: lead with the "
              "number, cut filler, keep the stronger version of a line.")
+
+
+def _alert_kind(alert: str) -> str:
+    """'Park it: Rami...' and 'Park it Rami...' are one kind: the first two words.
+    ponytail: two-word prefix; two different alerts sharing it count as one."""
+    return " ".join(re.sub(r"[^\w\s]", " ", alert.lower()).split()[:2])
 
 
 class Coach:
@@ -96,7 +108,8 @@ class Coach:
         self._self_names: dict[str, str] = {}
         self._people: dict[str, list[str]] = {}  # who is in the call (Meet tiles)
         self._tips: dict[str, list[str]] = {}
-        self._alerts: dict[str, set[str]] = {}  # alerts already shown: never the same one twice
+        self._alerts: dict[str, set[str]] = {}  # alert kinds already shown: never the same one twice
+        self._ended: set[str] = set()  # late turns after meeting.ended are ignored
         self._due: set[str] = set()  # new words since the last call
         self._last_turn: dict[str, float] = {}
         self._last_call: dict[str, float] = {}
@@ -129,7 +142,7 @@ class Coach:
         if not isinstance(data, dict) or not isinstance(meetingid, str):
             return
         text = str(data.get("text", "")).strip()
-        if text:
+        if text and meetingid not in self._ended:
             self._turns.setdefault(meetingid, []).append((str(data.get("name") or "?"), text))
             self._due.add(meetingid)
             self._last_turn[meetingid] = self._clock()
@@ -161,6 +174,8 @@ class Coach:
 
     async def _on_ended(self, envelope: dict[str, Any]) -> None:
         meetingid = envelope.get("meetingid")
+        if isinstance(meetingid, str):
+            self._ended.add(meetingid)
         for store in (self._turns, self._contexts, self._self_names, self._tips, self._people, self._alerts,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)
@@ -203,8 +218,8 @@ class Coach:
         alert = str(data.get("alert") or "").strip()[:80]
         if alert and not self._others_here(meetingid) and any(w in alert.lower() for w in TALK_OVER_WORDS):
             alert = ""  # nobody to talk over
-        if alert in self._alerts.get(meetingid, set()):
-            alert = ""  # eval r0: the same canned alert fired loop after loop
+        if _alert_kind(alert) in self._alerts.get(meetingid, set()):
+            alert = ""  # eval: the same alert kind, reworded, fired loop after loop
         if not tips and not alert:
             return  # nothing new for the viewer: the panel keeps its tips
         tips = tips or self._tips.get(meetingid, [])
@@ -213,7 +228,7 @@ class Coach:
         payload: dict[str, Any] = {"tips": tips, "lang": lang if lang in ("en", "ar") else "en"}
         if alert:
             payload["alert"] = alert
-            self._alerts.setdefault(meetingid, set()).add(alert)
+            self._alerts.setdefault(meetingid, set()).add(_alert_kind(alert))
         await self._bus.publish({
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "coach.tips",
             "source": "halo/coach", "time": datetime.now(UTC).isoformat(),
