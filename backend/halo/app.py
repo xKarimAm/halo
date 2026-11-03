@@ -161,9 +161,11 @@ app = create_app()
 
 def main() -> None:
     if os.environ.get("HALO_FAKES") != "1":
-        missing = [k for k in ("META_API_KEY", "BASETEN_API_KEY") if not os.environ.get(k)]
-        if missing:
-            print(f"warning: missing keys in .env: {', '.join(missing)} (backend still boots; live engines need them)")
+        if not os.environ.get("META_API_KEY"):
+            print("warning: META_API_KEY is empty in .env: no transcripts, points or notes until you add it "
+                  "(or set HALO_FAKES=1 to try Halo offline)")
+        if not os.environ.get(os.environ.get("HALO_PRIMARY_KEY_VAR") or "BASETEN_API_KEY"):
+            print("note: no Spark Open key, so every text call runs on muse-spark-1.3-contributor (fine)")
     print(f"Halo backend on http://{HOST}:{PORT} - pairing code: {app.state.gateway.pairing.current_code}",
           flush=True)
     _data_dir().mkdir(parents=True, exist_ok=True)

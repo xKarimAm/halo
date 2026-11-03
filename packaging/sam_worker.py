@@ -6,8 +6,11 @@ http://127.0.0.1:8766/faces; the reply is the `faces.update` face shape
 memory on this PC and are never saved. Without this worker the Overlay
 stays in Frame mode.
 
-Run it with the SAM venv (torch + transformers + the cached weights):
-    "E:\\Meta Hackathon\\Planning\\day0\\sam-fps\\.venv\\Scripts\\python.exe" packaging/sam_worker.py
+Optional; needs an NVIDIA GPU (CUDA). From the repo root, once:
+    uv venv .venv-sam --python 3.12
+    uv pip install --python .venv-sam --index-strategy unsafe-best-match -r packaging/requirements-sam.txt
+then each time (the first run downloads the SAM 3.1 weights from Hugging Face):
+    .venv-sam\\Scripts\\python packaging/sam_worker.py
 
 Measured 2026-11-02 on the 3080 Ti: ~220 ms per 480 px frame, 2 GB VRAM.
 """
