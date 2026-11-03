@@ -6,7 +6,7 @@ There are two processes on your PC, plus one optional worker:
 - **The backend** (one FastAPI process, Python 3.12) holds every model call, the database and the notes page.
 - **The SAM 3.1 worker** (optional) finds faces for Halo mode on your GPU.
 
-The extension holds no keys and calls no models. The full diagram is [`architecture/halo-v2-final.drawio`](architecture/halo-v2-final.drawio). The locked decisions are in [`DECISIONS.md`](DECISIONS.md).
+The extension holds no keys and calls no models. The as-built diagram is [`architecture/halo-architecture.svg`](architecture/halo-architecture.svg), explained on [`architecture/index.html`](architecture/index.html); the Oct 30 planning diagram is [`architecture/halo-v2-final.drawio`](architecture/halo-v2-final.drawio). The locked decisions are in [`DECISIONS.md`](DECISIONS.md).
 
 ```mermaid
 flowchart LR

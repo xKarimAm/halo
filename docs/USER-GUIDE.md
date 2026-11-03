@@ -2,7 +2,7 @@
 
 Halo listens to a Google Meet call on your PC and shows what matters while people talk: a point, a question, a decision or a pushback, as glass bubbles on the speaker's video tile, in English or Arabic. A coach panel whispers how to steer the meeting. When the call ends you get a notes page with action items, owners and the transcript.
 
-Install and first run: [README](../README.md). Problems: [troubleshooting](TROUBLESHOOTING.md).
+Install and first run: [install guide](INSTALL.md). Every feature and how far it is checked: [features](FEATURES.md). Problems: [troubleshooting](TROUBLESHOOTING.md).
 
 ## Before the call
 
