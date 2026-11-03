@@ -109,7 +109,8 @@ describe("layout", () => {
     const page = projectFaceBox(tile, [0.4, 0.4, 0.15, 0.35]);
     expect(layout.mode).toBe("face");
     expect(layout.namePos.x).toBeCloseTo(page.x + page.w / 2 - 238);
-    expect(layout.namePos.y).toBeCloseTo(page.y - 6 - 64);
+    // Live 2026-11-04: the box starts at the brow, so the pill clears the hair too.
+    expect(layout.namePos.y).toBeCloseTo(page.y - 0.35 * page.h - 6 - 64);
     expect(layout.stackPos.y).toBeCloseTo(page.y - 64);
     expect(layout.floorY).toBe(853 - 64);
     // DECISIONS 1: bubbles carry a tail toward the face; room on the right puts the

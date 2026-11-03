@@ -280,7 +280,8 @@ export class Overlay {
       const [rx, ry] = tile.rect;
       return {
         mode: "face",
-        namePos: { x: box.x + box.w / 2 - rx, y: Math.max(21, box.y - 6 - ry) },
+        // ponytail: hair is ~35% of the face box above it; tune if pills float high
+        namePos: { x: box.x + box.w / 2 - rx, y: Math.max(21, box.y - 0.35 * box.h - 6 - ry) },
         stackPos: { x: stackX - rx, y: box.y - ry },
         floorY: captionsTop !== null ? captionsTop - ry : null,
         faceBox: box,
