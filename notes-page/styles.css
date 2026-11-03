@@ -578,3 +578,8 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .tabs::-webkit-scrollbar{display:none}
 @media (max-width:900px){#view.home .listgrid{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:560px){#view.home .tabs{overflow-x:auto} #view.home .pfoot .new-folder{width:100%}}
+/* Time runs left to right in both languages, so marks, axis and playhead agree. */
+#view.home .strip,#view.home .big,#view.home .axisrow,#view.home .vseg{direction:ltr}
+#view.home .big .lab{direction:inherit}
+#view.home .tabs button{display:inline-flex;align-items:baseline;gap:6px}
+#view.home .tabs button em{margin:0}
