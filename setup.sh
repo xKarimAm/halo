@@ -34,7 +34,7 @@ if [ ! -f "$ext/manifest.json" ]; then
   if command -v npm >/dev/null 2>&1; then
     npm --prefix extension install && npm --prefix extension run build
   else
-    echo "Node.js is missing: install Node 22+ from https://nodejs.org, or unzip halo-extension.zip from the GitHub Releases page into $ext, then run this again."
+    echo "Node.js is missing: install Node 22+ from https://nodejs.org, or, if the repo's Releases page has halo-extension.zip, unzip it into $ext, then run this again."
     exit 1
   fi
 fi

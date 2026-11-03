@@ -15,8 +15,8 @@ Open http://127.0.0.1:8765/healthz for the same health in the browser.
 | Notes page banner: **Meta Model API key missing...**, or `warning: META_API_KEY is empty in .env` when the backend starts | No Meta key, so no transcripts, points or notes | Put your key after `META_API_KEY=` in `.env`, save, restart `uv run halo`. |
 | `note: no Spark Open key, so every text call runs on muse-spark-1.3-contributor (fine)` | You only set the Meta key | Nothing to do. Add `BASETEN_API_KEY` only if you have a Spark Open key. |
 | `Port 8765 is already in use: another Halo backend is probably running.` | Another Halo backend already runs on port 8765 | Close the other `uv run halo` window (or use that one). |
-| Popup: **Backend unreachable at 127.0.0.1:8765.** | The backend is not running | Start `uv run halo` and leave the window open. |
-| Popup: **Wrong code. Check the code and try again.** | The code does not match, or it was already used | Use the 6-digit code from the backend window. A code works once; restarting the backend prints a fresh one. |
+| Popup pill: **Halo app not running** (or **Backend unreachable at 127.0.0.1:8765.** when typing a code) | The backend is not running | Start `uv run halo`, leave the window open, then press **Try again**. |
+| Popup: **Wrong code. Check the code and try again.** (only when automatic pairing was refused) | The code does not match, or it was already used | Use the 6-digit code from the backend window. A code works once; restarting the backend prints a fresh one. |
 | Popup: **Start from inside a Meet call, not the Meet homepage.** / **...this tab is not a Meet tab.** | Start only works on a `meet.google.com/<code>` call tab | Join the call first, then click the Halo icon in that tab. |
 | `chrome://extensions` shows an error on Halo | The extension was built from an older checkout, or not built | Run `npm --prefix extension run build`, then press the reload arrow on the Halo card. |
 

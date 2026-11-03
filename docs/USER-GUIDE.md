@@ -8,14 +8,16 @@ Install and first run: [install guide](INSTALL.md). Every feature and how far it
 
 1. Start the backend (`uv run halo`) and leave its window open.
 2. Join the Meet call in Chrome, with a headset on.
-3. Click the Halo icon. The popup has three steps, and each folds to one line when done:
-   - **Pair**: only the first time. Type the 6-digit code from the backend window.
-   - **About this meeting** (optional, but it makes everything sharper):
+3. Click the Halo icon. The pill at the top says **Connected**: the popup pairs with the backend on its own (a 6-digit code is asked for only if that is refused). Then, top to bottom:
+   - **This call**: press **Start** once. It turns to **Running**, and the popup names the microphone Halo opened. **Stop** ends the meeting.
+   - **About this meeting** (optional, but it makes everything sharper). It folds to its subject once saved; **Edit** reopens it:
      - the subject
      - the agenda, one item per line
      - people and roles, for example "Layla, Engineering lead"
-     - under **Preferences**, the language for your points
-   - **Start**: press it once. It turns to **Running**, and the popup names the microphone Halo opened.
+   - **Preferences**: the language for your points, the project, and how urgency is marked. Each saves as you change it.
+   - **Pair again** in the footer, if you ever need it.
+
+   If you join a call and forget, a small "Halo is off for this call" note appears on the Meet page after 20 seconds, with **Start Halo**.
 4. Tell everyone Halo is recording. **Copy consent notice** puts a bilingual notice on your clipboard to paste into Meet chat. Halo never posts to the chat itself.
 
 ## During the call
@@ -39,7 +41,11 @@ The meeting ends when you press **Stop**, leave the call, or close the Meet tab.
 Open http://127.0.0.1:8765 (it goes to the meetings list) or click the toast's link.
 
 - **Ask your meetings:** the box under search takes a question in English or Arabic, for example "What did we decide about the launch date?". Halo answers in a few sentences, in your question's language, from what was said and noted in your meetings. The rows it lists underneath are the exact stored words it used; click one to open that meeting at that moment. If your meetings don't say, it tells you so instead of guessing. Each question takes about 6 to 9 seconds.
-- **Meetings list:** each card shows who spoke, the length, and counts of decisions, open questions, pushbacks and urgent actions. Hover a card to preview its AI title, summary and top action items. Use **Create folder** to group meetings, then filter the list by folder.
+- **Meetings home:** each meeting is a call strip with every point at the second it was said, plus who spoke, the length and the counts. The line at the top says what is new since your last visit (**Mark as seen** clears it). Click a meeting to preview it.
+  - **Tabs:** All, **Urgent** (red; a red count on any meeting opens it), Needs action, With others, your folders, Archived. When nothing needs you, Urgent and Needs action say "All clear".
+  - **Types:** Halo sorts each meeting (sprint, planning, product discovery, sales, induction, 1:1, interview, other) when it ends; the chips under the tabs filter by type. Change a meeting's type in its preview and yours wins.
+  - **The preview:** the recording line with a play button and **Replay** (the meeting in 6 seconds), **Simple** or **Detailed** (one lane per person), arcs where people disagreed, and the coloured plates. Click any plate item to jump to its moment.
+  - **Organise:** **Archive** (with Undo), **Create folder**, rename or delete a folder from its tab (its meetings stay). Click a face to follow that person across meetings; Esc stops.
 - **A meeting:**
   - **Action items board:** Urgent, Medium and Later columns. Each item has its owner and an **Email** link that opens a ready message. "by Halo" lets you re-tag an item, and your choice always wins over the model's.
   - **Points, questions, decisions, pushbacks:** filter chips with counts. Each item links to its transcript line and to that moment in the recording.

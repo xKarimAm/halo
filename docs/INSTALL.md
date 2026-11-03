@@ -14,7 +14,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 
 `setup.ps1` does steps 2 to 4 for you: it installs uv if missing, asks for your Meta Model API key (typed hidden, saved only in `.env`) and an optional Baseten key, builds the extension, opens its folder, and starts the backend. It is safe to run again; it skips what is done. Then do step 5 (load the extension; it pairs on its own). On macOS or Linux, `sh setup.sh` does the same (untested there).
 
-No Node.js? Download `halo-extension.zip` from the repo's Releases page and unzip it into `extension\.output\chrome-mv3` before running the script.
+The script needs Node.js 22+ to build the extension. If the repo's Releases page has a `halo-extension.zip`, you can unzip that into `extension\.output\chrome-mv3` instead and skip Node.
 
 The rest of this page is the same thing by hand, with a check after each step.
 
@@ -73,6 +73,8 @@ The first run installs the Python packages. Then it prints:
 Halo backend on http://127.0.0.1:8765 - pairing code: 123456
 ```
 
+You won't need the code unless automatic pairing is refused (step 5).
+
 Leave this window open while you use Halo.
 
 **Check:** http://127.0.0.1:8765/healthz says `"status":"ok"`.
@@ -84,7 +86,7 @@ Leave this window open while you use Halo.
 3. Click the Halo icon in the toolbar (pin it from the puzzle-piece menu if you don't see it).
 4. The popup pairs on its own while the backend is running: the pill at the top says **Connected**. Nothing to type.
 
-**Check:** the pill says "Connected" and the footer says "Paired with this computer". Pairing survives backend restarts.
+**Check:** the pill says "Connected" and the footer says **Paired** · with this computer. Pairing survives backend restarts.
 
 If the pill says "Halo app not running", start `uv run halo` (step 4) and press **Try again**. If automatic pairing is refused (for example the extension was loaded under a different id), the popup asks for the 6-digit code from the backend window instead; a code works only once, and a restart prints a fresh one.
 
@@ -127,7 +129,7 @@ Then run it in a second PowerShell window each time (the first run downloads the
 .venv-sam\Scripts\python packaging/sam_worker.py
 ```
 
-**Check:** it prints `Halo SAM worker on http://127.0.0.1:8766`. Measured on an RTX 3080 Ti: about 220 ms per frame and 2 GB of video memory. Without the worker, Halo stays in Frame mode.
+**Check:** it prints `Halo SAM worker on http://127.0.0.1:8766`. In my runs on an RTX 3080 Ti it took about 220 ms per frame and 2 GB of video memory. Without the worker, Halo stays in Frame mode.
 
 ## Try it without a call, or test it without a key
 

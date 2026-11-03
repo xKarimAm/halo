@@ -41,7 +41,7 @@ if (-not (Test-Path (Join-Path $ext "manifest.json"))) {
     npm --prefix extension install
     npm --prefix extension run build
   } else {
-    throw "Node.js is not installed, so the extension can't be built. Install Node 22+ from https://nodejs.org, or download halo-extension.zip from the GitHub Releases page and unzip it to extension\.output\chrome-mv3, then run this again."
+    throw "Node.js is not installed, so the extension can't be built. Install Node 22+ from https://nodejs.org, or, if the repo's Releases page has halo-extension.zip, unzip it to extension\.output\chrome-mv3, then run this again."
   }
 }
 Write-Host "Extension ready: $ext"

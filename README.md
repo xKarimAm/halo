@@ -46,8 +46,8 @@ Everything runs on your PC: a Chrome extension plus a small Python backend on `1
 ## Judging in 5 minutes
 
 1. Install it: `powershell -ExecutionPolicy Bypass -File .\setup.ps1` asks for your Meta Model API key (hidden), builds the extension and starts Halo ([Install](docs/INSTALL.md)).
-2. `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real Meta models. No call needed; it takes about 3 minutes and prints a notes link per meeting.
-3. `uv run halo`, then open http://127.0.0.1:8765. You get the meetings list, the notes, the action items board and the speaking panel. Try **Ask your meetings** at the top, for example "Who owns the signup numbers?" or, in Arabic, "ماذا قررنا بشأن موعد إطلاق النسخة 3.0؟".
+2. In a **second** PowerShell window in the `halo` folder: `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real Meta models. No call needed; it takes about 3 minutes and prints a notes link per meeting.
+3. Open http://127.0.0.1:8765 (setup already started the backend; otherwise run `uv run halo`). You get the meetings list, the notes, the action items board and the speaking panel. Try **Ask your meetings** at the top, for example "Who owns the signup numbers?" or, in Arabic, "ماذا قررنا بشأن موعد إطلاق النسخة 3.0؟".
 4. Live: load the extension (it pairs itself), join a Google Meet call with a headset and press **Start** ([steps 5 and 6](docs/INSTALL.md#5-load-the-extension-and-pair)).
 
 No key? The tests need none: `uv run pytest backend contracts -q` and `npm --prefix extension test`.
@@ -89,7 +89,7 @@ The Chrome extension calls no models itself; it talks to the local backend and, 
 
 The [architecture page](docs/architecture/index.html) (open it locally) explains why each part exists and what was left out on purpose. [ARCHITECTURE.md](docs/ARCHITECTURE.md) walks one meeting end to end.
 
-**What was hard.** Meet's speaking highlight trails the audio, so the correlator uses a lag window and locks a speaker after 3 agreeing turns. Points have to land while they still matter, so they trigger at the speaker's pause rather than the end of the sentence. The coach has to know when to stay quiet: I tuned it in blind-judged loops on 10 scripted meetings (`backend/halo/coach/eval/`). Spark wrote the tips, and a separate Claude agent, a development tool and never part of Halo, scored old against new without knowing which was which. In my last round, invented owners and dates went from 4 to 1 (the eval output is not in the repo).
+**What was hard.** Meet's speaking highlight trails the audio, so the correlator uses a lag window and locks a speaker after 3 agreeing turns. Points have to land while they still matter, so they trigger at the speaker's pause rather than the end of the sentence. The coach has to know when to stay quiet: I tuned it in blind-judged loops on 10 scripted meetings (`backend/halo/coach/eval/`). Spark wrote the tips, and a separate Claude agent, a development tool and never part of Halo, scored old against new without knowing which was which. In my last round, invented owners and dates went from 4 to 1 in my runs (the eval output is not in the repo).
 
 ## What's in here, and why
 
@@ -140,12 +140,13 @@ Halo was built in six days by one person directing several coding agents in para
 | Tool | What it did |
 |---|---|
 | **Muse** (Meta's coding agent) **with Wonder** | Built the hardest browser modules in the first wave: the test rig, hub and capture, face detector and overlay. These runs used a large share of the Meta API credit: the plan set aside about $100 of the $148 for them. |
-| **Muse on Muse Spark 1.3** (contributor mode, on the Meta API key) | Built the setup panel, Meet adapter, frame source and the first notes page. Muse on the subscription built Wave 0 (contracts, CI) and the backend core: bus, model client, gateway, event store, transcriber, correlator, insight. |
-| **Claude Code** (Anthropic) | Oct 30: the architecture, decisions and module plans with me. From Oct 31: merging the Muse modules, the live-call fixes, then the coach, notes, Ask, automatic pairing, the meetings home, docs and reviews. Its commits carry a `Co-Authored-By: Claude` line. |
+| **Muse** (subscription) | Wave 0 (contracts, CI), then the backend core: bus, model client, gateway, event store, transcriber, correlator, insight; the classifier, notes builder, notes service and recorder were planned for it too. |
+| **Muse on Muse Spark 1.3** (contributor mode, on the Meta API key) | The setup panel, Meet adapter, frame source and the first notes page. |
+| **Claude Code** (Anthropic) | Oct 30: the architecture, decisions and module plans with me. From Oct 31: merging the Muse modules and the live-call fixes, then the coach, the notes page redesign, Ask your meetings, automatic pairing, the meetings home, docs and reviews. Its commits carry a `Co-Authored-By: Claude` line. |
 | **OpenCode** on Muse Spark 1.3 (`opencode.json`) | The backup harness for the Muse windows. |
 | Gemini | Research only. |
 
-In the history, the 55 commits of Oct 31 without a Claude trailer are that first Muse wave, one module per commit (`git log --until=2026-11-01`). None of these tools is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. A separate Claude agent judged the coach eval blind; it never runs inside Halo.
+In the history, every commit without a Claude trailer is from Oct 30–31 (1 and 55): that first Muse wave. Check with `git log --no-merges --invert-grep -i --grep="co-authored-by: claude" --format=%ad --date=short | sort | uniq -c`. None of these tools is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. A separate Claude agent judged the coach eval blind; it never runs inside Halo.
 
 `git log` shows the whole history from Oct 30, 2026. No code came from older projects.
 
