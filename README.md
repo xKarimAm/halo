@@ -29,7 +29,7 @@
 > Every AI model Halo calls at runtime is a Meta model: Muse Voice Transcribe, Muse Spark (1.3 contributor, or Spark Open when its key is set) and, optionally, SAM 3.1 on your own GPU. The [table below](#meta-models-used-and-where) names each one, its endpoint and the file that calls it.
 
 > [!NOTE]
-> Built solo by Karim for the Meta Global AI Developer Hackathon (Indie track). All code was written during the event: the first commit is Oct 30, 2026. Claude Code and Muse Code / OpenCode were my coding tools and Gemini my research tool; Halo calls none of them ([details](#built-with)).
+> Built solo by Karim for the Meta Global AI Developer Hackathon (Indie track). All code was written during the event: the first commit is Oct 30, 2026. Meta's Muse (with Wonder and Muse Spark 1.3) built the first wave of modules, then Claude Code carried the integration and live fixes; OpenCode was the backup and Gemini the research tool. Halo calls none of them at runtime ([how it was built](#how-it-was-built)).
 
 ---
 
@@ -38,33 +38,33 @@ Halo is built for meetings that switch between Arabic and English mid-sentence. 
 - **Live bubbles.** A point, a question, a decision or a pushback appears as a glass bubble on the speaker's tile. Colour is urgency, and the exact words are one click away in their own script.
 - **A live coach.** A side panel whispers 0 to 3 tips: a decision with no owner, a question nobody answered, someone who hasn't spoken. Alone in a call, it coaches a rehearsal.
 - **Notes when the call ends.** An AI title and summary, an action items board with owners, decisions, open questions, a person-by-person view, a chat-style transcript with jumps into the recording, and Markdown export.
+- **A meetings home that reads at a glance.** Every meeting is a call strip with each point at the second it was said. Urgent work has its own red tab, Halo sorts meetings by type (sprint, sales, discovery…) and you can re-sort them, archive what's done, and follow one person across meetings. The preview has a recording line that reacts to the cursor: click any decision or action and it jumps to that moment.
 - **Ask your meetings.** Ask in English or Arabic ("who owns the signup numbers?") and get a short answer with the exact stored lines it came from. An Arabic question finds an English meeting and the other way round.
 
 Everything runs on your PC: a Chrome extension plus a small Python backend on `127.0.0.1`. Nothing is hosted and there are no accounts. Only the model calls leave your machine. The full list, with what has been checked live and what only by tests, is in [Features](docs/FEATURES.md).
 
 ## Judging in 5 minutes
 
-1. Install it with your Meta Model API key in `.env` ([Install](docs/INSTALL.md)).
+1. Install it: `powershell -ExecutionPolicy Bypass -File .\setup.ps1` asks for your Meta Model API key (hidden), builds the extension and starts Halo ([Install](docs/INSTALL.md)).
 2. `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real Meta models. No call needed; it takes about 3 minutes and prints a notes link per meeting.
 3. `uv run halo`, then open http://127.0.0.1:8765. You get the meetings list, the notes, the action items board and the speaking panel. Try **Ask your meetings** at the top, for example "Who owns the signup numbers?" or, in Arabic, "ماذا قررنا بشأن موعد إطلاق النسخة 3.0؟".
-4. Live: load the extension, pair, join a Google Meet call with a headset and press **Start** ([steps 5 and 6](docs/INSTALL.md#5-load-the-extension-and-pair)).
+4. Live: load the extension (it pairs itself), join a Google Meet call with a headset and press **Start** ([steps 5 and 6](docs/INSTALL.md#5-load-the-extension-and-pair)).
 
 No key? The tests need none: `uv run pytest backend contracts -q` and `npm --prefix extension test`.
 
 ## Quick start
 
-You need Chrome, Git, [uv](https://docs.astral.sh/uv/getting-started/installation/), Node.js 22+, a headset and a Meta Model API key. In PowerShell:
+You need **Google Chrome**, **Git**, **Node.js 22+** (to build the extension), a **headset** and a **Meta Model API key**. The setup script installs [uv](https://docs.astral.sh/uv/) (which brings Python 3.12) if you don't have it. In PowerShell:
 
 ```powershell
 git clone https://github.com/xKarimAm/halo.git
 cd halo
-copy .env.example .env          # then put your key after META_API_KEY=
-npm --prefix extension install
-npm --prefix extension run build
-uv run halo                     # prints the pairing code; leave it open
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Then in Chrome: `chrome://extensions`, **Developer mode**, **Load unpacked**, pick `extension\.output\chrome-mv3`, click the Halo icon and type the pairing code. The [install guide](docs/INSTALL.md) has a check after every step, plus Spark Open, Halo mode, updating and uninstalling.
+It asks for your key (typed hidden, saved only in the git-ignored `.env`), builds the extension, opens its folder, and starts the backend. Then in Chrome: `chrome://extensions`, turn on **Developer mode**, **Load unpacked**, pick the folder it opened (`extension\.output\chrome-mv3`). Click the Halo icon: the pill says **Connected**, because the extension pairs with the backend on its own. macOS and Linux: `sh setup.sh`.
+
+The [install guide](docs/INSTALL.md) has the same steps by hand with a check after each one, plus Spark Open, Halo mode, updating and uninstalling.
 
 ## Meta models used and where
 
@@ -121,9 +121,31 @@ The [architecture page](docs/architecture/index.html) (open it locally) explains
 | A Chrome Web Store listing | This is a hackathon build, loaded unpacked. The manifest key is pinned, so the extension id (which the backend's Origin check expects) is the same on every machine. |
 | `CONTRIBUTING.md` | Solo hackathon project. Issues are welcome; [SECURITY.md](SECURITY.md) says how to report a security problem. |
 
-## Built with
+## Tech stack
 
-Claude Code (Anthropic) and Muse Code / OpenCode on Muse Spark 1.3 were my coding tools: they wrote code, tests and docs with me. Gemini was used for research only, and a Claude agent judged the coach eval. None of them is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. Every model Halo itself calls is a Meta model ([table](#meta-models-used-and-where)).
+| Layer | What | Why this |
+|---|---|---|
+| Runtime AI | Muse Voice Transcribe 1.0 (realtime ASR), Muse Spark Open 1026 on Baseten with Muse Spark 1.3 contributor as failover, SAM 3.1 (optional, local GPU) | Meta models only, one shared client (`backend/halo/llm/llm.py`), per-call failover in 4 s |
+| Backend | Python 3.12, FastAPI + Uvicorn on `127.0.0.1:8765`, `websockets`, an in-process event bus, SQLite (FTS5) | One process, one port, no server to host; every module talks over the bus only |
+| Contracts | JSON Schema per message, generated Pydantic and TypeScript types (`contracts/codegen.py`) | A shape mismatch fails CI, not a live call |
+| Extension | Chrome MV3, WXT, TypeScript, an offscreen document for the socket and capture, `tabCapture` + `getUserMedia` | Captures the call and your mic without a desktop app; holds no keys |
+| Notes page | Plain HTML, CSS and JavaScript (no build step), SVG for the recording line, the View Transitions API | The backend serves it as files; nothing to compile |
+| Tests | pytest, Vitest + happy-dom, Playwright (notes page and a Fake Meet page that loads the real extension), Ruff, import-linter, mypy (report) | The whole pipeline runs offline against fake Voice and Spark servers on the real wire protocols |
+| Tooling | uv (locked Python deps), npm, GitHub Actions CI | `uv.lock` and `package-lock.json` pin every version |
+
+## How it was built
+
+Halo was built in six days by one person directing several coding agents in parallel, each in its own folder ("lane"), talking through GitHub issues ([AGENTS.md](AGENTS.md), [DECISIONS.md §6](docs/DECISIONS.md)).
+
+| Tool | What it did |
+|---|---|
+| **Muse** (Meta's coding agent) **with Wonder** | Built the hardest browser modules in the first wave: the test rig, hub and capture, face detector and overlay. These runs used a large share of the Meta API credit: the plan set aside about $100 of the $148 for them. |
+| **Muse on Muse Spark 1.3** (contributor mode, on the Meta API key) | Built the setup panel, Meet adapter, frame source and the first notes page. Muse on the subscription built Wave 0 (contracts, CI) and the backend core: bus, model client, gateway, event store, transcriber, correlator, insight. |
+| **Claude Code** (Anthropic) | Oct 30: the architecture, decisions and module plans with me. From Oct 31: merging the Muse modules, the live-call fixes, then the coach, notes, Ask, automatic pairing, the meetings home, docs and reviews. Its commits carry a `Co-Authored-By: Claude` line. |
+| **OpenCode** on Muse Spark 1.3 (`opencode.json`) | The backup harness for the Muse windows. |
+| Gemini | Research only. |
+
+In the history, the 55 commits of Oct 31 without a Claude trailer are that first Muse wave, one module per commit (`git log --until=2026-11-01`). None of these tools is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. A separate Claude agent judged the coach eval blind; it never runs inside Halo.
 
 `git log` shows the whole history from Oct 30, 2026. No code came from older projects.
 

@@ -4,6 +4,20 @@ This is the full guide, from a clean PC to a live call. The README has the short
 
 Tested on Windows 11 with PowerShell. macOS and Linux should work with the same commands (use `cp` for `copy` and `/` in paths), but I haven't tested them.
 
+## Fast path: one script
+
+```powershell
+git clone https://github.com/xKarimAm/halo.git
+cd halo
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+`setup.ps1` does steps 2 to 4 for you: it installs uv if missing, asks for your Meta Model API key (typed hidden, saved only in `.env`) and an optional Baseten key, builds the extension, opens its folder, and starts the backend. It is safe to run again; it skips what is done. Then do step 5 (load the extension; it pairs on its own). On macOS or Linux, `sh setup.sh` does the same (untested there).
+
+No Node.js? Download `halo-extension.zip` from the repo's Releases page and unzip it into `extension\.output\chrome-mv3` before running the script.
+
+The rest of this page is the same thing by hand, with a check after each step.
+
 ## 1. What you need
 
 | Tool | Why Halo needs it | Check |

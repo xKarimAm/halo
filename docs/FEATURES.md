@@ -33,8 +33,10 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 
 | Feature | What it does | Status |
 |---|---|---|
-| Three steps | Pair, About this meeting, Start; each folds to one line when done. | Live |
+| Automatic pairing | Opens already paired: a status pill says Connected, or that the Halo app isn't running (with the command and Try again). The 6-digit code is only a fallback. | Tested |
+| Sections | This call (Start, mic, Stop, consent) first; About this meeting optional and folded once saved; Preferences save on change; Pair again in the footer. | Tested |
 | Meeting context | Subject, agenda and people's roles sharpen the points, the owners and the coach. | Tested |
+| "Halo is off" reminder | In a Meet call with Halo not running, a small toast says so after 20 s (at once if Halo stopped mid-call), with Start Halo and Not this call. | Tested |
 | One Start | A repeat Start does nothing; a new Start replaces the old capture instead of stacking a second. | Tested |
 | Mic name | After Start, the popup names the microphone Halo opened. | Live |
 | Consent notice | Copies a bilingual notice to paste into the Meet chat. Halo never posts to the chat itself. | Tested |
@@ -52,7 +54,11 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Your speaking (private) | Talk share against an even share, longest stretch, questions, cut-ins, pace, hedged commitments quoted, one thing to try next call. No score, no mood words. | Live |
 | Transcript and recording | A chat-style transcript. Each item's play button jumps to that moment in the recording (call audio and your mic). | Live (recordings saved on live calls) |
 | Ask your meetings | Ask in English or Arabic; get a short answer in the same language and the exact stored lines it came from. Click one to open that meeting at that line. If the notes don't say, it says so. | Tested, plus checked by hand on the demo meetings |
-| Meetings list | Cards with who spoke, length and counts; hover to preview; folders; search. | Live |
+| Meetings home | Each meeting is a call strip with every point at the second it was said; the page draws itself on arrival. Tabs: All, Urgent (red; urgent counts click through), Needs action, With others, your folders, Archived. Search stays on top. | Tested |
+| Meeting types | Spark sorts each meeting (sprint, planning, product discovery, sales, induction, 1:1, interview, other) when it ends; change it in the preview and yours wins. | Tested |
+| Preview with a living line | Replay plays the meeting across its line in 6 s; Simple or Detailed (one lane per person); the recording line swells under the cursor; click a plate item to jump to its mark. | Tested |
+| Since your last visit | New meetings, your action items and urgent ones, until Mark as seen. | Tested |
+| Archive, folders, follow | Archive with Undo; rename or delete a folder (its meetings stay); click a face to see only that person's meetings. | Tested |
 | Missing-key banner | Without a Meta key, the page says so and how to fix it. | Tested |
 | Export Markdown | The whole meeting as Markdown, ready to paste into an AI. | Live |
 | English / Arabic | The whole page switches language, Arabic right to left. | Live |
