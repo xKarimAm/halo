@@ -31,6 +31,7 @@ TICK_S = 1.0
 MIN_GAP_S = 8.0  # ponytail: one call per 8 s per meeting at most (~7 RPM); raise if RPM gets tight
 SILENCE_S = 15.0  # one silence call per quiet stretch
 MAX_WORDS = 2000  # newest words only; shorter input, faster call
+MAX_SAID = 12  # earlier tips kept in the prompt so they are not reworded (live 2026-11-04)
 PROMPT_CACHE_KEY = "coach-v4"
 
 TIPS_SCHEMA: dict[str, Any] = {
@@ -82,10 +83,16 @@ INSTRUCTIONS = (
     "settled; never repeat or reword a previous tip. Write in the viewer "
     "language."
 )
-REHEARSAL = ("The viewer is alone in the call, rehearsing: names are the future "
-             "audience, so never tell them to ask or invite anyone, and a silence is a "
-             "break (empty tips). Tips only on content and delivery: lead with the "
-             "number, cut filler, keep the stronger version of a line.")
+# Live 2026-11-04 (alone, testing): "open with the one number" he never said,
+# "drop the Arabic aside", his own sentences echoed back as orders.
+REHEARSAL = ("The viewer is alone in the call, rehearsing or testing: names are the "
+             "future audience, so never tell them to ask or invite anyone, and a "
+             "silence is a break (empty tips). Tips only on how they said their own "
+             "words: put their main point first, cut filler, keep the stronger of two "
+             "versions of a line. Never ask for a number, fact or deadline they did not "
+             "say. Mixing Arabic and English is normal: never tip on language. Never "
+             "turn their sentence into an order. Most moments need no tip: return "
+             "empty tips unless one would change what they say next.")
 
 
 def _alert_kind(alert: str) -> str:
@@ -108,6 +115,7 @@ class Coach:
         self._self_names: dict[str, str] = {}
         self._people: dict[str, list[str]] = {}  # who is in the call (Meet tiles)
         self._tips: dict[str, list[str]] = {}
+        self._said: dict[str, list[str]] = {}  # every tip shown this meeting, newest last
         self._alerts: dict[str, set[str]] = {}  # alert kinds already shown: never the same one twice
         self._ended: set[str] = set()  # late turns after meeting.ended are ignored
         self._due: set[str] = set()  # new words since the last call
@@ -177,7 +185,7 @@ class Coach:
         if not isinstance(meetingid, str):
             return
         self._ended.add(meetingid)
-        for store in (self._turns, self._contexts, self._self_names, self._tips, self._people, self._alerts,
+        for store in (self._turns, self._contexts, self._self_names, self._tips, self._said, self._people, self._alerts,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)
         self._due.discard(meetingid)
@@ -223,6 +231,9 @@ class Coach:
             alert = ""  # eval: the same alert kind, reworded, fired loop after loop
         if not tips and not alert:
             return  # nothing new for the viewer: the panel keeps its tips
+        said = self._said.setdefault(meetingid, [])
+        said.extend(t for t in tips if t not in said)
+        del said[:-MAX_SAID]
         tips = tips or self._tips.get(meetingid, [])
         self._tips[meetingid] = tips
         lang = self._contexts.get(meetingid, {}).get("viewer_lang", "en")
@@ -261,8 +272,8 @@ class Coach:
             lines.append("Roles: " + ", ".join(
                 f"{r.get('name')} ({r.get('role')})" if r.get("role") else str(r.get("name"))
                 for r in roles))
-        if self._tips.get(meetingid):
-            lines.append("Previous tips: " + " ".join(self._tips[meetingid]))
+        if self._said.get(meetingid):
+            lines.append("Previous tips: " + " ".join(self._said[meetingid]))
         lines.append(f"Why now: {reason}")
         lines.append("The meeting so far:")
         kept: list[str] = []

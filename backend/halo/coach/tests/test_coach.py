@@ -253,3 +253,20 @@ def test_a_late_turn_after_the_meeting_ended_calls_nothing():
         assert llm.prompts == [] and tips == []
 
     asyncio.run(run())
+
+
+def test_the_prompt_remembers_earlier_tips_not_only_the_last_set():
+    # Live 2026-11-04: "Lead with tomorrow morning..." came back four times in
+    # five minutes; only the latest set was in "Previous tips".
+    async def run():
+        bus, llm, coach, tips, clock = setup([
+            {"tips": ["Lead with the deadline."], "alert": ""},
+            {"tips": ["Cut the filler."], "alert": ""},
+            {"tips": [], "alert": ""}])
+        for n, text in enumerate(["The demo is due tomorrow", "um so yeah basically", "and the pill"], start=2):
+            await bus.publish(turn(text, n=n))
+            await coach.tick()
+            clock.now += 100
+        assert "Lead with the deadline." in llm.prompts[2] and "Cut the filler." in llm.prompts[2]
+
+    asyncio.run(run())
