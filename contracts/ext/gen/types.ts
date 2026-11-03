@@ -190,6 +190,7 @@ export interface NotesReady {
   people: NotesReadyPeople[];
   title?: string;
   summary?: string;
+  meeting_type?: "sprint" | "planning" | "discovery" | "sales" | "induction" | "one_on_one" | "interview" | "other";
   disagreements?: NotesReadyDisagreements[];
 }
 

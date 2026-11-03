@@ -241,6 +241,7 @@ class NotesReady(BaseModel):
     people: list[NotesReadyPeople]
     title: str | None = None
     summary: str | None = None
+    meeting_type: Literal["sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other"] | None = None
     disagreements: list[NotesReadyDisagreements] | None = None
 
 class PairHello(BaseModel):

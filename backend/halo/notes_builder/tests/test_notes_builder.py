@@ -67,7 +67,8 @@ class FakeLLM:
         self.calls: list[str] = []
         self.summary_calls: list[str] = []
         self.summary_reply: dict | None = {"title": "Launch date moves to Nov 12",
-                                           "summary": "Layla moved the launch to Nov 12."}
+                                           "summary": "Layla moved the launch to Nov 12.",
+                                           "meeting_type": "planning"}
 
     def complete_json(self, *, prompt, schema, schema_name="notes.page",
                       system=None, prompt_cache_key=None):
@@ -357,6 +358,7 @@ def test_ai_title_and_summary_ride_on_notes_ready(tmp_path):
         assert validate_envelope(ready[0]) == []
         assert ready[0]["data"]["title"] == "Launch date moves to Nov 12"
         assert ready[0]["data"]["summary"] == "Layla moved the launch to Nov 12."
+        assert ready[0]["data"]["meeting_type"] == "planning"  # Karim 2026-11-04: auto-sort
         assert len(llm.summary_calls) == 1
         assert "Layla: Launch moves to Nov 12." in llm.summary_calls[0]
 
@@ -442,3 +444,15 @@ def test_an_action_belongs_to_the_person_it_names():
 def test_an_empty_speaker_name_does_not_break_the_owner():
     from halo.notes_builder.notes_builder import owner_for
     assert owner_for("Omar sends it.", "", ["", "  ", "Omar"]) == "Omar"
+
+
+def test_an_unknown_meeting_type_is_left_out(tmp_path):
+    async def run():
+        bus, llm, _, ready, _ = setup(tmp_path / "events.sqlite", [])
+        llm.summary_reply = {"title": "T", "summary": "S.", "meeting_type": "party"}
+        await bus.publish(ended_envelope())
+        await settle(bus)
+        assert validate_envelope(ready[0]) == []
+        assert "meeting_type" not in ready[0]["data"]
+
+    asyncio.run(run())

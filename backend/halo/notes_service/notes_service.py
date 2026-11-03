@@ -27,6 +27,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import ValidationError
 
+import contracts
 from contracts.gen.pydantic.models import MeetingPage
 from halo.notes_service import ask as ask_mod
 from halo.notes_service.speaking import speaking_insights
@@ -36,6 +37,10 @@ log = logging.getLogger("halo.notes_service")
 Envelope = dict[str, Any]
 SEARCH_CAP = 100
 MAX_FOLDERS = 200
+# Karim 2026-11-04: meeting types the list sorts by; the contract holds the one list.
+MEETING_TYPES = tuple(json.loads(
+    (Path(contracts.__file__).parent / "notes.ready.schema.json").read_text(encoding="utf-8")
+)["properties"]["meeting_type"]["enum"])
 # The shell and its files change with every update: browsers must revalidate
 # (live 2026-11-02: Chrome kept the old app.js after an update).
 NO_CACHE = {"Cache-Control": "no-cache"}
@@ -104,9 +109,10 @@ class NotesService:
     def _load_folders(self) -> dict[str, Any]:
         try:
             data = json.loads(self._folders_path().read_text(encoding="utf-8"))
-            return {"folders": list(data.get("folders", [])), "meetings": dict(data.get("meetings", {}))}
+            return {"folders": list(data.get("folders", [])), "meetings": dict(data.get("meetings", {})),
+                    "archived": list(data.get("archived", [])), "types": dict(data.get("types", {}))}
         except (OSError, ValueError, AttributeError):
-            return {"folders": [], "meetings": {}}
+            return {"folders": [], "meetings": {}, "archived": [], "types": {}}
 
     def _save_folders(self, data: dict[str, Any]) -> None:
         # ponytail: whole-file rewrite, fine for a handful of folders on one PC
@@ -143,6 +149,41 @@ class NotesService:
             return False
         self._save_folders(data)
         return True
+
+    def rename_folder(self, folder_id: str, name: str) -> bool:
+        data = self._load_folders()
+        for folder in data["folders"]:
+            if folder["folder_id"] == folder_id:
+                folder["name"] = name
+                self._save_folders(data)
+                return True
+        return False
+
+    def delete_folder(self, folder_id: str) -> bool:
+        """The folder goes; its meetings stay, unfiled."""
+        data = self._load_folders()
+        kept = [f for f in data["folders"] if f["folder_id"] != folder_id]
+        if len(kept) == len(data["folders"]):
+            return False
+        data["folders"] = kept
+        data["meetings"] = {m: f for m, f in data["meetings"].items() if f != folder_id}
+        self._save_folders(data)
+        return True
+
+    def set_archived(self, meeting_id: str, archived: bool) -> None:
+        data = self._load_folders()
+        rest = [m for m in data["archived"] if m != meeting_id]
+        data["archived"] = rest + [meeting_id] if archived else rest
+        self._save_folders(data)
+
+    def set_type(self, meeting_id: str, meeting_type: str | None) -> None:
+        """The user's pick; None hands it back to the builder's."""
+        data = self._load_folders()
+        if meeting_type is None:
+            data["types"].pop(meeting_id, None)
+        else:
+            data["types"][meeting_id] = meeting_type
+        self._save_folders(data)
 
     # -- store reads --------------------------------------------------------
 
@@ -375,7 +416,8 @@ class NotesService:
                     "SELECT meeting_id, subject, project_id, t0_ms FROM meetings"
                     " ORDER BY t0_ms DESC")
             out = []
-            in_folder = self._load_folders()["meetings"]
+            filed = self._load_folders()
+            in_folder = filed["meetings"]
             for row in rows:
                 meeting = dict(row)
                 turns = self._turns(conn, meeting["meeting_id"])
@@ -395,6 +437,12 @@ class NotesService:
                 }
                 if isinstance(ready.get("title"), str) and ready["title"].strip():
                     item["title"] = ready["title"].strip()
+                item["archived"] = meeting["meeting_id"] in filed["archived"]
+                mine = filed["types"].get(meeting["meeting_id"])
+                halo = ready.get("meeting_type") if ready.get("meeting_type") in MEETING_TYPES else None
+                item["meeting_type"] = mine or halo
+                if item["meeting_type"]:
+                    item["type_by"] = "you" if mine else "halo"
                 item.update(self._card_counts(meeting["meeting_id"], meeting["t0_ms"] or 0, turns))
                 out.append(item)
             return out
@@ -797,6 +845,62 @@ async def api_move_to_folder(request: Request):  # type: ignore[no-untyped-def]
     if not _service(request).move_to_folder(body["meeting_id"], folder_id):
         return JSONResponse({"detail": "unknown folder"}, status_code=404)
     return {"meeting_id": body["meeting_id"], "folder_id": folder_id}
+
+
+async def _body(request: Request) -> dict[str, Any]:
+    try:
+        body = await request.json()
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+@router.post("/api/folders/rename")
+async def api_rename_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    name, folder_id = body.get("name"), body.get("folder_id")
+    if not isinstance(name, str) or not name.strip() or not isinstance(folder_id, str):
+        return JSONResponse({"detail": "folder_id and name required"}, status_code=400)
+    if not _service(request).rename_folder(folder_id, name.strip()[:80]):
+        return JSONResponse({"detail": "unknown folder"}, status_code=404)
+    return {"folder_id": folder_id, "name": name.strip()[:80]}
+
+
+@router.post("/api/folders/delete")
+async def api_delete_folder(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    folder_id = (await _body(request)).get("folder_id")
+    if not isinstance(folder_id, str):
+        return JSONResponse({"detail": "folder_id required"}, status_code=400)
+    if not _service(request).delete_folder(folder_id):
+        return JSONResponse({"detail": "unknown folder"}, status_code=404)
+    return {"folder_id": folder_id, "deleted": True}
+
+
+@router.post("/api/meetings/archive")
+async def api_archive(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    if not isinstance(body.get("meeting_id"), str) or not isinstance(body.get("archived"), bool):
+        return JSONResponse({"detail": "meeting_id and archived required"}, status_code=400)
+    _service(request).set_archived(body["meeting_id"], body["archived"])
+    return {"meeting_id": body["meeting_id"], "archived": body["archived"]}
+
+
+@router.post("/api/meetings/type")
+async def api_meeting_type(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    kind = body.get("meeting_type")
+    if not isinstance(body.get("meeting_id"), str) or (kind is not None and kind not in MEETING_TYPES):
+        return JSONResponse({"detail": f"meeting_type must be one of {list(MEETING_TYPES)} or null"}, status_code=400)
+    _service(request).set_type(body["meeting_id"], kind)
+    return {"meeting_id": body["meeting_id"], "meeting_type": kind}
 
 
 @router.get("/api/audio")

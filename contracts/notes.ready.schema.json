@@ -106,6 +106,20 @@
       "type": "string",
       "description": "AI 3-5 line meeting summary (Notes Builder, Spark)."
     },
+    "meeting_type": {
+      "type": "string",
+      "enum": [
+        "sprint",
+        "planning",
+        "discovery",
+        "sales",
+        "induction",
+        "one_on_one",
+        "interview",
+        "other"
+      ],
+      "description": "AI meeting type (Notes Builder, Spark), Karim 2026-11-04: the notes list sorts by it; the user can change it on the page."
+    },
     "disagreements": {
       "type": "array",
       "maxItems": 5,

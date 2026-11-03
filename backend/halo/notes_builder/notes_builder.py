@@ -55,11 +55,15 @@ REBUILD_INSTRUCTIONS = (
 # Karim 2026-11-02: an AI title + short summary for the notes list preview
 # and the meeting page. One extra Spark call at meeting end; a failure only
 # leaves them out.
+# Karim 2026-11-04: the notes list sorts meetings by type; same call, one more field.
+MEETING_TYPES = ("sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other")
+
 SUMMARY_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "title": {"type": "string"},
         "summary": {"type": "string"},
+        "meeting_type": {"type": "string", "enum": list(MEETING_TYPES)},
         "disagreements": {"type": "array", "items": {
             "type": "object",
             "properties": {
@@ -74,7 +78,7 @@ SUMMARY_SCHEMA: dict[str, Any] = {
             "required": ["topic", "sides", "outcome", "resolution"],
             "additionalProperties": False}},
     },
-    "required": ["title", "summary", "disagreements"],
+    "required": ["title", "summary", "meeting_type", "disagreements"],
     "additionalProperties": False,
 }
 SUMMARY_TRANSCRIPT_CHARS = 12_000  # ponytail: the meeting's last 12k chars; chunk + merge if long meetings need more
@@ -92,7 +96,11 @@ def summary_prompt(store: dict[str, Any]) -> str:
         "topic (at most 6 words), sides (each person's name and their view in "
         "at most 12 words), outcome settled (agreed in the meeting), parked "
         "(moved to later or offline) or open, resolution (what was agreed or "
-        "the next step, or empty). Use "
+        "the next step, or empty). meeting_type: sprint (sprint review, "
+        "standup or retro), planning (roadmap, launch or scheduling), discovery "
+        "(product discovery or user research), sales (a customer or prospect "
+        "call), induction (onboarding someone new), one_on_one (two people "
+        "about work or growth), interview (hiring), or other. Use "
         "only what the transcript says. Write both in the language most of the "
         "meeting used.\n\n"
         f"Subject typed by the host: {store['meeting']['subject'] or 'none'}\n\n"
@@ -230,12 +238,14 @@ class NotesBuilder:
             prompt=summary_prompt(store),
             schema=SUMMARY_SCHEMA,
             schema_name="notes.summary",
-            prompt_cache_key="notes-summary-v2",
+            prompt_cache_key="notes-summary-v3",
         )
         data = result.data if result.ok and isinstance(result.data, dict) else {}
         header: dict[str, Any] = {
             k: data[k].strip()[:700 if k == "summary" else 80] for k in ("title", "summary")
             if isinstance(data.get(k), str) and data[k].strip()}
+        if data.get("meeting_type") in MEETING_TYPES:
+            header["meeting_type"] = data["meeting_type"]
         disagreements = clean_disagreements(data.get("disagreements"))
         if disagreements:
             header["disagreements"] = disagreements
