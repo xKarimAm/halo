@@ -272,3 +272,5 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 .sphedge blockquote{margin:4px 0;font-size:14px}
 .sphedge small{color:var(--muted);font-variant-numeric:tabular-nums}
 .sptry{margin:14px 0 0;padding:10px 14px;border-radius:12px;background:var(--tint);font-size:14px}
+/* One mark per urgency: the column's colour carries it; only a suggestion keeps its dashed edge. */
+.act:not(.sug) .body{border-inline-start:0;padding-inline-start:0}

@@ -26,7 +26,7 @@
       byHalo: "by Halo", byYou: "by you", menuCat: "Change type", menuUrg: "Change urgency",
       tipCat: "Type picked by Halo's low-cost classifier. Click to change it.",
       tipUrg: "Urgency picked by Halo's low-cost classifier. Click to change it.",
-      prov: "Sorted by Halo's lightweight classifier. Wrong call? Click \u201Cby Halo\u201D on any item to re-tag it.",
+      prov: "Sorted by Halo. Wrong call? Change the tag on any item.",
       retagged: "Changed.",
       cMin: "{n} min", cDec: "{n} decision", cDecs: "{n} decisions", cQ: "{n} open question",
       cQs: "{n} open questions", cPush: "{n} pushback", cPushes: "{n} pushbacks",
@@ -595,9 +595,17 @@
     return section;
   }
 
+  // Say each fact once: a plain point that is already an action item lives
+  // in Action items only (blind juror round 2).
+  function boardPoints(page) {
+    var acted = {};
+    (page.actions || []).forEach(function (a) { if (a.point_id) acted[a.point_id] = true; });
+    return page.points.filter(function (p) { return !(kindKey(p.kind) === "point" && acted[p.point_id]); });
+  }
+
   function kindColumn(app, kind, lang) {
     var names = { decision: "decs", question: "qs", pushback: "pushes", point: "pts" };
-    var list = app.page.points.filter(function (p) {
+    var list = boardPoints(app.page).filter(function (p) {
       return kindKey(p.kind) === kind && (app.cat === "all" || kindKey(p.kind) === app.cat);
     });
     var section = el("section", "col glass c-" + kind);
@@ -785,7 +793,7 @@
     } else {
       stage.appendChild(summaryBoard(app, lang));
       if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
-      stage.appendChild(filtersBar(app, page.points, lang));
+      stage.appendChild(filtersBar(app, boardPoints(page), lang));
       var dis = disagreementsBoard(app, lang);
       if (dis) stage.appendChild(dis);
       var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
