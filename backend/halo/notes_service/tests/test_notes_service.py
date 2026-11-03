@@ -239,6 +239,9 @@ def test_list_shell_address(tmp_path):
     client, _, _ = make_client(tmp_path)
     assert client.get("/notes/").status_code == 200
     assert "shell" in client.get("/notes").text
+    # 2026-11-03: /notes served the shell, whose ./app.js then 404'd; it redirects now.
+    bare = client.get("/notes", follow_redirects=False)
+    assert bare.status_code == 307 and bare.headers["location"] == "/notes/"
 
 
 def test_folders_create_move_and_persist(tmp_path):

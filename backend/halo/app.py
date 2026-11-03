@@ -151,7 +151,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:
-        return RedirectResponse("/notes")  # the meetings list is the front page
+        return RedirectResponse("/notes/")  # the meetings list is the front page
 
     @app.get("/healthz")
     async def healthz() -> dict:

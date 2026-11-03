@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import ValidationError
 
 from contracts.gen.pydantic.models import MeetingPage
@@ -641,8 +641,13 @@ async def notes_styles(request: Request):  # type: ignore[no-untyped-def]
     return FileResponse(path, media_type="text/css", headers=NO_CACHE)
 
 
-@router.get("/notes/")
 @router.get("/notes")
+async def notes_no_slash() -> RedirectResponse:
+    """The shell loads ./app.js and ./styles.css, which only resolve under /notes/."""
+    return RedirectResponse("/notes/")
+
+
+@router.get("/notes/")
 async def notes_list_shell(request: Request):  # type: ignore[no-untyped-def]
     """The meetings list's own address (browser Back lands here, #102)."""
     path = _service(request).static_file("index.html")
