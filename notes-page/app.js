@@ -31,6 +31,17 @@
       cMin: "{n} min", cDec: "{n} decision", cDecs: "{n} decisions", cQ: "{n} open question",
       cQs: "{n} open questions", cPush: "{n} pushback", cPushes: "{n} pushbacks",
       cUrg: "{n} urgent action", cUrgs: "{n} urgent actions",
+      spTitle: "Your speaking", spPrivate: "Only you see this. Facts from the transcript, not a grade.",
+      spShare: "Talk share", spFair: "an even share is {n}%", spLongest: "Longest stretch", spAt: "at {t}",
+      spQs: "Questions asked", spFollow: "{n} follow-ups", spCut: "Cut in", spCutWho: "first: {name} at {t}",
+      spPace: "Pace", spWpm: "words a minute", spHedged: "Hedged commitments", spTry: "Next call:",
+      spTry_cut_ins: "when you want in, wait for the end of their sentence, then say their name.",
+      spTry_longest: "after your main point, stop and ask one question before going on.",
+      spTry_share: "ask one open question per topic and let the room answer first.",
+      spTry_hedged: "say commitments plainly: who, what, by when, without “I think” or “maybe”.",
+      spTry_questions: "ask one follow-up on what someone just said.",
+      spTry_keep: "keep the same balance; it worked.",
+      spTry_solo: "this was a solo run; the talk-share facts appear once others join.",
       why: "Why {n} matters here", actions: "Action items", action: "Action item",
       assigned: "Assigned", suggested: "Suggested",
       asNote: "Said aloud", sgNote: "Suggested from their role, not said aloud", due: "Due",
@@ -66,6 +77,17 @@
       cMin: "{n} دقيقة", cDec: "قرارات: {n}", cDecs: "قرارات: {n}", cQ: "أسئلة مفتوحة: {n}",
       cQs: "أسئلة مفتوحة: {n}", cPush: "اعتراضات: {n}", cPushes: "اعتراضات: {n}",
       cUrg: "مهام عاجلة: {n}", cUrgs: "مهام عاجلة: {n}",
+      spTitle: "طريقة حديثك", spPrivate: "يراها أنت فقط. حقائق من النص، وليست تقييماً.",
+      spShare: "نصيبك من الحديث", spFair: "النصيب المتساوي {n}%", spLongest: "أطول مقطع متواصل", spAt: "عند {t}",
+      spQs: "أسئلة طرحتها", spFollow: "متابعة: {n}", spCut: "مقاطعات", spCutWho: "الأولى: {name} عند {t}",
+      spPace: "السرعة", spWpm: "كلمة في الدقيقة", spHedged: "التزامات مترددة", spTry: "في الاجتماع القادم:",
+      spTry_cut_ins: "انتظر نهاية جملة المتحدث، ثم ادخل باسمه.",
+      spTry_longest: "بعد فكرتك الرئيسية توقف واطرح سؤالاً واحداً.",
+      spTry_share: "اطرح سؤالاً مفتوحاً لكل موضوع ودع الآخرين يجيبون أولاً.",
+      spTry_hedged: "قل التزاماتك بوضوح: من، ماذا، ومتى، دون «أعتقد» أو «ربما».",
+      spTry_questions: "اطرح سؤال متابعة على ما قاله أحدهم للتو.",
+      spTry_keep: "حافظ على هذا التوازن؛ لقد نجح.",
+      spTry_solo: "كانت هذه جلسة منفردة؛ تظهر حقائق نصيب الحديث عندما ينضم آخرون.",
       why: "لماذا يهم {n} هنا", actions: "المهام", action: "مهمة",
       assigned: "مُسندة", suggested: "مقترحة",
       asNote: "قيلت في الاجتماع", sgNote: "مقترحة حسب الدور، لم تُذكر صراحةً", due: "الموعد",
@@ -279,7 +301,7 @@
     var cur = isAction ? urgOf(item) : kindKey(item.kind);
     var options = isAction ? URG_ORDER : KIND_KEYS;
     var mine = !!userTags[id];
-    var details = el("details", "retag");
+    var details = el("details", "retag" + (mine ? " mine" : ""));
     var summary = el("summary", null, mine ? t(lang, "byYou") : t(lang, "byHalo"));
     summary.title = t(lang, isAction ? "tipUrg" : "tipCat");
     var caret = el("span", null, " \u25BE");
@@ -373,11 +395,11 @@
     var badge = el("span", "badge " + (assigned ? "as" : "sg"),
       t(lang, assigned ? "assigned" : "suggested"));
     badge.title = t(lang, assigned ? "asNote" : "sgNote");
-    li.appendChild(badge);
     var body = el("div", "body", action.text);
     // The Assigned pill already says it was said aloud; only a suggestion explains itself.
     if (!assigned) body.appendChild(el("small", null, t(lang, "sgNote")));
     var ameta = el("div", "ameta");
+    ameta.appendChild(badge);  // a quiet label in the meta line, not a pill over the text
     if (showWho !== false) ameta.appendChild(personChip(action.owner, lang));
     if (line) ameta.appendChild(lineChip(app, line, lang));
     ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
@@ -450,8 +472,9 @@
     var bits = [fmtDate(meeting.t0_ms) || meeting.date || ""]; // local day, not the server's UTC one
     if (meeting.minutes) bits.push(t(lang, "cMin", { n: meeting.minutes }));
     var c = meeting.counts || {};
-    [["decision", "cDec"], ["question", "cQ"], ["pushback", "cPush"], ["urgent", "cUrg"]].forEach(function (k) {
-      if (c[k[0]]) bits.push(t(lang, k[1] + (c[k[0]] > 1 ? "s" : ""), { n: c[k[0]] }));
+    [["decision", "cDec", "cDecs"], ["question", "cQ", "cQs"], ["pushback", "cPush", "cPushes"],
+      ["urgent", "cUrg", "cUrgs"]].forEach(function (k) {
+      if (c[k[0]]) bits.push(t(lang, c[k[0]] > 1 ? k[2] : k[1], { n: c[k[0]] }));
     });
     info.appendChild(el("span", "sub", bits.join(" · ")));
     if (meeting.title && meeting.title !== meeting.subject) info.appendChild(el("span", "sub2", meeting.subject));
@@ -471,6 +494,49 @@
     var sub = el("small", null, (hit.subject || "") + (hit.speaker ? " \u00B7 " + hit.speaker : ""));
     btn.appendChild(sub);
     return btn;
+  }
+
+  // Your speaking (Karim 2026-11-03): countable facts about the viewer only,
+  // each with its moment, and one thing to try next call. No score, no mood.
+  function speakingPanel(s, lang) {
+    var section = el("section", "speaking glass");
+    var head = el("div", "bhead");
+    head.appendChild(el("h2", null, t(lang, "spTitle")));
+    head.appendChild(el("p", "prov", t(lang, "spPrivate")));
+    section.appendChild(head);
+    var dl = el("dl", "spfacts");
+    function fact(label, value, note) {
+      var d = el("div");
+      d.appendChild(el("dt", null, label));
+      var dd = el("dd", null, value);
+      if (note) dd.appendChild(el("small", null, note));
+      d.appendChild(dd);
+      dl.appendChild(d);
+    }
+    if (s.speakers > 1) fact(t(lang, "spShare"), s.talk_share + "%", t(lang, "spFair", { n: s.fair_share }));
+    fact(t(lang, "spLongest"), fmtMs(s.longest_ms), t(lang, "spAt", { t: fmtMs(s.longest_at_ms) }));
+    fact(t(lang, "spQs"), String(s.questions), s.follow_ups ? t(lang, "spFollow", { n: s.follow_ups }) : "");
+    if (s.speakers > 1) {
+      fact(t(lang, "spCut"), String(s.cut_ins.length), s.cut_ins.length
+        ? t(lang, "spCutWho", { name: s.cut_ins[0].name, t: fmtMs(s.cut_ins[0].at_ms) }) : "");
+    }
+    if (s.pace_wpm) fact(t(lang, "spPace"), String(s.pace_wpm), t(lang, "spWpm"));
+    section.appendChild(dl);
+    if (s.hedged && s.hedged.length) {
+      var hq = el("div", "sphedge");
+      hq.appendChild(el("h3", null, t(lang, "spHedged")));
+      s.hedged.forEach(function (h) {
+        var q = el("blockquote", null, "“" + h.quote + "” ");
+        q.appendChild(el("small", null, fmtMs(h.at_ms)));
+        hq.appendChild(q);
+      });
+      section.appendChild(hq);
+    }
+    var tip = el("p", "sptry");
+    tip.appendChild(el("b", null, t(lang, "spTry") + " "));
+    tip.appendChild(document.createTextNode(t(lang, "spTry_" + s.try_next.key)));
+    section.appendChild(tip);
+    return section;
   }
 
   function summaryBoard(app, lang) {
@@ -680,9 +746,14 @@
     var left = el("div");
     var head = el("section", "head glass");
     head.appendChild(el("h1", null, titleOf(page.meeting)));
-    if (page.meeting.title && page.meeting.title !== page.meeting.subject) {
-      head.appendChild(el("p", "sub", page.meeting.subject));
-    }
+    // Date · length · people, so the page says when and with whom.
+    var lines = page.transcript_lines || [];
+    var mins = lines.length ? Math.round((lines[lines.length - 1].ts_end_ms - page.meeting.t0_ms) / 60000) : 0;
+    var facts = [fmtDate(page.meeting.t0_ms)];
+    if (mins > 0) facts.push(t(lang, "cMin", { n: mins }));
+    facts.push((page.people || []).map(function (p) { return p.name; }).join(", "));
+    if (page.meeting.title && page.meeting.title !== page.meeting.subject) facts.push(page.meeting.subject);
+    head.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
     if (page.meeting.summary) head.appendChild(el("p", "mtg-summary", page.meeting.summary));
     left.appendChild(head);
     left.appendChild(el("h2", "sr", t(lang, "people")));
@@ -713,6 +784,7 @@
       stage.appendChild(personPanel(app, selected, lang));
     } else {
       stage.appendChild(summaryBoard(app, lang));
+      if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
       stage.appendChild(filtersBar(app, page.points, lang));
       var dis = disagreementsBoard(app, lang);
       if (dis) stage.appendChild(dis);
@@ -750,9 +822,12 @@
     var grid = el("div", "listgrid");
     var listSection = el("section");
     listSection.setAttribute("aria-label", t(lang, "meetings"));
-    app.meetings
-      .filter(function (m) { return !app.folder || m.folder_id === app.folder; })
-      .forEach(function (m) { listSection.appendChild(meetingCard(app, m, lang)); });
+    var shown = app.meetings.filter(function (m) { return !app.folder || m.folder_id === app.folder; });
+    shown.forEach(function (m) { listSection.appendChild(meetingCard(app, m, lang)); });
+    // The preview starts on the newest meeting instead of an empty "hover" panel.
+    if (!app.previewId && shown.length && app.setPreview) {
+      Promise.resolve().then(function () { app.setPreview(shown[0].meeting_id); });
+    }
     grid.appendChild(listSection);
     if (app.q.trim()) {
       var hitsSection = el("section", "hits glass");
@@ -999,7 +1074,12 @@
       app.page = tidyPage(page);
       app.person = null;
       app.lineIndex = 0;
+      app.speaking = null;
       render(app);
+      var id = page.meeting.meeting_id;
+      app.fetchJson("/api/meetings/" + encodeURIComponent(id) + "/speaking").then(function (s) {
+        if (s && app.page && app.page.meeting.meeting_id === id) { app.speaking = s; render(app); }
+      }).catch(function () {});
     };
 
     app.setLang = function (lang) {

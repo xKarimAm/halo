@@ -205,13 +205,15 @@ test("(7) Arabic toggle renders RTL with Arabic labels and no overflow at 560px"
 // action can be emailed to its owner.
 test("(8) browser Back and Forward move between the list and a meeting", async ({ page }) => {
   await page.goto(baseURL + "/");
+  const title = page.getByRole("heading", { level: 1, name: GOLDEN.meeting.title });
+  await expect(page.locator("#preview h2")).toBeVisible(); // the newest meeting is previewed first
   await page.locator(".mtg-card").first().click();
-  await expect(page.getByRole("heading", { name: GOLDEN.meeting.title })).toBeVisible();
+  await expect(title).toBeVisible();
   expect(new URL(page.url()).pathname).toBe("/notes/" + MEETING_ID);
   await page.goBack();
-  await expect(page.getByRole("heading", { name: "Meetings" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Meetings" })).toBeVisible();
   await page.goForward();
-  await expect(page.getByRole("heading", { name: GOLDEN.meeting.title })).toBeVisible();
+  await expect(title).toBeVisible();
 });
 
 test("(9) hovering a meeting previews its title, summary and action counts", async ({ page }) => {

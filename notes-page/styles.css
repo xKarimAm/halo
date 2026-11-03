@@ -251,3 +251,24 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 .col .pt-main .tag{display:none}
 /* The recording's file path is for tests and support, not for reading. */
 .recoff{display:none}
+/* Judge round 1: one quiet meta line per item. Secondary tools (Original,
+   re-tag, Email) appear on hover or keyboard focus; touch screens keep them. */
+.ameta .badge.as{background:none;color:var(--muted);padding:0;font-weight:600;font-size:12px}
+.ameta .badge.sg{padding:1px 7px;font-size:11px}
+@media (hover:hover){
+  .pt .chip[data-orig],.pt .retag:not(.mine):not([open]),.act .retag:not(.mine):not([open]),.act .mail{opacity:0;transition:opacity .15s ease}
+  .pt:hover .chip[data-orig],.pt:focus-within .chip[data-orig],.pt:hover .retag,.pt:focus-within .retag,
+  .act:hover .retag,.act:focus-within .retag,.act:hover .mail,.act:focus-within .mail{opacity:1}
+}
+.head .facts{margin:2px 0 10px;font-size:13px;color:var(--band-muted);font-variant-numeric:tabular-nums}
+.head .mtg-summary{max-width:68ch}
+/* Your speaking: facts in a row, quotes, one thing to try. */
+.speaking{padding:16px 20px;margin-bottom:14px}
+.spfacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px 18px;margin:10px 0 0}
+.spfacts dt{font-size:12px;color:var(--muted)}
+.spfacts dd{margin:2px 0 0;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.spfacts dd small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.sphedge{margin-top:14px}
+.sphedge blockquote{margin:4px 0;font-size:14px}
+.sphedge small{color:var(--muted);font-variant-numeric:tabular-nums}
+.sptry{margin:14px 0 0;padding:10px 14px;border-radius:12px;background:var(--tint);font-size:14px}

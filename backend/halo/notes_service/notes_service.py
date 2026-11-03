@@ -26,6 +26,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
 from contracts.gen.pydantic.models import MeetingPage
+from halo.notes_service.speaking import speaking_insights
 
 log = logging.getLogger("halo.notes_service")
 
@@ -362,6 +363,37 @@ class NotesService:
         finally:
             conn.close()
 
+    def speaking_for(self, meeting_id: str) -> dict[str, Any] | None:
+        """The viewer is the self tile Meet showed (meeting.started often has no
+        name); a meeting with one speaker is that speaker's."""
+        conn = self._connect()
+        if conn is None:
+            return None
+        try:
+            row = conn.execute("SELECT t0_ms FROM meetings WHERE meeting_id = ?", (meeting_id,)).fetchone()
+            if row is None:
+                return None
+            turns = self._turns(conn, meeting_id)
+            me = ""
+            for (data,) in conn.execute(
+                    "SELECT data FROM events WHERE meetingid = ? AND type IN"
+                    " ('meeting.started', 'tiles.snapshot') ORDER BY seq DESC", (meeting_id,)):
+                try:
+                    loaded = json.loads(data)
+                except ValueError:
+                    continue
+                me = loaded.get("self_name") or next(
+                    (t.get("name") for t in loaded.get("tiles") or []
+                     if isinstance(t, dict) and t.get("is_self") and t.get("name")), "") or ""
+                if me:
+                    break
+        finally:
+            conn.close()
+        speakers = {t["speaker"] for t in turns}
+        if not me and len(speakers) == 1:
+            me = next(iter(speakers))
+        return speaking_insights(turns, me, row[0] or 0) if me else None
+
     def _card_counts(self, meeting_id: str, t0_ms: int, turns: list[dict[str, Any]]) -> dict[str, Any]:
         """The meeting card's facts (locked design: duration, decisions, open
         questions, pushbacks, urgent actions), with the user's re-tags applied.
@@ -571,6 +603,12 @@ async def api_meeting_page(meeting_id: str, request: Request):  # type: ignore[n
         log.error("notes: assembled page for %s fails schema: %s", meeting_id, exc.errors())
         return JSONResponse({"detail": "page failed validation"}, status_code=500)
     return page
+
+
+@router.get("/api/meetings/{meeting_id}/speaking")
+async def api_speaking(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    """Private facts about how the viewer talked (speaking.py); null when too little."""
+    return _service(request).speaking_for(meeting_id)
 
 
 @router.get("/api/search")
