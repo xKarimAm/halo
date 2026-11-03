@@ -9,6 +9,7 @@ sleeping.
 from __future__ import annotations
 
 import asyncio
+import time
 from types import SimpleNamespace
 
 from halo.bus import Bus
@@ -355,6 +356,14 @@ class GateLLM:
         return {"engine": "muse-spark-1.3-contributor", "failover": True}
 
 
+async def until(cond, timeout_s=5.0):
+    """Wait on a condition by wall clock: an iteration count is too short on
+    Windows, where a 10 ms asyncio sleep can return in about 1 ms (flaky 1 in 5)."""
+    deadline = time.monotonic() + timeout_s
+    while not cond() and time.monotonic() < deadline:
+        await asyncio.sleep(0.01)
+
+
 def test_calls_overlap_across_speakers_but_never_for_one_speaker():
     # Live 2026-11-01: contributor calls take ~4 s, and one call at a time made
     # a second speaker's turn wait for the first call, then its own (p90 ~9 s).
@@ -367,23 +376,14 @@ def test_calls_overlap_across_speakers_but_never_for_one_speaker():
         insight.start()
         try:
             await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000001", "Launch on the 15th", name="Layla"))
-            for _ in range(500):  # Layla's first call is in flight (holding only her first turn)
-                if llm.prompts:
-                    break
-                await asyncio.sleep(0.01)
+            await until(lambda: llm.prompts)  # Layla's first call is in flight (holding only her first turn)
             await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000002", "QA is not done", name="Omar", tile="t2"))
             await bus.publish(turn_envelope("11111111-1111-4111-8111-000000000003", "Ads wait for December", name="Layla"))
             await asyncio.to_thread(llm.other_started.wait, 5)
-            for _ in range(200):  # Omar's point lands while Layla's call is still blocked
-                if any(p["data"]["speaker_name"] == "Omar" for p in points):
-                    break
-                await asyncio.sleep(0.01)
+            await until(lambda: any(p["data"]["speaker_name"] == "Omar" for p in points))  # Layla still blocked
             omar_first = [p["data"]["speaker_name"] for p in points] == ["Omar"]
             llm.release.set()
-            for _ in range(300):
-                if len(points) >= 3:
-                    break
-                await asyncio.sleep(0.01)
+            await until(lambda: len(points) >= 3)
         finally:
             llm.release.set()
             insight.stop()
