@@ -64,3 +64,15 @@ def test_origin_defaults_to_pinned_id(tmp_path):
     assert gateway.origin_ok("chrome-extension://other-id") is False
     assert gateway.origin_ok("https://meet.google.com") is False
     assert gateway.origin_ok(None) is False
+
+
+def test_audio_before_pairing_is_dropped(tmp_path):
+    # Review 2026-11-03: binary frames reached the audio router before pair.hello.
+    client, app = make_client(tmp_path)
+    got: list = []
+    app.state.gateway.audio.handle = lambda data, producer: got.append(data)
+    with client.websocket_connect("/ws", headers={"origin": "chrome-extension://test-id"}) as ws:
+        ws.send_bytes(b"\x00" * 32)
+        ws.send_text("not json")  # a reply proves the bytes frame was processed first
+        ws.receive_json()
+    assert got == []

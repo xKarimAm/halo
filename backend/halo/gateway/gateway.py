@@ -342,7 +342,8 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             if message.get("text") is not None:
                 await websocket.send_json(await session.handle_text(message["text"]))
             elif message.get("bytes") is not None:
-                gateway.audio.handle(message["bytes"], producer)
+                if session.paired:  # an unpaired socket feeds no audio or recording
+                    gateway.audio.handle(message["bytes"], producer)
             else:
                 break
     except WebSocketDisconnect:
