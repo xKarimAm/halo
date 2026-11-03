@@ -12,6 +12,7 @@ event, falling back to live state before the builder runs.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -27,6 +28,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
 from contracts.gen.pydantic.models import MeetingPage
+from halo.notes_service import ask as ask_mod
 from halo.notes_service.speaking import speaking_insights
 
 log = logging.getLogger("halo.notes_service")
@@ -82,8 +84,10 @@ class NotesService:
         *,
         data_dir: Path | str | None = None,
         static_dir: Path | str | None = None,
+        llm: Any = None,
     ) -> None:
         self._bus = bus
+        self._llm = llm  # the shared model client, only for Ask
         self._data_dir = Path(data_dir) if data_dir is not None else Path(
             os.environ.get("HALO_DATA_DIR") or "data")
         self._db_path = self._data_dir / "events.sqlite"
@@ -442,6 +446,44 @@ class NotesService:
                        "urgent": sum(a["urgency"] == "urgent" for a in page["actions"])},
         }
 
+    def passages(self) -> list[dict[str, Any]]:
+        """Every meeting's AI summary, points and transcript lines, newest meeting
+        first, in the hit shape the page already renders (plus `date`)."""
+        conn = self._connect()
+        if conn is None:
+            return []
+        try:
+            conn.row_factory = sqlite3.Row
+            out: list[dict[str, Any]] = []
+            for m in conn.execute("SELECT meeting_id, subject, t0_ms FROM meetings ORDER BY t0_ms DESC"):
+                mid, ready = m["meeting_id"], self._latest_ready(conn, m["meeting_id"]) or {}
+                subject = str(ready.get("title") or m["subject"] or "Untitled meeting")
+                date = datetime.fromtimestamp((m["t0_ms"] or 0) / 1000, UTC).strftime("%Y-%m-%d")
+                base = {"meeting_id": mid, "subject": subject, "date": date}
+                if isinstance(ready.get("summary"), str) and ready["summary"].strip():
+                    out.append({**base, "snippet": ready["summary"].strip(), "line": None,
+                                "speaker": "", "scope": "summary", "kindLabel": "summary"})
+                points = self._points(conn, mid)
+                tags = self._tags(conn, [pt["point_id"] for pt in points], mid)
+                for pt in points:
+                    tag = tags.get(pt["point_id"], {})
+                    scope = "action" if pt["is_action"] else "point"
+                    kind = tag.get("kind", pt["kind"])
+                    out.append({**base, "snippet": pt["text"], "line": (pt["turn_ids"] or [None])[0],
+                                "speaker": pt["speaker_name"], "scope": scope, "kind": kind,
+                                "urgency": tag.get("urgency", pt["urgency"]), "kindLabel": kind})
+                for turn in self._turns(conn, mid):
+                    out.append({**base, "snippet": turn["text"], "line": turn["turn_id"],
+                                "speaker": turn["speaker"], "scope": "transcript", "kindLabel": ""})
+            return out
+        finally:
+            conn.close()
+
+    def ask(self, question: str) -> dict[str, Any]:
+        if self._llm is None:
+            return {"error": "no_model", "answer": ask_mod.FAILED[ask_mod.lang_of(question)], "citations": []}
+        return ask_mod.answer(self._llm, question, self.passages())
+
     def search(self, query: str) -> list[dict[str, Any]]:
         needle = query.lower()
         conn = self._connect()
@@ -652,6 +694,26 @@ async def api_search(request: Request, q: str | None = None):  # type: ignore[no
     if not q.strip():
         return {"hits": []}
     return {"hits": _service(request).search(q.strip())}
+
+
+ASK_MAX_CHARS = 300
+
+
+@router.post("/api/ask")
+async def api_ask(request: Request):  # type: ignore[no-untyped-def]
+    """A question across every meeting, answered by Spark from stored passages.
+    POST + the Origin check: each question costs model calls, so no other site may send one."""
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    try:
+        body = await request.json()
+    except ValueError:
+        return JSONResponse({"detail": "malformed JSON"}, status_code=400)
+    q = body.get("q") if isinstance(body, dict) else None
+    if not isinstance(q, str) or not q.strip() or len(q) > ASK_MAX_CHARS:
+        return JSONResponse({"detail": f"q must be 1-{ASK_MAX_CHARS} characters"}, status_code=400)
+    result = await asyncio.to_thread(_service(request).ask, q.strip())
+    return JSONResponse(result, status_code=502 if result.get("error") else 200)
 
 
 @router.post("/api/tags", status_code=201)

@@ -142,7 +142,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
         app.state.bus, app.state.llm, db_path=_data_dir() / "events.sqlite")
     # Notes service: stateless HTTP reads over the store file + notes-page
     # shell; no background loop, so nothing joins the lifespan.
-    app.state.notes_service = NotesService(app.state.bus, data_dir=_data_dir())
+    app.state.notes_service = NotesService(app.state.bus, data_dir=_data_dir(), llm=app.state.llm)
     app.include_router(notes_router)
     # Recorder: rec queue drain loop; files + index under the data dir.
     app.state.recorder = Recorder(app.state.bus, data_dir=_data_dir(),
