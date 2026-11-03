@@ -145,7 +145,11 @@ class LLMClient:
         self._timeout = call_timeout_s
         self._failover_timeout = failover_timeout_s
         self._cooldown = cooldown_s
-        self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s))
+        # Live 2026-11-04: httpx's 5 s keep-alive made every call after a pause
+        # redo TLS (3.9-4.5 s vs ~2 s) and time out. ponytail: 120 s measured
+        # fine at 65 s idle; if Baseten closes sooner, the call reconnects.
+        self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s),
+                                  limits=httpx.Limits(keepalive_expiry=120))
         self._primary_down_until = 0.0
         self._last_engine = PRIMARY_ENGINE if self._keys[PRIMARY_ENGINE] else FAILOVER_ENGINE
         self._usage = {e: {"calls": 0, "in": 0, "cached": 0, "out": 0} for e in ENGINES}
@@ -228,8 +232,9 @@ class LLMClient:
                 self._primary_down_until = self._clock() + self._cooldown
                 code = outcome.result.error["code"] if outcome.result.error else "unknown"
                 if code != "missing_key":  # already logged once where detected
-                    log.warning("llm primary %s failed (%s); failing over to %s for %.0fs",
-                                engine, code, FAILOVER_ENGINE, self._cooldown)
+                    detail = outcome.result.error["message"] if outcome.result.error else ""
+                    log.warning("llm primary %s failed (%s) on %s: %s; failing over to %s for %.0fs",
+                                engine, code, schema_name, detail, FAILOVER_ENGINE, self._cooldown)
             if i == len(engines) - 1:
                 return last
         return last
@@ -329,9 +334,10 @@ class LLMClient:
         data = _read_content(response, schema)
         if data is None:
             return fail("invalid_response", f"{engine}: reply failed schema", failover=True)
-        if self._clock() - start > budget:
+        elapsed = self._clock() - start
+        if elapsed > budget:
             # Valid but past the per-call budget: discard, fail over.
-            return fail("timeout", f"{engine} exceeded {budget:g}s", failover=True)
+            return fail("timeout", f"{engine} replied in {elapsed:.1f}s, past {budget:g}s", failover=True)
         return _Outcome(LLMResult(ok=True, engine=engine, data=data), failover=False)
 
 

@@ -522,3 +522,32 @@ def test_usage_counts_tokens_and_estimates_spend_per_engine():
     assert spark["usd"] == round(3 * (0.8 * 1.25 + 0.2 * 0.15 + 0.1 * 4.25), 4)
     assert usage[FAILOVER_ENGINE]["usd"] == round(0.5 * 0.10, 4)
     assert usage["usd_total"] == round(spark["usd"] + 0.05, 4)
+
+
+def test_a_late_primary_reply_warning_names_the_call_and_its_time(caplog):
+    """Live 2026-11-04: six 'spark-open failed (timeout)' warnings in five
+    minutes, none saying which call or how slow; the budget could not be sized."""
+    clock = Clock()
+    script = Script(clock)
+    script.primary.append((200, GOOD, 5.2))
+    script.failover.append((200, GOOD, 0.1))
+    client = script.client(clock, [])
+    try:
+        with caplog.at_level(logging.WARNING, logger="halo.llm"):
+            result = client.complete_json(prompt=PROMPT, schema=SCHEMA, schema_name="coach.tips")
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE
+    [warning] = [r.getMessage() for r in caplog.records]
+    assert "coach.tips" in warning and "5.2s" in warning
+
+
+def test_idle_connections_stay_open_past_the_failover_cooldown():
+    """Live 2026-11-04: httpx drops idle connections after 5 s, so the first
+    call after a pause paid a new TLS handshake (3.9-4.5 s against ~2 s warm)
+    and timed out at the 4 s budget, once per 30 s cooldown."""
+    client = LLMClient(baseten_key="k", meta_key="k")
+    try:
+        assert client._http._transport._pool._keepalive_expiry >= 120
+    finally:
+        client.close()
