@@ -18,6 +18,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Bilingual speech | Arabic, English and mixed sentences all go through. Each quote shows in its own script direction. | Tested for text: the demo run sends Arabic and mixed turns through the real Spark calls, but skips speech-to-text. Arabic speech on a live call is not checked yet. |
 | Points language | You read the points in English or Arabic, whatever language was spoken. Switch it mid-call from the Halo menu. | Tested |
 | The exact words | Click a bubble to see the kind, the speaker, the point and the exact words said. | Tested |
+| Why urgent | An urgent bubble says why in a word or two, for example "Urgent · today". | Tested |
 | Urgent items stay | Urgent points stay until you archive them; others fade after 60 s. | Tested |
 | More than 3 points | `+N` opens the rest of a tile's points, **Less** folds them. | Live |
 | Live caption | The speaker's last ~12 words appear above their bubbles about 0.3 s after Voice hears them. Captions are never saved. | Live |
