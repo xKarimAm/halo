@@ -6,11 +6,22 @@ It all runs on your own PC: a Chrome extension plus a small Python backend. Noth
 
 Built solo for the Meta Global AI Developer Hackathon (Indie track). MIT licensed.
 
+## Judging in 5 minutes
+
+1. Install it (see [Install](#install)) with your Meta Model API key in `.env`.
+2. `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real Meta models. No call needed; about 3 minutes.
+3. `uv run halo`, then open http://127.0.0.1:8765. You get the meetings list, the notes, the action items board and the speaking panel.
+4. Live: load the extension, pair, join a Google Meet call with a headset and press **Start** (see [Run it](#run-it)).
+
+No key? `$env:HALO_FAKES = "1"; uv run halo` boots offline, and the tests run with no key at all (see [Try it without keys](#try-it-without-keys)).
+
 ## Built during the event
 
 Everything in this repo was written during the hackathon. The first commit is Oct 30, 2026 and `git log` shows the whole history. No code came from older projects.
 
-What works today is **Frame mode**: the bubbles sit inside the speaker's tile. The face-anchored version (name floating above the head, the actual "halo") is next, on SAM 3.1. There's MediaPipe face detector code in `extension/src/face_detector/`, but nothing loads it: `extension/src/entrypoints/meet.content.ts` never mounts it, because the organisers asked that every runtime model be a Meta model.
+By default Halo runs in **Frame mode**: the bubbles sit inside the speaker's tile. **Halo mode** (the name floating above the speaker's head, the actual "halo") runs on SAM 3.1 through an optional local worker that needs an NVIDIA GPU; it is wired end to end but not yet checked on a live call. The organisers asked that every runtime model be a Meta model, so Halo ships no other face detector.
+
+**Built with.** Claude Code (Anthropic) and Muse Code / OpenCode on Muse Spark 1.3 were my coding tools. They wrote code, tests and docs. Gemini was used for research only. None of them is called by Halo at runtime. Every model Halo itself calls is a Meta model (table below).
 
 ## Meta models used and where
 
@@ -19,10 +30,11 @@ Every AI model Halo calls at runtime is a Meta model. These are all of them:
 | Model | Exact id | Endpoint | Called from | What it does |
 |---|---|---|---|---|
 | Muse Voice Transcribe (realtime) | `muse-voice-transcribe-1.0` | `wss://api.meta.ai/v1/asr/realtime` | `backend/halo/transcriber/` (`protocol.py` builds the handshake, `transport.py` holds the socket; the URL is in `rig/fakes/config.py`) | Speech to text. Two sessions per meeting: the call audio in `DIARIZATION` mode (who said what) and your mic in `ENDPOINTING` mode. Language bias Arabic + English. |
-| Muse Spark Open (open weights, Baseten by default; Modal or a local server through `.env`, see Install) | `meta-models/muse-spark-open-1026` | `https://inference.baseten.co/v1` | `backend/halo/llm/llm.py` (the one shared model client) | The default for every text call: live points (`backend/halo/insight/`), urgency/kind tags (`backend/halo/classifier/`) and the end-of-meeting notes (`backend/halo/notes_builder/`). |
-| Muse Spark 1.3 (contributor) | `muse-spark-1.3-contributor` | `https://api.meta.ai/v1` | `backend/halo/llm/llm.py` | Per-call failover when Spark Open takes over 4 s, fails twice (bad JSON, HTTP 429 or 5xx), or has a missing or rejected key. After 30 s Spark Open gets tried again. Same three callers as above. |
+| Muse Spark Open (open weights, Baseten by default; Modal or a local server through `.env`, see Install) | `meta-models/muse-spark-open-1026` | `https://inference.baseten.co/v1` | `backend/halo/llm/llm.py` (the one shared model client) | The first choice for every text call when its key is set: live points (`backend/halo/insight/`), urgency/kind tags (`backend/halo/classifier/`), the live coach (`backend/halo/coach/`) and the end-of-meeting notes (`backend/halo/notes_builder/`). |
+| Muse Spark 1.3 (contributor) | `muse-spark-1.3-contributor` | `https://api.meta.ai/v1` | `backend/halo/llm/llm.py` | Runs every text call when no Spark Open key is set (the simplest setup: one Meta key). With a Spark Open key, it is the per-call failover when Spark Open takes over 4 s, fails twice (bad JSON, HTTP 429 or 5xx) or rejects the key; after 30 s Spark Open gets tried again. Same four callers as above. |
+| SAM 3.1 (open weights, optional) | Meta's SAM 3.1 weights via the `unsloth/sam3.1` Hugging Face mirror (`transformers` `Sam3Model`) | `http://127.0.0.1:8766/faces` (your own GPU) | `packaging/sam_worker.py`, called by `extension/src/face_detector/sam.ts` | Halo mode: finds the speaker's face in their tile so the name and bubbles sit above the head. Frames stay in memory on your PC. Without the worker, Frame mode. |
 
-The Chrome extension calls no models at all; it only talks to the local backend.
+The Chrome extension calls no models itself; it talks to the local backend and, in Halo mode, to the local SAM worker.
 
 ## What you need
 
@@ -91,11 +103,38 @@ Leave that window open. Quick check: http://127.0.0.1:8765/healthz should say `"
 
 Please tell everyone in the call that Halo is recording and transcribing before you start. The **Consent notice** button next to the Halo badge (top left of the Meet page) copies a bilingual notice for you to paste into the Meet chat.
 
-**6. Notes.** Open http://127.0.0.1:8765/api/meetings, copy the `meeting_id` of your call and open `http://127.0.0.1:8765/notes/<meeting_id>`. The page shows the live points while the call runs, and the full notes once the meeting has ended.
+**6. Notes.** Open http://127.0.0.1:8765/notes for the list of meetings and click yours. The page shows the live points while the call runs, and the full notes once the meeting has ended.
 
 The meeting ends when you press **Stop** in the popup, leave the call, or close the Meet tab. A "notes are ready" toast with a link then shows on the Meet page.
 
 Everything Halo saves (transcripts, notes, recordings) lives in the `data` folder next to the code. Delete that folder to wipe it.
+
+## Try it without a call (demo meetings)
+
+With your Meta key in `.env`, this plays three scripted meetings through the real pipeline: an English product review, an Arabic deadline dispute and a mixed Arabic/English launch sync. Insight, the classifier, the coach and the notes builder all run on the Meta models; only Meet, the mic and speech-to-text are skipped. It takes about 3 minutes and prints a notes link for each meeting:
+
+```powershell
+uv run python packaging/demo.py
+```
+
+Then (with `uv run halo` running) open http://127.0.0.1:8765/notes. It is safe to run while the backend runs.
+
+## Halo mode (optional, NVIDIA GPU)
+
+Halo mode needs the SAM 3.1 worker running next to the backend. Once, from the `halo` folder:
+
+```powershell
+uv venv .venv-sam --python 3.12
+uv pip install --python .venv-sam --index-strategy unsafe-best-match -r packaging/requirements-sam.txt
+```
+
+Then, in a second PowerShell window, each time (the first run downloads the SAM 3.1 weights, a few GB):
+
+```powershell
+.venv-sam\Scripts\python packaging/sam_worker.py
+```
+
+Measured on an RTX 3080 Ti: about 220 ms per frame, 2 GB of video memory. If the worker is not running, Halo quietly stays in Frame mode.
 
 ## Try it without keys
 
@@ -120,13 +159,14 @@ A plain `uv run pytest` also runs the end-to-end rig tests. Those start their ow
 | Path | What |
 |---|---|
 | `contracts/` | The only thing the modules share: message schemas and the ACK rules |
-| `backend/halo/` | The FastAPI backend: Gateway, Transcriber, Correlator, Insight, Classifier, Notes Builder, Notes Service, Recorder, Event Store |
+| `backend/halo/` | The FastAPI backend: Gateway, Transcriber, Correlator, Insight, Classifier, Coach, Notes Builder, Notes Service, Recorder, Event Store |
+| `packaging/` | `demo.py` (demo meetings), `sam_worker.py` (optional SAM 3.1 worker), release checks |
 | `extension/` | The Chrome extension (WXT + TypeScript): setup popup, capture, Meet adapter, overlay |
 | `notes-page/` | The Notes page the backend serves |
 | `rig/` | Offline test rig: fake Meet page, fake engines, replayer |
 | `docs/` | Decisions, architecture diagram, UI designs |
 
-Start with [`docs/DECISIONS.md`](docs/DECISIONS.md) if you want the why behind things. The architecture diagram is [`docs/architecture/halo-v2-final.drawio`](docs/architecture/halo-v2-final.drawio).
+More docs: [user guide](docs/USER-GUIDE.md) (solo and team use), [troubleshooting](docs/TROUBLESHOOTING.md), [architecture](docs/ARCHITECTURE.md). Start with [`docs/DECISIONS.md`](docs/DECISIONS.md) if you want the why behind things. The architecture diagram is [`docs/architecture/halo-v2-final.drawio`](docs/architecture/halo-v2-final.drawio).
 
 ## License
 

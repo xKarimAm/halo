@@ -14,6 +14,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from halo.bus import Bus
 from halo.classifier import Classifier
@@ -146,6 +147,10 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Recorder: rec queue drain loop; files + index under the data dir.
     app.state.recorder = Recorder(app.state.bus, data_dir=_data_dir(),
                                   rec_queue=app.state.rec_queue)
+
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse("/notes")  # the meetings list is the front page
 
     @app.get("/healthz")
     async def healthz() -> dict:
