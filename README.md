@@ -9,7 +9,7 @@ Built solo for the Meta Global AI Developer Hackathon (Indie track). MIT license
 ## Judging in 5 minutes
 
 1. Install it (see [Install](#install)) with your Meta Model API key in `.env`.
-2. `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real Meta models. No call needed; about 3 minutes.
+2. `uv run python packaging/demo.py` plays three scripted meetings (English, Arabic, mixed) through the real Meta models. No call needed; it takes about 3 minutes and prints a notes link per meeting.
 3. `uv run halo`, then open http://127.0.0.1:8765. You get the meetings list, the notes, the action items board and the speaking panel.
 4. Live: load the extension, pair, join a Google Meet call with a headset and press **Start** (see [Run it](#run-it)).
 
@@ -75,7 +75,7 @@ npm --prefix extension install
 npm --prefix extension run build
 ```
 
-The built extension lands in `extension\.output\chrome-mv3`.
+The built extension lands in `extension\.output\chrome-mv3`. (`npm install` may report vulnerabilities: they are all in the build tools. The extension itself ships with no npm dependencies; `npm --prefix extension audit --omit=dev` says 0.)
 
 ## Run it
 
@@ -101,11 +101,11 @@ Leave that window open. Quick check: http://127.0.0.1:8765/healthz should say `"
 
 **5. Start in a call.** Join a Google Meet call, open the Halo popup, fill in the subject, the agenda (one item per line) and people's roles if you like (your points language is under **Preferences**), then press **Start** once. It turns to **Running**; pressing it again does nothing. Start only works on a `meet.google.com` call tab.
 
-Please tell everyone in the call that Halo is recording and transcribing before you start. The **Consent notice** button next to the Halo badge (top left of the Meet page) copies a bilingual notice for you to paste into the Meet chat.
+Please tell everyone in the call that Halo is recording and transcribing before you start. **Copy consent notice** in the popup, under Start, copies a bilingual notice for you to paste into the Meet chat.
 
 **6. Notes.** Open http://127.0.0.1:8765/notes for the list of meetings and click yours. The page shows the live points while the call runs, and the full notes once the meeting has ended.
 
-The meeting ends when you press **Stop** in the popup, leave the call, or close the Meet tab. A "notes are ready" toast with a link then shows on the Meet page.
+The meeting ends when you press **Stop** in the popup, leave the call, or close the Meet tab. A "Meeting notes are ready" toast with a link then shows on the Meet page.
 
 Everything Halo saves (transcripts, notes, recordings) lives in the `data` folder next to the code. Delete that folder to wipe it.
 

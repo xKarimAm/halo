@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import socket
 from collections.abc import MutableMapping
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -171,6 +172,14 @@ def main() -> None:
                   "(or set HALO_FAKES=1 to try Halo offline)")
         if not os.environ.get(os.environ.get("HALO_PRIMARY_KEY_VAR") or "BASETEN_API_KEY"):
             print("note: no Spark Open key, so every text call runs on muse-spark-1.3-contributor (fine)")
+    # Check the port before the banner: a judge saw "Halo backend on ..." and then a bind error.
+    with socket.socket() as probe:
+        try:
+            probe.bind((HOST, PORT))
+        except OSError:
+            print(f"Port {PORT} is already in use: another Halo backend is probably running. "
+                  "Close that window (or use it) and try again.")
+            raise SystemExit(1) from None
     print(f"Halo backend on http://{HOST}:{PORT} - pairing code: {app.state.gateway.pairing.current_code}",
           flush=True)
     _data_dir().mkdir(parents=True, exist_ok=True)

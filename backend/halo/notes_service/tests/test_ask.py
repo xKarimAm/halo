@@ -74,8 +74,7 @@ def test_api_ask_over_a_seeded_meeting(tmp_path):
     from halo.bus import Bus
     from halo.notes_service import NotesService
     from halo.notes_service.notes_service import router
-
-    from test_notes_service import T1, seed_db  # same folder: pytest puts it on sys.path
+    from test_notes_service import T1, seed_db  # type: ignore[import-not-found]  # same folder, on sys.path under pytest
 
     data = tmp_path / "data"
     data.mkdir()
