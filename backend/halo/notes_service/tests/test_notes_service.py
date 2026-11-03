@@ -290,3 +290,9 @@ def test_the_latest_model_tag_wins_but_never_over_a_user_tag(tmp_path):
     point = client.get(f"/api/meetings/{MEETING}").json()["points"][0]
     assert point["kind"] == "point"  # the latest model tag
     assert point["urgency"] == "urgent"  # the user's tag still wins
+
+
+def test_the_service_owner_rule_matches_the_builder():
+    from halo.notes_service.notes_service import owner_for
+    assert owner_for("Omar sends it.", "", ["", "Omar"]) == "Omar"
+    assert owner_for("Ali sends it.", "Omar", ["Ali Hassan", "Ali Khan", "Omar"]) == "Omar"

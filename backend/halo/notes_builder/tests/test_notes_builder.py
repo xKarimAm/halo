@@ -432,7 +432,10 @@ def test_an_action_belongs_to_the_person_it_names():
     people = ["Karim Amer", "Omar", "Layla"]
     assert owner_for("Omar owns signup numbers by Thursday, Layla confirms QA.", "Karim Amer", people) == "Omar"
     assert owner_for("Will pull the numbers by Thursday.", "Omar", people) == "Omar"  # nobody named
-    assert owner_for("karim sends the deck.", "Layla", people) == "Karim Amer"  # first name, any case
+    assert owner_for("Karim sends the deck.", "Layla", people) == "Karim Amer"  # first name
+    assert owner_for("karim amer sends it.", "Layla", people) == "Karim Amer"  # full name, any case
+    assert owner_for("Ali sends the deck.", "Omar", ["Ali Hassan", "Ali Khan", "Omar"]) == "Omar"
+    assert owner_for("Schedule the meeting.", "Omar", ["Meeting Room", "Omar"]) == "Omar"
     assert owner_for("Romario fixes the bug.", "Layla", people) == "Layla"  # no partial-word match
 
 

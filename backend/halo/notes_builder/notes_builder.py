@@ -135,12 +135,21 @@ def owner_for(text: str, speaker: str, names: list[str]) -> str:
     ponytail: name match on speakers' full or first names; the notes service
     keeps a copy of this (lanes never import each other)."""
     found: list[tuple[int, str]] = []
+    firsts = [n.split()[0] for n in names if n.split()]
     for name in names:
         parts = name.split()
-        for form in ({name, parts[0]} if parts else ()):  # an empty name matches nothing
+        if not parts:
+            continue  # an empty name matches nothing
+        forms = [(name, re.IGNORECASE)]
+        if parts[0] != name and firsts.count(parts[0]) == 1:
+            # A first name alone must be capitalised and belong to one person:
+            # "Ali" between Ali Hassan and Ali Khan stays the speaker's, and a
+            # tile "Meeting Room" never claims "schedule the meeting" (review).
+            forms.append((parts[0], re.NOFLAG))
+        for form, flags in forms:
             if len(form) < 3:
                 continue
-            m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, re.IGNORECASE)
+            m = re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text, flags)
             if m:
                 found.append((m.start(), name))
     return min(found)[1] if found else speaker
