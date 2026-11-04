@@ -80,8 +80,8 @@ INSTRUCTIONS = (
     "Silence after a "
     "question is thinking time: wait, then rephrase it or ask one person.\n"
     "Return empty tips when the previous tips still fit or everything is "
-    "settled; never repeat or reword a previous tip. Write in the viewer "
-    "language."
+    "settled; never repeat or reword a previous tip. Write the tips and the "
+    "whole alert, its lead-in too, in the viewer language (Arabic: تدخل: …)."
 )
 # Live 2026-11-04 (alone, testing): "open with the one number" he never said,
 # "drop the Arabic aside", his own sentences echoed back as orders.
@@ -91,8 +91,9 @@ REHEARSAL = ("The viewer is alone in the call, rehearsing or testing: names are 
              "words: put their main point first, cut filler, keep the stronger of two "
              "versions of a line. Never ask for a number, fact or deadline they did not "
              "say. Mixing Arabic and English is normal: never tip on language. Never "
-             "turn their sentence into an order. Most moments need no tip: return "
-             "empty tips unless one would change what they say next.")
+             "turn their sentence into an order. Each kind of tip (main point first, "
+             "cut filler, keep a line) at most once per meeting. Most moments need "
+             "no tip: return empty tips unless one would change what they say next.")
 
 
 def _alert_kind(alert: str) -> str:
