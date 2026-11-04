@@ -199,8 +199,10 @@ audio.rec{width:100%;margin-top:8px;max-width:100%}
 .pv-folder{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
 .pv-folder .in{flex:1;min-width:140px;padding:6px 10px;border-radius:10px;border:1px solid var(--rim);background:transparent;font:inherit}
 .pv-folder select{padding:6px 8px;border-radius:10px;border:1px solid var(--rim);background:transparent;font:inherit}
-.pv-open{margin-top:12px}
 .mail{text-decoration:none}
+.col .meta{gap:4px}
+.col .meta .chip,.col .meta .retag summary{padding:2px 7px}
+#view.home .plate .mail{margin-inline-start:6px;color:var(--text);font-weight:600;text-decoration:underline}
 
 
 /* ---- Karim 2026-11-02: the chosen look, a mix of draft A and B on the
@@ -263,13 +265,14 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 /* The recording's file path is for tests and support, not for reading. */
 .recoff{display:none}
 /* Judge round 1: one quiet meta line per item. Secondary tools (Original,
-   re-tag, Email) appear on hover or keyboard focus; touch screens keep them. */
+   re-tag) appear on hover or keyboard focus; touch screens keep them. Email stays:
+   Karim 2026-11-04 could not find it. */
 .ameta .badge.as{background:none;color:var(--muted);padding:0;font-weight:600;font-size:12px}
 .ameta .badge.sg{padding:1px 7px;font-size:11px}
 @media (hover:hover){
-  .pt .chip[data-orig],.pt .retag:not(.mine):not([open]),.act .retag:not(.mine):not([open]),.act .mail{opacity:0;transition:opacity .15s ease}
+  .pt .chip[data-orig],.pt .retag:not(.mine):not([open]),.act .retag:not(.mine):not([open]){opacity:0;transition:opacity .15s ease}
   .pt:hover .chip[data-orig],.pt:focus-within .chip[data-orig],.pt:hover .retag,.pt:focus-within .retag,
-  .act:hover .retag,.act:focus-within .retag,.act:hover .mail,.act:focus-within .mail{opacity:1}
+  .act:hover .retag,.act:focus-within .retag{opacity:1}
 }
 .head .facts{margin:2px 0 10px;font-size:13px;color:var(--band-muted);font-variant-numeric:tabular-nums}
 .head .mtg-summary{max-width:68ch}

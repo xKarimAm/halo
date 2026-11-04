@@ -89,7 +89,7 @@
       t_sprint: "Sprint", t_planning: "Planning", t_discovery: "Product discovery", t_sales: "Sales",
       t_induction: "Induction", t_one_on_one: "1:1", t_interview: "Interview", t_other: "Other",
       mailSubject: "Action item from \u201C{m}\u201D: {a}",
-      mailBody: "Hi {o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes",
+      mailBody: "Hi{o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes",
       pointMailSubject: "From \u201C{m}\u201D: {p}",
       pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo notes"
     },
@@ -167,7 +167,7 @@
       t_sprint: "سبرنت", t_planning: "تخطيط", t_discovery: "استكشاف المنتج", t_sales: "مبيعات",
       t_induction: "تهيئة موظف", t_one_on_one: "فردي", t_interview: "مقابلة", t_other: "أخرى",
       mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
-      mailBody: "مرحباً {o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo",
+      mailBody: "مرحباً{o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo",
       pointMailSubject: "من \u00AB{m}\u00BB: {p}",
       pointMailBody: "مرحباً،\n\nفي اجتماع \u00AB{m}\u00BB ({d})، قال {s}:\n\n{p}\n\nأُرسلت من ملاحظات Halo"
     }
@@ -438,14 +438,14 @@
     var meta = el("div", "meta");
     if (showBy !== false) meta.appendChild(personChip(point.speaker_name, lang));
     if (line) meta.appendChild(lineChip(app, line, lang));
+    var mail = el("a", "mail chip", t(lang, "email"));
+    mail.href = pointMailHref(app.page.meeting, point, lang);
+    meta.appendChild(mail);
     var origBtn = el("button", "chip", app.openQuote[point.point_id] ? t(lang, "hide") : t(lang, "orig"));
     origBtn.dataset.orig = point.point_id;
     origBtn.setAttribute("aria-expanded", app.openQuote[point.point_id] ? "true" : "false");
     meta.appendChild(origBtn);
     meta.appendChild(retagControl(point, point.point_id, false, lang, app.userTags));
-    var mail = el("a", "mail chip", t(lang, "email"));
-    mail.href = pointMailHref(app, point, lang);
-    meta.appendChild(mail);
     li.appendChild(meta);
     if (app.openQuote[point.point_id]) {
       var quote = el("blockquote", null, "\u201C" + point.quote + "\u201D");
@@ -470,12 +470,10 @@
     ameta.appendChild(badge);  // a quiet label in the meta line, not a pill over the text
     if (showWho !== false) ameta.appendChild(personChip(action.owner, lang));
     if (line) ameta.appendChild(lineChip(app, line, lang));
+    var mail = el("a", "mail chip", t(lang, "email"));
+    mail.href = mailHref(app.page.meeting, action, lang);
+    ameta.appendChild(mail);
     ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
-    if (assigned) {
-      var mail = el("a", "mail chip", t(lang, "email"));
-      mail.href = mailHref(app, action, lang);
-      ameta.appendChild(mail);
-    }
     body.appendChild(ameta);
     li.appendChild(body);
     return li;
@@ -512,17 +510,15 @@
     return ms ? new Date(ms).toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }) : "";
   }
 
-  function mailHref(app, action, lang) {
-    var m = app.page.meeting;
-    var vars = { m: titleOf(m), a: action.text, o: action.owner || "", d: fmtDate(m.t0_ms), u: t(lang, urgOf(action)) };
+  function mailHref(m, action, lang) {
+    var vars = { m: titleOf(m), a: action.text, o: action.owner ? " " + action.owner : "", d: fmtDate(m.t0_ms), u: t(lang, urgOf(action)) };
     // ponytail: no addresses are stored, so the To field is left for the user
     return "mailto:?subject=" + encodeURIComponent(t(lang, "mailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "mailBody", vars));
   }
 
   // Karim 2026-11-04: send any statement to the person it concerns.
-  function pointMailHref(app, point, lang) {
-    var m = app.page.meeting;
+  function pointMailHref(m, point, lang) {
     var vars = { m: titleOf(m), p: point.text, s: point.speaker_name || t(lang, "someone"), d: fmtDate(m.t0_ms) };
     return "mailto:?subject=" + encodeURIComponent(t(lang, "pointMailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "pointMailBody", vars));
@@ -654,7 +650,7 @@
     }
     var id = app.page.meeting.meeting_id;
     var busy = app.recapBusy === id;
-    var btn = el("button", "btn", t(lang, busy ? "recapBusy" : "recapBtn"));
+    var btn = el("button", "btn glass", t(lang, busy ? "recapBusy" : "recapBtn"));
     btn.id = "recapbtn";
     btn.type = "button";
     btn.disabled = busy;
@@ -1199,7 +1195,7 @@
       var m = modelOf(app, it.meeting_id);
       var len = m && m.duration ? lenText(m.duration, lang) : (it.minutes ? t(lang, "cMin", { n: it.minutes }) : "");
       var isNew = (it.t0_ms || 0) > app.since;
-      h += '<button class="row mtg-card" type="button" data-sel="' + esc(it.meeting_id) + '" style="--d:' + (i + 4) + ";--i:" + (i++) +
+      h += '<button class="row mtg-card" type="button" data-sel="' + esc(it.meeting_id) + '" data-open="' + esc(it.meeting_id) + '" style="--d:' + (i + 4) + ";--i:" + (i++) +
         '" aria-current="' + (it.meeting_id === app.previewId) + '"><span class="rtop">' + stackHTML(it.people || [], 4, false) +
         '<b dir="auto">' + esc(titleOf(it)) + "</b>" + (isNew ? '<i class="newdot" title="' + esc(t(lang, "newTip")) + '"></i>' : "") +
         "<time>" + esc(len) + '</time></span><span class="rfacts">' + factsHTML(it, lang) + "</span>" + stripHTML(m, app.follow) + "</button>";
@@ -1270,15 +1266,20 @@
     return bar;
   }
 
+  function plateMail(href, lang) {
+    return ' <a class="mail" href="' + esc(href) + '">' + esc(t(lang, "email")) + "</a>";
+  }
+
   function platesHTML(m, lang) {
     var h = "";
+    var mtg = { title: m.title, t0_ms: m.t0 };
     if (m.summary) h += '<section class="plate p-sum"><h3>' + esc(t(lang, "sumT")) + '</h3><p dir="auto">' + esc(m.summary) + "</p></section>";
     if (m.actions.length) {
       h += '<section class="plate p-act"><h3>' + esc(t(lang, "actions")) + " <em>" + m.actions.length + "</em></h3><ul>";
       m.actions.slice().sort(function (a, b) { return URG_ORDER.indexOf(a.urgency) - URG_ORDER.indexOf(b.urgency); }).forEach(function (a) {
         h += '<li data-act="' + m.actions.indexOf(a) + '" class="u-' + esc(a.urgency) + '"><i class="udot"></i><span dir="auto">' + esc(a.text) +
           "</span><small>" + esc(a.owner || t(lang, "noOwner")) + (a.status === "suggested" ? " · " + esc(t(lang, "suggested")) : "") +
-          " · " + esc(t(lang, a.urgency).split(" /")[0]) + (a.at != null ? " · " + clock(a.at) : "") + "</small></li>";
+          " · " + esc(t(lang, a.urgency).split(" /")[0]) + (a.at != null ? " · " + clock(a.at) : "") + plateMail(mailHref(mtg, a, lang), lang) + "</small></li>";
       });
       h += "</ul></section>";
     }
@@ -1288,7 +1289,8 @@
       h += '<section class="plate p-' + k[0] + '"><h3>' + esc(t(lang, k[1])) + " <em>" + ps.length + "</em></h3><ul>";
       ps.slice(0, 3).forEach(function (p) {
         h += '<li data-pt="' + m.points.indexOf(p) + '"><span dir="auto">' + esc(p.text) + "</span><small>" + esc(p.who) +
-          (p.at != null ? " · " + clock(p.at) : "") + "</small></li>";
+          (p.at != null ? " · " + clock(p.at) : "") +
+          (k[0] === "decision" ? plateMail(pointMailHref(mtg, { text: p.text, speaker_name: p.who }, lang), lang) : "") + "</small></li>";
       });
       if (ps.length > 3) h += '<li class="more">' + esc(t(lang, "nMore", { n: ps.length - 3 })) + "</li>";
       h += "</ul></section>";
@@ -1369,6 +1371,7 @@
   }
 
   // ---- The preview's recording line: audio, marks, tip, flag, Replay, the living line ----
+  var PREVIEW_REST_MS = 250;
   var LIVING = { sg: 60, follow: 0.12, k: 0.08, damp: 0.78, phs: 0.045 };
   var lineSeq = 0;
 
@@ -2326,10 +2329,6 @@
         render(app);
         return;
       }
-      if ((b = g("[data-sel]"))) {
-        app.setPreview(b.dataset.sel);
-        return;
-      }
       if ((b = g("#seen"))) {
         app.since = Date.now();
         stored(LAST_KEY, String(app.since));
@@ -2468,7 +2467,14 @@
       }
     }
 
-    function onHover() { /* Karim 2026-11-03 (AV): a click picks the preview, hover only lights the row. */ }
+    // Karim 2026-11-04: a click opens the meeting's page, so resting on a row is
+    // what previews it. The wait keeps the panel still while the mouse crosses the list.
+    var restTimer = 0;
+    function onHover(event) {
+      clearTimeout(restTimer);
+      var row = event.target.closest && event.target.closest("[data-sel]");
+      if (row) restTimer = setTimeout(function () { app.setPreview(row.dataset.sel); }, PREVIEW_REST_MS);
+    }
 
     function onChange(event) {
       var sel = event.target;

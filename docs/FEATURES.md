@@ -47,7 +47,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 |---|---|---|
 | AI title and summary | Written by Spark when the meeting ends, in the meeting's language. | Live |
 | Action items board | Urgent, Medium and Later columns, each item with its owner. Re-tag any item and your tag wins over the model's. | Live |
-| Email an action | Opens a ready email with the item, owner and meeting. | Tested |
+| Email an action or decision | Opens a ready email with the item, owner and meeting, from the meeting page or the meetings home. | Tested |
 | Points, questions, decisions, pushbacks | Filter chips with counts; each item links to its transcript line. | Live |
 | Disagreements | Each side's view, the outcome and how it was resolved. | Tested |
 | People | Click a person for their role, their points and the actions they own. | Live |

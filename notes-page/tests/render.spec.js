@@ -363,9 +363,27 @@ test("(8) browser Back and Forward move between the list and a meeting", async (
   await expect(title).toBeVisible();
 });
 
-test("(9) clicking a meeting previews it: title, summary, plates, and a Simple / Detailed line", async ({ page }) => {
+// Karim 2026-11-04: clicking a meeting takes him to a page of its own.
+test("(9a) clicking a meeting opens its own page, and Back returns to the list", async ({ page }) => {
   await page.goto(baseURL + "/");
   await page.locator("#list .row").first().click();
+  await expect(page.getByRole("heading", { level: 1, name: GOLDEN.meeting.title })).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/notes/" + MEETING_ID);
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 1, name: "Meetings" })).toBeVisible();
+});
+
+test("(9b) Archive and Open notes sit on one line", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const archive = await page.locator("#preview [data-archive]").boundingBox();
+  const open = await page.locator("#preview .pv-open").boundingBox();
+  expect(Math.abs(open.y - archive.y)).toBeLessThan(1); // it was 6 px off; the page may still be settling
+  expect(Math.abs(open.height - archive.height)).toBeLessThan(1);
+});
+
+test("(9) resting on a meeting previews it: title, summary, plates, and a Simple / Detailed line", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#list .row").first().hover();
   const preview = page.locator("#preview");
   await expect(preview.locator("h2")).toHaveText(GOLDEN.meeting.title);
   await expect(preview.locator(".p-sum")).toContainText(GOLDEN.meeting.summary);
@@ -471,6 +489,37 @@ test("(11) an assigned action has an email link carrying its text and the meetin
   expect(href.startsWith("mailto:?")).toBe(true);
   expect(href).toContain(GOLDEN.actions[0].text);
   expect(href).toContain(GOLDEN.meeting.title);
+});
+
+// Karim 2026-11-04: Email had gone from action items and decisions. It was
+// hidden until hover on the meeting page and never on the meetings home.
+test("(11a) Email shows without hovering on every action, suggested ones too", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .pv-open").click();
+  const acts = page.locator("li.act");
+  await expect(acts.first()).toBeVisible();
+  await expect(page.locator("li.act a.mail")).toHaveCount(await acts.count());
+  await page.mouse.move(0, 0);
+  await expect(page.locator("li.act a.mail").first()).toHaveCSS("opacity", "1");
+});
+
+test("(11c) the meetings home emails action items and decisions from the preview", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const action = decodeURIComponent(await page.locator("#preview .p-act a.mail").first().getAttribute("href"));
+  expect(action.startsWith("mailto:?")).toBe(true);
+  expect(action).toContain(GOLDEN.meeting.title);
+  const decision = decodeURIComponent(await page.locator("#preview .p-decision a.mail").first().getAttribute("href"));
+  expect(decision).toContain(GOLDEN.points[0].text);
+  expect(decision).toContain(GOLDEN.points[0].speaker_name);
+});
+
+test("(11d) a point's Email sits on the same line as its speaker", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .pv-open").click();
+  const point = page.locator("li.pt").first();
+  const mail = await point.locator("a.mail").boundingBox();
+  const who = await point.locator(".mini").boundingBox();
+  expect(Math.abs(mail.y + mail.height / 2 - (who.y + who.height / 2))).toBeLessThan(4);
 });
 
 // Karim 2026-11-04: "click a name, see the statement, send it as an email
