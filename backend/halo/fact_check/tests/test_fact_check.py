@@ -15,7 +15,7 @@ URL = "https://a.example/1"
 
 class FakeLLM:
     def __init__(self, reply=None) -> None:
-        self.reply = reply or {"verdict": "disputed", "note": "It is about 3.1 million.", "sources": [URL]}
+        self.reply = {"lang": "en", "claim": "", **(reply or {"verdict": "disputed", "note": "It is about 3.1 million.", "sources": [URL]})}
         self.prompts: list[str] = []
 
     def search_json(self, *, prompt, schema, schema_name=""):
@@ -45,10 +45,7 @@ def run(llm, *events):
         bus.subscribe("claim.checked", grab)
         fact = FactCheck(bus, llm)
         for e in events:
-            if e["type"] == "points.upsert":
-                await fact._on_point(e)
-            else:
-                await fact._on_context(e)
+            await fact._on_point(e)
         while await fact.tick():
             pass
         await asyncio.sleep(0)
@@ -71,11 +68,21 @@ def test_words_without_a_number_spend_nothing():
     assert run(llm, point("We should talk to the design team.")) == [] and llm.prompts == []
 
 
-def test_arabic_digits_count_and_the_note_follows_the_viewer_language():
+def test_arabic_digits_count():
     llm = FakeLLM()
-    ctx = env("meeting.context", {"viewer_lang": "ar"}, 9)
-    out = run(llm, ctx, point("عدد السكان ١٠ ملايين"))
-    assert "Arabic" in llm.prompts[0] and out[0]["data"]["lang"] == "ar"
+    run(llm, point("عدد السكان ١٠ ملايين"))
+    assert len(llm.prompts) == 1
+
+
+def test_the_reply_comes_in_the_language_the_claim_was_said_in():
+    # Karim 2026-11-04, live: an Arabic fact must not get an English answer.
+    said = "عدد سكان قطر 10 ملايين"
+    llm = FakeLLM({"verdict": "disputed", "lang": "ar", "claim": said, "note": "حوالي 3 ملايين.", "sources": [URL]})
+    spoken = point("Qatar has 10 million people.")
+    spoken["data"]["quote"] = said
+    out = run(llm, spoken)
+    assert out[0]["data"]["lang"] == "ar" and out[0]["data"]["claim"] == said
+    assert said in llm.prompts[0]
 
 
 def test_skip_and_unclear_stay_silent():
@@ -110,3 +117,15 @@ def test_a_number_said_as_a_word_counts():
         llm = FakeLLM()
         run(llm, point(text))
         assert len(llm.prompts) == 1, text
+
+
+def test_the_same_claim_reworded_is_checked_once():
+    llm = FakeLLM()
+    run(llm, point("Qatar has around 10 million people.", 1), point("Qatar has about 10 million people.", 2))
+    assert len(llm.prompts) == 1
+
+
+def test_a_different_number_is_a_different_claim():
+    llm = FakeLLM()
+    run(llm, point("Qatar has around 10 million people.", 1), point("Qatar has around 3 million people.", 2))
+    assert len(llm.prompts) == 2

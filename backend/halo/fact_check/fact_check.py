@@ -26,6 +26,7 @@ TICK_S = 1.0
 MAX_CALLS = 20  # per meeting, per backend run: a restart mid-meeting allows 20 more
 MAX_SOURCES = 3
 NOTE_MAX = 200
+SAME_CLAIM_OVERLAP = 0.6  # live 2026-11-04: one Qatar figure was checked three times
 CLAIM_MAX = 300
 # ponytail: digits, or a scale word (speech-to-text can spell numbers out). A claim
 # with neither is never checked; widen with a cheap model gate if that matters.
@@ -37,22 +38,38 @@ CHECK_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "verdict": {"type": "string", "enum": ["supported", "disputed", "unclear", "skip"]},
+        "lang": {"type": "string", "enum": ["en", "ar"]},
+        "claim": {"type": "string"},
         "note": {"type": "string"},
     },
-    "required": ["verdict", "note"],
+    "required": ["verdict", "lang", "claim", "note"],
     "additionalProperties": False,
 }
 
 INSTRUCTIONS = (
-    "Fact-check one sentence said in a work meeting. If it states a public fact "
+    "Fact-check one claim said in a work meeting. If it states a public fact "
     "(world figures, a company, a market, science, history) search the web and "
     "judge it. If it is internal to the meeting (plans, deadlines, owners, the "
     "team's own numbers, opinions) do not search and reply verdict skip.\n"
     "verdict: supported, disputed, unclear or skip.\n"
-    "note: one short plain sentence, at most 20 words, giving the correct figure "
-    "when disputed, written in {lang}.\n"
-    "Said: {claim}"
+    "lang: ar if the claim itself was said in Arabic, en if in English. The spoken "
+    "words may mix both; go by the words of the claim.\n"
+    "claim: the claim as one short sentence in that language.\n"
+    "note: one short plain sentence in that language, at most 20 words, giving the "
+    "correct figure when disputed.\n"
+    "Claim: {claim}\n"
+    "Spoken words: {spoken}"
 )
+
+
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"\w+", text.lower()))
+
+
+def _same_claim(a: set[str], b: set[str]) -> bool:
+    """A reworded repeat: the same numbers and most of the same words."""
+    numbers = {w for w in a | b if w[0].isdigit() and not (w in a and w in b)}
+    return not numbers and len(a & b) / len(a | b) >= SAME_CLAIM_OVERLAP
 
 
 class FactCheck:
@@ -62,10 +79,9 @@ class FactCheck:
         self._pending: list[tuple[str, dict[str, Any]]] = []
         self._seen: set[str] = set()  # point ids: the Classifier re-upserts them
         self._calls: dict[str, int] = {}
-        self._langs: dict[str, str] = {}
+        self._claims: dict[str, list[set[str]]] = {}
         self._task: asyncio.Task | None = None
         bus.subscribe("points.upsert", self._on_point)
-        bus.subscribe("meeting.context", self._on_context)
 
     def start(self) -> None:
         self._task = asyncio.create_task(self._loop())
@@ -83,11 +99,6 @@ class FactCheck:
                 log.exception("fact check failed")
                 await asyncio.sleep(TICK_S)
 
-    async def _on_context(self, envelope: dict[str, Any]) -> None:
-        lang = envelope.get("data", {}).get("viewer_lang")
-        if envelope.get("meetingid") and lang in ("en", "ar"):
-            self._langs[envelope["meetingid"]] = lang
-
     async def _on_point(self, envelope: dict[str, Any]) -> None:
         data = envelope.get("data", {})
         meetingid, point_id = envelope.get("meetingid"), data.get("point_id")
@@ -96,8 +107,11 @@ class FactCheck:
         if not HAS_NUMBER.search(str(data.get("text", ""))):
             return
         self._seen.add(point_id)
-        if self._calls.get(meetingid, 0) >= MAX_CALLS:
+        words = _words(str(data["text"]))
+        claims = self._claims.setdefault(meetingid, [])
+        if self._calls.get(meetingid, 0) >= MAX_CALLS or any(_same_claim(words, c) for c in claims):
             return
+        claims.append(words)
         self._calls[meetingid] = self._calls.get(meetingid, 0) + 1
         self._pending.append((meetingid, data))
 
@@ -106,9 +120,8 @@ class FactCheck:
         if not self._pending:
             return False
         meetingid, point = self._pending.pop(0)
-        lang = self._langs.get(meetingid, "en")
         claim = str(point["text"])[:CLAIM_MAX]
-        prompt = INSTRUCTIONS.format(lang="Arabic" if lang == "ar" else "English", claim=claim)
+        prompt = INSTRUCTIONS.format(claim=claim, spoken=str(point.get("quote", ""))[-CLAIM_MAX:])
         result = await asyncio.to_thread(self._llm.search_json, prompt=prompt, schema=CHECK_SCHEMA,
                                          schema_name="claim_check")
         if not result.ok:
@@ -123,8 +136,8 @@ class FactCheck:
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "claim.checked",
             "source": "halo/fact_check", "time": datetime.now(UTC).isoformat(),
             "meetingid": meetingid, "datacontenttype": "application/json",
-            "data": {"point_id": point["point_id"], "claim": claim,
+            "data": {"point_id": point["point_id"], "claim": data["claim"].strip()[:CLAIM_MAX] or claim,
                      "speaker_name": str(point.get("speaker_name", "")), "verdict": data["verdict"],
-                     "note": note, "sources": sources, "lang": lang},
+                     "note": note, "sources": sources, "lang": data["lang"]},
         })
         return True
