@@ -1719,14 +1719,18 @@
       li.tabIndex = 0;
       li.onmouseenter = function () { mk.classList.add("near"); };
       li.onmouseleave = function () { mk.classList.remove("near"); };
-      var go = function () {
+      var go = function (e) {
+        if (e && e.target.closest && e.target.closest("a")) return; // the Email link is its own control
         pin(H, mk, true);
         seek(H, markInfo(H, mk).at / m.duration);
         if (big.scrollIntoView) big.scrollIntoView({ block: "nearest", behavior: stillMotion() ? "auto" : "smooth" });
         flag(H, big, mk);
       };
       li.onclick = go;
-      li.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+      li.onkeydown = function (e) {
+        if (e.target.closest("a")) return;
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+      };
     });
   }
 

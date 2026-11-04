@@ -660,3 +660,20 @@ test("(H8) Archive and Open notes stay side by side at every width", async ({ pa
     expect(Math.abs(arch.y - open.y), `at ${width}px`).toBeLessThan(2);
   }
 });
+
+// Review 2026-11-04: Enter on a plate's Email was swallowed by the item's own
+// key handler (the recording jumped instead), and a click also jumped it.
+test("(H9) a plate's Email link is its own control: Enter and click do not jump the recording", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const mail = page.locator("#preview .p-act li a").first();
+  await expect(mail).toHaveAttribute("href", /^mailto:/);
+  const handled = await mail.evaluate((a) => {
+    const ev = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    a.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  });
+  expect(handled).toBe(false);
+  await expect(page.locator("#preview .flag")).toHaveCount(0);
+  await mail.evaluate((a) => { a.addEventListener("click", (e) => e.preventDefault()); a.click(); });
+  await expect(page.locator("#preview .flag")).toHaveCount(0);
+});
