@@ -627,3 +627,16 @@ def test_search_json_survives_an_odd_source_entry():
     body["output"][2]["action"]["sources"].insert(0, "not-a-dict")
     result = search_client(lambda r: httpx.Response(200, json=body)).search_json(prompt="p", schema=FACT_SCHEMA)
     assert result.ok and result.data["sources"] == ["https://a.example/1", "https://b.example/2"]
+
+
+def test_a_caller_off_the_live_path_can_give_the_call_longer():
+    budgets = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        budgets.append(request.extensions["timeout"]["read"])
+        return httpx.Response(200, json=GOOD)
+
+    llm = LLMClient(baseten_key="bk", meta_key="mk", transport=httpx.MockTransport(handler), env={})
+    assert llm.complete_json(prompt=PROMPT, schema=SCHEMA).ok
+    assert llm.complete_json(prompt=PROMPT, schema=SCHEMA, timeout_s=60).ok
+    assert budgets == [4.0, 60]

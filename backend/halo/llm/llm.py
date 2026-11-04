@@ -207,8 +207,10 @@ class LLMClient:
         schema_name: str = "halo.result",
         system: str | None = None,
         prompt_cache_key: str | None = None,
+        timeout_s: float | None = None,
     ) -> LLMResult:
-        """One validated JSON completion, with retry + per-call failover."""
+        """One validated JSON completion, with retry + per-call failover.
+        `timeout_s` replaces the live budgets for a call nobody is waiting on."""
         engines = [PRIMARY_ENGINE, FAILOVER_ENGINE]
         # No Spark Open key is a supported setup (README): the contributor is the
         # engine by design, not a failover, so the primary is not even tried.
@@ -224,7 +226,7 @@ class LLMClient:
             outcome = self._call_engine(
                 engine, prompt=prompt, schema=schema,
                 schema_name=schema_name, system=system,
-                prompt_cache_key=prompt_cache_key,
+                prompt_cache_key=prompt_cache_key, timeout_s=timeout_s,
             )
             if outcome.result.ok:
                 self._last_engine = engine
@@ -316,6 +318,7 @@ class LLMClient:
         schema_name: str,
         system: str | None,
         prompt_cache_key: str | None,
+        timeout_s: float | None = None,
     ) -> _Outcome:
         cfg = self._config(engine)
         key = self._keys[engine]
@@ -341,7 +344,7 @@ class LLMClient:
         if prompt_cache_key is not None:
             body["prompt_cache_key"] = prompt_cache_key
 
-        outcome = self._post_once(engine, cfg["base_url"], key, body, schema)
+        outcome = self._post_once(engine, cfg["base_url"], key, body, schema, timeout_s)
         if outcome.result.ok or not outcome.failover:
             return outcome
         if outcome.result.error is not None and outcome.result.error["code"] in (
@@ -352,7 +355,7 @@ class LLMClient:
         if outcome.result.error is not None and outcome.result.error["code"] != "invalid_response":
             self._sleep(_backoff())
         # Retry once on the same engine; a second failure fails over.
-        return self._post_once(engine, cfg["base_url"], key, body, schema)
+        return self._post_once(engine, cfg["base_url"], key, body, schema, timeout_s)
 
     def _post_once(
         self,
@@ -361,13 +364,14 @@ class LLMClient:
         key: str,
         body: dict[str, Any],
         schema: dict[str, Any],
+        timeout_s: float | None = None,
     ) -> _Outcome:
         def fail(code: str, message: str, *, failover: bool) -> _Outcome:
             return _Outcome(LLMResult(ok=False, engine=engine,
                                       error={"code": code, "message": message}),
                             failover=failover)
 
-        budget = self._timeout if engine == PRIMARY_ENGINE else self._failover_timeout
+        budget = timeout_s or (self._timeout if engine == PRIMARY_ENGINE else self._failover_timeout)
         start = self._clock()
         try:
             response = self._http.post(

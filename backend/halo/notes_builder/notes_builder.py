@@ -36,6 +36,9 @@ log = logging.getLogger("halo.notes_builder")
 Envelope = dict[str, Any]
 PRIMARY_ENGINE = "spark-open"
 PROMPT_CACHE_KEY = "notes-v1"
+# Live 2026-11-04: a 13-minute call lost its AI title and summary to the live 4 s
+# and 10 s budgets. Nobody is waiting on a live screen here.
+NOTES_CALL_TIMEOUT_S = 60.0
 
 PAGE_SCHEMA: dict[str, Any] = json.loads(
     (Path(contracts.__file__).parent / "meeting-page.schema.json").read_text(encoding="utf-8")
@@ -215,6 +218,7 @@ class NotesBuilder:
             schema=PAGE_SCHEMA,
             schema_name="notes.page",
             prompt_cache_key=PROMPT_CACHE_KEY,
+            timeout_s=NOTES_CALL_TIMEOUT_S,
         )
         if result.ok and isinstance(result.data, dict) and not validate_page(result.data, store):
             await self._emit_fresh(meeting_id, result.data)
@@ -239,6 +243,7 @@ class NotesBuilder:
             schema=SUMMARY_SCHEMA,
             schema_name="notes.summary",
             prompt_cache_key="notes-summary-v3",
+            timeout_s=NOTES_CALL_TIMEOUT_S,
         )
         data = result.data if result.ok and isinstance(result.data, dict) else {}
         header: dict[str, Any] = {
