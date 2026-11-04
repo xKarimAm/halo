@@ -23,7 +23,7 @@
       answer: "Answer", sources: "From your meetings", summary: "AI summary",
       decision: "Decision", question: "Open question", pushback: "Pushback", point: "Point",
       decs: "Key decisions", qs: "Open questions", pushes: "Pushbacks", pts: "Points",
-      dis: "Disagreements", disSettled: "Settled", disParked: "Parked", disOpen: "Still open",
+      dis: "Disagreements", kDis: "Disagreement", disSettled: "Settled", disParked: "Parked", disOpen: "Still open",
       urgent: "Urgent", medium: "Medium", later: "Later / to discuss",
       filter: "Filter by type", all: "All",
       byHalo: "by Halo", byYou: "by you", menuCat: "Change type", menuUrg: "Change urgency",
@@ -97,7 +97,7 @@
       answer: "الإجابة", sources: "من اجتماعاتك", summary: "ملخص",
       decision: "قرار", question: "سؤال مفتوح", pushback: "اعتراض", point: "نقطة",
       decs: "القرارات الرئيسية", qs: "أسئلة مفتوحة", pushes: "اعتراضات", pts: "نقاط",
-      dis: "الخلافات", disSettled: "تم الحسم", disParked: "مؤجل", disOpen: "ما زال مفتوحا",
+      dis: "الخلافات", kDis: "خلاف", disSettled: "تم الحسم", disParked: "مؤجل", disOpen: "ما زال مفتوحا",
       urgent: "عاجل", medium: "متوسط", later: "لاحقاً / للنقاش",
       filter: "تصفية حسب النوع", all: "الكل",
       byHalo: "بواسطة Halo", byYou: "بواسطتك", menuCat: "تغيير النوع", menuUrg: "تغيير الأولوية",
@@ -1225,7 +1225,8 @@
   function keyHTML(lang) {
     return '<div class="key"><span style="--c:var(--dec)">' + esc(t(lang, "decision")) + '</span><span style="--c:var(--q)">' + esc(t(lang, "kQ")) +
       '</span><span style="--c:var(--push)">' + esc(t(lang, "pushback")) + '</span><span style="--c:var(--pt)">' + esc(t(lang, "point")) +
-      '</span><span class="k-act" style="--c:var(--med)">' + esc(t(lang, "action")) + "</span><span>" + esc(t(lang, "kTall")) + "</span></div>";
+      '</span><span class="k-act" style="--c:var(--med)">' + esc(t(lang, "action")) + '</span><span class="k-dis" style="--c:var(--push)">' + esc(t(lang, "kDis")) +
+      "</span><span>" + esc(t(lang, "kTall")) + "</span></div>";
   }
 
   function previewPanel(app, lang) {
@@ -1676,23 +1677,16 @@
     var st = big.querySelector(".strip:not(.arail)");
     var pairs = arcPairs(H.m);
     if (!st || !pairs.length) return;
-    var w = st.clientWidth;
     var lang = H.app.lang;
     var outcomes = { settled: "disSettled", parked: "disParked", open: "disOpen" };
-    var ns = "http://www.w3.org/2000/svg";
-    var svg = H.app.doc.createElementNS(ns, "svg");
-    svg.setAttribute("class", "arcs");
-    svg.setAttribute("width", String(w));
-    svg.setAttribute("height", "22");
-    svg.setAttribute("viewBox", "0 0 " + w + " 22");
+    // Karim 2026-11-04: no arcs; the stretch between the two sides is tinted.
     pairs.forEach(function (pr) {
-      var x1 = (Math.min(pr.a.at, pr.b.at) / H.m.duration) * w;
-      var x2 = (Math.max(pr.a.at, pr.b.at) / H.m.duration) * w;
-      if (x2 - x1 < 6) x2 = x1 + 6;
-      var lift = Math.min(18, 6 + (x2 - x1) / 12);
-      var path = H.app.doc.createElementNS(ns, "path");
-      path.setAttribute("d", "M" + x1.toFixed(1) + " 22 Q" + ((x1 + x2) / 2).toFixed(1) + " " + (22 - 2 * lift).toFixed(1) + " " + x2.toFixed(1) + " 22");
-      path.setAttribute("class", "arc o-" + (pr.d.outcome || "open"));
+      var a = Math.min(pr.a.at, pr.b.at) / H.m.duration;
+      var b = Math.max(pr.a.at, pr.b.at) / H.m.duration;
+      var path = H.app.doc.createElement("span");
+      path.style.left = (a * 100).toFixed(2) + "%";
+      path.style.width = "max(6px, " + ((b - a) * 100).toFixed(2) + "%)";
+      path.setAttribute("class", "dis-seg o-" + (pr.d.outcome || "open"));
       path.setAttribute("tabindex", "0");
       path.setAttribute("role", "button");
       var head = t(lang, "dis") + " · " + t(lang, outcomes[pr.d.outcome] || "disOpen");
@@ -1707,9 +1701,8 @@
       path.addEventListener("mouseenter", show);
       path.addEventListener("focus", show);
       path.addEventListener("click", function (e) { e.stopPropagation(); show(); seek(H, Math.min(pr.a.at, pr.b.at) / H.m.duration); });
-      svg.appendChild(path);
+      st.appendChild(path);
     });
-    st.appendChild(svg);
   }
 
   function moveKnob(H) {

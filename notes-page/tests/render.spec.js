@@ -468,7 +468,7 @@ test("(18) the recording is checked once per meeting; a live meeting says it com
 });
 
 
-test("(H6) a disagreement is an arc between the two sides' moments on the line", async ({ page }) => {
+test("(H6) a disagreement tints its stretch of the line and the key names it", async ({ page }) => {
   const withOmar = JSON.parse(JSON.stringify(GOLDEN));
   withOmar.transcript_lines.push({ turn_id: "00000031-0000-4000-8000-000000000031", speaker_name: "Omar",
     text: "QA is not done.", ts_start_ms: GOLDEN.transcript_lines[0].ts_start_ms + 3000,
@@ -477,9 +477,12 @@ test("(H6) a disagreement is an arc between the two sides' moments on the line",
     kind: "pushback", text: "QA is not done", is_action: false, turn_ids: ["00000031-0000-4000-8000-000000000031"] });
   await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(withOmar) }));
   await page.goto(baseURL + "/");
-  const arc = page.locator("#preview .big .arc");
-  await expect(arc).toHaveCount(1);
-  await expect(arc).toHaveClass(/o-settled/);
-  await arc.dispatchEvent("mouseenter");
+  // Karim 2026-11-04: no arcs; the stretch of the bar is tinted, and the key names it.
+  await expect(page.locator("#preview .big .arc")).toHaveCount(0);
+  const seg = page.locator("#preview .big .dis-seg");
+  await expect(seg).toHaveCount(1);
+  await expect(seg).toHaveClass(/o-settled/);
+  await expect(page.locator("#preview .key .k-dis")).toHaveCount(1);
+  await seg.dispatchEvent("mouseenter");
   await expect(page.locator("#preview .tip")).toContainText("Beta launch date");
 });
