@@ -2,10 +2,39 @@
 // tab (Chrome needs the gesture for tabCapture). The active tab's URL is
 // checked here (pure, unit-tested); the entry wrapper supplies it and shows
 // the message.
-export type MeetTabTarget = { ok: true; meetingCode: string } | { ok: false; message: string };
+export type CallPlatform = "meet" | "zoom" | "teams";
+export type MeetTabTarget =
+  | { ok: true; platform: CallPlatform; meetingCode: string }
+  | { ok: false; message: string };
 
 const MEET_HOST = "meet.google.com";
 const CODE_SEGMENT = /^[a-z0-9]+(-[a-z0-9]+)+$/i;
+const NOT_A_CALL = "Start from inside a Meet, Zoom or Teams call: this tab is not a call tab.";
+const OPEN_A_CALL = "Open a Meet, Zoom or Teams call, then press Start.";
+// Zoom web client: app.zoom.us/wc/<number>/join|start, or <sub>.zoom.us/wc/join/<number>.
+const ZOOM_PATH = /^\/wc\/(?:join\/)?(\d{9,12})(?:\/|$)/;
+// Teams web: the in-call URL is not stable (verified only for the join links),
+// so any Teams page counts; the code is the meeting id when the URL has one.
+const TEAMS_HOSTS = ["teams.microsoft.com", "teams.live.com", "teams.cloud.microsoft"];
+
+function isHost(host: string, base: string): boolean {
+  return host === base || host.endsWith("." + base);
+}
+
+function zoomOrTeams(parsed: URL): MeetTabTarget | null {
+  if (isHost(parsed.hostname, "zoom.us")) {
+    const m = ZOOM_PATH.exec(parsed.pathname);
+    return m ? { ok: true, platform: "zoom", meetingCode: m[1] }
+      : { ok: false, message: "Join the Zoom call in the browser (Join from your browser), then press Start." };
+  }
+  if (TEAMS_HOSTS.some((h) => isHost(parsed.hostname, h))) {
+    const thread = /\/meetup-join\/([^/]+)/.exec(parsed.pathname);
+    const live = /\/meet\/(\d+)/.exec(parsed.pathname);
+    const code = thread ? decodeURIComponent(thread[1]) : live ? live[1] : "teams";
+    return { ok: true, platform: "teams", meetingCode: code };
+  }
+  return null;
+}
 
 /** Outcome of the popup's Start handoff: refusal blocks, warning degrades. */
 export type StartResult = { ok: true; warning?: string } | { ok: false; message: string };
@@ -37,20 +66,16 @@ export function stillRunning(
 
 export function parseMeetTab(url: string | undefined): MeetTabTarget {
   if (!url) {
-    return { ok: false, message: "Open a Google Meet call, then press Start." };
+    return { ok: false, message: OPEN_A_CALL };
   }
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return { ok: false, message: "Open a Google Meet call, then press Start." };
+    return { ok: false, message: OPEN_A_CALL };
   }
-  if (parsed.hostname !== MEET_HOST) {
-    return {
-      ok: false,
-      message: "Start from inside a Google Meet call: this tab is not a Meet tab.",
-    };
-  }
+  if (parsed.protocol !== "https:") return { ok: false, message: NOT_A_CALL };
+  if (parsed.hostname !== MEET_HOST) return zoomOrTeams(parsed) ?? { ok: false, message: NOT_A_CALL };
   // Live Meet URLs can be /meet/<code> as well as /<code> (seen 2026-10-31),
   // so take the last segment that looks like a meeting code.
   const segment = parsed.pathname
@@ -63,5 +88,5 @@ export function parseMeetTab(url: string | undefined): MeetTabTarget {
       message: "Start from inside a Meet call, not the Meet homepage.",
     };
   }
-  return { ok: true, meetingCode: segment };
+  return { ok: true, platform: "meet", meetingCode: segment };
 }

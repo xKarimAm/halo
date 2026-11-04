@@ -232,7 +232,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
         : !paired
           ? { text: "Pair first", tone: "wait" }
           : !onMeetCall
-            ? { text: "Open your Meet call, then press Start", tone: "wait" }
+            ? { text: "Open your Meet, Zoom or Teams call, then press Start", tone: "wait" }
             : { text: "Ready for meeting", tone: "ok" };
     readyState.textContent = ready.text;
     readyState.dataset.tone = ready.tone;

@@ -236,7 +236,7 @@ describe("popup readiness and feedback", () => {
     await off.storage.saveToken("t");
     const r2 = document.createElement("div");
     await initPopup(r2, off);
-    expect(r2.querySelector("#ready-state")?.textContent).toMatch(/Open your Meet call/);
+    expect(r2.querySelector("#ready-state")?.textContent).toMatch(/Open your Meet, Zoom or Teams call/);
 
     const on = depsWith({ onMeetCall: async () => true });
     await on.storage.saveToken("t");
