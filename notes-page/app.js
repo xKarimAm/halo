@@ -2269,7 +2269,12 @@
     left.appendChild(finding);
     head.appendChild(left);
     head.appendChild(askForm(app, lang));
-    view.appendChild(head);
+    // The same stone band as a meeting's title (Karim 2026-11-04 23:46).
+    var band = el("div", "mband home-band");
+    var bandIn = el("div", "mband-in");
+    bandIn.appendChild(head);
+    band.appendChild(bandIn);
+    view.appendChild(band);
     var label = el("label", "search");
     var icon = el("span", null, "⌕");
     icon.setAttribute("aria-hidden", "true");

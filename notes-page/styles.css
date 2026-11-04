@@ -736,3 +736,7 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 .mband h1{margin:0 0 4px;color:#fff}
 .mband .facts{margin:0;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
 @media (max-width:760px){.mband-in{padding:0 16px}}
+#view.home .home-band{margin:-24px calc(50% - 50vw) 18px}
+#view.home .home-band .mband-in{max-width:1312px;padding:0 32px}
+#view.home .home-band h1,#view.home .home-band .finding,#view.home .home-band .finding b,#view.home .home-band .finding button{color:#fff}
+@media (max-width:560px){#view.home .home-band{margin-top:-20px} #view.home .home-band .mband-in{padding:0 16px}}
