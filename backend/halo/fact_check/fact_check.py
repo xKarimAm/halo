@@ -23,7 +23,7 @@ from typing import Any
 log = logging.getLogger("halo.fact_check")
 
 TICK_S = 1.0
-MAX_CALLS = 20  # per meeting: the hard ceiling on spend
+MAX_CALLS = 20  # per meeting, per backend run: a restart mid-meeting allows 20 more
 MAX_SOURCES = 3
 NOTE_MAX = 200
 CLAIM_MAX = 300

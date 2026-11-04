@@ -652,12 +652,14 @@
       section.appendChild(img);
       return section;
     }
-    var btn = el("button", "btn", t(lang, app.recapBusy ? "recapBusy" : "recapBtn"));
+    var id = app.page.meeting.meeting_id;
+    var busy = app.recapBusy === id;
+    var btn = el("button", "btn", t(lang, busy ? "recapBusy" : "recapBtn"));
     btn.id = "recapbtn";
     btn.type = "button";
-    btn.disabled = !!app.recapBusy;
+    btn.disabled = busy;
     section.appendChild(btn);
-    if (app.recapFailed) section.appendChild(el("p", "fact-sub", t(lang, "recapFail")));
+    if (app.recapFailed === id) section.appendChild(el("p", "fact-sub", t(lang, "recapFail")));
     return section;
   }
 
@@ -878,7 +880,8 @@
     var page = app.page;
     // A meeting nobody spoke in is not a failed summary (#102).
     var silent = !(page.transcript_lines || []).length && !(page.points || []).length;
-    if (page.meeting.degraded) {
+    // Still running: nothing has failed, the notes just aren't written yet.
+    if (page.meeting.degraded && !page.meeting.in_progress) {
       view.appendChild(el("div", "degraded", t(lang, silent ? "noSpeech" : "degraded")));
     }
     var wrap = el("div", "mtg");
@@ -929,7 +932,7 @@
       if (dis) stage.appendChild(dis);
       var facts = factBoard(app, lang);
       if (facts) stage.appendChild(facts);
-      if (app.cat === "all") stage.appendChild(recapBoard(app, lang));
+      if (app.cat === "all" && !page.meeting.in_progress) stage.appendChild(recapBoard(app, lang));
       var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
       (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
         cols.appendChild(kindColumn(app, k, lang));
@@ -2394,16 +2397,19 @@
         return;
       }
       if ((b = g("#recapbtn"))) {
-        app.recapBusy = true;
-        app.recapFailed = false;
+        // It takes 20 s and the viewer may open another meeting meanwhile.
+        var recapId = app.page.meeting.meeting_id;
+        var onThisMeeting = function () { return app.page && app.page.meeting.meeting_id === recapId; };
+        app.recapBusy = recapId;
+        app.recapFailed = null;
         render(app);
-        postJson("/api/meetings/" + encodeURIComponent(app.page.meeting.meeting_id) + "/recap", {}).then(function () {
-          app.page.visual_recap = true;
+        postJson("/api/meetings/" + encodeURIComponent(recapId) + "/recap", {}).then(function () {
+          if (onThisMeeting()) app.page.visual_recap = true;
         }).catch(function () {
-          app.recapFailed = true;
+          app.recapFailed = recapId;
         }).then(function () {
-          app.recapBusy = false;
-          render(app);
+          app.recapBusy = null;
+          if (onThisMeeting()) render(app);
         });
         return;
       }
@@ -2547,6 +2553,7 @@
       var bar = doc.getElementById("keybar");
       if (bar && s && s.meta_key === false) bar.hidden = false;
     }).catch(function () {});
+    window.__haloApp = app; // tests and the console
     var first = meetingId || idFromPath();
     if (first) app.openMeeting(first, false);
     else app.loadMeetings(false);

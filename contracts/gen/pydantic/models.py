@@ -109,6 +109,7 @@ class MeetingPageMeeting(BaseModel):
     title: str | None = None
     summary: str | None = None
     disagreements: list[MeetingPageMeetingDisagreements] | None = None
+    in_progress: bool | None = None
 
 
 class MeetingPagePeople(BaseModel):

@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import sqlite3
+import threading
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -103,7 +104,10 @@ class NotesService:
         llm: Any = None,
     ) -> None:
         self._bus = bus
-        self._llm = llm  # the shared model client, only for Ask
+        self._llm = llm  # the shared model client, for Ask and the recap
+        # ponytail: one image at a time for the whole app; each costs money and
+        # nobody needs two at once, so no per-meeting locks.
+        self._recap_lock = threading.Lock()
         self._data_dir = Path(data_dir) if data_dir is not None else Path(
             os.environ.get("HALO_DATA_DIR") or "data")
         self._db_path = self._data_dir / "events.sqlite"
@@ -338,13 +342,14 @@ class NotesService:
         if page is None or self._llm is None:
             return None
         path = self._recap_path(meeting_id)
-        if path.is_file():
-            return path
-        image = self._llm.generate_image(recap_prompt(page))
-        if image is None:
-            return None
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(image)
+        with self._recap_lock:  # a second tab or a reload must not pay twice
+            if path.is_file():
+                return path
+            image = self._llm.generate_image(recap_prompt(page))
+            if image is None:
+                return None
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(image)
         return path
 
     def page_for(self, meeting_id: str) -> dict[str, Any] | None:
@@ -433,6 +438,8 @@ class NotesService:
                 page["meeting"][key] = ready[key].strip()
         if ready and isinstance(ready.get("disagreements"), list) and ready["disagreements"]:
             page["meeting"]["disagreements"] = ready["disagreements"]
+        if not meeting["ended_at"]:
+            page["meeting"]["in_progress"] = True
         if self._recap_path(meeting_id).is_file():
             page["visual_recap"] = True
         if store["checks"]:
@@ -815,8 +822,11 @@ async def api_make_recap(meeting_id: str, request: Request):  # type: ignore[no-
     if (refused := _foreign_origin(request)) is not None:
         return refused
     service = _service(request)
-    if service.page_for(meeting_id) is None:
+    page = service.page_for(meeting_id)
+    if page is None:
         return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+    if page["meeting"].get("in_progress"):  # a recap drawn now would be saved half-finished
+        return JSONResponse({"detail": "the meeting is still running"}, status_code=409)
     path = await asyncio.to_thread(service.make_recap, meeting_id)
     if path is None:
         return JSONResponse({"detail": "the image could not be drawn"}, status_code=502)

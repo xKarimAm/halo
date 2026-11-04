@@ -620,3 +620,10 @@ def test_generate_image_returns_png_bytes_from_muse_image():
 def test_generate_image_fails_soft():
     assert search_client(lambda r: httpx.Response(500)).generate_image("a") is None
     assert search_client(lambda r: httpx.Response(200, json={"output": []})).generate_image("a") is None
+
+
+def test_search_json_survives_an_odd_source_entry():
+    body = search_reply('{"verdict": "supported", "note": "Yes."}')
+    body["output"][2]["action"]["sources"].insert(0, "not-a-dict")
+    result = search_client(lambda r: httpx.Response(200, json=body)).search_json(prompt="p", schema=FACT_SCHEMA)
+    assert result.ok and result.data["sources"] == ["https://a.example/1", "https://b.example/2"]

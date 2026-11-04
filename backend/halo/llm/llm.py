@@ -443,12 +443,12 @@ def _read_search(response: httpx.Response, schema: dict[str, Any]) -> dict[str, 
         output = response.json()["output"]
         text = [i for i in output if i["type"] == "message"][-1]["content"][-1]["text"]
         data = json.loads(text)
-    except (ValueError, KeyError, IndexError, TypeError):
+        if not isinstance(data, dict) or list(Draft202012Validator(schema).iter_errors(data)):
+            return None
+        urls = [s.get("url") for i in output if i["type"] == "web_search_call"
+                for s in (i.get("action") or {}).get("sources") or [] if isinstance(s, dict)]
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
         return None
-    if not isinstance(data, dict) or list(Draft202012Validator(schema).iter_errors(data)):
-        return None
-    urls = [s.get("url") for i in output if i["type"] == "web_search_call"
-            for s in (i.get("action") or {}).get("sources") or []]
     data["sources"] = list(dict.fromkeys(u for u in urls if u))
     return data
 

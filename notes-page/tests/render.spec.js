@@ -293,6 +293,39 @@ test("(6d) Visual recap draws only on request, then shows the saved image", asyn
   expect(posts).toBe(1);
 });
 
+test("(6e) a recap finishing after the viewer moved on never touches the other meeting", async ({ page }) => {
+  const other = JSON.parse(JSON.stringify(GOLDEN));
+  other.meeting.meeting_id = "00000099-0000-4000-8000-000000000099";
+  other.meeting.title = "Another meeting";
+  let finish;
+  await page.route("**/api/meetings/" + MEETING_ID + "/recap", (route) => { finish = () => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+  await page.route("**/api/meetings/" + other.meeting.meeting_id, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(other) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await page.locator("#recapbtn").click();
+  await expect(page.locator("#recapbtn")).toBeDisabled();
+  await page.evaluate((id) => window.__haloApp.openMeeting(id, false), other.meeting.meeting_id);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Another meeting");
+  await expect(page.locator("#recapbtn")).toBeEnabled();
+  finish();
+  await page.waitForTimeout(150);
+  await expect(page.locator(".recap img")).toHaveCount(0);
+  await expect(page.locator("#recapbtn")).toBeEnabled();
+});
+
+test("(6f) a meeting still running shows no failure banner and no recap button", async ({ page }) => {
+  const live = JSON.parse(JSON.stringify(GOLDEN));
+  live.meeting.degraded = true;
+  live.meeting.in_progress = true;
+  live.transcript_lines = [];
+  live.points = [];
+  live.actions = [];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(live) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.locator(".degraded")).toHaveCount(0);
+  await expect(page.locator("#recapbtn")).toHaveCount(0);
+});
+
 test("(6b) a meeting with no speech says so, not that the AI failed (#102)", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=empty");
   await expect(page.locator(".degraded")).toContainText("No speech was captured");

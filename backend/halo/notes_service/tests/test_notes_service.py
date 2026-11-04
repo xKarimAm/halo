@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -425,3 +427,31 @@ def test_recap_refuses_foreign_origins_unknown_meetings_and_reports_failure(tmp_
     assert llm.prompts == []
     assert client.post("/api/meetings/unknown-id/recap").status_code == 404
     assert client.post(url).status_code == 502
+
+
+def test_two_presses_at_once_draw_one_image(tmp_path):
+    class SlowLLM(ImageLLM):
+        def generate_image(self, prompt):
+            time.sleep(0.1)
+            return super().generate_image(prompt)
+
+    llm = SlowLLM()
+    client, _ = recap_client(tmp_path, llm)
+    service = client.app.state.notes_service
+    with ThreadPoolExecutor(2) as pool:
+        paths = list(pool.map(service.make_recap, [MEETING, MEETING]))
+    assert all(paths) and len(llm.prompts) == 1
+
+
+def test_a_meeting_still_running_is_marked_and_draws_no_recap(tmp_path):
+    llm = ImageLLM()
+    client, _, = recap_client_open(tmp_path, llm)
+    assert client.get(f"/api/meetings/{MEETING}").json()["meeting"]["in_progress"] is True
+    assert client.post(f"/api/meetings/{MEETING}/recap").status_code == 409
+    assert llm.prompts == []
+
+
+def recap_client_open(tmp_path, llm):
+    client, _, data = make_client(tmp_path, ended=False, ready=False)
+    client.app.state.notes_service._llm = llm
+    return client, data

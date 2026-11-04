@@ -83,6 +83,7 @@ export interface MeetingPageMeeting {
   title?: string;
   summary?: string;
   disagreements?: MeetingPageMeetingDisagreements[];
+  in_progress?: boolean;
 }
 
 export interface MeetingPagePeople {

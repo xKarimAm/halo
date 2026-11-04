@@ -89,6 +89,10 @@
               }
             }
           }
+        },
+        "in_progress": {
+          "type": "boolean",
+          "description": "True until meeting.ended: notes are not final yet."
         }
       },
       "required": [
