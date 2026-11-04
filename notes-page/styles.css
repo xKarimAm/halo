@@ -638,8 +638,8 @@ body:has(#view.home)::before{background:var(--bg)}
 .people{align-items:center}
 .head-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .head-row h1{flex:1 1 320px}
-.head .follow-up{margin-top:4px;background:var(--text);color:var(--on-accent);text-decoration:none;border-radius:999px;padding:7px 16px;font-weight:600;font-size:14px}
-.head .follow-up:hover{opacity:.9}
+.head .follow-up,.mband .follow-up{margin-top:4px;background:var(--text);color:var(--on-accent);text-decoration:none;border-radius:999px;padding:7px 16px;font-weight:600;font-size:14px}
+.head .follow-up:hover,.mband .follow-up:hover{opacity:.9}
 .ugrid{display:flex;flex-direction:column;gap:6px}
 .ucol h3{margin:10px 0 2px}
 .act,.act.u-urgent,.act.u-medium,.act.u-later{box-shadow:none;padding:9px 0}
@@ -730,3 +730,9 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 .tour-line b{font-weight:600}
 .tour-nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
 @media (prefers-reduced-motion:reduce){.tour-spot,.tour-card{transition:none}}
+/* Meeting band (Karim 2026-11-04 23:42): edge to edge under the charcoal row, title and facts only. */
+.mband{background:var(--band-2,var(--photo));color:#fff;margin:-6px calc(50% - 50vw) 16px;padding:18px 0 16px}
+.mband-in{max-width:1200px;margin:0 auto;padding:0 24px}
+.mband h1{margin:0 0 4px;color:#fff}
+.mband .facts{margin:0;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.mband-in{padding:0 16px}}

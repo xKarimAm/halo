@@ -1178,7 +1178,12 @@
     var follow = el("a", "follow-up", t(lang, "followUp"));
     follow.href = followHref(page, lang);
     hrow.appendChild(follow);
-    head.appendChild(hrow);
+    // Karim 2026-11-04 "Ink over sage" in stone: the title and its facts sit on a
+    // full-width stone band under the charcoal row; the summary stays on the page.
+    var band = el("div", "mband");
+    var bandIn = el("div", "mband-in");
+    band.appendChild(bandIn);
+    bandIn.appendChild(hrow);
     // Date · length · people, so the page says when and with whom.
     var lines = page.transcript_lines || [];
     var mins = lines.length ? Math.round((lines[lines.length - 1].ts_end_ms - page.meeting.t0_ms) / 60000) : 0;
@@ -1186,7 +1191,7 @@
     if (mins > 0) facts.push(t(lang, "cMin", { n: mins }));
     facts.push((page.people || []).map(function (p) { return p.name; }).join(", "));
     if (page.meeting.title && page.meeting.title !== page.meeting.subject) facts.push(page.meeting.subject);
-    head.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
+    bandIn.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
     if (page.meeting.summary) {
       var summary = el("p", "mtg-summary", page.meeting.summary);
       summary.dir = rtlText(page.meeting.summary) ? "rtl" : "auto"; // Karim 2026-11-04: Arabic sits on the right edge
@@ -1252,6 +1257,7 @@
     aside.setAttribute("aria-label", t(lang, "tx"));
     renderTranscript(app, aside, lang);
     wrap.appendChild(aside);
+    view.appendChild(band);
     view.appendChild(wrap);
   }
 
@@ -3083,7 +3089,7 @@
       ar: ["الآن اجتماع", "التالي صفحة اجتماع واحد: كل ما كتبه هالو في تلك المكالمة.", "", ""] }
   ];
   var TOUR_MEETING = [
-    { sel: ".head h1", up: ".head", en: ["Title and summary", "An AI title and summary, written in the meeting's own language, plus Email follow-up.",
+    { sel: ".mband h1", up: ".mband", en: ["Title and summary", "An AI title and summary, written in the meeting's own language, plus Email follow-up.",
       "It is the paragraph you would send afterwards, ready when the call ends.",
       "The Notes Builder (Muse Spark) reads the whole meeting once it ends. Email follow-up drafts a message with the action items."],
       ar: ["العنوان والملخص", "عنوان وملخص بالذكاء الاصطناعي بلغة الاجتماع نفسها، مع زر «بريد المتابعة».",

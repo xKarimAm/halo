@@ -677,8 +677,12 @@ test("(M1) the meeting page follows the approved draft", async ({ page }) => {
     body: JSON.stringify({ speakers: 2, talk_share: 60, fair_share: 50, longest_ms: 39000, longest_at_ms: 1000, questions: 2, follow_ups: 0,
       cut_ins: [], pace_wpm: 140, hedged: [], try_next: { key: "ask" } }) }));
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
-  // the title sits on the page ground, not in a box (Karim 23:41: never a band behind it)
+  // the summary sits on the page ground; only the title band is stone, edge to edge (Karim 23:42)
   expect(await page.locator(".head").evaluate((n) => getComputedStyle(n).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  const band = await page.locator(".mband").evaluate((n) => ({ bg: getComputedStyle(n).backgroundColor, w: n.getBoundingClientRect().width, h1: !!n.querySelector("h1") }));
+  expect(band.bg).toBe("rgb(125, 119, 107)");
+  expect(band.h1).toBe(true);
+  expect(band.w).toBeGreaterThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth));
   // one email drafts every action and decision
   const follow = page.locator("a.follow-up");
   await expect(follow).toHaveText("Email follow-up");
@@ -1064,6 +1068,6 @@ test("(M17) Arabic UI keeps English content left to right, dates and roles in Ar
   expect(dirs.every((d) => d === "ltr")).toBe(true);
   await expect(page.locator(".rl").first()).toHaveText("مشارك");
   await expect(page.locator("#view")).not.toContainText("Participant");
-  const facts = await page.locator(".head .facts").textContent();
+  const facts = await page.locator(".mband .facts").textContent();
   expect(facts).toMatch(/[\u0600-\u06FF]/); // the weekday and month are Arabic
 });
