@@ -12,6 +12,8 @@
 [![Python 3.12 with uv](https://img.shields.io/badge/Python_3.12-uv-3776ab?style=flat-square&logo=python&logoColor=white)](docs/INSTALL.md)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3_extension-4285f4?style=flat-square&logo=googlechrome&logoColor=white)](extension/)
 [![Runs on 127.0.0.1](https://img.shields.io/badge/runs-127.0.0.1_only-555?style=flat-square)](SECURITY.md)
+[![Tests: 661 passing](https://img.shields.io/badge/tests-661_passing-2e7d32?style=flat-square)](.github/workflows/ci.yml)
+[![Spark Open + failover](https://img.shields.io/badge/Muse_Spark_Open-first_engine_%2B_per--call_failover-0866ff?style=flat-square&logo=meta&logoColor=white)](#meta-models-used-and-where)
 [![MIT license](https://img.shields.io/badge/license-MIT-f4c430?style=flat-square)](LICENSE)
 
 [Judging in 5 minutes](#judging-in-5-minutes) · [Install](docs/INSTALL.md) · [Features](docs/FEATURES.md) · [User guide](docs/USER-GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
@@ -42,6 +44,11 @@ Halo is built for meetings that switch between Arabic and English mid-sentence. 
 - **Live fact check.** When someone states a public number, Muse Spark's web search checks it and a card shows the verdict and a real source a few seconds later ("Saudi Arabia has about 35 million people, not 100 million"). Internal numbers are left alone, and every check lands in the notes.
 - **A visual recap.** One press draws the meeting as a one-page sketch with Muse Image, in English or Arabic, saved next to the notes.
 - **Ask your meetings.** Ask in English or Arabic ("who owns the signup numbers?") and get a short answer with the exact stored lines it came from. An Arabic question finds an English meeting and the other way round.
+- **Your notes as a reference.** Attach a Markdown or text file to a meeting. During the call the fact check also tests what people say against it, quoting the line that settled it; after the call Spark compares the meeting with your notes topic by topic (agrees, differs, follow-up, new).
+- **Close the loop.** Mark an urgent or open action Done with a note of what was done, and it leaves the lists. Meetings group into Projects, with Archive and a Deleted bin that keeps them 30 days.
+- **Arabic all the way.** One tap switches the whole app to Arabic; Arabic text always reads right to left on the right, and the recap is drawn in the meeting's own language.
+- **Google Meet, plus Zoom and Teams on the web** (the Zoom and Teams adapters are newer and checked by tests). Name pills, points, the coach and fact checks each switch on or off from the Halo badge on the call.
+- **A guided start.** A Welcome page opens once after install and starts the Induction tour: every feature, what it is, why it was chosen and how it works. Replay it any time from the Induction button.
 
 Everything runs on your PC: a Chrome extension plus a small Python backend on `127.0.0.1`. Nothing is hosted and there are no accounts. Only the model calls leave your machine. The full list, with what has been checked live and what only by tests, is in [Features](docs/FEATURES.md).
 
@@ -66,6 +73,15 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 
 It asks for your key (typed hidden, saved only in the git-ignored `.env`), builds the extension, opens its folder, and starts the backend. Then in Chrome: `chrome://extensions`, turn on **Developer mode**, **Load unpacked**, pick the folder it opened (`extension\.output\chrome-mv3`). Click the Halo icon: the pill says **Connected**, because the extension pairs with the backend on its own. macOS and Linux: `sh setup.sh`.
 
+**Where your key goes.** The script writes it for you; by hand, copy `.env.example` to `.env` in the `halo` folder and fill in one line:
+
+```ini
+META_API_KEY=paste-your-Meta-Model-API-key-here   # required: speech-to-text and every text call
+BASETEN_API_KEY=                                  # optional: Muse Spark Open as the first engine
+```
+
+Nothing else needs changing. `.env` never leaves your PC and is git-ignored.
+
 The [install guide](docs/INSTALL.md) has the same steps by hand with a check after each one, plus Spark Open, Halo mode, updating and uninstalling.
 
 ## Meta models used and where
@@ -73,10 +89,10 @@ The [install guide](docs/INSTALL.md) has the same steps by hand with a check aft
 | Model | Exact id | Endpoint | Called from | What it does |
 |---|---|---|---|---|
 | Muse Voice Transcribe (realtime) | `muse-voice-transcribe-1.0` | `wss://api.meta.ai/v1/asr/realtime` | `backend/halo/transcriber/` (`protocol.py` builds the handshake, `transport.py` holds the socket; the URL is in `rig/fakes/config.py`) | Speech to text. Two sessions per meeting: the call audio in `DIARIZATION` mode (who said what) and your mic in `ENDPOINTING` mode. Language bias Arabic + English. |
-| Muse Spark Open (open weights, Baseten by default; Modal or a local server through `.env`) | `meta-models/muse-spark-open-1026` | `https://inference.baseten.co/v1` | `backend/halo/llm/llm.py` (the one shared model client) | The first choice for every text call when its key is set: live points (`backend/halo/insight/`), urgency/kind tags (`backend/halo/classifier/`), the live coach (`backend/halo/coach/`), the end-of-meeting notes (`backend/halo/notes_builder/`) and Ask your meetings (`backend/halo/notes_service/ask.py`). |
+| Muse Spark Open (open weights, Baseten by default; Modal or a local server through `.env`) | `meta-models/muse-spark-open-1026` | `https://inference.baseten.co/v1` | `backend/halo/llm/llm.py` (the one shared model client) | The first choice for every text call when its key is set: live points (`backend/halo/insight/`), urgency/kind tags (`backend/halo/classifier/`), the live coach (`backend/halo/coach/`), the end-of-meeting notes (`backend/halo/notes_builder/`) Ask your meetings (`backend/halo/notes_service/ask.py`), the recap's mind map and the comparison with your reference notes (`backend/halo/notes_service/notes_service.py`). |
 | Muse Spark 1.3 web search (contributor) | `muse-spark-1.3-contributor`, `web_search` tool, Responses API | `https://api.meta.ai/v1/responses` | `backend/halo/fact_check/`, `llm.py` `search_json` | Live fact check: a point with a number, at most 20 calls a meeting |
 | Muse Image 1.0 | `muse-image-1.0`, `image_generation` tool | `https://api.meta.ai/v1/responses` | `backend/halo/notes_service/`, `llm.py` `generate_image` | Visual recap, only when you press the button; saved, so one image per meeting at most |
-| Muse Spark 1.3 (contributor) | `muse-spark-1.3-contributor` | `https://api.meta.ai/v1` | `backend/halo/llm/llm.py` | Runs every text call when no Spark Open key is set (the simplest setup: one Meta key). With a Spark Open key, it is the per-call failover when Spark Open takes over 4 s, fails twice (bad JSON, HTTP 429 or 5xx) or rejects the key; after 30 s Spark Open gets tried again. Same five callers as above. |
+| Muse Spark 1.3 (contributor) | `muse-spark-1.3-contributor` | `https://api.meta.ai/v1` | `backend/halo/llm/llm.py` | Runs every text call when no Spark Open key is set (the simplest setup: one Meta key). With a Spark Open key, it is the per-call failover when Spark Open takes over 4 s, fails twice (bad JSON, HTTP 429 or 5xx) or rejects the key; after 30 s Spark Open gets tried again. Same callers as above. |
 | SAM 3.1 (open weights, optional) | Meta's SAM 3.1 weights via the `unsloth/sam3.1` Hugging Face mirror (`transformers` `Sam3Model`) | `http://127.0.0.1:8766/faces` (your own GPU) | `packaging/sam_worker.py`, called by `extension/src/face_detector/sam.ts` | Halo mode: finds the speaker's face in their tile so the name sits above the head. Frames stay in memory on your PC. Without the worker, Frame mode. |
 
 The Chrome extension calls no models itself; it talks to the local backend and, in Halo mode, to the local SAM worker.
