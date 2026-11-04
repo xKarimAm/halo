@@ -931,3 +931,37 @@ test("(M11) the preview's folder row sits clear of the summary cards", async ({ 
   const gap = await page.locator(".pfoot").first().evaluate((n) => n.getBoundingClientRect().top - n.previousElementSibling.getBoundingClientRect().bottom);
   expect(gap).toBeGreaterThanOrEqual(16);
 });
+
+// Karim 2026-11-04 22:26: Arabic is always aligned to the right, everywhere in the app.
+test("(M12) every Arabic text block on the meeting page reads right to left on the right", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  const ar = "خلينا نراجع خطة الإطلاق قبل الاجتماع الجاي";
+  p.meeting.summary = ar;
+  p.transcript_lines.forEach((l) => { l.text = ar; });
+  p.points.forEach((x) => { x.text = ar; });
+  p.actions.forEach((a) => { a.text = ar; });
+  p.meeting.disagreements = [{ topic: "موعد الإطلاق", outcome: "open", sides: [{ name: "Layla", view: "تفضل الإطلاق في أبريل." }], resolution: "" }];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await page.locator(".dis-item").first().waitFor();
+  const wrong = await page.evaluate(() => {
+    const AR = /^[^A-Za-z\u0590-\u08FF]*[\u0590-\u08FF]/;
+    const out = [];
+    for (const n of document.querySelectorAll("#view *")) {
+      const cs = getComputedStyle(n);
+      if (cs.display === "inline" || cs.display === "none" || !n.textContent.trim()) continue;
+      if ([...n.children].some((c) => getComputedStyle(c).display !== "inline")) continue;
+      if (!AR.test(n.textContent.trim())) continue;
+      if (cs.direction !== "rtl" || !["right", "start"].includes(cs.textAlign)) out.push(n.tagName + "." + n.className + " " + cs.direction + " " + cs.textAlign);
+    }
+    for (const n of document.querySelectorAll('#view [dir="rtl"]')) {
+      if (getComputedStyle(n).textAlign === "left") out.push(n.tagName + "." + n.className + " rtl but left");
+    }
+    return out;
+  });
+  expect(wrong).toEqual([]);
+  // the disagreement's topic sits on the right of its row, not at the left
+  const topicGap = await page.locator(".dis-head h3").first().evaluate((h) => h.parentElement.getBoundingClientRect().right - h.getBoundingClientRect().right);
+  expect(topicGap).toBeLessThan(140); // only the "Still open" chip is to its right
+});

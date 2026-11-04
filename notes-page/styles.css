@@ -683,3 +683,8 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 [dir="rtl"] button.fold[aria-expanded="false"]::after{transform:rotate(135deg)}
 .folded{padding-bottom:12px}
 .head .mtg-summary[dir="rtl"]{margin-left:auto}
+
+/* Karim 2026-11-04 22:26: Arabic is always aligned right. Id specificity beats every
+   class rule, so no later rule pulls an Arabic block back to the left. */
+#view [dir="rtl"]{text-align:right}
+#view :is(h1,h2,h3,h4)[dir="rtl"]{flex:1 1 auto}

@@ -269,6 +269,34 @@
     return /^[^A-Za-z\u0590-\u08FF]*[\u0590-\u08FF]/.test(String(text || ""));
   }
 
+  // Karim 2026-11-04 22:26: Arabic is always on the right, everywhere. Every text
+  // block (no block children) whose first letter is Arabic gets dir=rtl; one CSS rule
+  // right-aligns them. Runs on every DOM change under #view, so no render path is missed.
+  var TEXT_BLOCKS = "p,li,h1,h2,h3,h4,blockquote,dd,dt,td,th,figcaption,label,small,[dir=auto]";
+  var INLINE = { B: 1, I: 1, EM: 1, STRONG: 1, SPAN: 1, A: 1, SMALL: 1, TIME: 1, MARK: 1, BR: 1, CODE: 1 };
+  function alignArabic(root) {
+    if (!root || !root.querySelectorAll) return;
+    var nodes = Array.prototype.slice.call(root.querySelectorAll(TEXT_BLOCKS));
+    if (root.matches && root.matches(TEXT_BLOCKS)) nodes.push(root);
+    nodes.forEach(function (n) {
+      var d = n.getAttribute("dir");
+      if (d === "rtl" || d === "ltr") return; // a renderer already decided
+      for (var c = n.firstElementChild; c; c = c.nextElementSibling) if (!INLINE[c.tagName]) return;
+      if (rtlText(n.textContent.trim())) n.setAttribute("dir", "rtl");
+    });
+  }
+
+  function watchArabic(doc) {
+    var view = doc.getElementById && doc.getElementById("view");
+    if (!view || typeof MutationObserver === "undefined") return;
+    alignArabic(view);
+    new MutationObserver(function (records) {
+      records.forEach(function (r) {
+        Array.prototype.forEach.call(r.addedNodes, function (n) { if (n.nodeType === 1) alignArabic(n); });
+      });
+    }).observe(view, { childList: true, subtree: true });
+  }
+
   // Karim 2026-11-04: sections fold to their heading. Call after the section is built;
   // the choice is kept per section kind across meetings (localStorage).
   function foldable(app, section, key) {
@@ -2347,6 +2375,7 @@
     var postJson = opts.postJson || function () { return Promise.reject(new Error("no postJson")); };
     var win = opts.win || { history: { pushState: function () {} } };
     try { app.folded = JSON.parse(stored(FOLD_KEY) || "{}") || {}; } catch (e) { app.folded = {}; }
+    watchArabic(app.doc);
     app.txShut = stored(TXSHUT_KEY) === "1";
 
     app.showList = function (meetings) {
