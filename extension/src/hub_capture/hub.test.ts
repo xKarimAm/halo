@@ -444,6 +444,18 @@ describe("left the call", () => {
     expect(hub.isPageTab(8)).toBe(false);
   });
 
+  it("after a meeting ends, a new call in another tab brings its own tiles to the next Start (review 2026-11-04)", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "abc-defg-hij", tabId: 7 });
+    hub.stop("left");
+    const fresh = { tile_id: "b1", name: "Sara", is_self: false, rect: [0, 0, 10, 10], video_w: 0, video_h: 0, fit: "cover" as const, captions_rect: null };
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles: [fresh] } }, 8);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "xyz-abcd-efg", tabId: 8 });
+    const snaps = socket.envelopes().filter((e) => e.type === "tiles.snapshot");
+    expect((snaps.at(-1)!.data as { tiles: { tile_id: string }[] }).tiles.map((t) => t.tile_id)).toEqual(["b1"]);
+  });
+
   it("a page reload (Port disconnect) does not end the meeting", () => {
     const { hub, socket } = makeHub();
     openAndPair(hub, socket);

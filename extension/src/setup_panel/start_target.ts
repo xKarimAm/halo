@@ -14,7 +14,8 @@ const OPEN_A_CALL = "Open a Meet, Zoom or Teams call, then press Start.";
 // Zoom web client: app.zoom.us/wc/<number>/join|start, or <sub>.zoom.us/wc/join/<number>.
 const ZOOM_PATH = /^\/wc\/(?:join\/)?(\d{9,12})(?:\/|$)/;
 // Teams web: the in-call URL is not stable (verified only for the join links),
-// so any Teams page counts; the code is the meeting id when the URL has one.
+// so any Teams page counts, all under one code: a join link that redirects to
+// /v2/ must not split one meeting in two. A new Teams meeting needs Stop first.
 const TEAMS_HOSTS = ["teams.microsoft.com", "teams.live.com", "teams.cloud.microsoft"];
 
 function isHost(host: string, base: string): boolean {
@@ -28,10 +29,7 @@ function zoomOrTeams(parsed: URL): MeetTabTarget | null {
       : { ok: false, message: "Join the Zoom call in the browser (Join from your browser), then press Start." };
   }
   if (TEAMS_HOSTS.some((h) => isHost(parsed.hostname, h))) {
-    const thread = /\/meetup-join\/([^/]+)/.exec(parsed.pathname);
-    const live = /\/meet\/(\d+)/.exec(parsed.pathname);
-    const code = thread ? decodeURIComponent(thread[1]) : live ? live[1] : "teams";
-    return { ok: true, platform: "teams", meetingCode: code };
+    return { ok: true, platform: "teams", meetingCode: "teams" };
   }
   return null;
 }

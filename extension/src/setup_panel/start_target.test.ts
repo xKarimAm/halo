@@ -76,12 +76,12 @@ describe("parseMeetTab: Zoom and Teams web clients", () => {
       expect(parseMeetTab(url).ok).toBe(false);
     }
   });
-  it("accepts a Teams web tab; the code is the meeting thread when the URL holds one", () => {
-    expect(parseMeetTab("https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc123%40thread.v2/0?context=x"))
-      .toEqual({ ok: true, platform: "teams", meetingCode: "19:meeting_abc123@thread.v2" });
-    expect(parseMeetTab("https://teams.microsoft.com/v2/")).toEqual({ ok: true, platform: "teams", meetingCode: "teams" });
-    expect(parseMeetTab("https://teams.live.com/meet/9312345678901?p=x"))
-      .toEqual({ ok: true, platform: "teams", meetingCode: "9312345678901" });
+  it("accepts a Teams web tab under one code, so a join link redirecting to /v2/ stays one meeting", () => {
+    for (const url of ["https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc123%40thread.v2/0?context=x",
+      "https://teams.microsoft.com/v2/", "https://teams.live.com/meet/9312345678901?p=x"]) {
+      expect(parseMeetTab(url)).toEqual({ ok: true, platform: "teams", meetingCode: "teams" });
+    }
+    expect(parseMeetTab("https://teams.microsoft.com.evil.example/v2/").ok).toBe(false);
   });
   it("tells the user which calls work", () => {
     const res = parseMeetTab("https://mail.google.com/mail/u/0/");

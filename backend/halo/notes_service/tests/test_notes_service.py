@@ -516,7 +516,8 @@ def test_the_recap_is_drawn_in_the_meetings_language():
     arabic = _recap_page("عرض تطبيق الاجتماعات", "ملخص قصير")
     assert recap_language(arabic) == "Arabic"
     assert recap_language(_recap_page("Launch sync")) == "English"
-    assert "Arabic" in recap_prompt(arabic) and "mind map" in recap_prompt(arabic)
+    mind = {"center": "مركز", "branches": []}
+    assert "Arabic" in recap_prompt(arabic, mind) and "mind map" in recap_prompt(arabic)
 
 
 def test_the_mind_map_brief_carries_everything_said_not_the_first_three():
@@ -551,3 +552,14 @@ def test_the_recap_draws_the_mind_map_and_still_draws_when_the_map_fails(tmp_pat
     client2, _ = recap_client(tmp_path / "b", llm2)
     assert client2.post(f"/api/meetings/{MEETING}/recap").status_code == 200
     assert len(llm2.prompts) == 1 and "mind map" in llm2.prompts[0]
+
+
+def test_without_a_map_the_recap_never_orders_arabic_over_english_lines():
+    """Review 2026-11-04: the fallback lines are the stored (English) points; asking
+    for Arabic and exact spelling at once would garble the drawing."""
+    from halo.notes_service.notes_service import recap_prompt
+    page = _recap_page("عرض تطبيق الاجتماعات", "ملخص قصير")
+    fallback = recap_prompt(page)
+    assert "in Arabic" not in fallback and "exactly as written" in fallback
+    mapped = recap_prompt(page, {"center": "مركز", "branches": [{"label": "فرع", "leaves": ["ورقة"]}]})
+    assert "in Arabic" in mapped

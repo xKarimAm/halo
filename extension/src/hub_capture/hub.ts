@@ -190,7 +190,9 @@ export class Hub {
 
   onPortMessage(msg: ToHubPortMessage, senderTabId?: number): void {
     // Another call tab (a second Meet, a Teams chat tab) must not replace this call's tiles.
-    if ((msg.type === "tiles.snapshot" || msg.type === "speaker.active") && !this.fromMeetingTab(senderTabId)) return;
+    // Only while a meeting runs: after it ends, the next call may be in another tab.
+    const live = this.meetingId !== null && !this.ended;
+    if (live && (msg.type === "tiles.snapshot" || msg.type === "speaker.active") && !this.fromMeetingTab(senderTabId)) return;
     if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
       this.pageState = this.pageState.filter((m) => m.type !== msg.type);
       this.pageState.push(msg);

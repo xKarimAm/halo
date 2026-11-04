@@ -125,8 +125,10 @@ def recap_prompt(page: dict[str, Any], mind: dict[str, Any] | None = None) -> st
         branches = [b for b in branches if b[1]]
     lines = [f"Centre: {center}"] + [f"Branch: {label}\n" + "\n".join(f"  - {leaf}" for leaf in leaves)
                                      for label, leaves in branches]
+    # Only the map is in the meeting's language; the fallback lines stay as stored.
     rtl = ", written right to left" if language == "Arabic" else ""
-    return RECAP_STYLE.format(language=language, rtl=rtl) + "\n".join(lines)
+    lang_line = f"Every word on the page is in {language}{rtl}. " if mind else ""
+    return RECAP_STYLE.format(lang_line=lang_line) + "\n".join(lines)
 
 
 class NotesService:
@@ -803,8 +805,8 @@ RECAP_STYLE = (
     "A hand-drawn mind map of a work meeting on one landscape page, like a page from a "
     "designer's notebook: warm paper background, charcoal and sage green, simple icons, "
     "generous space. The centre bubble holds the centre text; each branch is a curved line "
-    "out of it with its label, and its short leaves hang off that branch. Every word on the "
-    "page is in {language}{rtl}. Spell every word exactly as written below and add no other "
+    "out of it with its label, and its short leaves hang off that branch. {lang_line}"
+    "Spell every word exactly as written below and add no other "
     "words, names or numbers.\n"
 )
 MIND_MAP_INSTRUCTIONS = (
