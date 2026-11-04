@@ -32,7 +32,7 @@ Halo is a bilingual Arabic/English meeting copilot for Google Meet. While people
 | Muse Spark web search | Live fact check. A spoken claim goes to Spark with the `web_search` tool; the links shown are the URLs the search returned, never text the model wrote. |
 | Muse Image 1.0 | The visual recap on the notes page, drawn only on request. |
 | Muse Spark Open (open weights) | First choice for live points when a Baseten, Modal or local key is set, with per-call failover to Spark 1.3. Verified in the stored data: it made 69 live points between 3 and 4 Nov; every point records the engine that made it. |
-| SAM 3.1 (open weights, local GPU) | Optional Halo mode: finds the speaker's face so the name sits above their head. **[check]**: say whether it was verified on a live call. |
+| SAM 3.1 (open weights, local GPU) | Optional Halo mode: finds the speaker's face so the name sits above their head. Ran on Karim's live calls (the local worker log shows the extension's frame requests, last on 4 Nov). |
 
 No other AI model runs in Halo. Claude Code and Muse Code / OpenCode (on Spark 1.3) were coding tools only, and Gemini was used for research only.
 
@@ -52,7 +52,7 @@ Halo is built around things these models do together, not a generic chat endpoin
 
 - **Two Muse Voice sessions per meeting:** the call in diarization mode and your mic in endpointing mode, with Arabic and English in one sentence.
 - **Muse Spark search grounding, live:** a spoken number is checked on the web and answered with a source during the call. The same model skips internal claims without searching.
-- **SAM 3.1 on open weights:** the name sits above the speaker's head, following Meta's own "multi-speaker headlocked captions" recipe. **[check]**: keep only if it held up on your live call.
+- **SAM 3.1 on open weights:** the name sits above the speaker's head, following Meta's own "multi-speaker headlocked captions" recipe.
 - **Muse Spark Open first, Spark 1.3 as per-call failover,** with every point recording which engine made it.
 - **Muse Image:** the meeting as a picture, in the meeting's own words and language.
 
