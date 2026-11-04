@@ -4,8 +4,11 @@ import type { ToPagePortMessage } from "../../../contracts/ext/port";
 import {
   Overlay, SystemClock, notesHref,
   type DocLike, type El, type UrgencyStyle,
+  sourceLink,
 } from "./overlay";
 import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
+
+const FACT_SHOW_MS = 30_000;
 
 // Viewer urgency-mark setting, shared with the setup panel (no ambient
 // chrome types in this lane: structural access keeps the two lanes' globals
@@ -345,6 +348,28 @@ export function mountControls(
   coach.append(coachHead, alert, tipList);
   doc.body.append(coach);
 
+  // Fact check (Spark web search): lower left, above Meet's controls. It stays
+  // FACT_SHOW_MS, long enough to read, unless x hides it first.
+  const fact = make("aside", "halo-fact");
+  fact.setAttribute("aria-label", "Fact check");
+  fact.setAttribute("aria-live", "polite");
+  const factVerdict = make("span", "");
+  const closeFact = button("halo-dismiss", "×", () => {
+    hiddenFact = overlay.factCheck;
+    refresh();
+  });
+  closeFact.setAttribute("aria-label", "Hide fact check");
+  const factHead = make("div", "halo-coach-head");
+  factHead.append(factVerdict, closeFact);
+  const factNote = make("p", "halo-fact-note");
+  const factSource = doc.createElement("a");
+  factSource.target = "_blank";
+  factSource.rel = "noopener noreferrer";
+  fact.append(factHead, factNote, factSource);
+  doc.body.append(fact);
+  let shownFact: unknown = null;
+  let hiddenFact: unknown = null;
+
   const refresh = (): void => {
     badge.textContent = overlay.badgeText();
     const href = notesHref((overlay.notesToast as { url?: unknown } | null)?.url);
@@ -359,6 +384,30 @@ export function mountControls(
       alert.textContent = tips.alert ?? "";
       alert.hidden = !tips.alert;
       tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
+    }
+    const check = overlay.factCheck;
+    fact.hidden = !check || overlay.hidden || check === hiddenFact;
+    if (check && check !== shownFact) {
+      shownFact = check;
+      const ar = check.lang === "ar";
+      fact.dir = ar ? "rtl" : "ltr";
+      fact.lang = check.lang;
+      fact.classList.toggle("disputed", check.verdict === "disputed");
+      const word = check.verdict === "disputed" ? (ar ? "غير دقيق" : "Disputed") : (ar ? "صحيح" : "Checks out");
+      factVerdict.textContent = `${ar ? "تحقق" : "Fact check"} · ${word}`;
+      factNote.textContent = check.note;
+      const link = check.sources.map(sourceLink).find(Boolean);
+      factSource.hidden = !link;
+      if (link) {
+        factSource.href = link.href;
+        factSource.textContent = link.host;
+      }
+      setTimeout(() => {
+        if (overlay.factCheck === check) {
+          hiddenFact = check;
+          refresh();
+        }
+      }, FACT_SHOW_MS);
     }
   };
   port.onMessage.addListener(refresh);

@@ -54,6 +54,8 @@
       recAt: "Recording: {p} at {t}", close: "Close profile", role: "Role from Setup",
       degraded: "AI summary failed, showing live notes.",
       noSpeech: "No speech was captured in this meeting.",
+      fact: "Fact checks", factNote: "Numbers said in the call, checked on the web by Muse Spark.",
+      factOk: "Checks out", factBad: "Disputed",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
       norec: "No recording for this meeting. The notes and transcript are complete.",
       reclive: "The recording is ready when the meeting ends.",
@@ -129,6 +131,8 @@
       recAt: "التسجيل: {p} عند {t}", close: "إغلاق الملف", role: "الدور من الإعداد",
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
       noSpeech: "لم يُلتقط أي كلام في هذا الاجتماع.",
+      fact: "التحقق من المعلومات", factNote: "أرقام قيلت في الاجتماع، تحقق منها Muse Spark عبر الويب.",
+      factOk: "صحيح", factBad: "غير دقيق",
       keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
       norec: "لا يوجد تسجيل لهذا الاجتماع، لكن الملاحظات والنص الكامل متاحة.",
       reclive: "يصبح التسجيل جاهزاً عند انتهاء الاجتماع.",
@@ -633,6 +637,39 @@
     return section;
   }
 
+  // Claims checked on the web (Spark search grounding). The links are the URLs
+  // the search returned; anything but http(s) stays plain text out of the page.
+  function factBoard(app, lang) {
+    var list = app.page.fact_checks || [];
+    if (!list.length || app.cat !== "all") return null;
+    var section = el("section", "board glass facts");
+    section.appendChild(el("h2", null, t(lang, "fact")));
+    section.appendChild(el("p", "fact-sub", t(lang, "factNote")));
+    list.forEach(function (c) {
+      var item = el("div", "fact-item v-" + c.verdict);
+      var head = el("div", "dis-head");
+      var claim = el("h3", null, c.claim);
+      claim.dir = "auto";
+      head.appendChild(claim);
+      head.appendChild(el("span", "chip dis-out", t(lang, c.verdict === "disputed" ? "factBad" : "factOk")));
+      item.appendChild(head);
+      var note = el("p", "dis-res", (c.speaker_name ? c.speaker_name + ": " : "") + c.note);
+      note.dir = "auto";
+      item.appendChild(note);
+      (c.sources || []).forEach(function (url) {
+        var host = /^https?:\/\/(?:www\.)?([^\/?#]+)/i.exec(url);
+        if (!host) return;
+        var a = el("a", "fact-src", host[1]);
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        item.appendChild(a);
+      });
+      section.appendChild(item);
+    });
+    return section;
+  }
+
   // Say each fact once: a plain point that is already an action item lives
   // in Action items only (blind juror round 2).
   function boardPoints(page) {
@@ -866,6 +903,8 @@
       stage.appendChild(filtersBar(app, boardPoints(page), lang));
       var dis = disagreementsBoard(app, lang);
       if (dis) stage.appendChild(dis);
+      var facts = factBoard(app, lang);
+      if (facts) stage.appendChild(facts);
       var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
       (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
         cols.appendChild(kindColumn(app, k, lang));

@@ -85,6 +85,12 @@ mark{background:var(--mark-bg);color:var(--mark-text);border-radius:3px;padding:
 .dis-sides{margin:6px 0 0;padding-inline-start:18px}
 .dis-sides b{font-weight:600}
 .dis-res{margin:6px 0 0;color:var(--muted)}
+.fact-sub{margin:2px 0 6px;color:var(--muted);font-size:13px}
+.fact-item{padding:10px 0;border-top:1px solid var(--hair)}
+.fact-item:first-of-type{border-top:0}
+.v-supported .dis-out{color:var(--dec);border-color:var(--dec)}
+.v-disputed .dis-out{color:var(--push);border-color:var(--push)}
+.fact-src{display:inline-block;margin:4px 12px 0 0;font-size:13px;color:inherit}
 .bhead{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
 .bhead .prov{color:var(--faint);font-size:12px;margin:0}
 .ugrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}

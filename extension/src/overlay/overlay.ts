@@ -94,6 +94,17 @@ interface StoredPoint extends PointsUpsert {
   el?: El;
 }
 
+/** A source URL safe to link, with its host for the label; null for anything but http(s). */
+export function sourceLink(url: string): { href: string; host: string } | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    return { href: url, host: parsed.hostname.replace(/^www\./, "") };
+  } catch {
+    return null;
+  }
+}
+
 export class Overlay {
   points = new Map<string, StoredPoint>();
   hidden = false;
@@ -101,6 +112,8 @@ export class Overlay {
   notesToast: unknown = null;
   // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
   coach: { tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
+  // Fact Check (claim.checked): the newest spoken claim checked on the web; null until the first.
+  factCheck: { claim: string; verdict: "supported" | "disputed"; note: string; sources: string[]; lang: "en" | "ar" } | null = null;
   perFace = 3;
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];
@@ -143,6 +156,7 @@ export class Overlay {
     this.ended = true; // replies still in flight must not refill the page
     this.points.clear();
     this.coach = null;
+    this.factCheck = null;
     this.captions = { tab: "", mic: "" };
     this.faces.clear();
     this.thinkingStart.clear();
@@ -170,7 +184,7 @@ export class Overlay {
   }
 
   applyEnvelope(env: { id: string; type: string; data: Record<string, unknown> }): void {
-    if (this.ended && ["points.upsert", "tags.set", "coach.tips", "transcript.partial"].includes(env.type)) return;
+    if (this.ended && ["points.upsert", "tags.set", "coach.tips", "claim.checked", "transcript.partial"].includes(env.type)) return;
     if (env.type === "transcript.partial") {
       // ponytail: no dedupe, a repeat caption is harmless; keeps seenEnvelopes small
       const { stream, text } = env.data as { stream: "tab" | "mic"; text: string };
@@ -190,6 +204,7 @@ export class Overlay {
     } else if (env.type === "system.status") this.status = env.data;
     else if (env.type === "notes.ready") this.notesToast = env.data;
     else if (env.type === "coach.tips") this.coach = env.data as never;
+    else if (env.type === "claim.checked") this.factCheck = env.data as never;
   }
 
   applyPointsUpsert(point: PointsUpsert, _envelopeId?: string): void {

@@ -206,8 +206,11 @@ class NotesService:
         tags = self._tags(conn, [p["point_id"] for p in points], meeting_id)
         context = self._context(conn, meeting_id)
         ready = self._latest_ready(conn, meeting_id)
-        return {"meeting": meeting, "turns": turns, "points": points,
-                "tags": tags, "context": context, "ready": ready}
+        checks = [json.loads(row["data"]) for row in conn.execute(
+            "SELECT data FROM events WHERE type = 'claim.checked' AND meetingid = ? ORDER BY seq",
+            (meeting_id,))]
+        return {"meeting": meeting, "turns": turns, "points": points, "tags": tags, "context": context,
+                "ready": ready, "checks": list({c["point_id"]: c for c in checks}.values())}
 
     def _turns(self, conn: sqlite3.Connection, meeting_id: str) -> list[dict[str, Any]]:
         turns = []
@@ -397,6 +400,9 @@ class NotesService:
                 page["meeting"][key] = ready[key].strip()
         if ready and isinstance(ready.get("disagreements"), list) and ready["disagreements"]:
             page["meeting"]["disagreements"] = ready["disagreements"]
+        if store["checks"]:
+            page["fact_checks"] = [{k: c[k] for k in ("point_id", "claim", "speaker_name", "verdict",
+                                                      "note", "sources")} for c in store["checks"]]
         return page
 
     # -- list / search ---------------------------------------------------------

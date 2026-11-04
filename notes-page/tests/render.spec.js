@@ -255,6 +255,26 @@ test("(6) degraded page shows the fallback banner with live points", async ({ pa
   await expect(page.locator(".ucol.u-medium")).toContainText("Launch moves to Nov 12");
 });
 
+test("(6c) fact checks show the verdict, the note and a real source link", async ({ page }) => {
+  const checked = JSON.parse(JSON.stringify(GOLDEN));
+  checked.fact_checks = [
+    { point_id: POINT_ID, claim: "Qatar has 10 million people.", speaker_name: "Omar", verdict: "disputed",
+      note: "It is about 3.1 million.", sources: ["https://www.a.example/qatar", "javascript:alert(1)"] },
+    { point_id: POINT_ID, claim: "The Act began in 2024.", speaker_name: "Layla", verdict: "supported",
+      note: "It entered into force in August 2024.", sources: ["https://b.example/act"] },
+  ];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(checked) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const items = page.locator(".fact-item");
+  await expect(items).toHaveCount(2);
+  await expect(items.first()).toContainText("Disputed");
+  await expect(items.first()).toContainText("It is about 3.1 million.");
+  await expect(items.first().locator("a")).toHaveCount(1); // the javascript: source is not a link
+  await expect(items.first().locator("a")).toHaveAttribute("href", "https://www.a.example/qatar");
+  await expect(items.first().locator("a")).toHaveAttribute("rel", /noopener/);
+  await expect(items.nth(1)).toContainText("Checks out");
+});
+
 test("(6b) a meeting with no speech says so, not that the AI failed (#102)", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=empty");
   await expect(page.locator(".degraded")).toContainText("No speech was captured");

@@ -1,3 +1,4 @@
+import { sourceLink } from "./overlay";
 import { describe, expect, it } from "vitest";
 import {
   FakeClock,
@@ -487,6 +488,8 @@ describe("the meeting ends: nothing lingers", () => {
     overlay.endMeeting();
     overlay.applyEnvelope({ id: "late-1", type: "points.upsert", data: point() as never });
     overlay.applyEnvelope({ id: "late-2", type: "coach.tips", data: { tips: ["Late."], lang: "en" } });
+    overlay.applyEnvelope({ id: "late-3", type: "claim.checked", data: FACT });
+    expect(overlay.factCheck).toBeNull();
     expect(overlay.points.size).toBe(0);
     expect(overlay.coach).toBeNull();
     overlay.startMeeting();
@@ -508,5 +511,24 @@ describe("view mode", () => {
     expect(overlay.layout("tile-1").mode).toBe("frame");
     overlay.setViewMode("face");
     expect(overlay.layout("tile-1").mode).toBe("face");
+  });
+});
+
+const FACT = { point_id: "p1", claim: "Qatar has 10 million people.", speaker_name: "Omar", verdict: "disputed",
+  note: "It is about 3.1 million.", sources: ["https://a.example/1"], lang: "en" };
+
+describe("fact check", () => {
+  it("keeps the newest claim.checked and clears it when the meeting ends", () => {
+    const overlay = new Overlay(new FakeClock());
+    overlay.applyEnvelope({ id: "f1", type: "claim.checked", data: FACT });
+    expect(overlay.factCheck?.note).toBe("It is about 3.1 million.");
+    overlay.endMeeting();
+    expect(overlay.factCheck).toBeNull();
+  });
+
+  it("links only web sources, and names them by host", () => {
+    expect(sourceLink("https://www.a.example/x?y=1")).toEqual({ href: "https://www.a.example/x?y=1", host: "a.example" });
+    expect(sourceLink("javascript:alert(1)")).toBeNull();
+    expect(sourceLink("not a url")).toBeNull();
   });
 });

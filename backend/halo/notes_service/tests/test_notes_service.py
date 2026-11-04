@@ -359,3 +359,28 @@ def test_new_writes_refuse_other_sites(tmp_path):
                        ("/api/meetings/archive", {"meeting_id": MEETING, "archived": True}),
                        ("/api/meetings/type", {"meeting_id": MEETING, "meeting_type": "sales"})]:
         assert client.post(path, json=body, headers=evil).status_code == 403, path
+
+
+def test_page_lists_fact_checks_newest_per_point(tmp_path):
+    db = tmp_path / "events.sqlite"
+    seed_db(db)
+    conn = sqlite3.connect(db)
+    for n, note in enumerate(("Old note.", "New note.")):
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'claim.checked', '2026-10-31T09:00:00Z', ?, 'halo/fact_check', 'application/json', ?)",
+            (f"fc-{n}", MEETING, json.dumps({
+                "point_id": "00000021-0000-4000-8000-000000000021", "claim": "Qatar has 10 million people.",
+                "speaker_name": "Omar", "verdict": "disputed", "note": note,
+                "sources": ["https://a.example/1"], "lang": "en"})))
+    conn.commit()
+    conn.close()
+    page = NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    assert_valid_page(page)
+    assert [c["note"] for c in page["fact_checks"]] == ["New note."]
+
+
+def test_page_without_fact_checks_has_no_key(tmp_path):
+    db = tmp_path / "events.sqlite"
+    seed_db(db)
+    assert "fact_checks" not in NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
