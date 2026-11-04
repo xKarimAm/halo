@@ -103,3 +103,10 @@ def test_the_model_citation_marker_never_reaches_the_note():
     marked = "It entered into force on 1 August 2024. \u30106230298502374729676\u2020L7-L9\u3011"
     out = run(FakeLLM({"verdict": "supported", "note": marked, "sources": [URL]}), point("It began in 2024"))
     assert out[0]["data"]["note"] == "It entered into force on 1 August 2024."
+
+
+def test_a_number_said_as_a_word_counts():
+    for text in ("Qatar has ten million people.", "سكان قطر عشرة ملايين.", "Sales grew twenty percent."):
+        llm = FakeLLM()
+        run(llm, point(text))
+        assert len(llm.prompts) == 1, text

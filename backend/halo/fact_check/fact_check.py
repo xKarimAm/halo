@@ -27,9 +27,9 @@ MAX_CALLS = 20  # per meeting, per backend run: a restart mid-meeting allows 20 
 MAX_SOURCES = 3
 NOTE_MAX = 200
 CLAIM_MAX = 300
-# ponytail: a digit is the gate; a claim with no number is never checked.
-# Widen it (a cheap model gate) if wordy claims turn out to matter.
-HAS_NUMBER = re.compile(r"[0-9٠-٩]")
+# ponytail: digits, or a scale word (speech-to-text can spell numbers out). A claim
+# with neither is never checked; widen with a cheap model gate if that matters.
+HAS_NUMBER = re.compile(r"[0-9٠-٩]|\b(?:hundred|thousand|million|billion|trillion|percent)\b|مليون|ملايين|مليار|بالمئة|بالمائة", re.IGNORECASE)
 # Live 2026-11-04: Spark leaves its citation marks in the JSON note.
 CITATION_MARK = re.compile(r"\s*\u3010[^\u3011]*\u3011")
 
