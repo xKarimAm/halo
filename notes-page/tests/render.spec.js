@@ -374,11 +374,13 @@ test("(9a) clicking a meeting opens its own page, and Back returns to the list",
   await expect(page.getByRole("heading", { level: 1, name: "Meetings" })).toBeVisible();
 });
 
-test("(9b) Archive and Open notes sit on one line", async ({ page }) => {
+test("(9b) Archive and Open meeting sit on one line", async ({ page }) => {
   await page.goto(baseURL + "/");
-  const archive = await page.locator("#preview [data-archive]").boundingBox();
-  const open = await page.locator("#preview .pv-open").boundingBox();
-  expect(Math.abs(open.y - archive.y)).toBeLessThan(1); // it was 6 px off; the page may still be settling
+  await page.locator("#preview .pv-open").waitFor();
+  // One frame for both boxes: CI read them in two calls while the preview still slid in.
+  const [archive, open] = await page.evaluate(() => ["#preview [data-archive]", "#preview .pv-open"]
+    .map((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { y: r.top, height: r.height }; }));
+  expect(Math.abs(open.y - archive.y)).toBeLessThan(1); // it was 6 px off
   expect(Math.abs(open.height - archive.height)).toBeLessThan(1);
 });
 
@@ -652,7 +654,6 @@ test("(H7) the header says Halo, Meetings, then the open meeting; no Notes tab",
 // grouped by claim, alerts apart from tips, your speaking last, one player.
 function richPage() {
   const p = JSON.parse(JSON.stringify(GOLDEN));
-  const turn = GOLDEN.transcript_lines[0].turn_id;
   const pt = (n, kind, text) => ({ ...GOLDEN.points[0], point_id: `00000040-0000-4000-8000-0000000000${n}`, kind, text,
     quote: text, is_action: false, urgency: "later" });
   p.points.push(pt(41, "question", "When does the gateway go live?"), pt(42, "pushback", "March is too risky."),
@@ -666,7 +667,6 @@ function richPage() {
   p.coaching = [{ text: "Ask Layla for the date.", alert: false, at_ms: 1000 },
     { text: "Take a breath; your tone is rising.", alert: true, at_ms: 2000 }]
     .concat([1, 2, 3, 4, 5, 6].map((i) => ({ text: "Tip number " + i + ".", alert: false, at_ms: 3000 + i })));
-  void turn;
   return p;
 }
 
@@ -720,12 +720,13 @@ test("(M3) Meetings uses the meeting page's background", async ({ page }) => {
 });
 
 // Karim 2026-11-04: Archive and Open notes sat on different lines at 1024-1100 px and on phones.
-test("(H8) Archive and Open notes stay side by side at every width", async ({ page }) => {
+test("(H8) Archive and Open meeting stay side by side at every width", async ({ page }) => {
   for (const width of [1440, 1100, 1024, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(baseURL + "/");
-    const arch = await page.locator("#preview [data-archive]").boundingBox();
-    const open = await page.locator("#preview .pv-open").boundingBox();
+    await page.locator("#preview .pv-open").waitFor();
+    const [arch, open] = await page.evaluate(() => ["#preview [data-archive]", "#preview .pv-open"]
+      .map((s) => ({ y: document.querySelector(s).getBoundingClientRect().top })));
     expect(Math.abs(arch.y - open.y), `at ${width}px`).toBeLessThan(2);
   }
 });
