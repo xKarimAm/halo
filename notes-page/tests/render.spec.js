@@ -22,6 +22,14 @@ function degradedPage() {
   return page;
 }
 
+function emptyPage() {
+  const page = degradedPage();
+  page.transcript_lines = [];
+  page.points = [];
+  page.actions = [];
+  return page;
+}
+
 // Model text as it arrives live: no capital, no end mark, a title ending in ".".
 function messyPage() {
   const page = JSON.parse(JSON.stringify(GOLDEN));
@@ -75,6 +83,9 @@ test.beforeAll(async () => {
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/degraded") {
       return send(res, 200, JSON.stringify(degradedPage()));
+    }
+    if (req.method === "GET" && url.pathname === "/api/meetings/empty") {
+      return send(res, 200, JSON.stringify(emptyPage()));
     }
     if (req.method === "GET" && url.pathname === "/api/search") {
       const q = (url.searchParams.get("q") || "").toLowerCase();
@@ -242,6 +253,14 @@ test("(6) degraded page shows the fallback banner with live points", async ({ pa
   await page.goto(baseURL + "/?meeting=degraded");
   await expect(page.locator(".degraded")).toContainText("AI summary failed");
   await expect(page.locator(".ucol.u-medium")).toContainText("Launch moves to Nov 12");
+});
+
+test("(6b) a meeting with no speech says so, not that the AI failed (#102)", async ({ page }) => {
+  await page.goto(baseURL + "/?meeting=empty");
+  await expect(page.locator(".degraded")).toContainText("No speech was captured");
+  await expect(page.locator("#view")).not.toContainText("AI summary failed");
+  await expect(page.locator(".cols")).toHaveCount(0);
+  await expect(page.locator(".ucol")).toHaveCount(0);
 });
 
 test("(7) Arabic toggle renders RTL with Arabic labels and no overflow at 560px", async ({ page }) => {

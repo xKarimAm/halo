@@ -53,6 +53,7 @@
       orig: "Original", hide: "Hide original", jump: "Jump to line", play: "Play recording from here",
       recAt: "Recording: {p} at {t}", close: "Close profile", role: "Role from Setup",
       degraded: "AI summary failed, showing live notes.",
+      noSpeech: "No speech was captured in this meeting.",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
       norec: "No recording for this meeting. The notes and transcript are complete.",
       reclive: "The recording is ready when the meeting ends.",
@@ -127,6 +128,7 @@
       orig: "الأصل", hide: "إخفاء الأصل", jump: "انتقل إلى السطر", play: "شغّل التسجيل من هنا",
       recAt: "التسجيل: {p} عند {t}", close: "إغلاق الملف", role: "الدور من الإعداد",
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
+      noSpeech: "لم يُلتقط أي كلام في هذا الاجتماع.",
       keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
       norec: "لا يوجد تسجيل لهذا الاجتماع، لكن الملاحظات والنص الكامل متاحة.",
       reclive: "يصبح التسجيل جاهزاً عند انتهاء الاجتماع.",
@@ -813,8 +815,10 @@
 
   function renderMeeting(app, view, lang) {
     var page = app.page;
+    // A meeting nobody spoke in is not a failed summary (#102).
+    var silent = !(page.transcript_lines || []).length && !(page.points || []).length;
     if (page.meeting.degraded) {
-      view.appendChild(el("div", "degraded", t(lang, "degraded")));
+      view.appendChild(el("div", "degraded", t(lang, silent ? "noSpeech" : "degraded")));
     }
     var wrap = el("div", "mtg");
     var left = el("div");
@@ -856,7 +860,7 @@
     var selected = page.people.filter(function (p) { return p.name === app.person; })[0];
     if (selected) {
       stage.appendChild(personPanel(app, selected, lang));
-    } else {
+    } else if (!silent) {
       stage.appendChild(summaryBoard(app, lang));
       if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
       stage.appendChild(filtersBar(app, boardPoints(page), lang));
