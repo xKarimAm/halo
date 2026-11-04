@@ -26,7 +26,8 @@ TICK_S = 1.0
 MAX_CALLS = 20  # per meeting, per backend run: a restart mid-meeting allows 20 more
 MAX_SOURCES = 3
 NOTE_MAX = 200
-ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫", "0123456789.")
+FIGURE = re.compile(r"\d+(?:\.\d+)?|hundred|thousand|million|billion|trillion|percent|مليون|ملايين|مليار|بالمئة|بالمائة")
 SAME_CLAIM_OVERLAP = 0.6  # live 2026-11-04: one Qatar figure was checked three times
 CLAIM_MAX = 300
 # ponytail: digits, or a scale word (speech-to-text can spell numbers out). A claim
@@ -69,7 +70,12 @@ def _words(text: str) -> set[str]:
 
 
 def _numbers(text: str) -> set[str]:
-    return set(re.findall(r"\d+", text.translate(ARABIC_DIGITS)))
+    return set(FIGURE.findall(text.translate(ARABIC_DIGITS).lower()))
+
+
+def _as_data(text: str) -> str:
+    """Spoken words cannot close the <said> tag they sit in."""
+    return text.replace("<", " ").replace(">", " ")
 
 
 def _shown_claim(rewrite: str, claim: str, spoken: str) -> str:
@@ -134,7 +140,7 @@ class FactCheck:
         meetingid, point = self._pending.pop(0)
         claim = str(point["text"])[:CLAIM_MAX]
         spoken = str(point.get("quote", ""))[-CLAIM_MAX:]
-        prompt = INSTRUCTIONS.format(claim=claim, spoken=spoken)
+        prompt = INSTRUCTIONS.format(claim=_as_data(claim), spoken=_as_data(spoken))
         result = await asyncio.to_thread(self._llm.search_json, prompt=prompt, schema=CHECK_SCHEMA,
                                          schema_name="claim_check")
         if not result.ok:
