@@ -380,6 +380,20 @@ test("(11) an assigned action has an email link carrying its text and the meetin
   expect(href).toContain(GOLDEN.meeting.title);
 });
 
+// Karim 2026-11-04: "click a name, see the statement, send it as an email
+// or a notice" to the person it is about: every point can be emailed.
+test("(11b) any point can be emailed with its words, who said it and the meeting", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview .pv-open").click();
+  const point = GOLDEN.points[0];
+  const mail = page.locator("li.pt a.mail").first();
+  const href = decodeURIComponent(await mail.getAttribute("href"));
+  expect(href.startsWith("mailto:?")).toBe(true);
+  expect(href).toContain(point.text);
+  expect(href).toContain(point.speaker_name);
+  expect(href).toContain(GOLDEN.meeting.title);
+});
+
 test("(12) shown text is tidy: capital first letter, end period, titles without one, Inter headers", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=messy");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Launch readiness review");

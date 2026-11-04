@@ -84,7 +84,9 @@
       t_sprint: "Sprint", t_planning: "Planning", t_discovery: "Product discovery", t_sales: "Sales",
       t_induction: "Induction", t_one_on_one: "1:1", t_interview: "Interview", t_other: "Other",
       mailSubject: "Action item from \u201C{m}\u201D: {a}",
-      mailBody: "Hi {o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes"
+      mailBody: "Hi {o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes",
+      pointMailSubject: "From \u201C{m}\u201D: {p}",
+      pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo notes"
     },
     ar: {
       notes: "الملاحظات", meetings: "الاجتماعات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
@@ -155,7 +157,9 @@
       t_sprint: "سبرنت", t_planning: "تخطيط", t_discovery: "استكشاف المنتج", t_sales: "مبيعات",
       t_induction: "تهيئة موظف", t_one_on_one: "فردي", t_interview: "مقابلة", t_other: "أخرى",
       mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
-      mailBody: "مرحباً {o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo"
+      mailBody: "مرحباً {o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo",
+      pointMailSubject: "من \u00AB{m}\u00BB: {p}",
+      pointMailBody: "مرحباً،\n\nفي اجتماع \u00AB{m}\u00BB ({d})، قال {s}:\n\n{p}\n\nأُرسلت من ملاحظات Halo"
     }
   };
 
@@ -429,6 +433,9 @@
     origBtn.setAttribute("aria-expanded", app.openQuote[point.point_id] ? "true" : "false");
     meta.appendChild(origBtn);
     meta.appendChild(retagControl(point, point.point_id, false, lang, app.userTags));
+    var mail = el("a", "mail chip", t(lang, "email"));
+    mail.href = pointMailHref(app, point, lang);
+    meta.appendChild(mail);
     li.appendChild(meta);
     if (app.openQuote[point.point_id]) {
       var quote = el("blockquote", null, "\u201C" + point.quote + "\u201D");
@@ -501,6 +508,14 @@
     // ponytail: no addresses are stored, so the To field is left for the user
     return "mailto:?subject=" + encodeURIComponent(t(lang, "mailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "mailBody", vars));
+  }
+
+  // Karim 2026-11-04: send any statement to the person it concerns.
+  function pointMailHref(app, point, lang) {
+    var m = app.page.meeting;
+    var vars = { m: titleOf(m), p: point.text, s: point.speaker_name || "", d: fmtDate(m.t0_ms) };
+    return "mailto:?subject=" + encodeURIComponent(t(lang, "pointMailSubject", vars)) +
+      "&body=" + encodeURIComponent(t(lang, "pointMailBody", vars));
   }
 
   function hitRow(app, hit, lang) {
