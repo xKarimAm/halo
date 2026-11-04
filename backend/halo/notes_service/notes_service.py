@@ -709,7 +709,7 @@ async def notes_list_shell(request: Request):  # type: ignore[no-untyped-def]
 async def notes_shell(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
     service = _service(request)
     if service.page_for(meeting_id) is None:
-        return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+        return RedirectResponse("/notes/", status_code=307)  # a deleted meeting's bookmark
     path = service.static_file("index.html")
     if path is None:
         return JSONResponse({"detail": "notes shell not found"}, status_code=404)

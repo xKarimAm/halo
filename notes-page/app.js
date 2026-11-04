@@ -2157,7 +2157,8 @@
         });
         wireHome(app);
       };
-      if (app.doc.startViewTransition && !stillMotion()) app.doc.startViewTransition(swap);
+      // A newer hover skips this transition; that rejection is expected, not an error.
+      if (app.doc.startViewTransition && !stillMotion()) app.doc.startViewTransition(swap).ready.catch(function () {});
       else swap();
     }
 
@@ -2460,7 +2461,7 @@
     };
     window.addEventListener("popstate", function () {
       var id = idFromPath();
-      if (id) app.openMeeting(id, false);
+      if (id) app.openMeeting(id, false).catch(function () { return app.loadMeetings(false); }); // deleted since
       else app.loadMeetings(false);
     });
     // A judge without a key gets told why nothing happens (older backends have no /api/status).

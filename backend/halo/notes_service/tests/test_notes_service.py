@@ -129,7 +129,8 @@ def test_shell_and_static(tmp_path):
     client, _, _ = make_client(tmp_path)
     shell = client.get(f"/notes/{MEETING}")
     assert shell.status_code == 200 and "shell" in shell.text
-    assert client.get("/notes/unknown-id").status_code == 404
+    gone = client.get("/notes/unknown-id", follow_redirects=False)  # a deleted meeting's bookmark
+    assert gone.status_code == 307 and gone.headers["location"] == "/notes/"
     assert client.get("/notes/app.js").status_code == 200
     assert client.get("/notes/styles.css").status_code == 200
     for url in (f"/notes/{MEETING}", "/notes/app.js", "/notes/styles.css"):
