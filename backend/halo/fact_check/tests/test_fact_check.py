@@ -190,3 +190,23 @@ def test_a_different_scale_is_a_different_claim():
     llm = FakeLLM()
     run(llm, point("Qatar population is 3 million", 1), point("Qatar population is 3 billion", 2))
     assert len(llm.prompts) == 2
+
+
+def test_claims_without_numbers_differ_by_their_content_words():
+    # Without figures, "the", "are" and "in" made these two one claim.
+    llm = FakeLLM()
+    run(llm, point("The pyramids are in Egypt.", 1), point("The pyramids are in Mexico.", 2))
+    assert len(llm.prompts) == 2
+
+
+def test_a_reworded_fact_without_numbers_is_checked_once():
+    llm = FakeLLM()
+    run(llm, point("The Giza pyramids are the only pyramids in the world.", 1),
+        point("The pyramids of Giza are the only pyramids in the world.", 2))
+    assert len(llm.prompts) == 1
+
+
+def test_points_of_short_words_do_not_crash_the_repeat_check():
+    llm = FakeLLM()
+    run(llm, point("It is so.", 1), point("So it is.", 2))
+    assert len(llm.prompts) == 2

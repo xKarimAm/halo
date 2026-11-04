@@ -1,6 +1,6 @@
-"""Fact Check: spoken numbers checked against the live web, while the call runs.
+"""Fact Check: spoken claims checked against the live web, while the call runs.
 
-A point with a number in it goes to Muse Spark with the web_search tool, one
+Every statement (a point or pushback, not a task) goes to Muse Spark with the web_search tool, one
 call at a time on this module's own loop, so the Insight lane never waits. The
 model replies `skip` without searching for anything internal to the meeting
 (plans, owners, the team's own figures). Only `supported` and `disputed` are
@@ -49,7 +49,8 @@ INSTRUCTIONS = (
     "Fact-check one claim said in a work meeting. If it states a public fact "
     "(world figures, a company, a market, science, history) search the web and "
     "judge it. If it is internal to the meeting (plans, deadlines, owners, the "
-    "team's own numbers, opinions) do not search and reply verdict skip.\n"
+    "team's own numbers, opinions, anything about their own product, app or "
+    "project) do not search and reply verdict skip.\n"
     "verdict: supported, disputed, unclear or skip.\n"
     "lang: ar if the claim itself was said in Arabic, en if in English. The spoken "
     "words may mix both; go by the words of the claim.\n"
@@ -62,8 +63,13 @@ INSTRUCTIONS = (
 )
 
 
+FILLER = {"the", "and", "are", "was", "were", "for", "that", "this", "with", "has", "have", "its",
+          "our", "not", "but", "you", "they", "there", "from", "about", "all", "any"}
+
+
 def _words(text: str) -> set[str]:
-    return set(re.findall(r"\w+", text.lower()))
+    """Content words: without figures, "the pyramids are in X" matched any X."""
+    return {w for w in re.findall(r"\w+", text.lower()) if len(w) > 2 and w not in FILLER}
 
 
 def _numbers(text: str) -> set[str]:
@@ -84,7 +90,8 @@ def _shown_claim(rewrite: str, claim: str, spoken: str) -> str:
 def _same_claim(a: tuple[set[str], set[str]], b: tuple[set[str], set[str]]) -> bool:
     """A reworded repeat: the same figures (scale words too) and most of the same words."""
     (wa, na), (wb, nb) = a, b
-    return na == nb and len(wa & wb) / len(wa | wb) >= SAME_CLAIM_OVERLAP
+    both = wa | wb
+    return na == nb and bool(both) and len(wa & wb) / len(both) >= SAME_CLAIM_OVERLAP
 
 
 class FactCheck:
