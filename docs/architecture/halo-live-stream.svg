@@ -50,7 +50,7 @@
 
   <!-- models -->
   <g><rect x="1010" y="116" width="220" height="66" rx="10" class="box"/><text x="1024" y="140" class="t">Muse Voice Transcribe</text><text x="1024" y="158" class="s">two realtime sessions</text><text x="1024" y="173" class="s">Arabic, English, mixed</text></g>
-  <g><rect x="1010" y="235" width="220" height="120" rx="10" class="box"/><text x="1024" y="259" class="t">Muse Spark Open</text><text x="1024" y="279" class="s">4 s budget per call</text><text x="1024" y="303" fill="#e8c98a" style="fill:#e8c98a" font-size="12">↓ per-call failover</text><text x="1024" y="327" class="t">Muse Spark 1.3</text><text x="1024" y="345" class="s">same schema, checked locally</text></g>
+  <g><rect x="1010" y="235" width="220" height="120" rx="10" class="box"/><text x="1024" y="259" class="t">Muse Spark Open</text><text x="1024" y="279" class="s">with its key: 4 s per live point</text><text x="1024" y="303" fill="#e8c98a" style="fill:#e8c98a" font-size="12">↓ per-call failover</text><text x="1024" y="327" class="t">Muse Spark 1.3</text><text x="1024" y="345" class="s">same schema, checked locally</text></g>
   <g><rect x="1010" y="378" width="220" height="72" rx="10" class="box"/><text x="1024" y="402" class="t">Spark web_search</text><text x="1024" y="421" class="s">fact check, off the live path,</text><text x="1024" y="437" class="s">a slow search only arrives later</text></g>
   <path class="wire" d="M910 414H1010"/>
 
@@ -59,7 +59,7 @@
     <rect width="1220" height="124" rx="14" fill="#7d776b" fill-opacity=".28"/>
     <text x="20" y="32" class="t">Streamed</text><text x="20" y="54" class="s">Audio in 100 ms frames, up to Muse Voice and back as live words.</text><text x="20" y="72" class="s">Binary frames and JSON envelopes share the one local socket.</text>
     <text x="440" y="32" class="t">Request and response</text><text x="440" y="54" class="s">Spark calls return whole, schema-checked JSON, so there are</text><text x="440" y="72" class="s">no partial replies to trust. Points fire at the speaker's pause.</text>
-    <text x="860" y="32" class="t">Stays on your PC</text><text x="860" y="54" class="s">The socket, database and recordings never leave 127.0.0.1.</text><text x="860" y="72" class="s">Only model calls go out, and the keys stay in the backend.</text>
+    <text x="860" y="32" class="t">Stays on your PC</text><text x="860" y="54" class="s">The socket, database and recordings never leave 127.0.0.1.</text><text x="860" y="72" class="s">Model calls go out; the keys stay in the backend.</text>
     <text x="20" y="106" class="s mono">backend/halo/gateway · transcriber · llm/llm.py · extension/src/hub_capture · contracts/</text>
   </g>
 

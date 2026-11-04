@@ -53,7 +53,7 @@ Open http://127.0.0.1:8765 (it goes to the meetings list) or click the toast's l
   - **Your speaking (private):** your talk share against an even share, longest stretch, questions, cut-ins, pace, hedged commitments quoted, and one thing to try next call. There is no score and no mood words.
   - **Transcript:** reads like a chat, one name per run.
   - **Export Markdown:** the whole meeting as Markdown, ready to paste into an AI.
-  - **English / Arabic:** the whole page switches language (Arabic right to left).
+  - **English / Arabic:** the interface switches language (Arabic right to left); meeting content stays in the language it was written in.
 
 ## Solo use
 
@@ -76,7 +76,7 @@ Halo runs on one PC: the person who presses Start. Nothing is hosted, so there i
 ## Privacy
 
 - **What leaves your PC:** the call audio and your mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at the Spark Open host you set). That's all.
-- **Web searches:** a sentence with a number in it goes to Muse Spark's web search for the live fact check, so that sentence can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
+- **Web searches:** every spoken point and pushback goes to Muse Spark with its web search tool for the live fact check (decisions, actions and your notes too when you attach reference notes), so that text can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
 - **What stays on your PC:** recordings, transcripts and notes stay in the `data` folder. Video frames never leave it either; in Halo mode they go only to the SAM worker on your own GPU.
 - **Wiping everything:** delete the `data` folder.
 - **Consent:** tell everyone in the call before you press Start.

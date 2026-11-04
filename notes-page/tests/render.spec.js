@@ -999,7 +999,7 @@ test("(M14) Delete moves a meeting to Deleted (30 days); Restore brings it back"
   await page.locator(".tabs .fmenu summary").click();
   await page.locator(".tabs .fmenu [data-tab=deleted]").click();
   await expect(page.locator("#list .row")).toHaveCount(1);
-  await expect(page.locator("#list .row")).toContainText("removed in 30 days");
+  await expect(page.locator("#list .row")).toContainText("leaves this list in 30 days");
   await page.locator("#preview [data-delete]").click();
   await page.locator(".tabs [data-tab=all]").click();
   await expect(page.locator("#list .row")).toHaveCount(1);

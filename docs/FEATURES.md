@@ -15,7 +15,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Feature | What it does | Status |
 |---|---|---|
 | Speech bubbles | A glass bubble appears on the speaker's tile a few seconds after they say something that matters: a point, a question, a decision or a pushback. Colour is urgency (red urgent, amber medium, blue later) and the glyph is the kind (• ? ✓ ≠). | Live |
-| Bilingual speech | Arabic, English and mixed sentences all go through. Each quote shows in its own script direction. | Tested for text: the demo run sends Arabic and mixed turns through the real Spark calls, but skips speech-to-text. Arabic speech on a live call is not checked yet. |
+| Bilingual speech | Arabic, English and mixed sentences all go through. Each quote shows in its own script direction. | Live: Arabic and mixed speech went through Muse Voice on real calls (360 Arabic transcript lines across 9 local test calls, 1-4 Nov). |
 | Points language | You read the points in English or Arabic, whatever language was spoken. Switch it mid-call from the Halo menu. | Tested |
 | The exact words | Click a bubble to see the kind, the speaker, the point and the exact words said. | Tested |
 | Why urgent | An urgent bubble says why in a word or two, for example "Urgent · today". | Tested |
@@ -61,7 +61,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Archive, folders, follow | Archive with Undo; rename or delete a folder (its meetings stay); click a face to see only that person's meetings. | Tested |
 | Missing-key banner | Without a Meta key, the page says so and how to fix it. | Tested |
 | Export Markdown | The whole meeting as Markdown, ready to paste into an AI. | Live |
-| English / Arabic | The whole page switches language, Arabic right to left. | Live |
+| English / Arabic | The interface switches language, Arabic right to left. Meeting content stays in the language it was written in. | Live |
 | Back and Forward | Every view has its own address. | Live |
 
 ## Behind the scenes
@@ -81,3 +81,16 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Halo mode on every tile, not only the speaker's | One SAM call per frame on one GPU; every tile multiplies the cost. Next after the hackathon. |
 | Carry-over: open items from the last meeting with the same people at the next Start | Needs people matched across meetings; the data is stored, the matching isn't written. |
 | Video clips of each moment | The recording is audio only by design (smaller, and nobody's face is stored). |
+
+## Added on 4 Nov
+
+| Feature | What it does | Status |
+|---|---|---|
+| Live fact check | Spark's web search checks public statements during the call and shows a verdict with a source. | Live |
+| Visual recap | One press draws the meeting as a one-page sketch with Muse Image. | Live |
+| Compare with your notes | Add a Markdown or text file; Spark compares it with the meeting. | Live |
+| Mark Done | Close an action with a note of what was done. | Tested |
+| Projects, Archive, Deleted | Group meetings; Delete hides a meeting and can be undone for 30 days. Files stay in `data/`. | Tested |
+| Welcome and Induction | A first-run page and a replayable tour of every feature. | Tested |
+| Show on screen | Switch name pills, points, the coach and fact checks on or off from the Halo badge. | Tested |
+| Zoom and Teams on the web | Experimental: one shared tile for remote speakers, no names or speaking highlight. | Tested |

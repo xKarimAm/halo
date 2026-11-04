@@ -7,8 +7,8 @@ Halo hears your meetings, so this file says exactly what it exposes and how each
 | Process | Address | Who may use it |
 |---|---|---|
 | Backend (`uv run halo`) | `127.0.0.1:8765` only | Requests whose `Host` is `127.0.0.1`, `localhost` or `[::1]`; anything else gets 400. This blocks DNS-rebinding pages. |
-| `/ws` (the extension's socket) | same | Only the pinned Halo extension Origin (`chrome-extension://dbngpodihegmipdmikpbkflahdkfpgif`), and only after `pair.hello` carries a token this backend issued. Audio frames sent before pairing are dropped. |
-| `POST` routes on the notes page (`/api/ask`, re-tag, folders) | same | Same-origin only. A request from another site carries a foreign `Origin` and gets 403, so no web page can spend your model calls or edit your notes. |
+| `/ws` (the extension's socket) | `127.0.0.1:8765` only | Only the pinned Halo extension Origin (`chrome-extension://dbngpodihegmipdmikpbkflahdkfpgif`), and only after `pair.hello` carries a token this backend issued. Audio frames sent before pairing are dropped. |
+| `POST` routes on the notes page (`/api/ask`, re-tag, folders) | same | Same-origin only. A request from another site carries a foreign `Origin` and gets 403, so a web page cannot call them directly. Requests with no Origin, such as other programs on this PC, are not refused. |
 | SAM 3.1 worker (optional) | `127.0.0.1:8766` only | `Host` must be `127.0.0.1:8766`, the Origin must be absent or a Chrome extension, and the body must be `image/jpeg`. A web page cannot send that without a CORS preflight, which the worker never answers. |
 
 ## Pairing
@@ -25,9 +25,9 @@ Since 2026-11-04 the popup pairs on its own: `POST /pair/auto` mints a token onl
 
 ## Your data
 
-- Transcripts, notes, recordings and logs stay in `data/` (git-ignored). Delete the folder to wipe everything.
-- What leaves your PC: the call and mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at Baseten, Modal or your own server when you set a Spark Open key). Video frames never leave the PC; in Halo mode they go only to the local SAM worker.
-- **Web searches:** a sentence with a number in it goes to Muse Spark's web search for the live fact check, so that sentence can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
+- Transcripts, notes, recordings and logs stay in `data/` (git-ignored). Delete the folder to wipe them; the extension keeps its pairing token and tile names in Chrome's storage until you remove it.
+- What leaves your PC: the call and mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at Baseten, Modal or your own server when you set a Spark Open key). Reference notes, Ask questions and the recap prompt go to the same models. Video frames never leave the PC; in Halo mode they go only to the local SAM worker.
+- **Web searches:** every spoken point and pushback goes to Muse Spark with its web search tool for the live fact check (decisions, actions and your notes too when you attach reference notes), at most 60 calls a meeting, so that text can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
 
 ## Reporting a problem
 
