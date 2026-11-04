@@ -1,3 +1,4 @@
+import { sourceLink } from "./overlay";
 import { describe, expect, it } from "vitest";
 import {
   FakeClock,
@@ -109,7 +110,8 @@ describe("layout", () => {
     const page = projectFaceBox(tile, [0.4, 0.4, 0.15, 0.35]);
     expect(layout.mode).toBe("face");
     expect(layout.namePos.x).toBeCloseTo(page.x + page.w / 2 - 238);
-    expect(layout.namePos.y).toBeCloseTo(page.y - 6 - 64);
+    // Live 2026-11-04: the box starts at the brow, so the pill clears the hair too.
+    expect(layout.namePos.y).toBeCloseTo(page.y - 0.35 * page.h - 6 - 64);
     expect(layout.stackPos.y).toBeCloseTo(page.y - 64);
     expect(layout.floorY).toBe(853 - 64);
     // DECISIONS 1: bubbles carry a tail toward the face; room on the right puts the
@@ -176,18 +178,23 @@ describe("point lifecycle", () => {
   });
 });
 
-// (4) expiry ~60 s, ageing at 72%, overflow folds to +N
-describe("expiry and folding", () => {
-  it("ages at 72%, expires at 60 s, folds overflow into +N", () => {
+// (4) Karim 2026-11-04, live: points stay until he archives them; overflow folds to +N
+describe("staying and folding", () => {
+  it("keeps every point until archived, newest in view, the rest behind +N", () => {
     const { overlay, clock } = make();
     const pts = [point({ rank: 1 }), point({ rank: 2 }), point({ rank: 3 }), point({ rank: 3 })];
-    pts.forEach((p, i) => overlay.applyPointsUpsert(p, `env-${i}`));
+    pts.forEach((p, i) => {
+      clock.now = i * 1000;
+      overlay.applyPointsUpsert(p, `env-${i}`);
+    });
     expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toHaveLength(3);
+    expect(overlay.visiblePoints("tile-1")[0].point_id).toBe(pts[3].point_id);
     expect(overlay.overflowCount("tile-1")).toBe(1);
-    clock.now = 44_000; // >72% of 60 s
-    expect(overlay.isAged(pts[0].point_id)).toBe(true);
-    clock.now = 61_000;
-    expect(overlay.visiblePoints("tile-1")).toHaveLength(0);
+    clock.now = 60 * 60_000; // an hour later, nothing has gone
+    expect(overlay.visiblePoints("tile-1")).toHaveLength(3);
+    expect(overlay.overflowCount("tile-1")).toBe(1);
+    overlay.archive(pts[3].point_id);
+    expect(overlay.overflowCount("tile-1")).toBe(0);
   });
 });
 
@@ -394,9 +401,8 @@ describe("urgent points stick until archived", () => {
     overlay.applyPointsUpsert(point({ point_id: "m1", urgency: "medium", rank: 1 }), "env-s2");
     expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["u1", "m1"]);
     clock.now += 10 * 60_000;
-    expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["u1"]);
     overlay.archive("u1");
-    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect(overlay.visiblePoints("tile-1").map((p) => p.point_id)).toEqual(["m1"]);
     expect(overlay.popover("u1")).toBeNull();
   });
 
@@ -450,5 +456,123 @@ describe("live caption", () => {
     overlay.render(doc, root);
     expect(captionOf(root, "tile-2")).toBeUndefined();
     expect(captionOf(root, "tile-1")).toBeUndefined(); // Alt+H hides captions too
+  });
+});
+
+// Live 2026-11-04: after leaving the call, the name pill, points and coach
+// stayed on Meet's "You left the meeting" page.
+describe("the meeting ends: nothing lingers", () => {
+  it("a tile that left the snapshot loses its layer on the next render", () => {
+    const { overlay } = make();
+    overlay.applyPointsUpsert(point({ text: "Ship it" }), "env-1");
+    const root = new FakeEl();
+    overlay.render(doc as never, root as never);
+    expect(root.find((e) => e.attrs.has("data-tile-id"))).toHaveLength(1);
+    overlay.applyTiles({ tiles: [] });
+    overlay.render(doc as never, root as never);
+    expect(root.find((e) => e.attrs.has("data-tile-id"))).toHaveLength(0);
+  });
+
+  it("endMeeting clears points (urgent ones too), coach and captions, and keeps the notes toast", () => {
+    const { overlay } = make();
+    overlay.applyPointsUpsert(point({ urgency: "urgent" }), "env-1");
+    overlay.applyEnvelope({ id: "c1", type: "coach.tips", data: { tips: ["Name an owner."], lang: "en" } });
+    overlay.applyEnvelope({ id: "p1", type: "transcript.partial", data: { stream: "tab", text: "so the" } });
+    overlay.applyEnvelope({ id: "n1", type: "notes.ready", data: { meeting_id: "m" } });
+    overlay.endMeeting();
+    expect(overlay.points.size).toBe(0);
+    expect(overlay.coach).toBeNull();
+    expect(overlay.visiblePoints("tile-1")).toEqual([]);
+    expect(overlay.notesToast).not.toBeNull();
+    expect(overlay.caption("tile-1")).toBe("");
+  });
+
+  it("a point or tip still in flight when the meeting ends stays off the page until the next Start", () => {
+    const { overlay } = make();
+    overlay.endMeeting();
+    overlay.applyEnvelope({ id: "late-1", type: "points.upsert", data: point() as never });
+    overlay.applyEnvelope({ id: "late-2", type: "coach.tips", data: { tips: ["Late."], lang: "en" } });
+    overlay.applyEnvelope({ id: "late-3", type: "claim.checked", data: FACT });
+    expect(overlay.factChecks).toEqual([]);
+    expect(overlay.points.size).toBe(0);
+    expect(overlay.coach).toBeNull();
+    overlay.startMeeting();
+    overlay.applyEnvelope({ id: "new-1", type: "points.upsert", data: point() as never });
+    expect(overlay.points.size).toBe(1);
+  });
+});
+
+
+describe("view mode", () => {
+  it("Frame view keeps the name in the tile corner even when a face is found", () => {
+    const { overlay } = make();
+    overlay.applyTiles({ tiles: [{ tile_id: "tile-1", name: "Layla", is_self: false, rect: [0, 0, 800, 450], video_w: 640, video_h: 360, fit: "cover", captions_rect: null }] });
+    overlay.applyFaces({ tile_id: "tile-1", frame_ts_ms: 0, engine: "sam", space: { frame_w: 640, frame_h: 360 },
+      face: { box: [0.4, 0.4, 0.15, 0.35], head_anchor: [0.475, 0.4], conf: 0.9 } });
+    expect(overlay.layout("tile-1").mode).toBe("face");
+    overlay.setViewMode("frame");
+    expect(overlay.layout("tile-1").mode).toBe("frame");
+    overlay.setViewMode("bogus");
+    expect(overlay.layout("tile-1").mode).toBe("frame");
+    overlay.setViewMode("face");
+    expect(overlay.layout("tile-1").mode).toBe("face");
+  });
+});
+
+const FACT = { point_id: "p1", claim: "Qatar has 10 million people.", speaker_name: "Omar", verdict: "disputed",
+  note: "It is about 3.1 million.", sources: ["https://a.example/1"], lang: "en" };
+
+describe("fact check", () => {
+  it("keeps every check, newest first, until dismissed or the meeting ends", () => {
+    const overlay = new Overlay(new FakeClock());
+    overlay.applyEnvelope({ id: "f1", type: "claim.checked", data: FACT });
+    overlay.applyEnvelope({ id: "f2", type: "claim.checked", data: { ...FACT, note: "Newer." } });
+    expect(overlay.factChecks.map((c) => c.note)).toEqual(["Newer.", "It is about 3.1 million."]);
+    overlay.dismissFact(overlay.factChecks[0]);
+    expect(overlay.factChecks.map((c) => c.note)).toEqual(["It is about 3.1 million."]);
+    overlay.endMeeting();
+    expect(overlay.factChecks).toEqual([]);
+  });
+
+  it("links only web sources, and names them by host", () => {
+    expect(sourceLink("https://www.a.example/x?y=1")).toEqual({ href: "https://www.a.example/x?y=1", host: "a.example" });
+    expect(sourceLink("javascript:alert(1)")).toBeNull();
+    expect(sourceLink("not a url")).toBeNull();
+  });
+});
+
+// Karim 2026-11-04, live: Meet's minimized self view (234x132 to 427x240) has no
+// room for a name above a face, so that tile uses Frame view by itself.
+describe("minimized tile", () => {
+  const withFace = (width: number) => {
+    const overlay = new Overlay(new FakeClock());
+    overlay.applyTiles({ tiles: [{ tile_id: "t", name: "Karim", is_self: true, rect: [0, 0, width, width * 0.5625], fit: "cover", video_w: 1280, video_h: 720, captions_rect: null }] } as never);
+    overlay.applyFaces({ tile_id: "t", frame_ts_ms: 0, engine: "sam", space: { frame_w: 1280, frame_h: 720 },
+      face: { box: [500, 200, 200, 200] } } as never);
+    return overlay;
+  };
+
+  it("uses Frame view on a small tile and Camera view on a normal one", () => {
+    expect(withFace(427).layout("t").mode).toBe("frame");
+    expect(withFace(234).layout("t").mode).toBe("frame");
+    expect(withFace(800).layout("t").mode).toBe("face");
+  });
+});
+
+// Karim 2026-11-04: each on-screen layer can be switched off from the badge menu.
+describe("show switches", () => {
+  it("names off drops the name pills, points off drops the bubbles", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point(), "env-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(root.find((e) => e.classes.has("halo-name")).length).toBeGreaterThan(0);
+    overlay.show.names = false;
+    overlay.render(doc as never, root as never, 10);
+    expect(root.find((e) => e.classes.has("halo-name"))).toHaveLength(0);
+    expect(root.find((e) => e.attrs.has("data-point-id"))).toHaveLength(1);
+    overlay.show.points = false;
+    overlay.render(doc as never, root as never, 20);
+    expect(root.find((e) => e.attrs.has("data-point-id"))).toHaveLength(0);
   });
 });

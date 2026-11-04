@@ -4,13 +4,19 @@ import type { ToPagePortMessage } from "../../../contracts/ext/port";
 import {
   Overlay, SystemClock, notesHref,
   type DocLike, type El, type UrgencyStyle,
+  sourceLink, type FactCheckCard,
 } from "./overlay";
 import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
+
+const FACTS_SHOWN = 2;
 
 // Viewer urgency-mark setting, shared with the setup panel (no ambient
 // chrome types in this lane: structural access keeps the two lanes' globals
 // from colliding).
 export const URGENCY_STYLE_KEY = "halo.urgencyStyle";
+/** Popup "View": face (name above the head) or frame (tile corner). Same key as setup_panel. */
+export const VIEW_MODE_KEY = "halo.viewMode";
+export const SHOW_KEY = "halo.show";
 interface LocalStore {
   get(keys: string[]): Promise<Record<string, unknown>>;
   set?(items: Record<string, unknown>): Promise<void>;
@@ -31,6 +37,23 @@ export async function readUrgencyStyle(): Promise<UrgencyStyle> {
     return v === "symbols" ? "symbols" : "words"; // default: draft-2 word tabs
   } catch {
     return "words";
+  }
+}
+
+/** Apply the stored view mode now, then follow popup changes live. */
+export function watchViewMode(overlay: Overlay, rerender: () => void): void {
+  try {
+    const api = chromeApi();
+    void api?.storage?.local?.get([VIEW_MODE_KEY])
+      .then((items) => { overlay.setViewMode(items?.[VIEW_MODE_KEY]); rerender(); }, () => {});
+    api?.storage?.onChanged?.addListener((changes) => {
+      if (VIEW_MODE_KEY in changes) {
+        overlay.setViewMode(changes[VIEW_MODE_KEY].newValue);
+        rerender();
+      }
+    });
+  } catch {
+    // storage unavailable (tests): stays on face.
   }
 }
 
@@ -80,9 +103,10 @@ export function boot(context: { port: PortIn }): Overlay {
       rerender();
     }
   });
-  overlay.requestRender = rerender;
   watchUrgencyStyle(overlay, rerender);
+  watchViewMode(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
+  overlay.requestRender = () => { rerender(); refresh(); }; // bubbles and the coach card
   syncPopover = mountPopover(document, overlay, root as unknown as Element, rerender);
   bindExpand(root as unknown as Element, overlay, rerender);
   bindHideKey(document, overlay, () => { rerender(); refresh(); });
@@ -265,7 +289,7 @@ export function mountControls(
   badge.setAttribute("aria-controls", "halo-menu");
   const toast = make("div", "halo-toast");
   toast.setAttribute("role", "status");
-  const link = make("a", "", "Open notes");
+  const link = make("a", "", "Open meeting");
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   const dismiss = button("halo-dismiss", "×", () => {
@@ -273,7 +297,7 @@ export function mountControls(
     refresh();
   });
   dismiss.setAttribute("aria-label", "Dismiss");
-  toast.append(make("span", "", "Meeting notes are ready."), link, dismiss);
+  toast.append(make("span", "", "Your meeting page is ready."), link, dismiss);
   // Points language (later turns only; points already shown keep theirs).
   const lang = make("select", "halo-lang");
   lang.setAttribute("aria-label", "Points language");
@@ -299,7 +323,35 @@ export function mountControls(
   for (const [k, word] of [["point", "Point"], ["question", "Question"], ["decision", "Decision"], ["pushback", "Pushback"]] as const) {
     legend.append(make("span", "halo-kind", KIND_GLYPHS[k]), make("span", "", word));
   }
-  menu.append(lang, legend);
+  // What shows on the call (Karim 2026-11-04), remembered across meetings.
+  const show = make("fieldset", "halo-show");
+  show.append(make("legend", "", "Show on screen"));
+  for (const [key, word] of [["names", "Name pills"], ["points", "Points"], ["coach", "Coach"], ["facts", "Fact checks"]] as const) {
+    const row = make("label", "");
+    const box = make("input", "");
+    box.type = "checkbox";
+    box.name = key;
+    box.checked = overlay.show[key];
+    box.addEventListener("change", () => {
+      overlay.show[key] = box.checked;
+      void chromeApi()?.storage?.local?.set?.({ [SHOW_KEY]: overlay.show });
+      overlay.requestRender();
+      refresh();
+    });
+    row.append(box, make("span", "", word));
+    show.append(row);
+  }
+  void chromeApi()?.storage?.local?.get([SHOW_KEY]).then((got) => {
+    const saved = got?.[SHOW_KEY] as Partial<Overlay["show"]> | undefined;
+    if (!saved) return;
+    for (const box of show.querySelectorAll("input")) {
+      const key = box.name as keyof Overlay["show"];
+      if (typeof saved[key] === "boolean") overlay.show[key] = box.checked = saved[key];
+    }
+    overlay.requestRender();
+    refresh();
+  }).catch(() => {});
+  menu.append(lang, show, legend);
 
   bar.append(badge, toast, menu);
   doc.body.append(bar);
@@ -325,13 +377,49 @@ export function mountControls(
   coach.append(coachHead, alert, tipList);
   doc.body.append(coach);
 
+  // Fact checks (Spark web search): lower left, above Meet's controls. Each
+  // stays until its x (Karim 2026-11-04); the two newest show, the rest wait.
+  const facts = make("aside", "halo-facts");
+  facts.setAttribute("aria-label", "Fact checks");
+  facts.setAttribute("aria-live", "polite");
+  doc.body.append(facts);
+  let shownFacts: unknown = null;
+  const factCard = (check: FactCheckCard): HTMLElement => {
+    const ar = check.lang === "ar";
+    const card = make("div", check.verdict === "disputed" ? "halo-fact disputed" : "halo-fact");
+    card.dir = ar ? "rtl" : "ltr";
+    card.lang = check.lang;
+    const word = check.verdict === "disputed" ? (ar ? "غير دقيق" : "Disputed") : (ar ? "صحيح" : "Checks out");
+    const close = button("halo-dismiss", "×", () => {
+      overlay.dismissFact(check);
+      refresh();
+    });
+    close.setAttribute("aria-label", "Hide fact check");
+    const head = make("div", "halo-coach-head");
+    head.append(make("span", "", `${ar ? "تحقق" : "Fact check"} · ${word}`), close);
+    card.append(head, make("p", "halo-fact-note", check.note));
+    if (check.notes_quote) {
+      card.append(make("p", "halo-fact-quote", `${ar ? "ملاحظاتك" : "Your notes"}: “${check.notes_quote}”`));
+    }
+    const link = check.sources.map(sourceLink).find(Boolean);
+    if (link) {
+      const a = doc.createElement("a");
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.href = link.href;
+      a.textContent = link.host;
+      card.append(a);
+    }
+    return card;
+  };
+
   const refresh = (): void => {
     badge.textContent = overlay.badgeText();
     const href = notesHref((overlay.notesToast as { url?: unknown } | null)?.url);
     toast.hidden = href === null;
     if (href) link.href = href;
     const tips = overlay.coach;
-    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || tips === dismissedTips;
+    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || !overlay.show.coach || tips === dismissedTips;
     if (tips && tips !== shownTips) {
       shownTips = tips;
       coach.dir = tips.lang === "ar" ? "rtl" : "ltr";
@@ -339,6 +427,15 @@ export function mountControls(
       alert.textContent = tips.alert ?? "";
       alert.hidden = !tips.alert;
       tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
+    }
+    facts.hidden = !overlay.factChecks.length || overlay.hidden || !overlay.show.facts;
+    if (overlay.factChecks !== shownFacts) {
+      shownFacts = overlay.factChecks;
+      const more = overlay.factChecks.length - FACTS_SHOWN;
+      facts.replaceChildren(
+        ...overlay.factChecks.slice(0, FACTS_SHOWN).map(factCard),
+        ...(more > 0 ? [make("p", "halo-facts-more", `+${more} more`)] : []),
+      );
     }
   };
   port.onMessage.addListener(refresh);

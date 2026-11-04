@@ -180,10 +180,19 @@ export class Hub {
     return this.meetingTab === undefined || tabId === undefined || tabId === this.meetingTab;
   }
 
+  /** Pages the hub may send meeting data to: the Start's tab only, once a Start named one. */
+  isPageTab(tabId: number | undefined): boolean {
+    return this.fromMeetingTab(tabId);
+  }
+
   /** Latest tiles.snapshot and meeting.context, replayed at every Start. */
   private pageState: ToHubPortMessage[] = [];
 
   onPortMessage(msg: ToHubPortMessage, senderTabId?: number): void {
+    // Another call tab (a second Meet, a Teams chat tab) must not replace this call's tiles.
+    // Only while a meeting runs: after it ends, the next call may be in another tab.
+    const live = this.meetingId !== null && !this.ended;
+    if (live && (msg.type === "tiles.snapshot" || msg.type === "speaker.active") && !this.fromMeetingTab(senderTabId)) return;
     if (msg.type === "tiles.snapshot" || msg.type === "meeting.context") {
       this.pageState = this.pageState.filter((m) => m.type !== msg.type);
       this.pageState.push(msg);

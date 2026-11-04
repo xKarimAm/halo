@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -129,7 +132,8 @@ def test_shell_and_static(tmp_path):
     client, _, _ = make_client(tmp_path)
     shell = client.get(f"/notes/{MEETING}")
     assert shell.status_code == 200 and "shell" in shell.text
-    assert client.get("/notes/unknown-id").status_code == 404
+    gone = client.get("/notes/unknown-id", follow_redirects=False)  # a deleted meeting's bookmark
+    assert gone.status_code == 307 and gone.headers["location"] == "/notes/"
     assert client.get("/notes/app.js").status_code == 200
     assert client.get("/notes/styles.css").status_code == 200
     for url in (f"/notes/{MEETING}", "/notes/app.js", "/notes/styles.css"):
@@ -163,7 +167,7 @@ def test_list_and_project_filter(tmp_path):
                          "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None,
                          "t0_ms": T0, "minutes": 0,  # card facts (locked design)
                          "archived": False, "meeting_type": None, "self_name": "Karim",
-                         "counts": {"decision": 1, "question": 0, "pushback": 0, "urgent": 0}}]
+                         "counts": {"decision": 1, "question": 0, "pushback": 0, "urgent": 0, "open_actions": 1}}]
     assert client.get("/api/meetings", params={"project_id": "halo-q4"}).json() == meetings
     assert client.get("/api/meetings", params={"project_id": "other"}).json() == []
 
@@ -358,3 +362,285 @@ def test_new_writes_refuse_other_sites(tmp_path):
                        ("/api/meetings/archive", {"meeting_id": MEETING, "archived": True}),
                        ("/api/meetings/type", {"meeting_id": MEETING, "meeting_type": "sales"})]:
         assert client.post(path, json=body, headers=evil).status_code == 403, path
+
+
+def test_page_lists_fact_checks_newest_per_point(tmp_path):
+    db = tmp_path / "events.sqlite"
+    seed_db(db)
+    conn = sqlite3.connect(db)
+    for n, note in enumerate(("Old note.", "New note.")):
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'claim.checked', '2026-10-31T09:00:00Z', ?, 'halo/fact_check', 'application/json', ?)",
+            (f"fc-{n}", MEETING, json.dumps({
+                "point_id": "00000021-0000-4000-8000-000000000021", "claim": "Qatar has 10 million people.",
+                "speaker_name": "Omar", "verdict": "disputed", "note": note,
+                "sources": ["https://a.example/1"], "lang": "en"})))
+    conn.commit()
+    conn.close()
+    page = NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    assert_valid_page(page)
+    assert [c["note"] for c in page["fact_checks"]] == ["New note."]
+
+
+def test_page_lists_everything_the_coach_said_once_oldest_first(tmp_path):
+    # Karim 2026-11-04: "have everything the coach has said to me" on the meeting page.
+    db = tmp_path / "events.sqlite"
+    seed_db(db)
+    conn = sqlite3.connect(db)
+    at = lambda s: datetime.fromtimestamp(T0 / 1000 + s, UTC).isoformat()
+    for n, (sec, data) in enumerate([
+        (60, {"tips": ["Ask Omar for the date."], "lang": "en"}),
+        (90, {"tips": ["Ask Omar for the date.", "Park the pricing talk."], "alert": "Take a breath; your tone is rising.",
+              "lang": "en"}),
+        (120, {"tips": [], "lang": "en"}),
+    ]):
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'coach.tips', ?, ?, 'halo/coach', 'application/json', ?)",
+            (f"ct-{n}", at(sec), MEETING, json.dumps(data)))
+    conn.commit()
+    conn.close()
+    page = NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    assert_valid_page(page)
+    assert page["coaching"] == [
+        {"text": "Ask Omar for the date.", "alert": False, "at_ms": 60_000},
+        {"text": "Take a breath; your tone is rising.", "alert": True, "at_ms": 90_000},
+        {"text": "Park the pricing talk.", "alert": False, "at_ms": 90_000},
+    ]
+
+
+def test_page_without_fact_checks_has_no_key(tmp_path):
+    db = tmp_path / "events.sqlite"
+    seed_db(db)
+    page = NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    assert "fact_checks" not in page and "coaching" not in page
+
+
+class ImageLLM:
+    def __init__(self, image=b"png-bytes"):
+        self.image = image
+        self.prompts = []
+
+    def generate_image(self, prompt):
+        self.prompts.append(prompt)
+        return self.image
+
+
+def recap_client(tmp_path, llm):
+    client, _, data = make_client(tmp_path)
+    client.app.state.notes_service._llm = llm
+    return client, data
+
+
+def test_recap_is_made_once_on_request_and_then_served_from_disk(tmp_path):
+    llm = ImageLLM()
+    client, _ = recap_client(tmp_path, llm)
+    url = f"/api/meetings/{MEETING}/recap"
+    assert client.get(url).status_code == 404  # nothing is spent until someone asks
+    assert llm.prompts == [] and client.get(f"/api/meetings/{MEETING}").json().get("visual_recap") is not True
+    assert client.post(url).status_code == 200
+    assert client.post(url).status_code == 200  # the second press costs nothing
+    assert len(llm.prompts) == 1
+    shown = client.get(url)
+    assert shown.status_code == 200 and shown.content == b"png-bytes"
+    assert shown.headers["content-type"] == "image/png"
+    assert client.get(f"/api/meetings/{MEETING}").json()["visual_recap"] is True
+
+
+def test_recap_refuses_foreign_origins_unknown_meetings_and_reports_failure(tmp_path):
+    llm = ImageLLM(image=None)
+    client, _ = recap_client(tmp_path, llm)
+    url = f"/api/meetings/{MEETING}/recap"
+    assert client.post(url, headers={"origin": "https://evil.example"}).status_code == 403
+    assert llm.prompts == []
+    assert client.post("/api/meetings/unknown-id/recap").status_code == 404
+    assert client.post(url).status_code == 502
+
+
+def test_two_presses_at_once_draw_one_image(tmp_path):
+    class SlowLLM(ImageLLM):
+        def generate_image(self, prompt):
+            time.sleep(0.1)
+            return super().generate_image(prompt)
+
+    llm = SlowLLM()
+    client, _ = recap_client(tmp_path, llm)
+    service = client.app.state.notes_service
+    with ThreadPoolExecutor(2) as pool:
+        paths = list(pool.map(service.make_recap, [MEETING, MEETING]))
+    assert all(paths) and len(llm.prompts) == 1
+
+
+def test_a_meeting_still_running_is_marked_and_draws_no_recap(tmp_path):
+    llm = ImageLLM()
+    client, _, = recap_client_open(tmp_path, llm)
+    assert client.get(f"/api/meetings/{MEETING}").json()["meeting"]["in_progress"] is True
+    assert client.post(f"/api/meetings/{MEETING}/recap").status_code == 409
+    assert llm.prompts == []
+
+
+def recap_client_open(tmp_path, llm):
+    client, _, data = make_client(tmp_path, ended=False, ready=False)
+    client.app.state.notes_service._llm = llm
+    return client, data
+
+
+def test_a_markdown_reference_is_stored_per_meeting_and_only_from_the_page(tmp_path):
+    client, _, data = make_client(tmp_path)
+    url = f"/api/meetings/{MEETING}/reference"
+    assert client.get(url).json() == {"name": None, "chars": 0}
+    body = {"name": "last-week.md", "text": "# Launch\n\n- Launch on 12 November."}
+    assert client.post(url, json=body, headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.post(f"/api/meetings/{'9' * 8}-0000-4000-8000-000000000000/reference", json=body).status_code == 404
+    assert client.post(url, json={"name": "big.md", "text": "x" * 200_001}).status_code == 413
+    assert client.post(url, json=body).json() == {"name": "last-week.md", "chars": len(body["text"])}
+    stored = json.loads((data / "references" / f"{MEETING}.json").read_text(encoding="utf-8"))
+    assert stored == body
+    assert client.get(url).json()["name"] == "last-week.md"
+    assert client.delete(url).status_code == 200
+    assert client.get(url).json() == {"name": None, "chars": 0}
+
+
+# -- Karim 2026-11-04: the recap is a mind map of everything said, in the meeting's language --
+
+def _recap_page(title, summary=""):
+    return {"meeting": {"title": title, "summary": summary},
+            "points": [{"kind": k, "text": f"{k} {i}"} for i, k in enumerate(
+                ["decision", "point", "point", "point", "pushback", "question", "decision"])],
+            "actions": [{"text": f"action {i}"} for i in range(5)]}
+
+
+def test_the_recap_is_drawn_in_the_meetings_language():
+    from halo.notes_service.notes_service import recap_language, recap_prompt
+    arabic = _recap_page("عرض تطبيق الاجتماعات", "ملخص قصير")
+    assert recap_language(arabic) == "Arabic"
+    assert recap_language(_recap_page("Launch sync")) == "English"
+    mind = {"center": "مركز", "branches": []}
+    assert "Arabic" in recap_prompt(arabic, mind) and "mind map" in recap_prompt(arabic)
+
+
+def test_the_mind_map_brief_carries_everything_said_not_the_first_three():
+    from halo.notes_service.notes_service import mind_map_prompt
+    page = _recap_page("Launch sync")
+    brief = mind_map_prompt(page)
+    for p in page["points"]:
+        assert p["text"] in brief
+    for a in page["actions"]:
+        assert a["text"] in brief
+
+
+class MindLLM(ImageLLM):
+    def __init__(self, mind):
+        super().__init__()
+        self.mind, self.text_prompts = mind, []
+
+    def complete_json(self, *, prompt, schema, schema_name="", **_):
+        from types import SimpleNamespace  # the LLMResult shape; lanes never import each other
+        self.text_prompts.append(prompt)
+        return SimpleNamespace(ok=self.mind is not None, data=self.mind)
+
+
+def test_the_recap_draws_the_mind_map_and_still_draws_when_the_map_fails(tmp_path):
+    mind = {"center": "مركز", "branches": [{"label": "فرع", "leaves": ["ورقة أولى", "ورقة ثانية"]}]}
+    llm = MindLLM(mind)
+    client, _ = recap_client(tmp_path, llm)
+    assert client.post(f"/api/meetings/{MEETING}/recap").status_code == 200
+    assert len(llm.text_prompts) == 1
+    assert all(w in llm.prompts[0] for w in ("مركز", "فرع", "ورقة أولى", "ورقة ثانية"))
+    llm2 = MindLLM(None)
+    client2, _ = recap_client(tmp_path / "b", llm2)
+    assert client2.post(f"/api/meetings/{MEETING}/recap").status_code == 200
+    assert len(llm2.prompts) == 1 and "mind map" in llm2.prompts[0]
+
+
+def test_without_a_map_the_recap_never_orders_arabic_over_english_lines():
+    """Review 2026-11-04: the fallback lines are the stored (English) points; asking
+    for Arabic and exact spelling at once would garble the drawing."""
+    from halo.notes_service.notes_service import recap_prompt
+    page = _recap_page("عرض تطبيق الاجتماعات", "ملخص قصير")
+    fallback = recap_prompt(page)
+    assert "in Arabic" not in fallback and "exactly as written" in fallback
+    mapped = recap_prompt(page, {"center": "مركز", "branches": [{"label": "فرع", "leaves": ["ورقة"]}]})
+    assert "in Arabic" in mapped
+
+
+def test_an_action_marked_done_keeps_its_note_and_leaves_the_open_counts(tmp_path):
+    """Karim 2026-11-04 22:25: urgent / needs-action items can be marked done, with what was done."""
+    client, _, _ = make_client(tmp_path)
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    action = page["actions"][0]
+    url = "/api/actions/done"
+    body = {"meeting_id": MEETING, "action_id": action["action_id"], "done": True, "note": "Sent the new date to the team"}
+    assert client.post(url, json=body, headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.post(url, json={**body, "action_id": "not-an-id"}).status_code == 404
+    assert client.post(url, json=body).status_code == 200
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    MeetingPage.model_validate(page)
+    assert page["actions"][0]["done"]["note"] == "Sent the new date to the team"
+    item = next(m for m in client.get("/api/meetings").json() if m["meeting_id"] == MEETING)
+    assert item["counts"]["urgent"] == 0 and item["counts"]["open_actions"] == 0
+    assert client.post(url, json={**body, "done": False}).status_code == 200
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    assert "done" not in page["actions"][0]
+    item = next(m for m in client.get("/api/meetings").json() if m["meeting_id"] == MEETING)
+    assert item["counts"]["open_actions"] == 1
+
+
+def test_a_deleted_meeting_waits_30_days_in_deleted_then_drops_out(tmp_path):
+    """Karim 2026-11-04 22:25: Deleted keeps a meeting 30 days; meanwhile it is
+    out of the lists' other tabs and out of search, and can be restored."""
+    client, _, data = make_client(tmp_path)
+    url = "/api/meetings/delete"
+    assert client.post(url, json={"meeting_id": MEETING, "deleted": True}, headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.post(url, json={"meeting_id": "nope", "deleted": True}).status_code == 404
+    assert client.post(url, json={"meeting_id": MEETING, "deleted": True}).status_code == 200
+    item = client.get("/api/meetings").json()[0]
+    assert item["deleted_at"] and item["purge_in_days"] == 30
+    assert client.get("/api/search", params={"q": "launch"}).json()["hits"] == []
+    assert client.post(url, json={"meeting_id": MEETING, "deleted": False}).status_code == 200
+    assert "deleted_at" not in client.get("/api/meetings").json()[0]
+    # 31 days later it is gone from the list for good
+    client.post(url, json={"meeting_id": MEETING, "deleted": True})
+    store = json.loads((data / "folders.json").read_text(encoding="utf-8"))
+    store["deleted"][MEETING] = "2026-01-01T00:00:00+00:00"
+    (data / "folders.json").write_text(json.dumps(store), encoding="utf-8")
+    assert client.get("/api/meetings").json() == []
+
+
+class CompareLLM:
+    def __init__(self, result):
+        self.result, self.prompts = result, []
+
+    def complete_json(self, *, prompt, schema, schema_name="", **_):
+        from types import SimpleNamespace
+        self.prompts.append(prompt)
+        return SimpleNamespace(ok=self.result is not None, data=self.result)
+
+
+def test_notes_added_after_the_meeting_are_compared_with_it(tmp_path):
+    """Karim 2026-11-04 22:25: notes added once the meeting ended (no live fact check
+    left to feed) are compared with this meeting: overlaps, agreements, differences."""
+    result = {"summary": "Both meetings set the launch; the date moved.", "items": [
+        {"topic": "Launch date", "here": "Launch moves to Nov 12", "there": "Launch on 20 November",
+         "relation": "differs"}]}
+    llm = CompareLLM(result)
+    client, _, _ = make_client(tmp_path)
+    client.app.state.notes_service._llm = llm
+    url = f"/api/meetings/{MEETING}/reference"
+    body = {"name": "last-week.md", "text": "# Launch sync\n\n- Launch on 20 November."}
+    got = client.post(url, json=body).json()
+    assert got["compare"] == result
+    assert "Launch on 20 November" in llm.prompts[0] and "Launch moves to Nov 12" in llm.prompts[0]
+    assert client.get(url).json()["compare"] == result
+    # a failed comparison still keeps the notes
+    llm.result = None
+    got = client.post(url, json={**body, "name": "other.md"}).json()
+    assert got["name"] == "other.md" and "compare" not in got
+
+
+def test_notes_added_during_a_meeting_feed_the_live_check_and_are_not_compared(tmp_path):
+    llm = CompareLLM({"summary": "x", "items": []})
+    client, _, = recap_client_open(tmp_path, llm)
+    got = client.post(f"/api/meetings/{MEETING}/reference", json={"name": "n.md", "text": "notes"}).json()
+    assert got["name"] == "n.md" and "compare" not in got and llm.prompts == []

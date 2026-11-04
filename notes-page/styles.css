@@ -32,7 +32,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:8px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .glass{background:var(--glass);backdrop-filter:blur(20px) saturate(115%);-webkit-backdrop-filter:blur(20px) saturate(115%);border:1px solid var(--rim);border-radius:var(--r);box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
-.top{display:flex;align-items:center;gap:14px;padding:14px 24px;flex-wrap:wrap}
+.top{display:flex;align-items:center;gap:14px;padding:7px 24px;flex-wrap:wrap}
 .logo{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
 .logo i{width:10px;height:10px;border-radius:50%;background:var(--logo-dot);box-shadow:var(--sh-logo)}
 .logo .sub{font-weight:500;color:var(--muted)}
@@ -85,6 +85,18 @@ mark{background:var(--mark-bg);color:var(--mark-text);border-radius:3px;padding:
 .dis-sides{margin:6px 0 0;padding-inline-start:18px}
 .dis-sides b{font-weight:600}
 .dis-res{margin:6px 0 0;color:var(--muted)}
+.recap img{display:block;width:100%;height:auto;border-radius:12px}
+.fact-sub{margin:2px 0 6px;color:var(--muted);font-size:13px}
+.fact-item{padding:10px 0;border-top:1px solid var(--hair)}
+.fact-item:first-of-type{border-top:0}
+.coach-item{padding:8px 0;border-top:1px solid var(--hair)}
+.coach-item:first-of-type{border-top:0}
+.coach-item p{margin:0}
+.coach-item small{color:var(--muted);font-size:12px}
+.coach-item.c-alert p{font-weight:600}
+.v-supported .dis-out{color:var(--dec);border-color:var(--dec)}
+.v-disputed .dis-out{color:var(--push);border-color:var(--push)}
+.fact-src{display:inline-block;margin:4px 12px 0 0;font-size:13px;color:inherit}
 .bhead{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
 .bhead .prov{color:var(--faint);font-size:12px;margin:0}
 .ugrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
@@ -192,8 +204,10 @@ audio.rec{width:100%;margin-top:8px;max-width:100%}
 .pv-folder{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
 .pv-folder .in{flex:1;min-width:140px;padding:6px 10px;border-radius:10px;border:1px solid var(--rim);background:transparent;font:inherit}
 .pv-folder select{padding:6px 8px;border-radius:10px;border:1px solid var(--rim);background:transparent;font:inherit}
-.pv-open{margin-top:12px}
 .mail{text-decoration:none}
+.col .meta{gap:4px}
+.col .meta .chip,.col .meta .retag summary{padding:2px 7px}
+#view.home .plate .mail{margin-inline-start:6px;color:var(--text);font-weight:600;text-decoration:underline}
 
 
 /* ---- Karim 2026-11-02: the chosen look, a mix of draft A and B on the
@@ -208,6 +222,10 @@ body::before{background:var(--bg)}
 .top .seg,.top .btn{background:#3a3832;border-color:#4a473f;color:var(--band-ink)}
 .top .seg button{color:var(--band-muted)}
 .top .seg button[aria-pressed="true"]{background:var(--band-ink);color:var(--band)}
+/* Ink over stone (Karim 2026-11-04 23:31, draft 1 in the palette's stone): a charcoal
+   top row, then the page title on a warm stone band. */
+[data-palette="2"]{--band-2:var(--photo)}
+.top .seg,.top .btn,.top .btn.glass{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18)}
 .head{background:var(--band);color:var(--band-ink);border:0;border-radius:0 0 var(--r) var(--r);margin-top:-6px;padding:22px 26px}
 .head .sub,.head .mtg-summary{color:var(--band-muted)}
 .tx,.preview{background:var(--tint);border-color:transparent}
@@ -256,13 +274,14 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 /* The recording's file path is for tests and support, not for reading. */
 .recoff{display:none}
 /* Judge round 1: one quiet meta line per item. Secondary tools (Original,
-   re-tag, Email) appear on hover or keyboard focus; touch screens keep them. */
+   re-tag) appear on hover or keyboard focus; touch screens keep them. Email stays:
+   Karim 2026-11-04 could not find it. */
 .ameta .badge.as{background:none;color:var(--muted);padding:0;font-weight:600;font-size:12px}
 .ameta .badge.sg{padding:1px 7px;font-size:11px}
 @media (hover:hover){
-  .pt .chip[data-orig],.pt .retag:not(.mine):not([open]),.act .retag:not(.mine):not([open]),.act .mail{opacity:0;transition:opacity .15s ease}
+  .pt .chip[data-orig],.pt .retag:not(.mine):not([open]),.act .retag:not(.mine):not([open]){opacity:0;transition:opacity .15s ease}
   .pt:hover .chip[data-orig],.pt:focus-within .chip[data-orig],.pt:hover .retag,.pt:focus-within .retag,
-  .act:hover .retag,.act:focus-within .retag,.act:hover .mail,.act:focus-within .mail{opacity:1}
+  .act:hover .retag,.act:focus-within .retag{opacity:1}
 }
 .head .facts{margin:2px 0 10px;font-size:13px;color:var(--band-muted);font-variant-numeric:tabular-nums}
 .head .mtg-summary{max-width:68ch}
@@ -309,10 +328,10 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 @keyframes fade{from{opacity:0}}
 @keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.98)}}
 
-/* ---- Home (Karim 2026-11-04, "AV": docs/ui/drafts/landing/av-home.html). Light ledger: white
+/* ---- Home (Karim 2026-11-04, "AV": the AV landing mockup). Light ledger: white
    sheets on a stone ground, colour only on what a meeting produced. Scoped to the list view. ---- */
-body:has(#view.home){background:#f2f3f1}
-body:has(#view.home)::before{background:#f2f3f1}
+body:has(#view.home){background:var(--bg)}
+body:has(#view.home)::before{background:var(--bg)}
 #view.home{max-width:1312px;padding:24px 32px 64px;
   --ground:#f2f3f1; --surface:#fff; --border:#e5e3dd; --rule:#efede8; --control:#d3d0c8;
   --text:#1c1c1a; --muted:#5b5a55; --active:#ebe9e3; --primary:#1d1f1c;
@@ -459,13 +478,18 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .p-decision{--bg:#e5f0e6;--ink:var(--dec)}
 #view.home .p-question{--bg:#e6eef6;--ink:var(--q)}
 #view.home .p-pushback{--bg:#f6e8e2;--ink:var(--push)}
+#view.home .p-coach{--bg:#efeaf4;--ink:#5a4a72}
+#view.home .p-coach li.c-alert span{font-weight:600}
+#view.home .p-coach summary{padding:7px 0 0;color:var(--ink);font-weight:500;font-size:13px;cursor:pointer;list-style:none}
+#view.home .p-coach summary::-webkit-details-marker{display:none}
+#view.home .p-coach details[open] summary{display:none}
 #view.home .p-act li{display:grid;grid-template-columns:10px 1fr;column-gap:10px}
 #view.home .p-act li small{grid-column:2}
 #view.home .udot{width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--lat)}
 #view.home .u-urgent .udot{background:var(--urg)}
 #view.home .u-medium .udot{background:var(--med)}
-#view.home .pfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
-@media (prefers-reduced-motion:no-preference){#view.home.enter .row,#view.home.enter .day{animation:h-rise 440ms var(--ease) both;animation-delay:calc(var(--i,0) * 55ms)}
+#view.home .pfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+@media (prefers-reduced-motion:no-preference){#view.home.enter .row,#view.home.enter .day{animation:h-rise 440ms var(--ease) both;animation-delay:calc(min(var(--i,0), 6) * 55ms)}
 ::view-transition-old(preview){animation:h-out 240ms ease both}
 ::view-transition-new(preview){animation:h-in 420ms var(--ease) both}}
 @keyframes h-rise{from{opacity:0;transform:translateY(10px)}}
@@ -474,10 +498,10 @@ body:has(#view.home)::before{background:#f2f3f1}
 @property --hx{syntax:"<percentage>";inherits:true;initial-value:0%}
 #view.home .phead{display:flex;align-items:flex-start;gap:16px}
 #view.home .phead h2{flex:1;min-width:0}
-#view.home .vseg{position:relative;display:flex;flex:none;padding:3px;border-radius:999px;background:var(--active)}
-#view.home .vseg button{position:relative;z-index:1;height:28px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;color:var(--muted);transition:color 200ms}
+#view.home .vseg{position:relative;display:flex;flex:none;padding:2px;border-radius:999px;background:var(--active)}
+#view.home .vseg button{position:relative;z-index:1;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500;color:var(--muted);transition:color 200ms}
 #view.home .vseg button[aria-pressed=true]{color:var(--text)}
-#view.home .vknob{position:absolute;top:3px;bottom:3px;left:0;width:1px;border-radius:999px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08);transform-origin:0 0;transition:transform 440ms var(--ease)}
+#view.home .vknob{position:absolute;top:2px;bottom:2px;left:0;width:0;border-radius:999px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08);transition:transform 440ms var(--ease),width 440ms var(--ease)}
 #view.home .timeline{--lab:40px}
 #view.home .timeline.detailed{--lab:112px}
 #view.home .big{display:grid;grid-template-columns:var(--lab) minmax(0,1fr);column-gap:12px;align-items:center;--hx:0%;--px:0%;transition:--hx 380ms var(--ease)}
@@ -558,7 +582,7 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .l-hov{fill:rgba(28,28,26,.10)}
 #view.home .l-play{fill:rgba(28,28,26,.55)}
 #view.home .l-glow{fill:#1c1c1a;fill-opacity:0}
-@media (prefers-reduced-motion:no-preference){#view.home.arrive .row .strip::before{animation:h-draw 760ms var(--ease) both;transform-origin:0 50%;animation-delay:calc(var(--d,0) * 70ms)}
+@media (prefers-reduced-motion:no-preference){#view.home.arrive .row .strip::before{animation:h-draw 760ms var(--ease) both;transform-origin:0 50%;animation-delay:calc(min(var(--d,0), 8) * 70ms)}
 #view.home.arrive .row .strip i{animation:h-drop 380ms var(--ease) both;animation-delay:calc(var(--d,0) * 70ms + 320ms + var(--n,0) * 28ms)}}
 @keyframes h-draw{from{transform:scaleX(0)}}
 @keyframes h-drop{from{opacity:0;transform:translateY(-5px)}}
@@ -583,8 +607,136 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .big .lab{direction:inherit}
 #view.home .tabs button{display:inline-flex;align-items:baseline;gap:6px}
 #view.home .tabs button em{margin:0}
-/* Disagreement arcs above the recording line: colour is how it ended. */
-#view.home .big .strip .arcs{position:absolute;left:0;bottom:100%;margin-bottom:-6px;overflow:visible;z-index:2;pointer-events:none}
-#view.home .arc{fill:none;stroke-width:1.6;stroke:var(--push);opacity:.55;pointer-events:stroke;cursor:pointer;transition:opacity 180ms,stroke-width 180ms}
-#view.home .arc.o-settled{stroke:var(--dec)} #view.home .arc.o-parked{stroke:var(--med)}
-#view.home .arc:hover,#view.home .arc:focus-visible{opacity:1;stroke-width:2.4;outline:none}
+/* Disagreements (Karim 2026-11-04): the stretch of the line between the two sides is tinted; colour is how it ended. */
+#view.home .big .strip .dis-seg{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--push) 22%,transparent);border-block:2px solid var(--push);border-radius:4px;z-index:1;cursor:pointer;transition:background 180ms}
+#view.home .dis-seg.o-settled{background:color-mix(in srgb,var(--dec) 22%,transparent);border-color:var(--dec)} #view.home .dis-seg.o-parked{background:color-mix(in srgb,var(--med) 22%,transparent);border-color:var(--med)}
+#view.home .dis-seg:hover,#view.home .dis-seg:focus-visible{background:color-mix(in srgb,var(--push) 38%,transparent);outline:none}
+#view.home .key .k-dis::before{width:16px;border-radius:3px;background:color-mix(in srgb,var(--c) 22%,transparent);border-block:2px solid var(--c);box-sizing:border-box}
+/* Header tabs (Karim 2026-11-04): Halo | Meetings, Notes. */
+.crumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.crumb .nav-tab{text-decoration:none;padding:5px 12px;border-radius:999px;color:var(--band-muted);font-weight:600}
+.crumb .nav-tab[aria-current=page]{background:#3a3832;color:var(--band-ink)}
+.crumb .nav-tab:disabled{opacity:.45;cursor:default}
+.crumb .nav-title{margin-inline-start:8px;color:var(--band-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
+/* Folders + Archived dropdown in the tab row (Karim 2026-11-04). */
+#view.home .tabs .fmenu{position:relative;display:inline-block}
+#view.home .tabs .fmenu summary{list-style:none;cursor:pointer;padding:8px 12px;font-weight:600;color:var(--muted);border-radius:999px;white-space:nowrap}
+#view.home .tabs .fmenu summary::-webkit-details-marker{display:none}
+#view.home .tabs .fmenu.on summary{color:var(--ink)}
+#view.home .tabs .fmenu-list{position:absolute;z-index:20;inset-inline-start:0;top:100%;margin-top:4px;display:flex;flex-direction:column;align-items:stretch;min-width:200px;padding:6px;background:var(--card,#fff);border:1px solid var(--line,rgba(0,0,0,.1));border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.12)}
+#view.home .tabs .fmenu-list button{justify-content:space-between;text-align:start}
+#view.home .tabs:has(.fmenu[open]){position:relative;z-index:40}
+#view.home .pfoot .pacts{display:inline-flex;gap:8px;align-items:center;margin-inline-start:auto;flex:none}
+
+/* ---- Meeting page v3 (Karim 2026-11-04 approved the draft): the title on the page
+   ground, actions as one list grouped by urgency, decisions beside questions. ---- */
+.top .nav-sep{color:var(--band-muted);margin:0 2px}
+.top .nav-title{font-weight:600;color:var(--band-ink)}
+.head{background:transparent;color:var(--text);border:0;border-radius:0;margin:0 0 6px;padding:4px 0 0}
+.head .facts{color:var(--muted)}
+.head .mtg-summary{color:var(--text);font-size:16px;line-height:1.6}
+.people{align-items:center}
+.head-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.head-row h1{flex:1 1 320px}
+.head .follow-up,.mband .follow-up{margin-top:4px;background:var(--text);color:var(--on-accent);text-decoration:none;border-radius:999px;padding:7px 16px;font-weight:600;font-size:14px}
+.head .follow-up:hover,.mband .follow-up:hover{opacity:.9}
+.ugrid{display:flex;flex-direction:column;gap:6px}
+.ucol h3{margin:10px 0 2px}
+.act,.act.u-urgent,.act.u-medium,.act.u-later{box-shadow:none;padding:9px 0}
+.act .body{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:center}
+.act .body>small{grid-column:1}
+.act .ameta{grid-column:2;grid-row:1 / span 2;margin-top:0;justify-content:flex-end}
+@media (max-width:700px){.act .body{grid-template-columns:minmax(0,1fr)}.act .ameta{grid-column:1;grid-row:auto;justify-content:flex-start}}
+.cols.dq{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start;margin-bottom:12px}
+.cols.dq>.col{margin:0}
+.fact-n{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.board.coach h3{margin:12px 0 2px;font-size:13px}
+.board.coach summary{cursor:pointer;font-weight:600;font-size:13px;padding-top:6px;color:var(--text)}
+/* Live 2026-11-04: the hover-only Original and Retag kept their width while hidden, so in
+   the narrow decision and question columns they wrapped into a blank second line. With a
+   mouse they now float as a small toolbar at the row's end (no reflow); touch keeps them inline. */
+.pt .hov{display:contents}
+@media (hover:hover){
+  .pt{position:relative}
+  .pt .hov{position:absolute;inset-inline-end:4px;top:4px;display:flex;gap:6px;padding:3px;border-radius:999px;background:var(--panel);box-shadow:0 2px 8px rgba(0,0,0,.12);opacity:0;pointer-events:none;transition:opacity .15s ease}
+  .pt .hov .chip[data-orig],.pt .hov .retag{opacity:1}
+  .pt:hover .hov,.pt:focus-within .hov,.pt .hov:has(.retag[open]){opacity:1;pointer-events:auto}
+}
+/* Karim 2026-11-04: an Arabic paragraph in the English page (and English in the Arabic
+   one) takes its direction from its own first letter, and lines up on that side. */
+.head h1,.mtg-summary,.ln .o,.pt .txt,.act .body,.dis-item h3,.dis-res,.fact-item h3,.fact-item p,.coach-item p,
+.speaking blockquote{unicode-bidi:plaintext;text-align:start}
+
+/* Reference notes for the fact check (Karim 2026-11-04). */
+.refrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0 10px;font-size:13px;color:var(--muted)}
+.refrow b{color:var(--text);font-weight:600}
+.refrow .refname{color:var(--text)}
+.refrow .refadd{cursor:pointer;position:relative}
+.refrow .refadd:focus-within{outline:2px solid var(--text);outline-offset:2px}
+.refrow select.chip{font:inherit;font-size:13px;background:var(--panel);color:var(--text)}
+.notes-quote{margin:4px 0 0;font-size:13px;unicode-bidi:plaintext;text-align:start}
+
+/* Karim 2026-11-04: the transcript and each section fold to their heading. */
+.txhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 20px 0}
+.txhead h2{margin:0}
+.lines{scrollbar-width:thin}
+button.fold{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;border-radius:6px}
+button.fold:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+button.fold::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);margin-inline-start:4px;transition:transform .15s ease}
+button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
+[dir="rtl"] button.fold[aria-expanded="false"]::after{transform:rotate(135deg)}
+.folded{padding-bottom:12px}
+.head .mtg-summary[dir="rtl"]{margin-left:auto}
+
+/* Karim 2026-11-04 22:26: Arabic is always aligned right. Id specificity beats every
+   class rule, so no later rule pulls an Arabic block back to the left. */
+#view [dir="rtl"]{text-align:right}
+#view :is(h1,h2,h3,h4)[dir="rtl"]{flex:1 1 auto}
+
+/* Karim 2026-11-04: Done on an action, with an optional note of what was done. */
+.act.done .body{color:var(--muted)}
+.act.done .atext{text-decoration:line-through}
+.doneline{margin:4px 0 0;font-size:13px;color:var(--text)}
+.doneform{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;grid-column:1/-1}
+.doneform .in{flex:1 1 220px;height:32px;padding:0 10px;border:1px solid var(--control);border-radius:7px;background:var(--surface);font:inherit;font-size:13px;color:var(--text)}
+.ucol.u-done .udot{background:var(--muted)}
+
+/* Notes added after a meeting, compared with it (Karim 2026-11-04). */
+.cmp-sum{margin:4px 0 10px;color:var(--text)}
+.cmp-list{list-style:none;margin:0;padding:0}
+.cmp-item{padding:10px 0;border-top:1px solid var(--hair)}
+.cmp-item:first-child{border-top:0}
+.cmp-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cmp-head h3{margin:0;font-size:15px}
+.cmp-item p{margin:4px 0 0;font-size:14px}
+.cmp-item p b{font-weight:600}
+.cmp-rel{font-size:12px}
+.r-differs .cmp-rel{color:var(--urgent,#b3261e);border-color:currentColor}
+.r-agrees .cmp-rel{color:var(--ok,#2e7d32);border-color:currentColor}
+
+/* Induction tour (Karim 2026-11-04): a spotlight that glides from feature to feature. */
+#tourBtn{margin-inline-end:8px}
+.tour{position:fixed;inset:0;z-index:1000}
+.tour-spot{position:fixed;border-radius:14px;box-shadow:0 0 0 9999px rgba(28,26,22,.55);pointer-events:none;
+  transition:left .45s var(--ease,ease),top .45s var(--ease,ease),width .45s var(--ease,ease),height .45s var(--ease,ease),opacity .2s}
+.tour-card{position:fixed;width:min(420px,calc(100vw - 32px));padding:16px 18px;border-radius:16px;background:var(--panel);color:var(--text);
+  box-shadow:var(--sh-menu);transition:left .45s var(--ease,ease),top .45s var(--ease,ease)}
+.tour-top{display:flex;align-items:center;justify-content:space-between}
+.tour-n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tour-x{all:unset;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;color:var(--muted)}
+.tour-x:focus-visible,.tour-nav button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.tour-card h2{margin:6px 0 8px;font-size:18px}
+.tour-line{margin:0 0 8px;font-size:14px;line-height:1.5}
+.tour-line b{font-weight:600}
+.tour-nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
+@media (prefers-reduced-motion:reduce){.tour-spot,.tour-card{transition:none}}
+/* Meeting band (Karim 2026-11-04 23:42): edge to edge under the charcoal row, title and facts only. */
+.mband{background:var(--band-2,var(--photo));color:#fff;margin:-6px calc(50% - 50vw) 16px;padding:9px 0 9px}
+.mband-in{max-width:1200px;margin:0 auto;padding:0 24px}
+.mband h1{margin:0 0 4px;color:#fff}
+.mband .facts{margin:0;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.mband-in{padding:0 16px}}
+#view.home .home-band{margin:-24px calc(50% - 50vw) 18px}
+#view.home .home-band .mband-in{max-width:1312px;padding:0 32px}
+#view.home .home-band h1,#view.home .home-band .finding,#view.home .home-band .finding b,#view.home .home-band .finding button{color:#fff}
+@media (max-width:560px){#view.home .home-band{margin-top:-20px} #view.home .home-band .mband-in{padding:0 16px}}

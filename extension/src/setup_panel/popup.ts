@@ -6,7 +6,7 @@ import {
   type SetupForm,
 } from "./context";
 import { PairingError, pairWithCode } from "./pairing";
-import type { MicState, SavedSetup, SetupStorage, UrgencyStyle } from "./storage";
+import type { MicState, SavedSetup, SetupStorage, UrgencyStyle, ViewMode } from "./storage";
 import type { StartResult } from "./start_target";
 
 /** Minimal Port to the hub: the hub wraps the payload in an envelope. */
@@ -112,7 +112,7 @@ export function micStatusText(state: SavedSetup["micState"], label?: string): st
 
 /**
  * Boot the toolbar popup (Karim 2026-11-04: sections, not steps). A status
- * pill on top; This call (Start) first; About this meeting (optional,
+ * pill on top; This call (Start) first; Meeting topic (optional,
  * folds to its subject); Preferences (save on change); Pair again in the
  * footer. Pairing is automatic when the Halo app answers; the 6-digit code
  * shows only when that is missing or refused. Busy, done and error states
@@ -187,10 +187,10 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   const readyState = el("p", { id: "ready-state", class: "ready", role: "status" });
   const micLine = el("p", { id: "mic-state", class: "tiny" });
 
-  // About this meeting: optional. A saved meeting folds to its subject.
+  // Meeting topic: optional. A saved meeting folds to its subject.
   const formTitle = el("div", { class: "title" });
   const formSummary = el("span", { class: "tiny" });
-  formTitle.append(el("b", {}, "About this meeting"), formSummary);
+  formTitle.append(el("b", {}, "Meeting topic"), formSummary);
   const { card: form, head: formHead } = card("meeting-form", formTitle);
   const saveState = el("span", { id: "save-state", class: "ok", role: "status", hidden: "true" });
   const editButton = el("button", { id: "meeting-edit", type: "button", class: "link" }, "Edit") as HTMLButtonElement;
@@ -232,7 +232,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
         : !paired
           ? { text: "Pair first", tone: "wait" }
           : !onMeetCall
-            ? { text: "Open your Meet call, then press Start", tone: "wait" }
+            ? { text: "Open your Meet, Zoom or Teams call, then press Start", tone: "wait" }
             : { text: "Ready for meeting", tone: "ok" };
     readyState.textContent = ready.text;
     readyState.dataset.tone = ready.tone;
@@ -346,7 +346,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   };
   renderRows();
 
-  field(form, "Subject", subjectInput);
+  field(form, "Topic", subjectInput);
   field(form, "Agenda", agendaInput);
   form.appendChild(el("span", { class: "f" }, "People and roles"));
   form.appendChild(rolesBox);
@@ -381,6 +381,28 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   }
   prefs.append(urgencySaved, seg);
   prefsSection.appendChild(prefs);
+
+  // Karim 2026-11-04: pick Frame even with a camera on (name in the tile corner).
+  const view = el("div", { id: "view-mode", class: "row" });
+  view.appendChild(el("span", { class: "f" }, "View"));
+  const viewSaved = el("span", { class: "ok", role: "status", hidden: "true" });
+  const viewSeg = el("span", { class: "seg", role: "radiogroup", "aria-label": "View" });
+  for (const [value, labelText, hint] of [["face", "Camera", "Name above the head"], ["frame", "Frame", "Name in the tile corner"]] as const) {
+    const radio = el("input", { type: "radio", name: "view-mode", value }) as HTMLInputElement;
+    radio.checked = (saved.viewMode ?? "face") === value;
+    radio.addEventListener("change", () => {
+      if (!radio.checked) return;
+      void deps.storage.saveViewMode(value as ViewMode).then(
+        () => flash(viewSaved, "Saved ✓"),
+        () => flash(viewSaved, "Not saved", 3000),
+      );
+    });
+    const option = el("label", { title: hint }, labelText);
+    option.prepend(radio);
+    viewSeg.appendChild(option);
+  }
+  view.append(viewSaved, viewSeg);
+  prefsSection.appendChild(view);
 
   /** Builds the meeting context from the form, stores it and sends it to the hub. */
   const saveContext = async (): Promise<void> => {
@@ -485,7 +507,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
       try {
         await deps.onStop?.();
         running = false;
-        showStartMessage("Meeting ended. Your notes are being built.");
+        showStartMessage("Meeting ended. Your meeting page is being built.");
         startMessage.classList.add("note");
       } catch {
         showStartMessage("Could not stop. Try again.");

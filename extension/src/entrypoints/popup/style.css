@@ -1,4 +1,4 @@
-/* Toolbar popup, sections (Karim 2026-11-04): status pill, This call, About this meeting, Preferences, footer.
+/* Toolbar popup, sections (Karim 2026-11-04): status pill, This call, Meeting topic, Preferences, footer.
    Sage & Clay tokens from the Notes page (docs/ui/notes-v2.html?palette=2). */
 :root{
   --font:'Inter','IBM Plex Sans Arabic',system-ui,sans-serif;
@@ -60,7 +60,7 @@ textarea.in{resize:none;height:48px}
 .person .role-name{font-weight:600}
 .av{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:hsl(var(--h,200) 27% 33%);color:#fdfbf6;font-weight:700;font-size:12px}
 
-#viewer-prefs{justify-content:space-between}
+#viewer-prefs,#view-mode{justify-content:space-between}
 .seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--rim);background:var(--glass)}
 .seg label{position:relative;padding:2px 11px;border-radius:999px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
 .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}

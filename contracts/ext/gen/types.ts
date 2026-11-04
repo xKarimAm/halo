@@ -11,6 +11,17 @@ export interface Ack {
   error?: AckError;
 }
 
+export interface ClaimChecked {
+  point_id: string;
+  claim: string;
+  speaker_name: string;
+  verdict: "supported" | "disputed";
+  note: string;
+  sources: string[];
+  notes_quote?: string;
+  lang: "en" | "ar";
+}
+
 export interface CoachTips {
   tips: string[];
   alert?: string;
@@ -20,7 +31,7 @@ export interface CoachTips {
 export interface Envelope {
   specversion: "1.0";
   id: string;
-  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "transcript.partial" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready" | "coach.tips";
+  type: "pair.hello" | "pair.ok" | "pair.rejected" | "meeting.started" | "meeting.ended" | "system.status" | "meeting.context" | "tiles.snapshot" | "speaker.active" | "transcript.final" | "transcript.partial" | "turn.attributed" | "speaker.mapped" | "points.upsert" | "llm.health" | "tags.set" | "notes.ready" | "coach.tips" | "claim.checked";
   source: string;
   time: string;
   meetingid: string | null;
@@ -73,6 +84,7 @@ export interface MeetingPageMeeting {
   title?: string;
   summary?: string;
   disagreements?: MeetingPageMeetingDisagreements[];
+  in_progress?: boolean;
 }
 
 export interface MeetingPagePeople {
@@ -83,6 +95,11 @@ export interface MeetingPagePeople {
   own_points: string[];
 }
 
+export interface MeetingPageActionsDone {
+  note: string;
+  at: string;
+}
+
 export interface MeetingPageActions {
   action_id: string;
   text: string;
@@ -90,6 +107,7 @@ export interface MeetingPageActions {
   status: "assigned" | "suggested";
   urgency: "urgent" | "medium" | "later";
   point_id: string;
+  done?: MeetingPageActionsDone;
 }
 
 export interface MeetingPagePoints {
@@ -119,6 +137,22 @@ export interface MeetingPageRecording {
   start_ts_ms: number;
 }
 
+export interface MeetingPageFactChecks {
+  point_id: string;
+  claim: string;
+  speaker_name: string;
+  verdict: "supported" | "disputed";
+  note: string;
+  sources: string[];
+  notes_quote?: string;
+}
+
+export interface MeetingPageCoaching {
+  text: string;
+  alert: boolean;
+  at_ms: number;
+}
+
 export interface MeetingPage {
   meeting: MeetingPageMeeting;
   people: MeetingPagePeople[];
@@ -126,6 +160,9 @@ export interface MeetingPage {
   points: MeetingPagePoints[];
   transcript_lines: MeetingPageTranscriptLines[];
   recording: MeetingPageRecording;
+  fact_checks?: MeetingPageFactChecks[];
+  coaching?: MeetingPageCoaching[];
+  visual_recap?: boolean;
 }
 
 export interface MeetingContextRoles {

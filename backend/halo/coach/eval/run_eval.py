@@ -49,12 +49,14 @@ def load_coach(path: Path):
 
 def run_scenario(mod, llm: LLMClient, sc: dict, rnd: int) -> list[dict]:
     bus = Bus()
-    coach = mod.Coach(bus, None)
+    now = [0.0]  # checkpoints are minutes apart in a real call: the alert gap never hides one here
+    coach = mod.Coach(bus, None, clock=lambda: now[0])
     coach._self_names[MID] = sc["self_name"]
     coach._contexts[MID] = sc["context"]
     coach._people[MID] = list(sc["people"])
     rows = []
     for i, cp in enumerate(sc["checkpoints"]):
+        now[0] += 1000.0
         coach._turns[MID] = [tuple(t) for t in sc["turns"][: cp["after_turn"]]]
         prompt = coach.build_prompt(MID, cp["why_now"])
         t0 = time.time()

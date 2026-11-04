@@ -22,6 +22,9 @@ data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
 recordings/
 
 # recorded test calls stay local
@@ -29,6 +32,8 @@ rig/fixtures/*/
 !rig/fixtures/synthetic/
 
 # local caches and test output
+brag-output/
+.playwright-mcp/
 .pw-browsers/
 test-results/
 .npm-cache/

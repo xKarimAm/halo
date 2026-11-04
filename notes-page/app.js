@@ -15,7 +15,7 @@
 
   var T = {
     en: {
-      notes: "Notes", meetings: "Meetings", people: "People", everyone: "Whole meeting",
+      notes: "Notes", meetings: "Meetings", folders: "Projects", someone: "someone", people: "People", everyone: "Whole meeting",
       search: "Search every meeting: points, actions and transcripts",
       results: "Search results", noHits: "No matches.", inPoints: "Point", inTx: "Transcript",
       ask: "Ask your meetings, e.g. what did we decide about the launch?", askBtn: "Ask",
@@ -23,7 +23,7 @@
       answer: "Answer", sources: "From your meetings", summary: "AI summary",
       decision: "Decision", question: "Open question", pushback: "Pushback", point: "Point",
       decs: "Key decisions", qs: "Open questions", pushes: "Pushbacks", pts: "Points",
-      dis: "Disagreements", disSettled: "Settled", disParked: "Parked", disOpen: "Still open",
+      dis: "Disagreements", kDis: "Disagreement", disSettled: "Settled", disParked: "Parked", disOpen: "Still open",
       urgent: "Urgent", medium: "Medium", later: "Later / to discuss",
       filter: "Filter by type", all: "All",
       byHalo: "by Halo", byYou: "by you", menuCat: "Change type", menuUrg: "Change urgency",
@@ -53,6 +53,12 @@
       orig: "Original", hide: "Hide original", jump: "Jump to line", play: "Play recording from here",
       recAt: "Recording: {p} at {t}", close: "Close profile", role: "Role from Setup",
       degraded: "AI summary failed, showing live notes.",
+      noSpeech: "No speech was captured in this meeting.",
+      recapBtn: "Visual recap", recapBusy: "Muse Image is drawing, about 20 s…", recapFail: "The recap could not be drawn. Try again.",
+      recapAlt: "Visual recap of this meeting, drawn by Muse Image.",
+      coachT: "Coaching tips", coachNote: "Everything the coach showed you in this meeting.", alertT: "Alert",
+      fact: "Fact checks", factNote: "Claims said in the call, checked on the web by Muse Spark.",
+      factOk: "Checks out", factBad: "Disputed",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
       norec: "No recording for this meeting. The notes and transcript are complete.",
       reclive: "The recording is ready when the meeting ends.",
@@ -61,18 +67,33 @@
       translated: "Translated",
       allMeetings: "All meetings", preview: "Click a meeting to preview it",
       noSummary: "No AI summary yet. Meetings get one when they end.",
-      newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
-      noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open notes",
+      newFolder: "New project name", createFolder: "Create project", moveTo: "Project",
+      noFolder: "No project", email: "Email", decsShort: "Decisions", openNotes: "Open meeting",
+      followUp: "Email follow-up", followSubject: "Follow-up: {m} ({d})", factTimes: "Checked {n} times",
+      alertsT: "Alerts", tipsT: "Tips",
+      refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
+      refOn: "Reference notes:", refLive: "the fact check uses them live",
+      refCmpT: "Compare with another meeting's notes:", refCmpOn: "compared with this meeting below", refBusy: "Comparing with this meeting\u2026",
+      cmpT: "Compared with {n}", cmpHere: "This meeting", cmpThere: "Your notes",
+      r_agrees: "Agrees", r_differs: "Differs", r_followup: "Follow-up", r_new: "New here", refClear: "Remove", refFail: "That file could not be added.",
+      yourNotes: "Your notes:", txOpen: "Expand", txShut: "Collapse",
+      tourBtn: "Induction", tourWhat: "What:", tourWhy: "Why:", tourHow: "How:", tourNext: "Next", tourBack: "Back",
+      tourDone: "Finish", tourOpen: "Open a meeting", tourClose: "Close the tour",
+      binT: "Archive", tabDeleted: "Deleted", delMeeting: "Delete", restore: "Restore",
+      deletedToast: "Moved to Deleted. It stays there 30 days.", purgeIn: "Deleted · leaves this list in {n} days",
+      doneBtn: "Done", donePh: "What was done? (optional)", doneSave: "Mark done", doneCancel: "Cancel",
+      doneT: "Done", doneUndo: "Undo", doneFail: "That could not be saved.",
+      followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
       // Home (Karim 2026-11-04, AV)
       lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
       tabOthers: "With others", tabArchived: "Archived", noCapture: "Nothing captured", archivedTag: "Archived",
       sinceHead: "Since your last visit ({w}):", nothingNew: "Nothing new since your last visit ({w}).",
-      nNew1: "1 new meeting", nNew: "{n} new meetings", nMine1: "1 action item for you", nMine: "{n} action items for you",
-      nAct1: "1 action item", nAct: "{n} action items", nUrg: "{n} urgent", seen: "Mark as seen", unseen: "Show again",
+      nNew1: "1 new meeting", nNew: "{n} new meetings", nMine1: "1 action item in them for you", nMine: "{n} action items in them for you",
+      nAct1: "1 action item in them", nAct: "{n} action items in them", nUrg: "{n} urgent", seen: "Mark as seen", participant: "Participant", unseen: "Show again",
       newTip: "New since your last visit", sortedBy: "Sorted by Halo", allClear: "All clear. Nothing needs you right now.",
-      emptyTab: "No meetings here yet.", renameF: "Rename folder", deleteF: "Delete folder", save: "Save", cancel: "Cancel",
-      deleteQ: "Delete “{n}”? Its meetings stay, just unfiled.", del: "Delete",
-      folderDeleted: "Folder deleted. Its meetings are still here.", notSaved: "Not saved. Try again.",
+      emptyTab: "No meetings here yet.", renameF: "Rename project", deleteF: "Delete project", save: "Save", cancel: "Cancel",
+      deleteQ: "Delete “{n}”? Its meetings stay, outside any project.", del: "Delete",
+      folderDeleted: "Project deleted. Its meetings are still here.", notSaved: "Not saved. Try again.",
       following: "Following {n}", followIn: "in {k} of {t} meetings", followStop: "Stop following",
       sumT: "Summary", noOwner: "No owner", nMore: "+ {n} more", nothing: "Nothing was captured in this meeting.",
       recView: "Recording view", simple: "Simple", detailed: "Detailed", replay: "Replay", stop: "Stop",
@@ -84,10 +105,12 @@
       t_sprint: "Sprint", t_planning: "Planning", t_discovery: "Product discovery", t_sales: "Sales",
       t_induction: "Induction", t_one_on_one: "1:1", t_interview: "Interview", t_other: "Other",
       mailSubject: "Action item from \u201C{m}\u201D: {a}",
-      mailBody: "Hi {o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes"
+      mailBody: "Hi{o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo",
+      pointMailSubject: "From \u201C{m}\u201D: {p}",
+      pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo"
     },
     ar: {
-      notes: "الملاحظات", meetings: "الاجتماعات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
+      notes: "الملاحظات", meetings: "الاجتماعات", folders: "المشاريع", someone: "أحدهم", people: "الأشخاص", everyone: "الاجتماع كاملاً",
       search: "ابحث في كل الاجتماعات: النقاط والمهام والنصوص",
       results: "نتائج البحث", noHits: "لا توجد نتائج.", inPoints: "نقطة", inTx: "النص",
       ask: "اسأل اجتماعاتك، مثلاً: ماذا قررنا بشأن الإطلاق؟", askBtn: "اسأل",
@@ -95,7 +118,7 @@
       answer: "الإجابة", sources: "من اجتماعاتك", summary: "ملخص",
       decision: "قرار", question: "سؤال مفتوح", pushback: "اعتراض", point: "نقطة",
       decs: "القرارات الرئيسية", qs: "أسئلة مفتوحة", pushes: "اعتراضات", pts: "نقاط",
-      dis: "الخلافات", disSettled: "تم الحسم", disParked: "مؤجل", disOpen: "ما زال مفتوحا",
+      dis: "الخلافات", kDis: "خلاف", disSettled: "تم الحسم", disParked: "مؤجل", disOpen: "ما زال مفتوحا",
       urgent: "عاجل", medium: "متوسط", later: "لاحقاً / للنقاش",
       filter: "تصفية حسب النوع", all: "الكل",
       byHalo: "بواسطة Halo", byYou: "بواسطتك", menuCat: "تغيير النوع", menuUrg: "تغيير الأولوية",
@@ -125,6 +148,12 @@
       orig: "الأصل", hide: "إخفاء الأصل", jump: "انتقل إلى السطر", play: "شغّل التسجيل من هنا",
       recAt: "التسجيل: {p} عند {t}", close: "إغلاق الملف", role: "الدور من الإعداد",
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
+      noSpeech: "لم يُلتقط أي كلام في هذا الاجتماع.",
+      recapBtn: "ملخص مرسوم", recapBusy: "Muse Image يرسم الآن، نحو 20 ثانية…", recapFail: "تعذّر رسم الملخص. حاول مرة أخرى.",
+      recapAlt: "ملخص مرسوم لهذا الاجتماع من Muse Image.",
+      coachT: "نصائح المدرب", coachNote: "كل ما عرضه عليك المدرب في هذا الاجتماع.", alertT: "تنبيه",
+      fact: "التحقق من المعلومات", factNote: "معلومات قيلت في الاجتماع، تحقق منها Muse Spark عبر الويب.",
+      factOk: "صحيح", factBad: "غير دقيق",
       keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
       norec: "لا يوجد تسجيل لهذا الاجتماع، لكن الملاحظات والنص الكامل متاحة.",
       reclive: "يصبح التسجيل جاهزاً عند انتهاء الاجتماع.",
@@ -133,17 +162,32 @@
       translated: "مترجم",
       allMeetings: "كل الاجتماعات", preview: "اضغط على اجتماع لمعاينته",
       noSummary: "لا يوجد ملخص آلي بعد. يُكتب عند انتهاء الاجتماع.",
-      newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
-      noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الملاحظات",
+      newFolder: "اسم مشروع جديد", createFolder: "إنشاء مشروع", moveTo: "المشروع",
+      noFolder: "بلا مشروع", email: "بريد", decsShort: "القرارات", openNotes: "افتح الاجتماع",
+      followUp: "بريد المتابعة", followSubject: "متابعة: {m} ({d})", factTimes: "تم التحقق {n} مرات",
+      alertsT: "التنبيهات", tipsT: "النصائح",
+      refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
+      refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة",
+      refCmpT: "قارن بملاحظات اجتماع آخر:", refCmpOn: "مقارنة بهذا الاجتماع في الأسفل", refBusy: "تجري المقارنة بهذا الاجتماع\u2026",
+      cmpT: "مقارنة مع {n}", cmpHere: "هذا الاجتماع", cmpThere: "ملاحظاتك",
+      r_agrees: "متفق", r_differs: "مختلف", r_followup: "متابعة", r_new: "جديد هنا", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
+      yourNotes: "ملاحظاتك:", txOpen: "توسيع", txShut: "طي",
+      tourBtn: "جولة تعريفية", tourWhat: "ما هو:", tourWhy: "لماذا:", tourHow: "كيف:", tourNext: "التالي", tourBack: "السابق",
+      tourDone: "إنهاء", tourOpen: "افتح اجتماعاً", tourClose: "أغلق الجولة",
+      binT: "الأرشيف", tabDeleted: "المحذوفة", delMeeting: "حذف", restore: "استعادة",
+      deletedToast: "نُقل إلى المحذوفة، ويبقى فيها 30 يوماً.", purgeIn: "محذوف · يختفي من هذه القائمة خلال {n} يوماً",
+      doneBtn: "تم", donePh: "ماذا تم؟ (اختياري)", doneSave: "تأكيد", doneCancel: "إلغاء",
+      doneT: "تم", doneUndo: "تراجع", doneFail: "تعذّر الحفظ.",
+      followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
       lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
       sinceHead: "منذ زيارتك الأخيرة ({w}):", nothingNew: "لا جديد منذ زيارتك الأخيرة ({w}).",
-      nNew1: "اجتماع جديد واحد", nNew: "اجتماعات جديدة: {n}", nMine1: "مهمة واحدة لك", nMine: "مهام لك: {n}",
-      nAct1: "مهمة واحدة", nAct: "مهام: {n}", nUrg: "عاجل: {n}", seen: "تمت المشاهدة", unseen: "أظهرها مجدداً",
+      nNew1: "اجتماع جديد واحد", nNew: "اجتماعات جديدة: {n}", nMine1: "فيها مهمة واحدة لك", nMine: "فيها مهام لك: {n}",
+      nAct1: "فيها مهمة واحدة", nAct: "فيها مهام: {n}", nUrg: "عاجل: {n}", seen: "تعليم كمقروء", participant: "مشارك", unseen: "أظهرها مجدداً",
       newTip: "جديد منذ زيارتك الأخيرة", sortedBy: "رتّبها Halo", allClear: "لا شيء يحتاجك الآن.",
-      emptyTab: "لا اجتماعات هنا بعد.", renameF: "إعادة تسمية المجلد", deleteF: "حذف المجلد", save: "حفظ", cancel: "إلغاء",
-      deleteQ: "حذف «{n}»؟ تبقى اجتماعاته، بلا مجلد.", del: "حذف",
-      folderDeleted: "حُذف المجلد. اجتماعاته ما زالت هنا.", notSaved: "لم يُحفظ. حاول مرة أخرى.",
+      emptyTab: "لا اجتماعات هنا بعد.", renameF: "إعادة تسمية المشروع", deleteF: "حذف المشروع", save: "حفظ", cancel: "إلغاء",
+      deleteQ: "حذف «{n}»؟ تبقى اجتماعاته خارج أي مشروع.", del: "حذف",
+      folderDeleted: "حُذف المشروع. اجتماعاته ما زالت هنا.", notSaved: "لم يُحفظ. حاول مرة أخرى.",
       following: "تتابع {n}", followIn: "في {k} من {t} اجتماعات", followStop: "إيقاف المتابعة",
       sumT: "الملخص", noOwner: "بلا مسؤول", nMore: "+ {n} أخرى", nothing: "لم يُلتقط شيء في هذا الاجتماع.",
       recView: "عرض التسجيل", simple: "مبسّط", detailed: "مفصّل", replay: "إعادة", stop: "إيقاف",
@@ -155,7 +199,9 @@
       t_sprint: "سبرنت", t_planning: "تخطيط", t_discovery: "استكشاف المنتج", t_sales: "مبيعات",
       t_induction: "تهيئة موظف", t_one_on_one: "فردي", t_interview: "مقابلة", t_other: "أخرى",
       mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
-      mailBody: "مرحباً {o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo"
+      mailBody: "مرحباً{o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من Halo",
+      pointMailSubject: "من \u00AB{m}\u00BB: {p}",
+      pointMailBody: "مرحباً،\n\nفي اجتماع \u00AB{m}\u00BB ({d})، قال {s}:\n\n{p}\n\nأُرسلت من Halo"
     }
   };
 
@@ -235,6 +281,67 @@
       l.text = String(l.text || "").charAt(0).toUpperCase() + String(l.text || "").slice(1);
     });
     return page;
+  }
+
+  // The backend's default role is the English word; show it in the page language.
+  function roleText(role, lang) {
+    return role === "Participant" ? t(lang, "participant") : role;
+  }
+
+  function rtlText(text) {
+    return /^[^A-Za-z\u0590-\u08FF]*[\u0590-\u08FF]/.test(String(text || ""));
+  }
+
+  // Karim 2026-11-04 22:26: Arabic is always on the right, everywhere. Every text
+  // block (no block children) whose first letter is Arabic gets dir=rtl; one CSS rule
+  // right-aligns them. Runs on every DOM change under #view, so no render path is missed.
+  var TEXT_BLOCKS = "p,li,h1,h2,h3,h4,blockquote,dd,dt,td,th,figcaption,label,small,[dir=auto]";
+  var INLINE = { B: 1, I: 1, EM: 1, STRONG: 1, SPAN: 1, A: 1, SMALL: 1, TIME: 1, MARK: 1, BR: 1, CODE: 1 };
+  function alignArabic(root) {
+    if (!root || !root.querySelectorAll) return;
+    var nodes = Array.prototype.slice.call(root.querySelectorAll(TEXT_BLOCKS));
+    var rtlPage = root.ownerDocument && root.ownerDocument.documentElement.dir === "rtl";
+    if (root.matches && root.matches(TEXT_BLOCKS)) nodes.push(root);
+    nodes.forEach(function (n) {
+      var d = n.getAttribute("dir");
+      if (d === "rtl" || d === "ltr") return; // a renderer already decided
+      for (var c = n.firstElementChild; c; c = c.nextElementSibling) if (!INLINE[c.tagName]) return;
+      var text = n.textContent.trim();
+      if (rtlText(text)) n.setAttribute("dir", "rtl");
+      // On the Arabic page, English content keeps its own order (the full stop at its end).
+      else if (rtlPage && /^[^A-Za-z֐-ࣿ]*[A-Za-z]/.test(text)) n.setAttribute("dir", "ltr");
+    });
+  }
+
+  function watchArabic(doc) {
+    var view = doc.getElementById && doc.getElementById("view");
+    if (!view || typeof MutationObserver === "undefined") return;
+    alignArabic(view);
+    new MutationObserver(function (records) {
+      records.forEach(function (r) {
+        Array.prototype.forEach.call(r.addedNodes, function (n) { if (n.nodeType === 1) alignArabic(n); });
+      });
+    }).observe(view, { childList: true, subtree: true });
+  }
+
+  // Karim 2026-11-04: sections fold to their heading. Call after the section is built;
+  // the choice is kept per section kind across meetings (localStorage).
+  function foldable(app, section, key) {
+    var head = section.querySelector(":scope > .bhead") || section.querySelector(":scope > h2");
+    var h2 = head && (head.tagName === "H2" ? head : head.querySelector("h2"));
+    if (!h2) return section;
+    var open = !app.folded[key];
+    var btn = el("button", "fold");
+    btn.type = "button";
+    btn.dataset.fold = key;
+    btn.setAttribute("aria-expanded", String(open));
+    while (h2.firstChild) btn.appendChild(h2.firstChild);
+    h2.appendChild(btn);
+    if (!open) {
+      section.classList.add("folded");
+      Array.prototype.slice.call(section.children).forEach(function (c) { if (c !== head) section.removeChild(c); });
+    }
+    return section;
   }
 
   function el(tag, cls, text) {
@@ -424,11 +531,18 @@
     var meta = el("div", "meta");
     if (showBy !== false) meta.appendChild(personChip(point.speaker_name, lang));
     if (line) meta.appendChild(lineChip(app, line, lang));
+    var mail = el("a", "mail chip", t(lang, "email"));
+    mail.href = pointMailHref(app.page.meeting, point, lang);
+    meta.appendChild(mail);
     var origBtn = el("button", "chip", app.openQuote[point.point_id] ? t(lang, "hide") : t(lang, "orig"));
     origBtn.dataset.orig = point.point_id;
     origBtn.setAttribute("aria-expanded", app.openQuote[point.point_id] ? "true" : "false");
-    meta.appendChild(origBtn);
-    meta.appendChild(retagControl(point, point.point_id, false, lang, app.userTags));
+    var retag = retagControl(point, point.point_id, false, lang, app.userTags);
+    var hov = el("span", "hov"); // with a mouse: a toolbar on hover (styles.css)
+    hov.appendChild(origBtn);
+    if (!retag.classList.contains("mine")) hov.appendChild(retag);
+    meta.appendChild(hov);
+    if (retag.classList.contains("mine")) meta.appendChild(retag);
     li.appendChild(meta);
     if (app.openQuote[point.point_id]) {
       var quote = el("blockquote", null, "\u201C" + point.quote + "\u201D");
@@ -446,20 +560,57 @@
     var badge = el("span", "badge " + (assigned ? "as" : "sg"),
       t(lang, assigned ? "assigned" : "suggested"));
     badge.title = t(lang, assigned ? "asNote" : "sgNote");
-    var body = el("div", "body", action.text);
+    var body = el("div", "body");
+    var words = el("span", "atext", action.text); // its own direction, whatever the page's
+    words.dir = "auto";
+    body.appendChild(words);
     // The Assigned pill already says it was said aloud; only a suggestion explains itself.
     if (!assigned) body.appendChild(el("small", null, t(lang, "sgNote")));
     var ameta = el("div", "ameta");
     ameta.appendChild(badge);  // a quiet label in the meta line, not a pill over the text
     if (showWho !== false) ameta.appendChild(personChip(action.owner, lang));
     if (line) ameta.appendChild(lineChip(app, line, lang));
+    var mail = el("a", "mail chip", t(lang, "email"));
+    mail.href = mailHref(app.page.meeting, action, lang);
+    ameta.appendChild(mail);
     ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
-    if (assigned) {
-      var mail = el("a", "mail chip", t(lang, "email"));
-      mail.href = mailHref(app, action, lang);
-      ameta.appendChild(mail);
+    // Karim 2026-11-04: a handled action leaves Urgent / Needs action, with what was done.
+    if (action.done) {
+      li.classList.add("done");
+      var undo = el("button", "chip", t(lang, "doneUndo"));
+      undo.type = "button";
+      undo.dataset.undone = action.action_id;
+      ameta.appendChild(undo);
+      body.appendChild(el("p", "doneline", t(lang, "doneT") + (action.done.note ? " \u00B7 " + action.done.note : "")));
+    } else if (app.doneEdit !== action.action_id) {
+      var done = el("button", "chip donebtn", t(lang, "doneBtn"));
+      done.type = "button";
+      done.dataset.done = action.action_id;
+      ameta.appendChild(done);
     }
     body.appendChild(ameta);
+    if (!action.done && app.doneEdit === action.action_id) {
+      var form = el("div", "doneform");
+      var note = el("input", "in");
+      note.id = "doneNote";
+      note.maxLength = 500;
+      note.placeholder = t(lang, "donePh");
+      note.setAttribute("aria-label", t(lang, "donePh"));
+      note.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { ev.preventDefault(); form.querySelector("[data-done-save]").click(); }
+        if (ev.key === "Escape") form.querySelector("[data-done-cancel]").click();
+      });
+      var save = el("button", "chip pv-open", t(lang, "doneSave"));
+      save.type = "button";
+      save.dataset.doneSave = action.action_id;
+      var cancel = el("button", "chip", t(lang, "doneCancel"));
+      cancel.type = "button";
+      cancel.dataset.doneCancel = "1";
+      form.appendChild(note);
+      form.appendChild(save);
+      form.appendChild(cancel);
+      body.appendChild(form);
+    }
     li.appendChild(body);
     return li;
   }
@@ -492,15 +643,39 @@
   }
 
   function fmtDate(ms) {
-    return ms ? new Date(ms).toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }) : "";
+    var ar = typeof document !== "undefined" && document.documentElement.lang === "ar";
+    return ms ? new Date(ms).toLocaleDateString(ar ? "ar" : "en-GB", { weekday: "short", day: "2-digit", month: "short" }) : "";
   }
 
-  function mailHref(app, action, lang) {
-    var m = app.page.meeting;
-    var vars = { m: titleOf(m), a: action.text, o: action.owner || "", d: fmtDate(m.t0_ms), u: t(lang, urgOf(action)) };
+  function mailHref(m, action, lang) {
+    var vars = { m: titleOf(m), a: action.text, o: action.owner ? " " + action.owner : "", d: fmtDate(m.t0_ms), u: t(lang, urgOf(action)) };
     // ponytail: no addresses are stored, so the To field is left for the user
     return "mailto:?subject=" + encodeURIComponent(t(lang, "mailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "mailBody", vars));
+  }
+
+  // Karim 2026-11-04: send any statement to the person it concerns.
+  function pointMailHref(m, point, lang) {
+    var vars = { m: titleOf(m), p: point.text, s: point.speaker_name || t(lang, "someone"), d: fmtDate(m.t0_ms) };
+    return "mailto:?subject=" + encodeURIComponent(t(lang, "pointMailSubject", vars)) +
+      "&body=" + encodeURIComponent(t(lang, "pointMailBody", vars));
+  }
+
+  // Karim 2026-11-04: one email for the whole meeting, decisions then actions.
+  function followHref(page, lang) {
+    var m = page.meeting, x = "";
+    var decs = page.points.filter(function (p) { return kindKey(p.kind) === "decision"; });
+    if (decs.length) x += "\n" + t(lang, "decsShort") + "\n" + decs.map(function (p) { return "- " + p.text; }).join("\n") + "\n";
+    if (page.actions.length) {
+      x += "\n" + t(lang, "actions") + "\n" + byUrg(page.actions).map(function (pair) {
+        return pair[1].map(function (a) {
+          return "- " + a.text + " (" + (a.owner || t(lang, "noOwner")) + ", " + t(lang, pair[0]).split(" /")[0] + ")";
+        }).join("\n");
+      }).filter(Boolean).join("\n") + "\n";
+    }
+    var vars = { m: titleOf(m), d: fmtDate(m.t0_ms), x: x };
+    return "mailto:?subject=" + encodeURIComponent(t(lang, "followSubject", vars)) +
+      "&body=" + encodeURIComponent(t(lang, "followBody", vars));
   }
 
   function hitRow(app, hit, lang) {
@@ -568,12 +743,13 @@
     head.appendChild(el("p", "prov", t(lang, "prov")));
     section.appendChild(head);
     var grid = el("div", "ugrid");
-    byUrg(actions).forEach(function (pair) {
+    var finished = actions.filter(function (a) { return a.done; });
+    byUrg(actions.filter(function (a) { return !a.done; })).concat(finished.length ? [["done", finished]] : []).forEach(function (pair) {
       var u = pair[0], list = pair[1];
       var col = el("section", "ucol u-" + u);
       var h3 = el("h3");
       h3.appendChild(el("i", "udot"));
-      h3.appendChild(document.createTextNode(t(lang, u) + " "));
+      h3.appendChild(document.createTextNode(t(lang, u === "done" ? "doneT" : u) + " "));
       h3.appendChild(el("em", null, String(list.length)));
       col.appendChild(h3);
       var ul = el("ul");
@@ -605,12 +781,116 @@
       var ul = el("ul", "dis-sides");
       d.sides.forEach(function (x) {
         var li = el("li");
+        // The name comes first but the view sets the line's direction (an Arabic view
+        // after a Latin name read left to right).
+        li.dir = rtlText(x.view) ? "rtl" : "ltr";
         li.appendChild(el("b", null, x.name));
         li.appendChild(document.createTextNode(" " + x.view));
         ul.appendChild(li);
       });
       item.appendChild(ul);
       if (d.resolution) item.appendChild(el("p", "dis-res", d.resolution));
+      section.appendChild(item);
+    });
+    return section;
+  }
+
+  // The Muse Image recap: drawn only when the viewer presses the button (each
+  // image is billed), then saved, so it shows at once on every later visit.
+  function recapBoard(app, lang) {
+    var section = el("section", "board glass recap");
+    if (app.page.visual_recap) {
+      var img = el("img");
+      img.src = "/api/meetings/" + encodeURIComponent(app.page.meeting.meeting_id) + "/recap";
+      img.alt = t(lang, "recapAlt");
+      section.appendChild(img);
+      return section;
+    }
+    var id = app.page.meeting.meeting_id;
+    var busy = app.recapBusy === id;
+    var btn = el("button", "btn glass", t(lang, busy ? "recapBusy" : "recapBtn"));
+    btn.id = "recapbtn";
+    btn.type = "button";
+    btn.disabled = busy;
+    section.appendChild(btn);
+    if (app.recapFailed === id) section.appendChild(el("p", "fact-sub", t(lang, "recapFail")));
+    return section;
+  }
+
+  function coachBoard(app, lang) {
+    var list = app.page.coaching || [];
+    if (!list.length || app.cat !== "all") return null;
+    var section = el("section", "board glass coach");
+    section.appendChild(el("h2", null, t(lang, "coachT")));
+    section.appendChild(el("p", "fact-sub", t(lang, "coachNote")));
+    var item = function (c) {
+      var div = el("div", "coach-item" + (c.alert ? " c-alert" : ""));
+      var text = el("p", null, c.text);
+      text.dir = "auto";
+      div.appendChild(text);
+      div.appendChild(el("small", null, clock(c.at_ms)));
+      return div;
+    };
+    var alerts = list.filter(function (c) { return c.alert; });
+    var tips = list.filter(function (c) { return !c.alert; });
+    [["alertsT", alerts], ["tipsT", tips]].forEach(function (g) {
+      if (!g[1].length) return;
+      section.appendChild(el("h3", null, t(lang, g[0]) + " " + g[1].length));
+      g[1].slice(0, 5).forEach(function (c) { section.appendChild(item(c)); });
+      if (g[1].length > 5) {
+        var more = el("details");
+        more.appendChild(el("summary", null, t(lang, "nMore", { n: g[1].length - 5 })));
+        g[1].slice(5).forEach(function (c) { more.appendChild(item(c)); });
+        section.appendChild(more);
+      }
+    });
+    return section;
+  }
+
+  // Claims checked on the web (Spark search grounding). The links are the URLs
+  // the search returned; anything but http(s) stays plain text out of the page.
+  function factBoard(app, lang) {
+    var list = app.page.fact_checks || [];
+    if (!list.length || app.cat !== "all") return null;
+    var section = el("section", "board glass facts");
+    section.appendChild(el("h2", null, t(lang, "fact")));
+    section.appendChild(el("p", "fact-sub", t(lang, "factNote")));
+    var groups = [], byKey = {};
+    list.forEach(function (c) {
+      var key = c.verdict + ":" + String(c.claim).toLowerCase().replace(/\b(about|around|roughly|approximately|nearly|almost|some|the|a|an)\b/g, " ")
+        .replace(/[^\w\u0600-\u06FF.]+/g, " ").trim();
+      if (byKey[key]) { byKey[key].n += 1; return; }
+      byKey[key] = { c: c, n: 1 };
+      groups.push(byKey[key]);
+    });
+    groups.forEach(function (g) {
+      var c = g.c;
+      var item = el("div", "fact-item v-" + c.verdict);
+      var head = el("div", "dis-head");
+      var claim = el("h3", null, c.claim);
+      claim.dir = "auto";
+      head.appendChild(claim);
+      head.appendChild(el("span", "chip dis-out", t(lang, c.verdict === "disputed" ? "factBad" : "factOk")));
+      item.appendChild(head);
+      var note = el("p", "dis-res", (c.speaker_name ? c.speaker_name + ": " : "") + c.note);
+      note.dir = "auto";
+      item.appendChild(note);
+      if (c.notes_quote) {
+        var nq = el("p", "notes-quote");
+        nq.appendChild(el("b", null, t(lang, "yourNotes") + " "));
+        nq.appendChild(document.createTextNode("\u201C" + c.notes_quote + "\u201D"));
+        item.appendChild(nq);
+      }
+      (c.sources || []).forEach(function (url) {
+        var host = /^https?:\/\/(?:www\.)?([^\/?#]+)/i.exec(url);
+        if (!host) return;
+        var a = el("a", "fact-src", host[1]);
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        item.appendChild(a);
+      });
+      if (g.n > 1) item.appendChild(el("small", "fact-n", t(lang, "factTimes", { n: g.n })));
       section.appendChild(item);
     });
     return section;
@@ -652,7 +932,7 @@
     head.appendChild(avatar(person.name));
     var title = el("div");
     title.appendChild(el("h2", null, person.name));
-    var sub = el("div", "sub", person.role);
+    var sub = el("div", "sub", roleText(person.role, lang));
     sub.title = t(lang, "role");
     title.appendChild(sub);
     head.appendChild(title);
@@ -738,6 +1018,7 @@
       audio.controls = true;
       audio.preload = "none";
       audio.src = src;
+      row.hidden = true; // live 2026-11-04: two players in the rail; the native one has the seek bar
       player.appendChild(audio);
       var keep = el("div", "keep", t(lang, "keep"));
       player.appendChild(keep);
@@ -763,14 +1044,22 @@
       })));
     }
     aside.appendChild(player);
-    var h2 = el("h2", null, t(lang, "tx"));
-    h2.style.padding = "12px 20px 0";
-    aside.appendChild(h2);
+    var txhead = el("div", "txhead");
+    txhead.appendChild(el("h2", null, t(lang, "tx")));
+    // Karim 2026-11-04: the toggle shortens the transcript to its header, never widens it.
+    var fold = el("button", "chip", t(lang, app.txShut ? "txOpen" : "txShut"));
+    fold.id = "txFold";
+    fold.type = "button";
+    fold.setAttribute("aria-expanded", String(!app.txShut));
+    txhead.appendChild(fold);
+    aside.appendChild(txhead);
+    if (app.txShut) return;
     var lines = el("div", "lines");
     lines.id = "lines";
     page.transcript_lines.forEach(function (ln, index) {
       var btn = el("button", "ln" + (index === app.lineIndex ? " on" : ""));
       btn.dataset.line = ln.turn_id;
+      btn.dir = rtlText(ln.text) ? "rtl" : "ltr"; // Karim 2026-11-04: Arabic sits on the right wall
       btn.id = "ln-" + index;
       if (index === app.lineIndex) btn.setAttribute("aria-current", "true");
       // Chat-style: a run of lines by one speaker shows the name and face once.
@@ -796,15 +1085,105 @@
     if (active && active.scrollIntoView) active.scrollIntoView({ block: "nearest" });
   }
 
+  /** Notes added after the meeting, compared with it (AI): what agrees, differs, follows up. */
+  function compareBoard(app, lang) {
+    var ref = app.reference || {};
+    var cmp = ref.compare;
+    if (!cmp || !(cmp.items || []).length) return null;
+    var section = el("section", "board glass cmp");
+    section.appendChild(el("h2", null, t(lang, "cmpT", { n: ref.name })));
+    if (cmp.summary) section.appendChild(el("p", "cmp-sum", cmp.summary));
+    var ul = el("ul", "cmp-list");
+    cmp.items.forEach(function (x) {
+      var li = el("li", "cmp-item r-" + x.relation);
+      var head = el("div", "cmp-head");
+      head.appendChild(el("h3", null, x.topic));
+      head.appendChild(el("span", "chip cmp-rel", t(lang, "r_" + String(x.relation).replace("-", ""))));
+      li.appendChild(head);
+      var here = el("p", null);
+      here.appendChild(el("b", null, t(lang, "cmpHere") + ": "));
+      here.appendChild(document.createTextNode(x.here));
+      li.appendChild(here);
+      if (x.there) {
+        var there = el("p", null);
+        there.appendChild(el("b", null, t(lang, "cmpThere") + ": "));
+        there.appendChild(document.createTextNode(x.there));
+        li.appendChild(there);
+      }
+      ul.appendChild(li);
+    });
+    section.appendChild(ul);
+    return section;
+  }
+
+  // Karim 2026-11-04: last meeting's Markdown as context; the fact check reads it live.
+  function refRow(app, lang) {
+    var row = el("div", "refrow");
+    var ref = app.reference || {};
+    if (ref.name) {
+      row.appendChild(el("b", null, t(lang, "refOn") + " "));
+      row.appendChild(el("span", "refname", ref.name));
+      var live = app.page.meeting.in_progress;
+      var said = live ? "refLive" : ref.compare ? "refCmpOn" : null;
+      if (said) row.appendChild(el("span", "refnote", " \u00B7 " + t(lang, said) + " "));
+      var clear = el("button", "chip", t(lang, "refClear"));
+      clear.dataset.refClear = "1";
+      row.appendChild(clear);
+      return row;
+    }
+    if (app.refBusy) {
+      row.appendChild(el("span", "refnote", t(lang, "refBusy")));
+      return row;
+    }
+    // Karim 2026-11-04 22:25: during the meeting the notes feed the live check; after it, a comparison.
+    row.appendChild(el("span", "refnote", t(lang, app.page.meeting.in_progress ? "refT" : "refCmpT") + " "));
+    var label = el("label", "chip refadd", t(lang, "refAdd"));
+    var input = el("input");
+    input.type = "file";
+    input.id = "refFile";
+    input.accept = ".md,.markdown,.txt,text/markdown,text/plain";
+    input.className = "sr";
+    label.appendChild(input);
+    row.appendChild(label);
+    var others = (app.meetings || []).filter(function (m) { return m.meeting_id !== app.page.meeting.meeting_id; });
+    if (others.length) {
+      var sel = el("select", "chip");
+      sel.id = "refPast";
+      sel.setAttribute("aria-label", t(lang, "refPast"));
+      sel.appendChild(el("option", null, t(lang, "refPast")));
+      sel.firstChild.value = "";
+      others.slice(0, 30).forEach(function (m) {
+        var o = el("option", null, titleOf(m));
+        o.value = m.meeting_id;
+        sel.appendChild(o);
+      });
+      row.appendChild(sel);
+    }
+    return row;
+  }
+
   function renderMeeting(app, view, lang) {
     var page = app.page;
-    if (page.meeting.degraded) {
-      view.appendChild(el("div", "degraded", t(lang, "degraded")));
+    // A meeting nobody spoke in is not a failed summary (#102).
+    var silent = !(page.transcript_lines || []).length && !(page.points || []).length;
+    // Still running: nothing has failed, the notes just aren't written yet.
+    if (page.meeting.degraded && !page.meeting.in_progress) {
+      view.appendChild(el("div", "degraded", t(lang, silent ? "noSpeech" : "degraded")));
     }
     var wrap = el("div", "mtg");
     var left = el("div");
     var head = el("section", "head glass");
-    head.appendChild(el("h1", null, titleOf(page.meeting)));
+    var hrow = el("div", "head-row");
+    hrow.appendChild(el("h1", null, titleOf(page.meeting)));
+    var follow = el("a", "follow-up", t(lang, "followUp"));
+    follow.href = followHref(page, lang);
+    hrow.appendChild(follow);
+    // Karim 2026-11-04 "Ink over sage" in stone: the title and its facts sit on a
+    // full-width stone band under the charcoal row; the summary stays on the page.
+    var band = el("div", "mband");
+    var bandIn = el("div", "mband-in");
+    band.appendChild(bandIn);
+    bandIn.appendChild(hrow);
     // Date · length · people, so the page says when and with whom.
     var lines = page.transcript_lines || [];
     var mins = lines.length ? Math.round((lines[lines.length - 1].ts_end_ms - page.meeting.t0_ms) / 60000) : 0;
@@ -812,8 +1191,13 @@
     if (mins > 0) facts.push(t(lang, "cMin", { n: mins }));
     facts.push((page.people || []).map(function (p) { return p.name; }).join(", "));
     if (page.meeting.title && page.meeting.title !== page.meeting.subject) facts.push(page.meeting.subject);
-    head.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
-    if (page.meeting.summary) head.appendChild(el("p", "mtg-summary", page.meeting.summary));
+    bandIn.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
+    if (page.meeting.summary) {
+      var summary = el("p", "mtg-summary", page.meeting.summary);
+      summary.dir = rtlText(page.meeting.summary) ? "rtl" : "auto"; // Karim 2026-11-04: Arabic sits on the right edge
+      head.appendChild(summary);
+    }
+    head.appendChild(refRow(app, lang));
     left.appendChild(head);
     left.appendChild(el("h2", "sr", t(lang, "people")));
     var people = el("div", "people");
@@ -830,7 +1214,7 @@
       btn.style.setProperty("--h", String(hueOf(person.name)));
       btn.appendChild(avatar(person.name));
       btn.appendChild(el("span", "nm", person.name));
-      var rl = el("span", "rl", person.role);
+      var rl = el("span", "rl", roleText(person.role, lang));
       rl.title = t(lang, "role");
       btn.appendChild(rl);
       people.appendChild(btn);
@@ -841,17 +1225,30 @@
     var selected = page.people.filter(function (p) { return p.name === app.person; })[0];
     if (selected) {
       stage.appendChild(personPanel(app, selected, lang));
-    } else {
-      stage.appendChild(summaryBoard(app, lang));
-      if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
-      stage.appendChild(filtersBar(app, boardPoints(page), lang));
+    } else if (!silent) {
+      var all = app.cat === "all";
+      var cmp = compareBoard(app, lang);
+      if (cmp) stage.appendChild(foldable(app, cmp, "cmp"));
+      stage.appendChild(foldable(app, summaryBoard(app, lang), "actions"));
+      if (all) {
+        var dq = el("div", "cols dq");
+        ["decision", "question"].forEach(function (k) { dq.appendChild(foldable(app, kindColumn(app, k, lang), k)); });
+        stage.appendChild(dq);
+      }
       var dis = disagreementsBoard(app, lang);
-      if (dis) stage.appendChild(dis);
-      var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
-      (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
-        cols.appendChild(kindColumn(app, k, lang));
+      if (dis) stage.appendChild(foldable(app, dis, "dis"));
+      var facts = factBoard(app, lang);
+      if (facts) stage.appendChild(foldable(app, facts, "facts"));
+      var coach = coachBoard(app, lang);
+      if (coach) stage.appendChild(foldable(app, coach, "coach"));
+      stage.appendChild(filtersBar(app, boardPoints(page), lang));
+      var cols = el("div", "cols" + (all ? "" : " one"));
+      (all ? ["pushback", "point"] : [app.cat]).forEach(function (k) {
+        cols.appendChild(foldable(app, kindColumn(app, k, lang), k));
       });
       stage.appendChild(cols);
+      if (all && !page.meeting.in_progress) stage.appendChild(recapBoard(app, lang));
+      if (app.speaking) stage.appendChild(foldable(app, speakingPanel(app.speaking, lang), "speaking"));
     }
     left.appendChild(stage);
     wrap.appendChild(left);
@@ -860,6 +1257,7 @@
     aside.setAttribute("aria-label", t(lang, "tx"));
     renderTranscript(app, aside, lang);
     wrap.appendChild(aside);
+    view.appendChild(band);
     view.appendChild(wrap);
   }
 
@@ -905,7 +1303,7 @@
     return section;
   }
 
-  // ---- Home (Karim 2026-11-04, "AV" from docs/ui/drafts/landing/av-home.html) ----
+  // ---- Home (Karim 2026-11-04, "AV" from the AV landing mockup) ----
   // Each meeting is a call strip: every point at the second it was said. The
   // preview has a living recording line, Simple and Detailed views, Replay,
   // and coloured plates whose items jump to their mark. Tabs: All, Urgent,
@@ -914,6 +1312,8 @@
   var MTYPES = ["sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other"];
   var LAST_KEY = "halo-notes-lastvisit";
   var MODE_KEY = "halo-notes-view";
+  var FOLD_KEY = "halo-notes-folded";
+  var TXSHUT_KEY = "halo-notes-txshut";
 
   function stored(key, value) {
     try {
@@ -976,7 +1376,7 @@
     });
     var atOf = {};
     points.forEach(function (p) { atOf[p.id] = p.at; });
-    var actions = (page.actions || []).map(function (a) {
+    var actions = (page.actions || []).filter(function (a) { return !a.done; }).map(function (a) {
       return {
         id: a.action_id, text: a.text, owner: a.owner || "", status: a.status, urgency: urgOf(a),
         at: atOf[a.point_id] != null ? atOf[a.point_id] : null
@@ -989,7 +1389,10 @@
     return {
       id: page.meeting.meeting_id, title: titleOf(page.meeting), summary: page.meeting.summary || "",
       t0: page.meeting.t0_ms, duration: dur, points: points, actions: actions, people: people,
-      disagreements: page.meeting.disagreements || []
+      disagreements: page.meeting.disagreements || [],
+      coaching: (page.coaching || []).map(function (c) {
+        return { text: c.text, alert: !!c.alert, at: Math.min(dur, Math.max(0, c.at_ms + (page.meeting.t0_ms || base) - base)) };
+      })
     };
   }
 
@@ -1005,7 +1408,8 @@
 
   function hasActions(app, it) {
     var m = modelOf(app, it.meeting_id);
-    return m ? m.actions.length > 0 : ((it.counts || {}).urgent || 0) > 0;
+    var c = it.counts || {};
+    return m ? m.actions.length > 0 : (c.open_actions != null ? c.open_actions : c.urgent || 0) > 0;
   }
 
   function tabsOf(app, lang) {
@@ -1020,6 +1424,14 @@
     });
     if (app.meetings.some(function (m) { return m.archived; }) || app.tab === "archived") {
       tabs.push({ id: "archived", label: t(lang, "tabArchived"), f: function (m) { return m.archived; } });
+    }
+    // Karim 2026-11-04: Deleted keeps a meeting 30 days; meanwhile it is in no other tab.
+    tabs.forEach(function (tb) {
+      var keep = tb.f;
+      tb.f = function (m) { return !m.deleted_at && keep(m); };
+    });
+    if (app.meetings.some(function (m) { return m.deleted_at; }) || app.tab === "deleted") {
+      tabs.push({ id: "deleted", bin: true, label: t(lang, "tabDeleted"), f: function (m) { return !!m.deleted_at; } });
     }
     return tabs;
   }
@@ -1051,7 +1463,7 @@
   function sinceHTML(app, lang) {
     if (!app.meetings.length) return "";
     var w = new Date(app.since).toLocaleString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
-    var fresh = app.meetings.filter(function (m) { return (m.t0_ms || 0) > app.since; });
+    var fresh = app.meetings.filter(function (m) { return (m.t0_ms || 0) > app.since && !m.deleted_at; });
     if (!fresh.length) {
       return esc(t(lang, "nothingNew", { w: w })) + ' <button class="seen" id="unseen" type="button">' + esc(t(lang, "unseen")) + "</button>";
     }
@@ -1091,6 +1503,7 @@
     var h = out.join(" · ") || esc(t(lang, "noCapture"));
     if (it.meeting_type) h += '<span class="tchip" data-mt="' + esc(it.meeting_type) + '">' + esc(t(lang, "t_" + it.meeting_type)) + "</span>";
     if (it.archived) h += '<span class="arch-tag">' + esc(t(lang, "archivedTag")) + "</span>";
+    if (it.deleted_at) h += '<span class="arch-tag">' + esc(t(lang, "purgeIn", { n: it.purge_in_days })) + "</span>";
     return h;
   }
 
@@ -1113,7 +1526,7 @@
       var m = modelOf(app, it.meeting_id);
       var len = m && m.duration ? lenText(m.duration, lang) : (it.minutes ? t(lang, "cMin", { n: it.minutes }) : "");
       var isNew = (it.t0_ms || 0) > app.since;
-      h += '<button class="row mtg-card" type="button" data-sel="' + esc(it.meeting_id) + '" style="--d:' + (i + 4) + ";--i:" + (i++) +
+      h += '<button class="row mtg-card" type="button" data-sel="' + esc(it.meeting_id) + '" data-open="' + esc(it.meeting_id) + '" style="--d:' + (i + 4) + ";--i:" + (i++) +
         '" aria-current="' + (it.meeting_id === app.previewId) + '"><span class="rtop">' + stackHTML(it.people || [], 4, false) +
         '<b dir="auto">' + esc(titleOf(it)) + "</b>" + (isNew ? '<i class="newdot" title="' + esc(t(lang, "newTip")) + '"></i>' : "") +
         "<time>" + esc(len) + '</time></span><span class="rfacts">' + factsHTML(it, lang) + "</span>" + stripHTML(m, app.follow) + "</button>";
@@ -1126,11 +1539,21 @@
     bar.setAttribute("role", "tablist");
     var cur = currentTab(app, lang);
     var base = followed(app, app.meetings);
-    bar.innerHTML = '<span class="ind" id="ind"></span>' + tabsOf(app, lang).map(function (tb) {
+    var btn = function (tb) {
       var n = base.filter(tb.f).length;
       return '<button role="tab" type="button" data-tab="' + esc(tb.id) + '" aria-selected="' + (tb.id === cur.id) + '" class="' +
         (tb.cls || "") + (tb.cls && n ? " has" : "") + '">' + esc(tb.label) + "<em>" + n + "</em></button>";
-    }).join("");
+    };
+    // Karim 2026-11-04 22:25: projects sit in the main row; Archived and Deleted share one menu.
+    var all = tabsOf(app, lang);
+    var binned = function (tb) { return tb.id === "archived" || tb.id === "deleted"; };
+    var main = all.filter(function (tb) { return !binned(tb); });
+    var more = all.filter(binned);
+    var inMore = more.some(function (tb) { return tb.id === cur.id; });
+    bar.innerHTML = '<span class="ind" id="ind"></span>' + main.map(btn).join("") + (more.length
+      ? '<details class="fmenu' + (inMore ? " on" : "") + '"><summary>' + esc(inMore ? cur.label : t(lang, "binT")) + " ▾</summary>" +
+        '<div class="fmenu-list">' + more.map(btn).join("") + "</div></details>"
+      : "");
     return bar;
   }
 
@@ -1175,15 +1598,20 @@
     return bar;
   }
 
+  function plateMail(href, lang) {
+    return ' <a class="mail" href="' + esc(href) + '">' + esc(t(lang, "email")) + "</a>";
+  }
+
   function platesHTML(m, lang) {
     var h = "";
+    var mtg = { title: m.title, t0_ms: m.t0 };
     if (m.summary) h += '<section class="plate p-sum"><h3>' + esc(t(lang, "sumT")) + '</h3><p dir="auto">' + esc(m.summary) + "</p></section>";
     if (m.actions.length) {
       h += '<section class="plate p-act"><h3>' + esc(t(lang, "actions")) + " <em>" + m.actions.length + "</em></h3><ul>";
       m.actions.slice().sort(function (a, b) { return URG_ORDER.indexOf(a.urgency) - URG_ORDER.indexOf(b.urgency); }).forEach(function (a) {
         h += '<li data-act="' + m.actions.indexOf(a) + '" class="u-' + esc(a.urgency) + '"><i class="udot"></i><span dir="auto">' + esc(a.text) +
           "</span><small>" + esc(a.owner || t(lang, "noOwner")) + (a.status === "suggested" ? " · " + esc(t(lang, "suggested")) : "") +
-          " · " + esc(t(lang, a.urgency).split(" /")[0]) + (a.at != null ? " · " + clock(a.at) : "") + "</small></li>";
+          " · " + esc(t(lang, a.urgency).split(" /")[0]) + (a.at != null ? " · " + clock(a.at) : "") + plateMail(mailHref(mtg, a, lang), lang) + "</small></li>";
       });
       h += "</ul></section>";
     }
@@ -1193,11 +1621,26 @@
       h += '<section class="plate p-' + k[0] + '"><h3>' + esc(t(lang, k[1])) + " <em>" + ps.length + "</em></h3><ul>";
       ps.slice(0, 3).forEach(function (p) {
         h += '<li data-pt="' + m.points.indexOf(p) + '"><span dir="auto">' + esc(p.text) + "</span><small>" + esc(p.who) +
-          (p.at != null ? " · " + clock(p.at) : "") + "</small></li>";
+          (p.at != null ? " · " + clock(p.at) : "") +
+          (k[0] === "decision" ? plateMail(pointMailHref(mtg, { text: p.text, speaker_name: p.who }, lang), lang) : "") + "</small></li>";
       });
       if (ps.length > 3) h += '<li class="more">' + esc(t(lang, "nMore", { n: ps.length - 3 })) + "</li>";
       h += "</ul></section>";
     });
+    if (m.coaching.length) {
+      h += '<section class="plate p-coach"><h3>' + esc(t(lang, "coachT")) + " <em>" + m.coaching.length + "</em></h3><ul>";
+      var li = function (c) {
+        return "<li" + (c.alert ? ' class="c-alert"' : "") + '><span dir="auto">' + esc(c.text) + "</span><small>" +
+          (c.alert ? esc(t(lang, "alertT")) + " · " : "") + clock(c.at) + "</small></li>";
+      };
+      // A 13 min call had 47; the first four show, the rest open in place.
+      h += m.coaching.slice(0, 4).map(li).join("") + "</ul>";
+      if (m.coaching.length > 4) {
+        h += '<details><summary class="more">' + esc(t(lang, "nMore", { n: m.coaching.length - 4 })) + "</summary><ul>" +
+          m.coaching.slice(4).map(li).join("") + "</ul></details>";
+      }
+      h += "</section>";
+    }
     return h || '<section class="plate p-sum"><h3>' + esc(t(lang, "sumT")) + "</h3><p>" + esc(t(lang, "nothing")) + "</p></section>";
   }
 
@@ -1210,7 +1653,8 @@
   function keyHTML(lang) {
     return '<div class="key"><span style="--c:var(--dec)">' + esc(t(lang, "decision")) + '</span><span style="--c:var(--q)">' + esc(t(lang, "kQ")) +
       '</span><span style="--c:var(--push)">' + esc(t(lang, "pushback")) + '</span><span style="--c:var(--pt)">' + esc(t(lang, "point")) +
-      '</span><span class="k-act" style="--c:var(--med)">' + esc(t(lang, "action")) + "</span><span>" + esc(t(lang, "kTall")) + "</span></div>";
+      '</span><span class="k-act" style="--c:var(--med)">' + esc(t(lang, "action")) + '</span><span class="k-dis" style="--c:var(--push)">' + esc(t(lang, "kDis")) +
+      "</span><span>" + esc(t(lang, "kTall")) + "</span></div>";
   }
 
   function previewPanel(app, lang) {
@@ -1259,20 +1703,29 @@
     create.dataset.meeting = m.id;
     foot.appendChild(create);
     foot.appendChild(el("span", "sp"));
+    // Karim 2026-11-04: the two main buttons wrap together, never apart.
+    var acts = el("span", "pacts");
     var arch = el("button", "btn-2", t(lang, it.archived ? "unarchive" : "archive"));
     arch.type = "button";
     arch.dataset.archive = m.id;
     arch.dataset.on = it.archived ? "0" : "1";
-    foot.appendChild(arch);
+    acts.appendChild(arch);
+    var del = el("button", "btn-2" + (it.deleted_at ? "" : " danger"), t(lang, it.deleted_at ? "restore" : "delMeeting"));
+    del.type = "button";
+    del.dataset.delete = m.id;
+    del.dataset.on = it.deleted_at ? "0" : "1";
+    acts.appendChild(del);
     var open = el("button", "btn pv-open", t(lang, "openNotes"));
     open.type = "button";
     open.dataset.open = m.id;
-    foot.appendChild(open);
+    acts.appendChild(open);
+    foot.appendChild(acts);
     panel.appendChild(foot);
     return panel;
   }
 
   // ---- The preview's recording line: audio, marks, tip, flag, Replay, the living line ----
+  var PREVIEW_REST_MS = 400;
   var LIVING = { sg: 60, follow: 0.12, k: 0.08, damp: 0.78, phs: 0.045 };
   var lineSeq = 0;
 
@@ -1617,14 +2070,18 @@
       li.tabIndex = 0;
       li.onmouseenter = function () { mk.classList.add("near"); };
       li.onmouseleave = function () { mk.classList.remove("near"); };
-      var go = function () {
+      var go = function (e) {
+        if (e && e.target.closest && e.target.closest("a")) return; // the Email link is its own control
         pin(H, mk, true);
         seek(H, markInfo(H, mk).at / m.duration);
         if (big.scrollIntoView) big.scrollIntoView({ block: "nearest", behavior: stillMotion() ? "auto" : "smooth" });
         flag(H, big, mk);
       };
       li.onclick = go;
-      li.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+      li.onkeydown = function (e) {
+        if (e.target.closest("a")) return;
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+      };
     });
   }
 
@@ -1657,27 +2114,19 @@
   }
 
   function drawArcs(H, big) {
-    if (!big.classList.contains("simple")) return;
-    var st = big.querySelector(".strip:not(.arail)");
+    var strips = big.querySelectorAll(".strip:not(.arail)"); // Simple: one line; Detailed: every lane
     var pairs = arcPairs(H.m);
-    if (!st || !pairs.length) return;
-    var w = st.clientWidth;
+    if (!strips.length || !pairs.length) return;
     var lang = H.app.lang;
     var outcomes = { settled: "disSettled", parked: "disParked", open: "disOpen" };
-    var ns = "http://www.w3.org/2000/svg";
-    var svg = H.app.doc.createElementNS(ns, "svg");
-    svg.setAttribute("class", "arcs");
-    svg.setAttribute("width", String(w));
-    svg.setAttribute("height", "22");
-    svg.setAttribute("viewBox", "0 0 " + w + " 22");
+    // Karim 2026-11-04: no arcs; the stretch between the two sides is tinted.
     pairs.forEach(function (pr) {
-      var x1 = (Math.min(pr.a.at, pr.b.at) / H.m.duration) * w;
-      var x2 = (Math.max(pr.a.at, pr.b.at) / H.m.duration) * w;
-      if (x2 - x1 < 6) x2 = x1 + 6;
-      var lift = Math.min(18, 6 + (x2 - x1) / 12);
-      var path = H.app.doc.createElementNS(ns, "path");
-      path.setAttribute("d", "M" + x1.toFixed(1) + " 22 Q" + ((x1 + x2) / 2).toFixed(1) + " " + (22 - 2 * lift).toFixed(1) + " " + x2.toFixed(1) + " 22");
-      path.setAttribute("class", "arc o-" + (pr.d.outcome || "open"));
+      var a = Math.min(pr.a.at, pr.b.at) / H.m.duration;
+      var b = Math.max(pr.a.at, pr.b.at) / H.m.duration;
+      var path = H.app.doc.createElement("span");
+      path.style.left = (a * 100).toFixed(2) + "%";
+      path.style.width = "max(6px, " + ((b - a) * 100).toFixed(2) + "%)";
+      path.setAttribute("class", "dis-seg o-" + (pr.d.outcome || "open"));
       path.setAttribute("tabindex", "0");
       path.setAttribute("role", "button");
       var head = t(lang, "dis") + " · " + t(lang, outcomes[pr.d.outcome] || "disOpen");
@@ -1692,15 +2141,23 @@
       path.addEventListener("mouseenter", show);
       path.addEventListener("focus", show);
       path.addEventListener("click", function (e) { e.stopPropagation(); show(); seek(H, Math.min(pr.a.at, pr.b.at) / H.m.duration); });
-      svg.appendChild(path);
+      strips.forEach(function (st, i) {
+        var seg = i ? path.cloneNode(false) : path;
+        if (i) ["mouseenter", "focus"].forEach(function (ev) { seg.addEventListener(ev, show); });
+        if (i) seg.addEventListener("click", function (e) { e.stopPropagation(); show(); seek(H, Math.min(pr.a.at, pr.b.at) / H.m.duration); });
+        st.appendChild(seg);
+      });
     });
-    st.appendChild(svg);
   }
 
   function moveKnob(H) {
     var on = H.pv.querySelector(".vseg [aria-pressed=true]");
     var knob = H.pv.querySelector(".vknob");
-    if (on && knob) knob.style.transform = "translateX(" + on.offsetLeft + "px) scaleX(" + on.offsetWidth + ")";
+    if (on && knob) {
+      // live 2026-11-04: scaleX on a 1px knob smeared its shadow past the pill
+      knob.style.width = on.offsetWidth + "px";
+      knob.style.transform = "translateX(" + on.offsetLeft + "px)";
+    }
   }
 
   // Replay: the line fills over 6 s; each mark nods as it is reached, its words
@@ -1762,6 +2219,8 @@
     var H = app.home;
     var ind = doc.getElementById("ind");
     var on = doc.querySelector(".tabs [aria-selected=true]");
+    // A folder tab sits in the closed Folders menu (0 wide): underline the menu instead.
+    if (on && on.closest(".fmenu")) on = doc.querySelector(".tabs .fmenu summary");
     if (ind && on) {
       var to = "translateX(" + on.offsetLeft + "px) scaleX(" + on.offsetWidth + ")";
       if (H.ind && H.ind !== to && !stillMotion()) {
@@ -1810,7 +2269,12 @@
     left.appendChild(finding);
     head.appendChild(left);
     head.appendChild(askForm(app, lang));
-    view.appendChild(head);
+    // The same stone band as a meeting's title (Karim 2026-11-04 23:46).
+    var band = el("div", "mband home-band");
+    var bandIn = el("div", "mband-in");
+    bandIn.appendChild(head);
+    band.appendChild(bandIn);
+    view.appendChild(band);
     var label = el("label", "search");
     var icon = el("span", null, "⌕");
     icon.setAttribute("aria-hidden", "true");
@@ -1883,16 +2347,21 @@
     var exportBtn = doc.getElementById("export");
     exportBtn.hidden = app.view !== "meeting";
     exportBtn.textContent = "\u21E9 " + t(lang, "export");
+    doc.title = app.view === "list" || !app.page ? "Halo · " + t(lang, "meetings") : titleOf(app.page.meeting) + " · Halo";
     var crumb = doc.getElementById("crumb");
     crumb.textContent = "";
-    if (app.view === "list") {
-      crumb.appendChild(el("span", null, t(lang, "meetings")));
+    // Karim 2026-11-04: a meeting's page is the focused view of Meetings, so no
+    // Notes tab: "Halo  Meetings > <the open meeting>".
+    var navMeetings = el("button", "nav-tab", t(lang, "meetings"));
+    navMeetings.dataset.nav = "list";
+    crumb.appendChild(navMeetings);
+    if (app.view === "list" || !app.page) {
+      navMeetings.setAttribute("aria-current", "page");
     } else {
-      var back = el("button", null, t(lang, "meetings"));
-      back.dataset.nav = "list";
-      crumb.appendChild(back);
-      crumb.appendChild(document.createTextNode(" / " + titleOf(app.page.meeting)));
-      if (app.person) crumb.appendChild(document.createTextNode(" / " + app.person));
+      crumb.appendChild(el("span", "nav-sep", "\u203A")).setAttribute("aria-hidden", "true");
+      var here = el("span", "nav-title", titleOf(app.page.meeting) + (app.person ? " / " + app.person : ""));
+      here.setAttribute("aria-current", "page");
+      crumb.appendChild(here);
     }
     var view = doc.getElementById("view");
     // A rebuild must not steal the caret: typing in search re-renders per key.
@@ -2040,6 +2509,9 @@
     };
     var postJson = opts.postJson || function () { return Promise.reject(new Error("no postJson")); };
     var win = opts.win || { history: { pushState: function () {} } };
+    try { app.folded = JSON.parse(stored(FOLD_KEY) || "{}") || {}; } catch (e) { app.folded = {}; }
+    watchArabic(app.doc);
+    app.txShut = stored(TXSHUT_KEY) === "1";
 
     app.showList = function (meetings) {
       app.view = "list";
@@ -2080,8 +2552,12 @@
       app.person = null;
       app.lineIndex = 0;
       app.speaking = null;
+      app.reference = null;
       render(app);
       var id = page.meeting.meeting_id;
+      app.fetchJson("/api/meetings/" + encodeURIComponent(id) + "/reference").then(function (r) {
+        if (r && app.page && app.page.meeting.meeting_id === id) { app.reference = r; render(app); }
+      }).catch(function () {});
       app.fetchJson("/api/meetings/" + encodeURIComponent(id) + "/speaking").then(function (s) {
         if (s && app.page && app.page.meeting.meeting_id === id) { app.speaking = s; render(app); }
       }).catch(function () {});
@@ -2125,7 +2601,8 @@
         });
         wireHome(app);
       };
-      if (app.doc.startViewTransition && !stillMotion()) app.doc.startViewTransition(swap);
+      // A newer hover skips this transition; that rejection is expected, not an error.
+      if (app.doc.startViewTransition && !stillMotion()) app.doc.startViewTransition(swap).ready.catch(function () {});
       else swap();
     }
 
@@ -2209,6 +2686,68 @@
         onRetag(b.dataset.retag, b.dataset.val, b.dataset.action === "1");
         return;
       }
+      if ((b = g("[data-done]"))) {
+        app.doneEdit = b.dataset.done;
+        render(app);
+        var box = app.doc.getElementById("doneNote");
+        if (box) box.focus();
+        return;
+      }
+      if ((b = g("[data-done-cancel]"))) {
+        app.doneEdit = null;
+        render(app);
+        return;
+      }
+      if ((b = g("[data-done-save]")) || (b = g("[data-undone]"))) {
+        var aid = b.dataset.doneSave || b.dataset.undone;
+        var marking = !!b.dataset.doneSave;
+        var noteBox = app.doc.getElementById("doneNote");
+        var text = marking && noteBox ? noteBox.value.trim() : "";
+        var mid = app.page.meeting.meeting_id;
+        b.disabled = true;
+        postJson("/api/actions/done", { meeting_id: mid, action_id: aid, done: marking, note: text }).then(function () {
+          var act = (app.page && app.page.meeting.meeting_id === mid ? app.page.actions : []).filter(function (a) { return a.action_id === aid; })[0];
+          if (act) {
+            if (marking) act.done = { note: text, at: new Date().toISOString() };
+            else delete act.done;
+          }
+          var item = listed(app, mid);
+          if (item && item.counts && act) {
+            var step = marking ? -1 : 1;
+            if (item.counts.open_actions != null) item.counts.open_actions += step;
+            if (urgOf(act) === "urgent") item.counts.urgent = Math.max(0, (item.counts.urgent || 0) + step);
+          }
+          delete app.previews[mid];
+          delete app.models[mid];
+          app.doneEdit = null;
+          render(app);
+        }).catch(function () { b.disabled = false; toast(app, t(app.lang, "doneFail")); });
+        return;
+      }
+      if ((b = g("[data-fold]"))) {
+        app.folded[b.dataset.fold] = !app.folded[b.dataset.fold];
+        if (!app.folded[b.dataset.fold]) delete app.folded[b.dataset.fold];
+        stored(FOLD_KEY, JSON.stringify(app.folded));
+        render(app);
+        var again = app.doc.querySelector('[data-fold="' + b.dataset.fold + '"]');
+        if (again) again.focus();
+        return;
+      }
+      if ((b = g("#txFold"))) {
+        app.txShut = !app.txShut;
+        stored(TXSHUT_KEY, app.txShut ? "1" : null);
+        render(app);
+        var w = app.doc.getElementById("txFold");
+        if (w) w.focus();
+        return;
+      }
+      if ((b = g("[data-ref-clear]")) && app.page && win.fetch) {
+        var rid = app.page.meeting.meeting_id;
+        win.fetch("/api/meetings/" + encodeURIComponent(rid) + "/reference", { method: "DELETE" }).then(function () {
+          if (app.page && app.page.meeting.meeting_id === rid) { app.reference = null; render(app); }
+        }).catch(function () { toast(app, t(app.lang, "notSaved")); });
+        return;
+      }
       if ((b = g("[data-follow]"))) {
         app.follow = b.dataset.follow || null;
         render(app);
@@ -2226,10 +2765,6 @@
         render(app);
         return;
       }
-      if ((b = g("[data-sel]"))) {
-        app.setPreview(b.dataset.sel);
-        return;
-      }
       if ((b = g("#seen"))) {
         app.since = Date.now();
         stored(LAST_KEY, String(app.since));
@@ -2240,6 +2775,17 @@
         stored(LAST_KEY, null);
         app.since = sinceStart(app);
         render(app);
+        return;
+      }
+      if ((b = g("[data-delete]"))) {
+        var dmid = b.dataset.delete;
+        var dOn = b.dataset.on === "1";
+        var setDel = function (state) {
+          return postJson("/api/meetings/delete", { meeting_id: dmid, deleted: state }).then(refreshList);
+        };
+        setDel(dOn).then(function () {
+          if (dOn) toast(app, t(app.lang, "deletedToast"), t(app.lang, "undo"), function () { setDel(false); });
+        }).catch(function () { toast(app, t(app.lang, "notSaved")); });
         return;
       }
       if ((b = g("[data-archive]"))) {
@@ -2294,6 +2840,23 @@
       }
       if ((b = g("[data-nav]"))) {
         app.loadMeetings(true);
+        return;
+      }
+      if ((b = g("#recapbtn"))) {
+        // It takes 20 s and the viewer may open another meeting meanwhile.
+        var recapId = app.page.meeting.meeting_id;
+        var onThisMeeting = function () { return app.page && app.page.meeting.meeting_id === recapId; };
+        app.recapBusy = recapId;
+        app.recapFailed = null;
+        render(app);
+        postJson("/api/meetings/" + encodeURIComponent(recapId) + "/recap", {}).then(function () {
+          if (onThisMeeting()) app.page.visual_recap = true;
+        }).catch(function () {
+          app.recapFailed = recapId;
+        }).then(function () {
+          app.recapBusy = null;
+          if (onThisMeeting()) render(app);
+        });
         return;
       }
       if ((b = g("#export"))) {
@@ -2351,10 +2914,40 @@
       }
     }
 
-    function onHover() { /* Karim 2026-11-03 (AV): a click picks the preview, hover only lights the row. */ }
+    // Karim 2026-11-04: a click opens the meeting's page, so resting on a row is
+    // what previews it. The wait keeps the panel still while the mouse crosses the list.
+    var restTimer = 0;
+    function onHover(event) {
+      clearTimeout(restTimer);
+      var row = event.target.closest && event.target.closest("[data-sel]");
+      if (row) restTimer = setTimeout(function () { app.setPreview(row.dataset.sel); }, PREVIEW_REST_MS);
+    }
+
+    function setReference(name, text) {
+      var id = app.page.meeting.meeting_id;
+      app.refBusy = !app.page.meeting.in_progress; // an ended meeting is compared, which takes a few seconds
+      render(app);
+      return postJson("/api/meetings/" + encodeURIComponent(id) + "/reference", { name: name, text: text })
+        .then(function (r) { if (app.page && app.page.meeting.meeting_id === id) app.reference = r; })
+        .catch(function () { toast(app, t(app.lang, "refFail")); })
+        .then(function () { app.refBusy = false; render(app); });
+    }
 
     function onChange(event) {
       var sel = event.target;
+      if (sel && sel.id === "refFile" && sel.files && sel.files[0]) {
+        var file = sel.files[0];
+        file.text().then(function (text) { return setReference(file.name, text); });
+        return;
+      }
+      if (sel && sel.id === "refPast" && sel.value) {
+        app.fetchJson("/api/meetings/" + encodeURIComponent(sel.value)).then(function (p) {
+          var past = tidyPage(p);
+          var text = "# " + titleOf(past.meeting) + "\n\n" + (past.meeting.summary || "") + "\n\n" + exportMarkdown(past, app.lang);
+          return setReference(titleOf(past.meeting) + ".md", text);
+        }).catch(function () { toast(app, t(app.lang, "refFail")); });
+        return;
+      }
       if (sel && sel.classList && sel.classList.contains("mtype-set")) {
         postJson("/api/meetings/type", { meeting_id: sel.dataset.meeting, meeting_type: sel.value || null })
           .then(refreshList).catch(function () { toast(app, t(app.lang, "notSaved")); });
@@ -2428,7 +3021,7 @@
     };
     window.addEventListener("popstate", function () {
       var id = idFromPath();
-      if (id) app.openMeeting(id, false);
+      if (id) app.openMeeting(id, false).catch(function () { return app.loadMeetings(false); }); // deleted since
       else app.loadMeetings(false);
     });
     // A judge without a key gets told why nothing happens (older backends have no /api/status).
@@ -2436,10 +3029,292 @@
       var bar = doc.getElementById("keybar");
       if (bar && s && s.meta_key === false) bar.hidden = false;
     }).catch(function () {});
+    var tourBtn = doc.getElementById("tourBtn");
+    if (tourBtn) tourBtn.addEventListener("click", function () { startTour(app); });
+    window.__haloApp = app; // tests and the console
+    // The extension's one-time welcome page links here with ?tour=1 (Karim 2026-11-04).
+    // The flag leaves the address at once, so a reload or a bookmark never restarts it.
+    var tourOnce = /[?&]tour=1(&|$)/.test(window.location.search);
+    if (tourOnce) window.history.replaceState(null, "", window.location.pathname);
     var first = meetingId || idFromPath();
     if (first) app.openMeeting(first, false);
-    else app.loadMeetings(false);
+    else Promise.resolve(app.loadMeetings(false)).then(function () { if (tourOnce) startTour(app); });
     return app;
+  }
+
+  // -- Induction: a guided tour of every feature (Karim 2026-11-04 22:34) -------------
+  // Each step names what the feature is, why it exists and how it is built. Steps
+  // whose element is not on screen are skipped; a step with no selector is a centred card.
+  var TOUR_HOME = [
+    { sel: ".top .logo", en: ["Halo", "A live meeting copilot for Google Meet, and for Zoom and Teams on the web, in Arabic and English.",
+      "Decisions and tasks get lost in calls. Halo writes them down while they are said, so nobody takes notes.",
+      "A Chrome extension captures the call tab and your mic. A backend on this PC runs Meta's models and serves this page. Your data stays here."],
+      ar: ["هالو", "مساعد مباشر للاجتماعات في Google Meet وفي Zoom وTeams على الويب، بالعربية والإنجليزية.",
+      "القرارات والمهام تضيع في المكالمات. يكتبها هالو لحظة قولها، فلا يحتاج أحد لتدوين الملاحظات.",
+      "إضافة Chrome تلتقط صوت تبويب المكالمة وميكروفونك، وخادم على هذا الجهاز يشغّل نماذج Meta ويعرض هذه الصفحة. بياناتك تبقى هنا."] },
+    { sel: "#q", en: ["Search", "Search every meeting's points, action items and transcript at once.",
+      "You can find what was said without opening each meeting.",
+      "Every event is stored in a local SQLite database with full-text search. Nothing leaves this PC."],
+      ar: ["البحث", "ابحث في نقاط كل الاجتماعات ومهامها ونصوصها مرة واحدة.",
+      "تجد ما قيل دون فتح كل اجتماع.",
+      "كل حدث محفوظ في قاعدة SQLite محلية مع بحث نصي كامل، ولا يغادر شيء هذا الجهاز."] },
+    { sel: "#askq", en: ["Ask", "Ask a question across all your meetings, like \"what did we decide about pricing?\"",
+      "One answer with its sources beats rereading five meetings.",
+      "Muse Spark reads your meetings' summaries, points and lines, answers, and cites each line so you can jump to it."],
+      ar: ["اسأل", "اطرح سؤالاً على كل اجتماعاتك، مثل: «ماذا قررنا بشأن التسعير؟»",
+      "إجابة واحدة مع مصادرها أفضل من إعادة قراءة خمسة اجتماعات.",
+      "يقرأ Muse Spark ملخصات اجتماعاتك ونقاطها وسطورها، ثم يجيب ويستشهد بكل سطر لتنتقل إليه."] },
+    { sel: ".tabs", en: ["Tabs and projects", "Urgent, Needs action and With others sort meetings by what needs you. Your projects sit next to them; Archived and Deleted are in the Archive menu.",
+      "You triage by what is open, not by date.",
+      "The Classifier (Muse Spark) sets each item's urgency every 10 seconds during the call; your own re-tag always wins. Marking an action Done takes it out of these tabs. Deleted keeps a meeting for 30 days."],
+      ar: ["التبويبات والمشاريع", "«عاجل» و«يحتاج إجراء» و«مع آخرين» ترتب الاجتماعات حسب ما يحتاجك، ومشاريعك بجانبها، والمؤرشفة والمحذوفة في قائمة الأرشيف.",
+      "تفرز حسب ما هو مفتوح، لا حسب التاريخ.",
+      "يحدد المصنّف (Muse Spark) أولوية كل بند كل 10 ثوانٍ أثناء المكالمة، وتعديلك يتقدم دائماً. عند وضع «تم» على مهمة تخرج من هذه التبويبات، والمحذوف يبقى 30 يوماً."] },
+    { sel: ".types", en: ["Meeting types", "Halo sorts each meeting into a type: sprint, planning, product discovery and more.",
+      "You can filter a long list down to one kind of meeting.",
+      "The Notes Builder labels the meeting when it ends. If you pick a different type, your choice is kept."],
+      ar: ["أنواع الاجتماعات", "يصنّف هالو كل اجتماع: سبرنت، تخطيط، اكتشاف منتج وغيرها.",
+      "تصفّي قائمة طويلة إلى نوع واحد.",
+      "يضع منشئ الملاحظات النوع عند انتهاء الاجتماع، وإن اخترت نوعاً آخر يُحفظ اختيارك."] },
+    { sel: "#list", en: ["The meeting list", "Each row is one meeting, with a timeline of when its decisions, questions and pushbacks happened.",
+      "You see a meeting's shape at a glance: where it decided, where it argued.",
+      "Every point keeps the transcript turn it came from, so its mark sits at its real minute."],
+      ar: ["قائمة الاجتماعات", "كل صف اجتماع، مع خط زمني لمتى جاءت قراراته وأسئلته واعتراضاته.",
+      "ترى شكل الاجتماع بنظرة: أين قرر وأين اختلف.",
+      "كل نقطة تحتفظ بالسطر الذي جاءت منه، فتظهر علامتها في دقيقتها الحقيقية."] },
+    { sel: "#preview", en: ["Preview", "The selected meeting: summary, action items, coaching tips and the recording's timeline.",
+      "You can decide what to do without opening the meeting.",
+      "Select a row; the preview loads that meeting's page. Play the timeline to hear any moment."],
+      ar: ["المعاينة", "الاجتماع المختار: الملخص والمهام ونصائح التدريب والخط الزمني للتسجيل.",
+      "تقرر ما تفعله دون فتح الاجتماع.",
+      "اختر صفاً فتُحمَّل صفحة ذلك الاجتماع، وشغّل الخط الزمني لتسمع أي لحظة."] },
+    { sel: ".pfoot", en: ["File it", "Put the meeting in a project, archive it, delete it, or open its full page.",
+      "A short list stays useful. Projects group meetings that belong together.",
+      "Projects and archive state live in one small file on this PC; Delete can be undone for 30 days."],
+      ar: ["رتّبه", "ضع الاجتماع في مشروع، أو أرشفه، أو احذفه، أو افتح صفحته الكاملة.",
+      "القائمة القصيرة تبقى مفيدة، والمشاريع تجمع الاجتماعات المترابطة.",
+      "المشاريع والأرشيف محفوظة في ملف صغير على هذا الجهاز، والحذف يمكن التراجع عنه 30 يوماً."] },
+    { open: true, en: ["Now a meeting", "Next, the page of one meeting: everything Halo wrote down in that call.", "", ""],
+      ar: ["الآن اجتماع", "التالي صفحة اجتماع واحد: كل ما كتبه هالو في تلك المكالمة.", "", ""] }
+  ];
+  var TOUR_MEETING = [
+    { sel: ".mband h1", up: ".mband", en: ["Title and summary", "An AI title and summary, written in the meeting's own language, plus Email follow-up.",
+      "It is the paragraph you would send afterwards, ready when the call ends.",
+      "The Notes Builder (Muse Spark) reads the whole meeting once it ends. Email follow-up drafts a message with the action items."],
+      ar: ["العنوان والملخص", "عنوان وملخص بالذكاء الاصطناعي بلغة الاجتماع نفسها، مع زر «بريد المتابعة».",
+      "هي الفقرة التي سترسلها بعد الاجتماع، جاهزة عند انتهائه.",
+      "يقرأ منشئ الملاحظات (Muse Spark) الاجتماع كاملاً عند انتهائه، ويجهّز زر البريد رسالة بالمهام."] },
+    { sel: ".refrow", en: ["Your notes", "Add a Markdown file. During a meeting, every claim is fact-checked against it live. Afterwards, Halo compares the two meetings.",
+      "Last week's notes are the best check on this week's call.",
+      "Muse Spark checks each claim against your notes and the web; a quote from your notes is shown only if it is in the file word for word. Afterwards, one call lists what agrees, differs or needs follow-up."],
+      ar: ["ملاحظاتك", "أضف ملف Markdown. أثناء الاجتماع يُتحقق من كل ادعاء مقابله مباشرة، وبعده يقارن هالو بين الاجتماعين.",
+      "ملاحظات الأسبوع الماضي أفضل اختبار لمكالمة هذا الأسبوع.",
+      "يتحقق Muse Spark من كل ادعاء مقابل ملاحظاتك والويب، ولا يُعرض اقتباس إلا إن ورد في الملف حرفياً. وبعد الاجتماع تسرد مقارنة واحدة ما يتفق وما يختلف وما يحتاج متابعة."] },
+    { sel: ".people", en: ["People", "Switch between the whole meeting and one person: what they said and what they own.",
+      "Before a one-to-one, you see exactly that person's part.",
+      "Muse Voice Transcribe labels each speaker; the Correlator matches the voice to the Meet tile that lit up as they spoke, so names are real."],
+      ar: ["الأشخاص", "بدّل بين الاجتماع كاملاً وشخص واحد: ما قاله وما يملكه.",
+      "قبل لقاء ثنائي ترى دور ذلك الشخص بالضبط.",
+      "يميّز Muse Voice Transcribe كل متحدث، ويطابق المُطابِق الصوت بمربّع Meet الذي أضاء عند كلامه، فتكون الأسماء حقيقية."] },
+    { sel: "[data-fold=\"actions\"]", up: "section", en: ["Action items", "Tasks grouped by urgency, marked Assigned (said aloud) or Suggested. Each has Done, Email and a jump to the moment it was said.",
+      "Nothing someone promised gets lost, and you can close what is handled.",
+      "Insight (Spark Open, about 3 seconds per point) finds each task live in the call; Done keeps a note of what was done."],
+      ar: ["المهام", "مهام مرتبة حسب الأولوية، معلَّمة «مسندة» (قيلت بصوت) أو «مقترحة»، ولكل منها «تم» والبريد والانتقال إلى لحظة قولها.",
+      "لا يضيع وعد قطعه أحد، وتغلق ما أُنجز.",
+      "يجد Insight (Spark Open، نحو 3 ثوانٍ للنقطة) كل مهمة مباشرة في المكالمة، و«تم» يحفظ ملاحظة بما أُنجز."] },
+    { sel: ".cols", en: ["Decisions, questions, pushbacks, points", "Everything said that matters, sorted by kind. Each section folds to its heading.",
+      "Skimming four short lists is faster than reading a transcript.",
+      "Insight on Spark Open writes each point a few seconds after it is said; every point links to its exact transcript line."],
+      ar: ["القرارات والأسئلة والاعتراضات والنقاط", "كل ما قيل ومهم، مرتب حسب النوع، وكل قسم يُطوى إلى عنوانه.",
+      "تصفّح أربع قوائم قصيرة أسرع من قراءة النص كاملاً.",
+      "يكتب Insight على Spark Open كل نقطة بعد ثوانٍ من قولها، وكل نقطة مرتبطة بسطرها في النص."] },
+    { sel: ".dis", en: ["Disagreements", "Who held which view on what, and whether it was settled, parked or left open.",
+      "Unresolved disagreements are where the next meeting goes wrong.",
+      "The Notes Builder reads the pushbacks with their context at the end of the meeting."],
+      ar: ["الخلافات", "من تبنّى أي رأي في ماذا، وهل حُسم أو أُجّل أو بقي مفتوحاً.",
+      "الخلافات غير المحسومة هي حيث يتعثر الاجتماع التالي.",
+      "يقرأ منشئ الملاحظات الاعتراضات مع سياقها عند انتهاء الاجتماع."] },
+    { sel: ".facts", en: ["Fact checks", "Specific claims (numbers, dates, names) checked on the web while you talk, each with a verdict and sources.",
+      "A wrong number said confidently becomes a decision.",
+      "Muse Spark 1.3 with web search grounding, off the live path; it skips opinions, plans and your team's own product."],
+      ar: ["التحقق من المعلومات", "ادعاءات محددة (أرقام وتواريخ وأسماء) يُتحقق منها على الويب أثناء الحديث، مع حكم ومصادر.",
+      "رقم خاطئ يُقال بثقة يصبح قراراً.",
+      "Muse Spark 1.3 مع البحث على الويب، خارج المسار المباشر، ويتجاهل الآراء والخطط ومنتج فريقك نفسه."] },
+    { sel: ".coach", en: ["Coaching tips", "What the live coach told you during the call: lead with the point, cut filler, watch your tone.",
+      "Feedback during the call changes this call, not only the next one.",
+      "The coach (Muse Spark) reads your recent words within seconds; an alert needs real back-and-forth and a quote, so false alarms stay rare."],
+      ar: ["نصائح التدريب", "ما قاله لك المدرب المباشر أثناء المكالمة: ابدأ بالنقطة، احذف الحشو، انتبه لنبرتك.",
+      "الملاحظة أثناء المكالمة تغيّر هذه المكالمة، لا التالية فقط.",
+      "يقرأ المدرب (Muse Spark) كلماتك الأخيرة خلال ثوانٍ، ولا يُطلق تنبيهاً إلا مع حوار حقيقي واقتباس، فتبقى الإنذارات الخاطئة نادرة."] },
+    { sel: ".speaking", en: ["How you spoke", "Your talk time, pace and interruptions in this meeting.",
+      "Numbers about your own speaking are hard to see from inside the call.",
+      "Worked out on this PC from the transcript's timings, with no model call."],
+      ar: ["طريقة حديثك", "وقت حديثك وسرعتك ومقاطعاتك في هذا الاجتماع.",
+      "يصعب أن ترى أرقام حديثك وأنت داخل المكالمة.",
+      "تُحسب على هذا الجهاز من توقيتات النص، دون أي نموذج."] },
+    { sel: ".recap", en: ["Visual recap", "A hand-drawn mind map of everything said, in the meeting's language.",
+      "One picture to share in a chat or put on a slide.",
+      "Muse Spark lays out the map, then Muse Image draws it. It runs only when you press the button, and the image is saved."],
+      ar: ["الملخص المرئي", "خريطة ذهنية مرسومة لكل ما قيل، بلغة الاجتماع.",
+      "صورة واحدة تشاركها في محادثة أو تضعها في عرض.",
+      "يرتّب Muse Spark الخريطة ثم يرسمها Muse Image، ولا يعمل إلا عند الضغط، والصورة تُحفظ."] },
+    { sel: "#tx", en: ["Transcript", "The whole call, Arabic and English mixed, each line with its speaker and time. Click a line to play the recording there; Collapse to save room.",
+      "Every point above can be checked against what was really said.",
+      "Muse Voice Transcribe in realtime, biased to Arabic and English; the call audio and your mic are recorded only on this PC."],
+      ar: ["النص", "المكالمة كاملة، عربي وإنجليزي معاً، لكل سطر متحدثه ووقته. اضغط سطراً لتشغيل التسجيل عنده، و«طي» لتوفير المساحة.",
+      "كل نقطة في الأعلى يمكن مراجعتها مقابل ما قيل فعلاً.",
+      "Muse Voice Transcribe مباشرة مع تفضيل العربية والإنجليزية، والصوت يُسجَّل على هذا الجهاز فقط."] },
+    { sel: "#export", en: ["Export", "Save the whole meeting as a Markdown file.",
+      "It goes straight into your docs, or becomes next week's notes for the fact check.",
+      "Built in the page from the same data you see; no server call."],
+      ar: ["التصدير", "احفظ الاجتماع كاملاً كملف Markdown.",
+      "يذهب مباشرة إلى مستنداتك، أو يصبح ملاحظات الأسبوع القادم للتحقق.",
+      "يُنشأ في الصفحة من البيانات نفسها التي تراها، دون طلب للخادم."] }
+  ];
+  var TOUR_END = [
+    { sel: ".top .seg", en: ["Arabic or English", "The whole app switches language, and Arabic always reads right to left, even inside the English page.",
+      "Halo is built for teams that mix Arabic and English in one sentence.",
+      "Every text block takes its direction from its first letter, so a mixed meeting lines up correctly."],
+      ar: ["العربية أو الإنجليزية", "يتحول التطبيق كله إلى اللغة المختارة، والعربية تُقرأ دائماً من اليمين، حتى داخل الصفحة الإنجليزية.",
+      "هالو مصمم لفرق تمزج العربية والإنجليزية في الجملة الواحدة.",
+      "كل نص يأخذ اتجاهه من أول حرف فيه، فيصطف الاجتماع المختلط صحيحاً."] },
+    { en: ["In the call", "On the Meet page, each person's points float beside their video, with the coach, live fact checks and a consent badge in one Halo pill.",
+      "You see who said what without looking away from the call.",
+      "SAM 3.1 tracks each face on this PC so the points sit by the head; without it, they sit at the tile's corner. Zoom and Teams on the web work too."],
+      ar: ["أثناء المكالمة", "في صفحة Meet تطفو نقاط كل شخص بجانب صورته، مع المدرب والتحقق المباشر وشارة الموافقة في زر هالو واحد.",
+      "ترى من قال ماذا دون أن تبعد عينك عن المكالمة.",
+      "يتتبع SAM 3.1 كل وجه على هذا الجهاز لتظهر النقاط بجانب الرأس، ومن دونه تظهر في زاوية المربع. ويعمل أيضاً مع Zoom وTeams على الويب."] },
+    { en: ["Built on Meta's models", "Muse Voice Transcribe hears the call. Spark Open writes live points in about 3 seconds. Muse Spark 1.3 is the schema-checked fallback and searches the web for fact checks. Muse Image draws the recap. SAM 3.1 finds faces.",
+      "Each model does the one job it is best at, and the fastest one sits on the live path.",
+      "One shared client checks every reply against Halo's contracts and fails over per call. Keys stay in the backend; the extension holds none."],
+      ar: ["مبني على نماذج Meta", "Muse Voice Transcribe يسمع المكالمة، وSpark Open يكتب النقاط مباشرة في نحو 3 ثوانٍ، وMuse Spark 1.3 هو البديل المتحقَّق من مخططه ويبحث في الويب للتحقق، وMuse Image يرسم الملخص، وSAM 3.1 يجد الوجوه.",
+      "كل نموذج يؤدي المهمة التي يتقنها، والأسرع على المسار المباشر.",
+      "عميل واحد مشترك يتحقق من كل رد مقابل عقود هالو وينتقل للبديل في كل طلب، والمفاتيح تبقى في الخادم ولا تحمل الإضافة أياً منها."] }
+  ];
+
+  function startTour(app) {
+    var doc = app.doc;
+    if (doc.getElementById("tour")) return;
+    var lang = app.lang;
+    var steps = app.view === "list" || !app.page ? TOUR_HOME.slice() : TOUR_MEETING.concat(TOUR_END);
+    if (app.view === "list" && !(app.meetings || []).length) steps = TOUR_HOME.filter(function (s) { return !s.open; }).concat(TOUR_END);
+    var at = 0;
+    var back = doc.activeElement;
+    var shade = el("div", "tour");
+    shade.id = "tour";
+    var spot = el("div", "tour-spot");
+    var card = el("div", "tour-card glass");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "tourTitle");
+    shade.appendChild(spot);
+    shade.appendChild(card);
+    doc.body.appendChild(shade);
+    var target = function (s) {
+      if (!s.sel) return null;
+      var n = doc.querySelector(s.sel);
+      if (n && s.up) n = n.closest(s.up) || n;
+      return n && n.getClientRects().length ? n : null;
+    };
+    var place = function () {
+      var s = steps[at];
+      var n = target(s);
+      var vw = doc.documentElement.clientWidth, vh = doc.documentElement.clientHeight;
+      if (!n) {
+        spot.style.opacity = "0";
+        card.style.left = Math.max(16, (vw - card.offsetWidth) / 2) + "px";
+        card.style.top = Math.max(16, (vh - card.offsetHeight) / 2) + "px";
+        return;
+      }
+      var r = n.getBoundingClientRect();
+      var pad = 8;
+      spot.style.opacity = "1";
+      spot.style.left = (r.left - pad) + "px";
+      spot.style.top = (r.top - pad) + "px";
+      spot.style.width = (r.width + 2 * pad) + "px";
+      spot.style.height = Math.min(r.height + 2 * pad, vh - 16) + "px";
+      var below = r.bottom + 16 + card.offsetHeight < vh;
+      var top = below ? r.bottom + 16 : Math.max(16, r.top - 16 - card.offsetHeight);
+      if (!below && top + card.offsetHeight > r.top) top = Math.max(16, vh - card.offsetHeight - 16); // tall target: card at the foot
+      card.style.top = top + "px";
+      card.style.left = Math.min(Math.max(16, r.left), vw - card.offsetWidth - 16) + "px";
+    };
+    var close = function () {
+      win.removeEventListener("resize", place);
+      win.removeEventListener("scroll", place, true);
+      doc.removeEventListener("keydown", onKey, true);
+      shade.remove();
+      if (back && back.focus) back.focus();
+    };
+    var go = function (i) {
+      while (i >= 0 && i < steps.length && steps[i].sel && !steps[i].open && !target(steps[i])) i += i >= at ? 1 : -1;
+      if (i < 0) i = 0;
+      if (i >= steps.length) { close(); return; }
+      at = i;
+      var s = steps[at];
+      var words = s[lang] || s.en;
+      while (card.firstChild) card.removeChild(card.firstChild);
+      var top = el("div", "tour-top");
+      top.appendChild(el("span", "tour-n", (at + 1) + " / " + steps.length));
+      var x = el("button", "tour-x", "×");
+      x.type = "button";
+      x.setAttribute("aria-label", t(lang, "tourClose"));
+      x.addEventListener("click", close);
+      top.appendChild(x);
+      card.appendChild(top);
+      var h = el("h2", null, words[0]);
+      h.id = "tourTitle";
+      card.appendChild(h);
+      [["tourWhat", words[1]], ["tourWhy", words[2]], ["tourHow", words[3]]].forEach(function (row) {
+        if (!row[1]) return;
+        var p = el("p", "tour-line");
+        p.appendChild(el("b", null, t(lang, row[0]) + " "));
+        p.appendChild(doc.createTextNode(row[1]));
+        card.appendChild(p);
+      });
+      var nav = el("div", "tour-nav");
+      var prev = el("button", "chip", t(lang, "tourBack"));
+      prev.type = "button";
+      prev.disabled = at === 0;
+      prev.addEventListener("click", function () { go(at - 1); });
+      var next = el("button", "chip pv-open", t(lang, s.open ? "tourOpen" : at === steps.length - 1 ? "tourDone" : "tourNext"));
+      next.type = "button";
+      next.addEventListener("click", function () {
+        if (!s.open) { go(at + 1); return; }
+        var pv = doc.querySelector("#preview [data-open]");
+        var first = (pv && pv.dataset.open) || (app.meetings[0] || {}).meeting_id;
+        close();
+        app.openMeeting(first, true).then(function () { setTimeout(function () { startTour(app); }, 400); });
+      });
+      nav.appendChild(prev);
+      nav.appendChild(next);
+      card.appendChild(nav);
+      var n = target(s);
+      if (n && n.scrollIntoView) n.scrollIntoView({ block: "center", behavior: "smooth" });
+      place();
+      setTimeout(place, 420); // after the smooth scroll settles
+      next.focus();
+    };
+    var onKey = function (ev) {
+      if (ev.key === "Escape") { ev.preventDefault(); close(); }
+      else if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        var fwd = (ev.key === "ArrowRight") !== (doc.documentElement.dir === "rtl");
+        go(at + (fwd ? 1 : -1));
+      } else if (ev.key === "Tab") { // keep focus inside the card
+        var f = card.querySelectorAll("button:not([disabled])");
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (ev.shiftKey && doc.activeElement === first) { ev.preventDefault(); last.focus(); }
+        else if (!ev.shiftKey && doc.activeElement === last) { ev.preventDefault(); first.focus(); }
+      }
+    };
+    var win = doc.defaultView || window;
+    win.addEventListener("resize", place);
+    win.addEventListener("scroll", place, true);
+    doc.addEventListener("keydown", onKey, true);
+    shade.addEventListener("click", function (ev) { if (ev.target === shade || ev.target === spot) close(); });
+    go(0);
   }
 
   window.HaloNotes = {

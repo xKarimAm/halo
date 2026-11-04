@@ -31,7 +31,8 @@
         "llm.health",
         "tags.set",
         "notes.ready",
-        "coach.tips"
+        "coach.tips",
+        "claim.checked"
       ]
     },
     "source": {

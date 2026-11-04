@@ -11,6 +11,8 @@
 // storage at boot. Overlay/adapter are booted once behind the proxy.
 import { defineContentScript } from "wxt/sandbox";
 import { MeetDomAdapter } from "../meet_adapter/meet_adapter";
+import { CallPageAdapter } from "../meet_adapter/call_adapter";
+import { parseMeetTab } from "../setup_panel/start_target";
 import { createPortSync } from "../meet_adapter/port_sync";
 import { boot as bootOverlay } from "../overlay/index";
 import { adaptAudioContext, startLiveCapture } from "../hub_capture/capture_live";
@@ -39,9 +41,30 @@ export async function bootMeetPage(): Promise<void> {
     },
   };
   const overlay = bootOverlay({ port: portProxy });
-  const adapter = new MeetDomAdapter({});
+  // Meet has its own DOM adapter; the Zoom and Teams web clients get the generic one.
+  const target = parseMeetTab(location.href);
+  const callPlatform = location.hostname === "meet.google.com" ? null
+    : target.ok && target.platform !== "meet" ? target.platform
+      : location.hostname.endsWith("zoom.us") ? "zoom" : "teams";
+  const callPage = callPlatform ? new CallPageAdapter(callPlatform) : null;
+  const adapter: MeetDomAdapter | CallPageAdapter = callPage ?? new MeetDomAdapter({});
+  if (callPage) {
+    void chrome.storage.local.get([MEETING_RUNNING_KEY])
+      .then((items: Record<string, unknown>) => callPage.setRunning(items?.[MEETING_RUNNING_KEY] === true), () => {});
+  }
   overlay.applyTiles({ tiles: adapter.tiles() });
-  adapter.onTiles((tiles) => overlay.applyTiles({ tiles }));
+  adapter.onTiles((tiles) => { overlay.applyTiles({ tiles }); overlay.requestRender(); });
+  // Live 2026-11-04: the pill, points and coach stayed on "You left the
+  // meeting". The hub clears this flag on Stop and on call.left.
+  chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
+    if (!(MEETING_RUNNING_KEY in changes)) return;
+    callPage?.setRunning(changes[MEETING_RUNNING_KEY].newValue === true);
+    if (changes[MEETING_RUNNING_KEY].newValue === true) overlay.startMeeting();
+    else {
+      overlay.endMeeting();
+      overlay.requestRender();
+    }
+  });
   let speaking: string | null = null;
   adapter.onSpeaking((event) => {
     overlay.applySpeakerActive(event);
@@ -96,7 +119,7 @@ export async function bootMeetPage(): Promise<void> {
  * "Halo is off" toast: in a call (tiles on screen; a gap shorter than the
  * call.left grace is not leaving) while the hub reports no running meeting.
  */
-function wireOffNudge(adapter: MeetDomAdapter): void {
+function wireOffNudge(adapter: MeetDomAdapter | CallPageAdapter): void {
   const ui = mountOffNudge(document, {
     onStart: () => chrome.runtime.sendMessage({ type: "halo/open.setup" })
       .then((r: { ok?: boolean } | undefined) => r?.ok === true, () => false),
@@ -143,7 +166,7 @@ export function listenForMicStart(): void {
 }
 
 export default defineContentScript({
-  matches: ["https://meet.google.com/*"],
+  matches: ["https://meet.google.com/*", "https://*.zoom.us/wc/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
   main() {
     void bootMeetPage();
     listenForMicStart();

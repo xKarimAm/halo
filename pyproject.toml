@@ -47,11 +47,11 @@ type = "forbidden"
 source_modules = [
     "halo.bus", "halo.llm", "halo.gateway", "halo.event_store", "halo.transcriber",
     "halo.correlator", "halo.insight", "halo.classifier", "halo.notes_builder",
-    "halo.notes_service", "halo.recorder", "halo.coach",
+    "halo.notes_service", "halo.recorder", "halo.coach", "halo.fact_check",
 ]
 forbidden_modules = [
     "halo.gateway", "halo.event_store", "halo.transcriber", "halo.correlator",
     "halo.insight", "halo.classifier", "halo.notes_builder", "halo.notes_service", "halo.recorder",
-    "halo.coach",
+    "halo.coach", "halo.fact_check",
 ]
 ignore_imports = "halo.app -> halo.*"

@@ -71,8 +71,8 @@ const COPY: Record<NudgeKind, string> = {
 
 /**
  * The toast itself, inside the Halo controls bar (top centre) when it is
- * there. `onStart` asks the extension to open its setup panel; when it
- * cannot, the toast says where the Start button is instead.
+ * there. `onStart` asks the extension to open its setup panel, and the
+ * toast also says where the Start button is, since that can fail silently.
  */
 export function mountOffNudge(
   doc: Document,
@@ -95,11 +95,10 @@ export function mountOffNudge(
   (doc.querySelector(".halo-controls") ?? doc.body).append(box);
 
   start.addEventListener("click", () => {
-    void actions.onStart().then((opened) => {
-      if (opened) return;
-      text.textContent = "Click the Halo icon in the toolbar, then Start.";
-      start.hidden = true;
-    });
+    // Said at once: Chrome can report the panel open and show nothing.
+    text.textContent = "Click the Halo icon in the toolbar, then Start.";
+    start.hidden = true;
+    void actions.onStart();
   });
   later.addEventListener("click", () => actions.onDismiss());
 

@@ -6,6 +6,8 @@
 import { FRAME_SAMPLES, type AudioFrame } from "./capture";
 
 export const CAPTURE_SAMPLE_RATE = 16000;
+/** Stamps this far behind the wall clock jump forward; under the correlator's 500 ms. */
+const RESYNC_MS = 300;
 
 /** Sample-wise channel average (stereo downmixed within its own stream). */
 export function downmixToMono(channels: Float32Array[]): Float32Array {
@@ -49,32 +51,39 @@ function concat(a: Int16Array, b: Int16Array): Int16Array {
 /**
  * Accumulates 16 kHz mono samples across process() calls and emits whole
  * 100 ms frames (1600 samples). A short tail is carried into the next push,
- * never emitted short. Timestamps step +100 ms from the stream start, so
- * they are monotonic by construction on the browser clock.
+ * never emitted short. Timestamps step +100 ms from the stream start, and
+ * jump forward when the samples fall behind the wall clock: live capture ran
+ * 2.3-3.1% short of real time, so counting samples alone put turns 19 s
+ * before Meet's speaker edges after 10 min (misattribution, wrong play spot).
  */
 export class CaptureAccumulator {
   private tail = new Int16Array(0);
   private emitted = 0;
+  private skewMs = 0;
 
   constructor(
     private readonly startTsMs: number,
     private readonly fromRate: number,
   ) {}
 
-  push(channels: Float32Array[]): AudioFrame[] {
+  push(channels: Float32Array[], nowMs?: number): AudioFrame[] {
     const pcm16 = resampleTo16kMono(downmixToMono(channels), this.fromRate);
     const joined = concat(this.tail, pcm16);
     const frames: AudioFrame[] = [];
     let offset = 0;
     while (joined.length - offset >= FRAME_SAMPLES) {
       frames.push({
-        ts_ms: this.startTsMs + this.emitted * 100,
+        ts_ms: this.startTsMs + this.skewMs + this.emitted * 100,
         pcm: joined.slice(offset, offset + FRAME_SAMPLES),
       });
       this.emitted += 1;
       offset += FRAME_SAMPLES;
     }
     this.tail = joined.slice(offset);
+    if (nowMs !== undefined) {
+      const behind = nowMs - (this.startTsMs + this.skewMs + this.emitted * 100);
+      if (behind > RESYNC_MS) this.skewMs += Math.round(behind);
+    }
     return frames;
   }
 }

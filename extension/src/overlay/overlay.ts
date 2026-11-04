@@ -5,7 +5,7 @@
 import type {
   FacesUpdate, PointsUpsert, SpeakerActive, TagsSet, TilesSnapshot, TilesSnapshotTiles,
 } from "../../../contracts/ext/gen/types";
-import { AGEING_FRACTION, KIND_GLYPHS, POINT_LIFETIME_MS } from "./tokens";
+import { KIND_GLYPHS } from "./tokens";
 
 export type PointUpsert = PointsUpsert;
 
@@ -94,13 +94,42 @@ interface StoredPoint extends PointsUpsert {
   el?: El;
 }
 
+// ponytail: measured live, Meet's minimized self view is 234-427 px wide. A smaller
+// tile falls back to Frame view by itself; tune this if a dense grid loses Camera view.
+const MIN_CAMERA_TILE_W = 480;
+
+/** A source URL safe to link, with its host for the label; null for anything but http(s). */
+export function sourceLink(url: string): { href: string; host: string } | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    return { href: url, host: parsed.hostname.replace(/^www\./, "") };
+  } catch {
+    return null;
+  }
+}
+
+export interface FactCheckCard {
+  claim: string;
+  verdict: "supported" | "disputed";
+  note: string;
+  sources: string[];
+  lang: "en" | "ar";
+  /** The sentence from the viewer's reference notes that settled it (Karim 2026-11-04). */
+  notes_quote?: string;
+}
+
 export class Overlay {
   points = new Map<string, StoredPoint>();
   hidden = false;
+  // Badge menu switches (Karim 2026-11-04): each layer can be turned off.
+  show = { names: true, points: true, coach: true, facts: true };
   status: unknown = null;
   notesToast: unknown = null;
   // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
   coach: { tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
+  // Fact Check (claim.checked): every claim checked this meeting, newest first, until dismissed.
+  factChecks: FactCheckCard[] = [];
   perFace = 3;
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];
@@ -117,6 +146,11 @@ export class Overlay {
   private overflowEls = new Map<string, El>();
   private expanded = new Set<string>(); // tiles whose +N the viewer opened
   urgencyStyle: UrgencyStyle = "words";
+  viewMode: "face" | "frame" = "face"; // frame: never follow a face (popup "View")
+
+  setViewMode(mode: unknown): void {
+    if (mode === "face" || mode === "frame") this.viewMode = mode;
+  }
 
   constructor(private clock: { now: number }) {}
 
@@ -131,6 +165,28 @@ export class Overlay {
     for (const t of snapshot.tiles) this.tiles.set(t.tile_id, t);
   }
 
+  /** The meeting stopped (Stop, or the call was left): clear everything it put
+   * on the page, urgent points included. The notes toast stays: it is the
+   * way to the notes. */
+  endMeeting(): void {
+    this.ended = true; // replies still in flight must not refill the page
+    this.points.clear();
+    this.coach = null;
+    this.factChecks = [];
+    this.captions = { tab: "", mic: "" };
+    this.faces.clear();
+    this.thinkingStart.clear();
+    this.expanded.clear();
+    this.speakingTile = null;
+  }
+
+  /** The next Start: live envelopes count again. */
+  startMeeting(): void {
+    this.ended = false;
+  }
+
+  private ended = false;
+
   /** Set by boot(): redraw now (faces arrive outside backend envelopes). */
   requestRender: () => void = () => {};
 
@@ -144,6 +200,7 @@ export class Overlay {
   }
 
   applyEnvelope(env: { id: string; type: string; data: Record<string, unknown> }): void {
+    if (this.ended && ["points.upsert", "tags.set", "coach.tips", "claim.checked", "transcript.partial"].includes(env.type)) return;
     if (env.type === "transcript.partial") {
       // ponytail: no dedupe, a repeat caption is harmless; keeps seenEnvelopes small
       const { stream, text } = env.data as { stream: "tab" | "mic"; text: string };
@@ -163,6 +220,7 @@ export class Overlay {
     } else if (env.type === "system.status") this.status = env.data;
     else if (env.type === "notes.ready") this.notesToast = env.data;
     else if (env.type === "coach.tips") this.coach = env.data as never;
+    else if (env.type === "claim.checked") this.factChecks = [env.data as never, ...this.factChecks];
   }
 
   applyPointsUpsert(point: PointsUpsert, _envelopeId?: string): void {
@@ -189,13 +247,16 @@ export class Overlay {
     if (tag.urgency) stored.urgency = tag.urgency;
   }
 
-  /** Urgent points stay until archived (Karim 2026-11-01); others age out. */
+  /** Every point stays until archived (Karim 2026-11-04): urgent first, then newest. */
   private live(tileId: string): StoredPoint[] {
     const urgent = (p: StoredPoint) => (p.urgency === "urgent" ? 0 : 1);
     return [...this.points.values()]
-      .filter((p) => p.tile_id === tileId && !this.archived.has(p.point_id)
-        && (p.urgency === "urgent" || this.clock.now - p.arrivedMs < POINT_LIFETIME_MS))
-      .sort((a, b) => urgent(a) - urgent(b) || a.rank - b.rank || a.arrivedMs - b.arrivedMs);
+      .filter((p) => p.tile_id === tileId && !this.archived.has(p.point_id))
+      .sort((a, b) => urgent(a) - urgent(b) || b.arrivedMs - a.arrivedMs || a.rank - b.rank);
+  }
+
+  dismissFact(check: FactCheckCard): void {
+    this.factChecks = this.factChecks.filter((c) => c !== check);
   }
 
   /** The viewer handled it: gone from the bubbles (the notes keep it). */
@@ -234,11 +295,6 @@ export class Overlay {
     return Math.max(0, this.live(tileId).length - this.visiblePoints(tileId).length);
   }
 
-  isAged(pointId: string): boolean {
-    const p = this.points.get(pointId);
-    return !!p && this.clock.now - p.arrivedMs > AGEING_FRACTION * POINT_LIFETIME_MS;
-  }
-
   layout(tileId: string): {
     mode: "face" | "frame";
     namePos: { x: number; y: number };
@@ -254,7 +310,7 @@ export class Overlay {
     // stackPos (page space for Face mode, tile space for Frame mode).
     // null captions_rect = no floor.
     const captionsTop = tile?.captions_rect ? tile.captions_rect[1] : null;
-    if (tile && face && index >= 0 && index < 6) {
+    if (tile && face && this.viewMode === "face" && index >= 0 && index < 6 && tile.rect[2] >= MIN_CAMERA_TILE_W) {
       const box = projectFaceBox(tile, face.box);
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
       const right = roomRight >= box.x - tile.rect[0];
@@ -267,7 +323,8 @@ export class Overlay {
       const [rx, ry] = tile.rect;
       return {
         mode: "face",
-        namePos: { x: box.x + box.w / 2 - rx, y: Math.max(21, box.y - 6 - ry) },
+        // ponytail: hair is ~35% of the face box above it; tune if pills float high
+        namePos: { x: box.x + box.w / 2 - rx, y: Math.max(21, box.y - 0.35 * box.h - 6 - ry) },
         stackPos: { x: stackX - rx, y: box.y - ry },
         floorY: captionsTop !== null ? captionsTop - ry : null,
         faceBox: box,
@@ -320,6 +377,11 @@ export class Overlay {
   }
 
   render(doc: DocLike, root: El & { children?: El[] }, _now?: number): void {
+    for (const [tileId, layer] of this.layers) {
+      if (this.tiles.has(tileId)) continue;
+      layer.remove(); // the tile left the call (or the call ended)
+      this.layers.delete(tileId);
+    }
     for (const tileId of this.tileOrder) {
       let layer = this.layers.get(tileId);
       if (!layer) {
@@ -350,7 +412,7 @@ export class Overlay {
       name.style.setProperty("left", `${layout.namePos.x}px`);
       name.style.setProperty("top", `${layout.namePos.y}px`);
       if (layout.mode === "face") name.style.setProperty("transform", "translate(-50%, -100%)");
-      layer.appendChild(name);
+      if (this.show.names) layer.appendChild(name);
       const stack = doc.createElement("div");
       stack.classList.add("halo-stack");
       // DECISIONS 1: in face mode each bubble's tail points back at the face.
@@ -358,7 +420,7 @@ export class Overlay {
       stack.style.setProperty("left", `${layout.stackPos.x}px`);
       stack.style.setProperty("top", `${layout.stackPos.y}px`);
       layer.appendChild(stack);
-      if (this.hidden) continue;
+      if (this.hidden || !this.show.points) continue;
       const words = this.caption(tileId);
       if (words) {
         // ponytail: the caption is not counted in the captions-floor fit rule

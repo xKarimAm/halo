@@ -22,6 +22,18 @@ class Ack(BaseModel):
     status: Literal["ok", "error"]
     error: AckError | None = None
 
+class ClaimChecked(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    point_id: UUID
+    claim: str
+    speaker_name: str
+    verdict: Literal["supported", "disputed"]
+    note: str
+    sources: list[str]
+    notes_quote: str | None = None
+    lang: Literal["en", "ar"]
+
 class CoachTips(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -34,7 +46,7 @@ class Envelope(BaseModel):
 
     specversion: Literal["1.0"]
     id: UUID
-    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready", "coach.tips"]
+    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready", "coach.tips", "claim.checked"]
     source: str
     time: datetime
     meetingid: UUID | None
@@ -98,6 +110,7 @@ class MeetingPageMeeting(BaseModel):
     title: str | None = None
     summary: str | None = None
     disagreements: list[MeetingPageMeetingDisagreements] | None = None
+    in_progress: bool | None = None
 
 
 class MeetingPagePeople(BaseModel):
@@ -110,6 +123,13 @@ class MeetingPagePeople(BaseModel):
     own_points: list[UUID]
 
 
+class MeetingPageActionsDone(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    note: str
+    at: datetime
+
+
 class MeetingPageActions(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -119,6 +139,7 @@ class MeetingPageActions(BaseModel):
     status: Literal["assigned", "suggested"]
     urgency: Literal["urgent", "medium", "later"]
     point_id: UUID
+    done: MeetingPageActionsDone | None = None
 
 
 class MeetingPagePoints(BaseModel):
@@ -154,6 +175,26 @@ class MeetingPageRecording(BaseModel):
     start_ts_ms: int
 
 
+class MeetingPageFactChecks(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    point_id: UUID
+    claim: str
+    speaker_name: str
+    verdict: Literal["supported", "disputed"]
+    note: str
+    sources: list[str]
+    notes_quote: str | None = None
+
+
+class MeetingPageCoaching(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    text: str
+    alert: bool
+    at_ms: int
+
+
 class MeetingPage(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -163,6 +204,9 @@ class MeetingPage(BaseModel):
     points: list[MeetingPagePoints]
     transcript_lines: list[MeetingPageTranscriptLines]
     recording: MeetingPageRecording
+    fact_checks: list[MeetingPageFactChecks] | None = None
+    coaching: list[MeetingPageCoaching] | None = None
+    visual_recap: bool | None = None
 
 class MeetingContextRoles(BaseModel):
     model_config = ConfigDict(extra='forbid')

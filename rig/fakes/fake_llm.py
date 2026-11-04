@@ -21,7 +21,7 @@ MALFORMED = "{not json"
 # transcript, so it would match (and burn) the replies scripted for Insight.
 # Answer it here instead: no tips, no alert, nothing published.
 COACH_MARKER = "live meeting coach"
-COACH_QUIET = {"tips": [], "alert": ""}
+COACH_QUIET = {"tips": [], "alert": "", "alert_quote": ""}
 
 
 class FakeLLM:

@@ -25,6 +25,7 @@ Goal: Implement meet_adapter per its PLAN.md; done ONLY when `npm --prefix exten
 - `extension/src/meet_adapter/PLAN.md` — the contract (read-only).
 - `extension/src/meet_adapter/meet_adapter.ts` — `MeetAdapter` implementation + convention table.
 - `extension/src/meet_adapter/port_sync.ts` — Port-leg fan-out to the hub.
+- `extension/src/meet_adapter/call_adapter.ts` — `CallPageAdapter` for the Zoom and Teams web clients: while Halo runs, one "call" tile (largest video) and one "self" tile; no names or speaking highlight until their DOM is mapped in a live call.
 - `extension/src/meet_adapter/conventions.md` — DOM anchors this module reads (for fake_meet + probe).
 - `extension/src/meet_adapter/*.test.ts` — Vitest (happy-dom) suites.
 - Oracles (read-only): `contracts/tiles.snapshot.schema.json`, `contracts/golden/tiles.snapshot.json`, `contracts/golden/speaker.active.json`, `contracts/ext/meeting-adapter.ts`, `contracts/ext/port.ts`, `rig/fake_meet/seed-fixture.html`.

@@ -33,7 +33,7 @@ tests green (7 golden + 2 from the TestClient-generated `tests/fixtures/service-
 
 ## Home (Karim 2026-11-04, AV)
 
-The list view is the AV home from `docs/ui/drafts/landing/av-home.html`, inside `app.js` (section "Home") and `styles.css` (scoped to `#view.home`): a call strip per row (every page is fetched once after the list), tabs All / Urgent (red) / Needs action / With others / folders / Archived, Halo's meeting types as chips, folder rename and delete, Follow a person, All clear, Since your last visit (localStorage `halo-notes-lastvisit`), and the arrival draw-in. The preview has Replay, Simple/Detailed (`halo-notes-view`), the Living SVG line, play from `/api/audio` at `recording_offset_ms`, a tip, a flag, plates linked to marks, a type select, folder move, Archive and Open notes. A click picks the preview (hover no longer does). The meeting page keeps Sage & Clay. Tests: (1), (8)-(11) and H1-H5.
+The list view is the AV home from `the AV landing mockup`, inside `app.js` (section "Home") and `styles.css` (scoped to `#view.home`): a call strip per row (every page is fetched once after the list), tabs All / Urgent (red) / Needs action / With others / folders / Archived, Halo's meeting types as chips, folder rename and delete, Follow a person, All clear, Since your last visit (localStorage `halo-notes-lastvisit`), and the arrival draw-in. The preview has Replay, Simple/Detailed (`halo-notes-view`), the Living SVG line, play from `/api/audio` at `recording_offset_ms`, a tip, a flag, plates linked to marks, a type select, folder move, Archive and Open notes. A click picks the preview (hover no longer does). The meeting page keeps Sage & Clay. Tests: (1), (8)-(11) and H1-H5.
 
 ## Open questions
 

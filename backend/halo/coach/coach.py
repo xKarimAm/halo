@@ -31,6 +31,9 @@ TICK_S = 1.0
 MIN_GAP_S = 8.0  # ponytail: one call per 8 s per meeting at most (~7 RPM); raise if RPM gets tight
 SILENCE_S = 15.0  # one silence call per quiet stretch
 MAX_WORDS = 2000  # newest words only; shorter input, faster call
+COACH_TIMEOUT_S = 8.0  # live 2026-11-04: 14 coach timeouts at 4 s, each demoting live points for 30 s
+ALERT_GAP_S = 180.0  # live 2026-11-04: at most one alert per 3 minutes
+MAX_SAID = 12  # earlier tips kept in the prompt so they are not reworded (live 2026-11-04)
 PROMPT_CACHE_KEY = "coach-v4"
 
 TIPS_SCHEMA: dict[str, Any] = {
@@ -39,8 +42,10 @@ TIPS_SCHEMA: dict[str, Any] = {
         "tips": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 160},
                  "maxItems": 3},
         "alert": {"type": "string", "maxLength": 80},
+        # The exact words that prove the alert; no match in the transcript, no alert.
+        "alert_quote": {"type": "string", "maxLength": 120},
     },
-    "required": ["tips", "alert"],
+    "required": ["tips", "alert", "alert_quote"],
     "additionalProperties": False,
 }
 
@@ -54,16 +59,24 @@ INSTRUCTIONS = (
     "You are a live meeting coach whispering to one person, the viewer. Talk "
     "to them as you. Coach the way a strong coach for their role would. "
     "Reply with one JSON object.\n"
-    "alert: one short command (at most 8 words, ending with a period) only "
-    "when the viewer must act now, else empty. Say who it is about. Someone "
-    "else turns personal or blames: Step in: <name>, back to <topic>. The "
-    "viewer is sarcastic, heated or cuts someone off: You cut <name> off; "
-    "hand it back. / Lower your tone. Team blame: Stop the blame; list the "
-    "options. The same claim said a third time with no new fact: Park it: get "
-    "<fact>. The viewer talks over others or holds the floor too long: "
-    "Pause and invite others in. Alert only on words already said; if two "
-    "sides blame each other, name both. Never add a name, owner or date "
-    "nobody said.\n"
+    # Live 2026-11-04: 5 alerts in 9 min, all false and cryptic ("Park it: get
+    # Qatar fact."). Plain words, a quote as proof, and most calls need none.
+    "alert: almost always empty. Only for a clear moment the viewer must act "
+    "on now, in plain words (at most 10, ending with a period), with "
+    "alert_quote set to the exact words someone said that show it. "
+    "Someone attacks a person, not the idea (you always, typical of you): "
+    "<name> is getting personal; bring it back to <topic>. Two people or "
+    "teams blame each other, back and forth (every time you..., it's not my "
+    "problem that...): Stop the blame; put the options on the table. The "
+    "viewer starts "
+    "talking while someone is mid-sentence, twice: You talked over <name>; "
+    "let them finish. The viewer insults, mocks or shouts: Take a breath; "
+    "your tone is rising. The same claim said three times by two people "
+    "with no new fact: This keeps coming back; agree to check <fact> later. "
+    "The viewer talks for minutes while others wait: Pause and ask the "
+    "others. Not an alert: disagreement, a firm no, a joke, testing the app, "
+    "reading text aloud, or one short interruption. Never add a name, owner "
+    "or date nobody said. An empty alert has an empty alert_quote.\n"
     "tips: 0 to 3, each one sentence of at most 16 words ending with a "
     "period. Each tip names one concrete item from the recent words: a "
     "number, a claim nobody has checked (on paper, a guess, from the docs), "
@@ -79,13 +92,25 @@ INSTRUCTIONS = (
     "Silence after a "
     "question is thinking time: wait, then rephrase it or ask one person.\n"
     "Return empty tips when the previous tips still fit or everything is "
-    "settled; never repeat or reword a previous tip. Write in the viewer "
-    "language."
+    "settled; never repeat or reword a previous tip. Write the tips and the "
+    "whole alert, its lead-in too, in the viewer language (Arabic: تدخل: …)."
 )
-REHEARSAL = ("The viewer is alone in the call, rehearsing: names are the future "
-             "audience, so never tell them to ask or invite anyone, and a silence is a "
-             "break (empty tips). Tips only on content and delivery: lead with the "
-             "number, cut filler, keep the stronger version of a line.")
+# Live 2026-11-04 (alone, testing): "open with the one number" he never said,
+# "drop the Arabic aside", his own sentences echoed back as orders.
+REHEARSAL = ("The viewer is alone in the call, rehearsing or testing: names are the "
+             "future audience, so never tell them to ask or invite anyone, and a "
+             "silence is a break (empty tips). Tips only on how they said their own "
+             "words: put their main point first, cut filler, keep the stronger of two "
+             "versions of a line. Never ask for a number, fact or deadline they did not "
+             "say. Mixing Arabic and English is normal: never tip on language. Never "
+             "turn their sentence into an order. Each kind of tip (main point first, "
+             "cut filler, keep a line) at most once per meeting. Most moments need "
+             "no tip: return empty tips unless one would change what they say next.")
+
+
+def _norm(text: str) -> str:
+    """Lower case, punctuation to spaces, single spaces (Arabic letters kept)."""
+    return " ".join(re.sub(r"[^\w\s]", " ", text.lower()).split())
 
 
 def _alert_kind(alert: str) -> str:
@@ -108,6 +133,9 @@ class Coach:
         self._self_names: dict[str, str] = {}
         self._people: dict[str, list[str]] = {}  # who is in the call (Meet tiles)
         self._tips: dict[str, list[str]] = {}
+        self._said: dict[str, list[str]] = {}  # every tip shown this meeting, newest last
+        self._last_alert: dict[str, float] = {}
+        self._shown_alerts: dict[str, list[str]] = {}  # normalised, to spot one read aloud
         self._alerts: dict[str, set[str]] = {}  # alert kinds already shown: never the same one twice
         self._ended: set[str] = set()  # late turns after meeting.ended are ignored
         self._due: set[str] = set()  # new words since the last call
@@ -177,7 +205,8 @@ class Coach:
         if not isinstance(meetingid, str):
             return
         self._ended.add(meetingid)
-        for store in (self._turns, self._contexts, self._self_names, self._tips, self._people, self._alerts,
+        for store in (self._turns, self._contexts, self._self_names, self._tips, self._said, self._people, self._alerts,
+                      self._last_alert, self._shown_alerts,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)
         self._due.discard(meetingid)
@@ -205,7 +234,8 @@ class Coach:
             self._last_call[meetingid] = now
             result = await asyncio.to_thread(
                 self._llm.complete_json, prompt=self.build_prompt(meetingid, reason),
-                schema=TIPS_SCHEMA, schema_name="coach.tips", prompt_cache_key=PROMPT_CACHE_KEY)
+                schema=TIPS_SCHEMA, schema_name="coach.tips", prompt_cache_key=PROMPT_CACHE_KEY,
+                timeout_s=COACH_TIMEOUT_S)
             if meetingid not in self._turns:
                 continue  # the meeting ended during the call
             if result is None or not result.ok or not isinstance(result.data, dict):
@@ -216,13 +246,20 @@ class Coach:
 
     async def _publish(self, meetingid: str, data: dict[str, Any]) -> None:
         tips = [str(t).strip()[:160] for t in data.get("tips", []) if str(t).strip()][:3]
-        alert = str(data.get("alert") or "").strip()[:80]
+        alert = re.sub(r"^(alert|تنبيه)\s*:\s*", "", str(data.get("alert") or "").strip(), flags=re.IGNORECASE)[:80]
+        if alert and not self._proven(meetingid, str(data.get("alert_quote") or "")):
+            alert = ""  # live 2026-11-04: alerts on words nobody said, or on a read-aloud alert
+        if alert and self._clock() - self._last_alert.get(meetingid, -ALERT_GAP_S) < ALERT_GAP_S:
+            alert = ""
         if alert and not self._others_here(meetingid) and any(w in alert.lower() for w in TALK_OVER_WORDS):
             alert = ""  # nobody to talk over
         if _alert_kind(alert) in self._alerts.get(meetingid, set()):
             alert = ""  # eval: the same alert kind, reworded, fired loop after loop
         if not tips and not alert:
             return  # nothing new for the viewer: the panel keeps its tips
+        said = self._said.setdefault(meetingid, [])
+        said.extend(t for t in tips if t not in said)
+        del said[:-MAX_SAID]
         tips = tips or self._tips.get(meetingid, [])
         self._tips[meetingid] = tips
         lang = self._contexts.get(meetingid, {}).get("viewer_lang", "en")
@@ -230,11 +267,23 @@ class Coach:
         if alert:
             payload["alert"] = alert
             self._alerts.setdefault(meetingid, set()).add(_alert_kind(alert))
+            self._shown_alerts.setdefault(meetingid, []).append(_norm(alert))
+            self._last_alert[meetingid] = self._clock()
         await self._bus.publish({
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "coach.tips",
             "source": "halo/coach", "time": datetime.now(UTC).isoformat(),
             "meetingid": meetingid, "datacontenttype": "application/json", "data": payload,
         })
+
+    def _proven(self, meetingid: str, quote: str) -> bool:
+        """The quote is in the recent words, and is not a shown alert read aloud."""
+        q = _norm(quote)
+        if len(q.split()) < 2:
+            return False
+        recent = _norm(" ".join(text for _, text in self._turns.get(meetingid, [])[-30:]))
+        if q not in recent:
+            return False
+        return not any(a in q or q in a for a in self._shown_alerts.get(meetingid, []))
 
     def _others_here(self, meetingid: str) -> bool:
         """Meet tiles say who is in the call; without them, any other speaker."""
@@ -261,8 +310,8 @@ class Coach:
             lines.append("Roles: " + ", ".join(
                 f"{r.get('name')} ({r.get('role')})" if r.get("role") else str(r.get("name"))
                 for r in roles))
-        if self._tips.get(meetingid):
-            lines.append("Previous tips: " + " ".join(self._tips[meetingid]))
+        if self._said.get(meetingid):
+            lines.append("Previous tips: " + " ".join(self._said[meetingid]))
         lines.append(f"Why now: {reason}")
         lines.append("The meeting so far:")
         kept: list[str] = []

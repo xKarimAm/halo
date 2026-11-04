@@ -89,6 +89,10 @@
               }
             }
           }
+        },
+        "in_progress": {
+          "type": "boolean",
+          "description": "True until meeting.ended: notes are not final yet."
         }
       },
       "required": [
@@ -171,6 +175,25 @@
           "point_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "done": {
+            "type": "object",
+            "description": "Karim 2026-11-04: the viewer marked it done; note says what was done (may be empty).",
+            "properties": {
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "note",
+              "at"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -307,6 +330,96 @@
         "start_ts_ms"
       ],
       "additionalProperties": false
+    },
+    "fact_checks": {
+      "type": "array",
+      "description": "Claims checked on the web during the meeting; absent when none.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "point_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "speaker_name": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "disputed"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "minItems": 0,
+            "maxItems": 3
+          },
+          "notes_quote": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "The sentence from the viewer's reference notes that settles the claim; present only when the notes did."
+          }
+        },
+        "required": [
+          "point_id",
+          "claim",
+          "speaker_name",
+          "verdict",
+          "note",
+          "sources"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "coaching": {
+      "type": "array",
+      "description": "Everything the coach showed the viewer in this meeting, oldest first, each text once; absent when none.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "alert": {
+            "type": "boolean",
+            "description": "True for an alert (act now), false for a steering tip."
+          },
+          "at_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "When it was shown, from the meeting start."
+          }
+        },
+        "required": [
+          "text",
+          "alert",
+          "at_ms"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "visual_recap": {
+      "type": "boolean",
+      "description": "True when a Muse Image recap is saved for this meeting (GET /api/meetings/{id}/recap)."
     }
   },
   "required": [

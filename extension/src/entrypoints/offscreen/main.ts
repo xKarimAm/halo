@@ -47,7 +47,10 @@ const hubDeps = {
   socket,
   now: () => Date.now(),
   uuid: () => crypto.randomUUID(),
-  toPage: (msg: ToPagePortMessage) => { for (const p of ports) p.postMessage(msg); },
+  // Meeting data goes to the Start's tab only, never to every open call tab (security review 2026-11-04).
+  toPage: (msg: ToPagePortMessage) => {
+    for (const p of ports) if (hub.isPageTab(p.sender?.tab?.id)) p.postMessage(msg);
+  },
   // Offscreen documents get only chrome.runtime: the background worker
   // does every storage write (see entrypoints/background.ts).
   storage: {

@@ -58,7 +58,7 @@ async function handleStart(): Promise<StartResult> {
     return {
       ok: false,
       message: target.ok
-        ? "Start from inside a Google Meet call: this tab has no id."
+        ? "Start from inside a Meet, Zoom or Teams call: this tab has no id."
         : target.message,
     };
   }
@@ -79,7 +79,7 @@ async function handleStart(): Promise<StartResult> {
   await chrome.storage.local.set({ [RUNNING_KEY]: running });
   chrome.runtime.sendMessage({
     type: "halo/hub.start",
-    platform: "meet",
+    platform: target.platform,
     meeting_code: target.meetingCode,
     self_name: "",
     streamId,

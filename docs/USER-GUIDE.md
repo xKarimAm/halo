@@ -26,7 +26,7 @@ Install and first run: [install guide](INSTALL.md). Every feature and how far it
 |---|---|
 | Bubbles | A point appears on the speaker's tile a few seconds after they say it. The tab colour is urgency (red urgent, amber medium, blue later). The glyph is the kind: • point, ? question, ✓ decision, ≠ pushback. |
 | The original words | Click a bubble to see the kind, the speaker, the point and the exact words said, in their own script (Arabic right to left). |
-| Urgent items stay | Urgent points stay until you click them and press **Archive**. Others fade after 60 s. |
+| Points stay | Every point stays until you click it and press **Archive**. Urgent ones come first, then the newest; the rest sit behind **+N**. Fact checks stay until you press their **×**. |
 | More than 3 points | `+2` opens the rest; **Less** folds them back. |
 | Live caption | The speaker's last few words appear above their bubbles while they talk. Captions are not saved; the final transcript is. |
 | Coach | A panel on the left with 0 to 3 tips, for example a decision with no owner, a question nobody answered, or someone who hasn't spoken. A short alert appears when you should act now ("You cut Hana off; hand it back."). × hides it until the next tips. Alone in a call, it treats the call as a rehearsal and coaches your delivery. |
@@ -41,7 +41,7 @@ The meeting ends when you press **Stop**, leave the call, or close the Meet tab.
 Open http://127.0.0.1:8765 (it goes to the meetings list) or click the toast's link.
 
 - **Ask your meetings:** the box under search takes a question in English or Arabic, for example "What did we decide about the launch date?". Halo answers in a few sentences, in your question's language, from what was said and noted in your meetings. The rows it lists underneath are the exact stored words it used; click one to open that meeting at that moment. If your meetings don't say, it tells you so instead of guessing. Each question takes about 6 to 9 seconds.
-- **Meetings home:** each meeting is a call strip with every point at the second it was said, plus who spoke, the length and the counts. The line at the top says what is new since your last visit (**Mark as seen** clears it). Click a meeting to preview it.
+- **Meetings home:** click a meeting to open its own page; rest on it to preview it on the right. Each meeting is a call strip with every point at the second it was said, plus who spoke, the length and the counts. The line at the top says what is new since your last visit (**Mark as seen** clears it). Click a meeting to preview it.
   - **Tabs:** All, **Urgent** (red; a red count on any meeting opens it), Needs action, With others, your folders, Archived. When nothing needs you, Urgent and Needs action say "All clear".
   - **Types:** Halo sorts each meeting (sprint, planning, product discovery, sales, induction, 1:1, interview, other) when it ends; the chips under the tabs filter by type. Change a meeting's type in its preview and yours wins.
   - **The preview:** the recording line with a play button and **Replay** (the meeting in 6 seconds), **Simple** or **Detailed** (one lane per person), arcs where people disagreed, and the coloured plates. Click any plate item to jump to its moment.
@@ -53,7 +53,7 @@ Open http://127.0.0.1:8765 (it goes to the meetings list) or click the toast's l
   - **Your speaking (private):** your talk share against an even share, longest stretch, questions, cut-ins, pace, hedged commitments quoted, and one thing to try next call. There is no score and no mood words.
   - **Transcript:** reads like a chat, one name per run.
   - **Export Markdown:** the whole meeting as Markdown, ready to paste into an AI.
-  - **English / Arabic:** the whole page switches language (Arabic right to left).
+  - **English / Arabic:** the interface switches language (Arabic right to left); meeting content stays in the language it was written in.
 
 ## Solo use
 
@@ -76,6 +76,7 @@ Halo runs on one PC: the person who presses Start. Nothing is hosted, so there i
 ## Privacy
 
 - **What leaves your PC:** the call audio and your mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at the Spark Open host you set). That's all.
+- **Web searches:** every spoken point and pushback goes to Muse Spark with its web search tool for the live fact check (decisions, actions and your notes too when you attach reference notes), so that text can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
 - **What stays on your PC:** recordings, transcripts and notes stay in the `data` folder. Video frames never leave it either; in Halo mode they go only to the SAM worker on your own GPU.
 - **Wiping everything:** delete the `data` folder.
 - **Consent:** tell everyone in the call before you press Start.

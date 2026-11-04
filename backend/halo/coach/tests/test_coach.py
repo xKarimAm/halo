@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from halo.bus import Bus
 from halo.coach import Coach
-from halo.coach.coach import MIN_GAP_S, SILENCE_S
+from halo.coach.coach import COACH_TIMEOUT_S, MIN_GAP_S, SILENCE_S
 
 from contracts.validate import validate_envelope
 
@@ -19,8 +19,9 @@ class FakeLLM:
         self.replies = list(replies)
         self.prompts: list[str] = []
 
-    def complete_json(self, *, prompt, schema, schema_name="", system=None, prompt_cache_key=None):
+    def complete_json(self, *, prompt, schema, schema_name="", system=None, prompt_cache_key=None, timeout_s=None):
         self.prompts.append(prompt)
+        self.timeouts = [*getattr(self, "timeouts", []), timeout_s]
         data = self.replies.pop(0)
         if data is None:
             return SimpleNamespace(ok=False, engine="x", data=None, error={"code": "engine_error"})
@@ -119,7 +120,7 @@ def test_an_alert_keeps_the_tips_and_an_empty_reply_publishes_nothing():
     async def run():
         bus, _llm, coach, tips, clock = setup([
             {"tips": ["Ask Omar for a date."], "alert": ""},
-            {"tips": [], "alert": "Remove the personal remark."},
+            {"tips": [], "alert": "Remove the personal remark.", "alert_quote": "You never listen"},
             {"tips": [], "alert": ""}])
         for n, text in enumerate(["Dates first", "You never listen, typical", "Okay"], start=2):
             await bus.publish(turn(text, n=n))
@@ -187,7 +188,7 @@ def test_alone_in_the_call_a_talk_over_alert_is_dropped():
     async def run():
         bus, _llm, coach, tips, clock = setup([
             {"tips": [], "alert": "Pause and invite others in."},
-            {"tips": [], "alert": "Park it: owner and date."}])
+            {"tips": [], "alert": "Park it: owner and date.", "alert_quote": "take the dates again"}])
         await bus.publish(env("tiles.snapshot", {"tiles": [
             {"tile_id": "t1", "name": "Layla", "is_self": True, "rect": [0, 0, 10, 10],
              "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None}]}, 88))
@@ -207,8 +208,8 @@ def test_the_same_alert_never_shows_twice_and_alone_means_rehearsal():
     # and alone in the call the coach said "Ask Sara".
     async def run():
         bus, llm, coach, tips, clock = setup([
-            {"tips": ["One."], "alert": "Park it: owner and date."},
-            {"tips": ["Two."], "alert": "Park it: owner and date."}])
+            {"tips": ["One."], "alert": "Park it: owner and date.", "alert_quote": "take the dates"},
+            {"tips": ["Two."], "alert": "Park it: owner and date.", "alert_quote": "take the dates"}])
         await bus.publish(env("tiles.snapshot", {"tiles": [
             {"tile_id": "t1", "name": "Layla", "is_self": True, "rect": [0, 0, 10, 10],
              "video_w": 640, "video_h": 360, "fit": "cover", "captions_rect": None}]}, 88))
@@ -229,8 +230,8 @@ def test_a_reworded_alert_of_the_same_kind_never_shows_twice():
     # Sophie: owner and date." slipped past the exact-text dedupe.
     async def run():
         bus, _llm, coach, tips, clock = setup([
-            {"tips": ["One."], "alert": "Park it: Rami, Sophie, decide Friday."},
-            {"tips": ["Two."], "alert": "Park it Rami, Sophie: owner and date."}])
+            {"tips": ["One."], "alert": "Park it: Rami, Sophie, decide Friday.", "alert_quote": "Rami says in place"},
+            {"tips": ["Two."], "alert": "Park it Rami, Sophie: owner and date.", "alert_quote": "Sophie says replicate"}])
         await bus.publish(turn("Rami says in place", name="Rami", n=2))
         await coach.tick()
         clock.now += 100
@@ -251,5 +252,89 @@ def test_a_late_turn_after_the_meeting_ended_calls_nothing():
         clock.now += 100
         await coach.tick()
         assert llm.prompts == [] and tips == []
+
+    asyncio.run(run())
+
+
+def test_the_prompt_remembers_earlier_tips_not_only_the_last_set():
+    # Live 2026-11-04: "Lead with tomorrow morning..." came back four times in
+    # five minutes; only the latest set was in "Previous tips".
+    async def run():
+        bus, llm, coach, _tips, clock = setup([
+            {"tips": ["Lead with the deadline."], "alert": ""},
+            {"tips": ["Cut the filler."], "alert": ""},
+            {"tips": [], "alert": ""}])
+        for n, text in enumerate(["The demo is due tomorrow", "um so yeah basically", "and the pill"], start=2):
+            await bus.publish(turn(text, n=n))
+            await coach.tick()
+            clock.now += 100
+        assert "Lead with the deadline." in llm.prompts[2] and "Cut the filler." in llm.prompts[2]
+
+    asyncio.run(run())
+
+
+def test_an_alert_read_aloud_is_not_proof_of_a_new_one():
+    # Live 2026-11-04: the viewer read "Lower your tone with Omar" aloud and got
+    # "Karim, lower your tone." for their own reading.
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"tips": [], "alert": "Let Omar finish.", "alert_quote": "wait wait"},
+            {"tips": [], "alert": "Lower your voice.", "alert_quote": "let omar finish it says"}])
+        await bus.publish(turn("wait wait", name="Layla", n=2))
+        await coach.tick()
+        clock.now += 300
+        await bus.publish(turn("let Omar finish, it says", name="Layla", n=3))
+        await coach.tick()
+        assert [t["data"].get("alert") for t in tips] == ["Let Omar finish."]
+
+    asyncio.run(run())
+
+
+def test_quote_rules_one_by_one():
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"tips": [], "alert": "Bring it back to dates.", "alert_quote": ""},
+            {"tips": [], "alert": "Bring it back to dates.", "alert_quote": "words nobody said"},
+            {"tips": [], "alert": "Alert: Bring it back to dates.", "alert_quote": "Your Team, always late!"}])
+        await bus.publish(turn("your team always late again", name="Omar", n=2))
+        seen = []
+        for k in range(3):
+            await coach.tick()
+            seen.append(len(tips))
+            clock.now += 300
+            await bus.publish(turn("more", name="Omar", n=10 + k))
+        assert seen == [0, 0, 1]  # no quote, invented quote: dropped; the real words (any case, punctuation) pass
+        assert tips[0]["data"]["alert"] == "Bring it back to dates."
+
+    asyncio.run(run())
+
+
+def test_a_second_alert_waits_three_minutes():
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"tips": [], "alert": "Bring it back to dates.", "alert_quote": "always late"},
+            {"tips": ["Name an owner."], "alert": "Let Omar finish.", "alert_quote": "wait wait"},
+            {"tips": [], "alert": "Let Omar finish.", "alert_quote": "wait wait"}])
+        await bus.publish(turn("your team is always late", name="Omar", n=2))
+        await coach.tick()
+        clock.now += 60
+        await bus.publish(turn("wait wait", name="Layla", n=3))
+        await coach.tick()
+        clock.now += 200
+        await bus.publish(turn("okay go on", name="Layla", n=4))
+        await coach.tick()
+        assert [t["data"].get("alert") for t in tips] == ["Bring it back to dates.", None, "Let Omar finish."]
+
+    asyncio.run(run())
+
+
+def test_a_coach_call_gets_more_time_than_a_live_point():
+    # Live 2026-11-04: 14 coach calls timed out at Spark Open's 4 s live budget,
+    # and each one pushed the live points onto the backup model for 30 s.
+    async def run():
+        bus, llm, coach, _tips, _clock = setup([{"tips": [], "alert": "", "alert_quote": ""}])
+        await bus.publish(turn("the gateway is late again", n=2))
+        await coach.tick()
+        assert llm.timeouts == [COACH_TIMEOUT_S] and COACH_TIMEOUT_S >= 8
 
     asyncio.run(run())

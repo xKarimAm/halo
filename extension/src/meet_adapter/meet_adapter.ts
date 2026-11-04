@@ -396,15 +396,17 @@ function isSpeakingNow(tileRoot: Element): boolean {
 function readName(tileRoot: Element): string {
   // Live 2026-10-31: the self tile's "Backgrounds and effects" button also
   // holds a span.notranslate (icon text), so skip spans inside buttons here too.
+  // Live 2026-11-04: the same control is also drawn as role="button", so both count.
+  const inControl = (span: Element) => span.closest('button,[role="button"]') !== null;
   const direct = Array.from(tileRoot.querySelectorAll(CONVENTIONS.nameSelector))
-    .find((span) => span.closest("button") === null);
+    .find((span) => !inControl(span));
   const directText = direct?.textContent?.trim() ?? "";
   if (directText.length > 0) {
     return directText;
   }
   for (const span of Array.from(tileRoot.querySelectorAll("span"))) {
     const text = span.textContent?.trim() ?? "";
-    if (text.length === 0 || span.closest("button") !== null) {
+    if (text.length === 0 || inControl(span)) {
       continue;
     }
     return text;

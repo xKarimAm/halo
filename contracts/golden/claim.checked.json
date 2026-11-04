@@ -1,0 +1,20 @@
+{
+  "specversion": "1.0",
+  "id": "00000020-0000-4000-8000-000000000020",
+  "type": "claim.checked",
+  "source": "halo/golden",
+  "time": "2026-10-31T09:00:00Z",
+  "meetingid": "22222222-2222-4222-8222-222222222222",
+  "datacontenttype": "application/json",
+  "data": {
+    "point_id": "00000021-0000-4000-8000-000000000021",
+    "claim": "Qatar has ten million people.",
+    "speaker_name": "Omar",
+    "verdict": "disputed",
+    "note": "Qatar's population is about 3.1 million.",
+    "sources": [
+      "https://www.populationpyramid.net/qatar/2026/"
+    ],
+    "lang": "en"
+  }
+}

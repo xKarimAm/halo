@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/claim.checked",
+  "title": "claim.checked",
+  "description": "Fact Check: one spoken claim checked against the live web by Muse Spark search grounding, or against the viewer's reference notes. sources are the URLs the search returned, never model-written; notes_quote is a sentence found in the notes. At least one of the two is present.",
+  "type": "object",
+  "properties": {
+    "point_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "speaker_name": {
+      "type": "string"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "disputed"
+      ]
+    },
+    "note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "minItems": 0,
+      "maxItems": 3
+    },
+    "notes_quote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "The sentence from the viewer's reference notes that settles the claim; present only when the notes did."
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar"
+      ]
+    }
+  },
+  "required": [
+    "point_id",
+    "claim",
+    "speaker_name",
+    "verdict",
+    "note",
+    "sources",
+    "lang"
+  ],
+  "additionalProperties": false
+}

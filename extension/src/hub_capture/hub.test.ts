@@ -428,6 +428,34 @@ describe("left the call", () => {
     expect(socket.envelopes().filter((e) => e.type === "meeting.ended")).toHaveLength(1);
   });
 
+  it("only the Start's tab feeds tiles and speakers, and only it is a page to send to (security review 2026-11-04)", () => {
+    // A second Teams tab (chat) reports call tiles while Halo runs; it must not replace the call's.
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "teams", platform: "teams", tabId: 7 });
+    const before = socket.envelopes().filter((e) => e.type === "tiles.snapshot").length;
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles: [] } }, 8);
+    hub.onPortMessage({ type: "speaker.active", data: { tile_id: "x", speaking: true, ts_ms: 1 } }, 8);
+    expect(socket.envelopes().filter((e) => e.type === "tiles.snapshot")).toHaveLength(before);
+    expect(socket.envelopes().some((e) => e.type === "speaker.active")).toBe(false);
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles: [] } }, 7);
+    expect(socket.envelopes().filter((e) => e.type === "tiles.snapshot")).toHaveLength(before + 1);
+    expect(hub.isPageTab(7)).toBe(true);
+    expect(hub.isPageTab(8)).toBe(false);
+  });
+
+  it("after a meeting ends, a new call in another tab brings its own tiles to the next Start (review 2026-11-04)", () => {
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "abc-defg-hij", tabId: 7 });
+    hub.stop("left");
+    const fresh = { tile_id: "b1", name: "Sara", is_self: false, rect: [0, 0, 10, 10], video_w: 0, video_h: 0, fit: "cover" as const, captions_rect: null };
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles: [fresh] } }, 8);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "xyz-abcd-efg", tabId: 8 });
+    const snaps = socket.envelopes().filter((e) => e.type === "tiles.snapshot");
+    expect((snaps.at(-1)!.data as { tiles: { tile_id: string }[] }).tiles.map((t) => t.tile_id)).toEqual(["b1"]);
+  });
+
   it("a page reload (Port disconnect) does not end the meeting", () => {
     const { hub, socket } = makeHub();
     openAndPair(hub, socket);

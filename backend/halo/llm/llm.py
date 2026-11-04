@@ -25,6 +25,7 @@ Rules implemented here:
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -78,6 +79,9 @@ CALL_TIMEOUT_S = 4.0
 # ponytail: the contributor is the last resort; measured live at ~3-4.5 s per
 # Insight call, so a 4 s cut drops most points. Late beats none.
 FAILOVER_TIMEOUT_S = 10.0
+IMAGE_MODEL = "muse-image-1.0"
+IMAGE_TIMEOUT_S = 90.0  # measured 21 s; the viewer pressed a button and sees it drawing
+SEARCH_TIMEOUT_S = 25.0  # measured 3-14 s; off the live path, so a slow search only arrives later
 COOLDOWN_S = 30.0
 BACKOFF_BASE_S = 0.5
 BACKOFF_CAP_S = 4.0
@@ -145,7 +149,11 @@ class LLMClient:
         self._timeout = call_timeout_s
         self._failover_timeout = failover_timeout_s
         self._cooldown = cooldown_s
-        self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s))
+        # Live 2026-11-04: httpx's 5 s keep-alive made every call after a pause
+        # redo TLS (3.9-4.5 s vs ~2 s) and time out. ponytail: 120 s measured
+        # fine at 65 s idle; if Baseten closes sooner, the call reconnects.
+        self._http = httpx.Client(transport=transport, timeout=httpx.Timeout(call_timeout_s),
+                                  limits=httpx.Limits(keepalive_expiry=120))
         self._primary_down_until = 0.0
         self._last_engine = PRIMARY_ENGINE if self._keys[PRIMARY_ENGINE] else FAILOVER_ENGINE
         self._usage = {e: {"calls": 0, "in": 0, "cached": 0, "out": 0} for e in ENGINES}
@@ -187,9 +195,9 @@ class LLMClient:
             return
         tally = self._usage[engine]
         tally["calls"] += 1
-        tally["in"] += int(u.get("prompt_tokens") or 0)
+        tally["in"] += int(u.get("prompt_tokens") or u.get("input_tokens") or 0)
         tally["cached"] += int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
-        tally["out"] += int(u.get("completion_tokens") or 0)
+        tally["out"] += int(u.get("completion_tokens") or u.get("output_tokens") or 0)
 
     def complete_json(
         self,
@@ -199,8 +207,10 @@ class LLMClient:
         schema_name: str = "halo.result",
         system: str | None = None,
         prompt_cache_key: str | None = None,
+        timeout_s: float | None = None,
     ) -> LLMResult:
-        """One validated JSON completion, with retry + per-call failover."""
+        """One validated JSON completion, with retry + per-call failover.
+        `timeout_s` replaces the live budgets for a call nobody is waiting on."""
         engines = [PRIMARY_ENGINE, FAILOVER_ENGINE]
         # No Spark Open key is a supported setup (README): the contributor is the
         # engine by design, not a failover, so the primary is not even tried.
@@ -216,7 +226,7 @@ class LLMClient:
             outcome = self._call_engine(
                 engine, prompt=prompt, schema=schema,
                 schema_name=schema_name, system=system,
-                prompt_cache_key=prompt_cache_key,
+                prompt_cache_key=prompt_cache_key, timeout_s=timeout_s,
             )
             if outcome.result.ok:
                 self._last_engine = engine
@@ -228,11 +238,76 @@ class LLMClient:
                 self._primary_down_until = self._clock() + self._cooldown
                 code = outcome.result.error["code"] if outcome.result.error else "unknown"
                 if code != "missing_key":  # already logged once where detected
-                    log.warning("llm primary %s failed (%s); failing over to %s for %.0fs",
-                                engine, code, FAILOVER_ENGINE, self._cooldown)
+                    detail = outcome.result.error["message"] if outcome.result.error else ""
+                    log.warning("llm primary %s failed (%s) on %s: %s; failing over to %s for %.0fs",
+                                engine, code, schema_name, detail, FAILOVER_ENGINE, self._cooldown)
             if i == len(engines) - 1:
                 return last
         return last
+
+    def search_json(
+        self,
+        *,
+        prompt: str,
+        schema: dict[str, Any],
+        schema_name: str = "halo.search",
+    ) -> LLMResult:
+        """One web-searched JSON reply (Meta Responses API, web_search tool).
+        Data is the reply plus `sources`, the URLs the search returned. One try,
+        no failover: only Meta has the tool, and a missed check costs nothing."""
+        engine = FAILOVER_ENGINE
+
+        def fail(code: str, message: str) -> LLMResult:
+            return LLMResult(ok=False, engine=engine, error={"code": code, "message": message})
+
+        key = self._keys[engine]
+        if not key:
+            return fail("missing_key", f"{engine}: no key")
+        cfg = self._config(engine)
+        try:
+            response = self._http.post(
+                cfg["base_url"].rstrip("/") + "/responses",
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "model": cfg["model"],
+                    "input": prompt,
+                    "tools": [{"type": "web_search"}],
+                    "include": ["web_search_call.action.sources"],
+                    "reasoning": {"effort": "minimal"},
+                    "text": {"format": {"type": "json_schema", "name": schema_name,
+                                        "schema": schema, "strict": True}},
+                },
+                timeout=httpx.Timeout(SEARCH_TIMEOUT_S),
+            )
+        except httpx.HTTPError as exc:
+            return fail("connection_error", f"{engine}: {exc!r}"[:200])
+        if response.status_code != 200:
+            return fail("engine_error", f"{engine}: HTTP {response.status_code} {_excerpt(response)}")
+        self._count(engine, response)
+        data = _read_search(response, schema)
+        if data is None:
+            return fail("bad_reply", f"{engine}: search reply failed the schema")
+        return LLMResult(ok=True, engine=engine, data=data)
+
+    def generate_image(self, prompt: str) -> bytes | None:
+        """One PNG from Muse Image, or None. Its price is per image, so it is
+        not in `usage()`: callers ask only when the viewer does."""
+        key = self._keys[FAILOVER_ENGINE]
+        if not key:
+            return None
+        try:
+            response = self._http.post(
+                self._config(FAILOVER_ENGINE)["base_url"].rstrip("/") + "/responses",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"model": IMAGE_MODEL, "input": prompt,
+                      "tools": [{"type": "image_generation", "output_format": "png"}]},
+                timeout=httpx.Timeout(IMAGE_TIMEOUT_S),
+            )
+            calls = [i for i in response.json().get("output", []) if i.get("type") == "image_generation_call"]
+            return base64.b64decode(calls[-1]["result"], validate=True)
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
+            log.warning("muse image call failed: %r", exc)
+            return None
 
     def _call_engine(
         self,
@@ -243,6 +318,7 @@ class LLMClient:
         schema_name: str,
         system: str | None,
         prompt_cache_key: str | None,
+        timeout_s: float | None = None,
     ) -> _Outcome:
         cfg = self._config(engine)
         key = self._keys[engine]
@@ -268,7 +344,7 @@ class LLMClient:
         if prompt_cache_key is not None:
             body["prompt_cache_key"] = prompt_cache_key
 
-        outcome = self._post_once(engine, cfg["base_url"], key, body, schema)
+        outcome = self._post_once(engine, cfg["base_url"], key, body, schema, timeout_s)
         if outcome.result.ok or not outcome.failover:
             return outcome
         if outcome.result.error is not None and outcome.result.error["code"] in (
@@ -279,7 +355,7 @@ class LLMClient:
         if outcome.result.error is not None and outcome.result.error["code"] != "invalid_response":
             self._sleep(_backoff())
         # Retry once on the same engine; a second failure fails over.
-        return self._post_once(engine, cfg["base_url"], key, body, schema)
+        return self._post_once(engine, cfg["base_url"], key, body, schema, timeout_s)
 
     def _post_once(
         self,
@@ -288,13 +364,14 @@ class LLMClient:
         key: str,
         body: dict[str, Any],
         schema: dict[str, Any],
+        timeout_s: float | None = None,
     ) -> _Outcome:
         def fail(code: str, message: str, *, failover: bool) -> _Outcome:
             return _Outcome(LLMResult(ok=False, engine=engine,
                                       error={"code": code, "message": message}),
                             failover=failover)
 
-        budget = self._timeout if engine == PRIMARY_ENGINE else self._failover_timeout
+        budget = timeout_s or (self._timeout if engine == PRIMARY_ENGINE else self._failover_timeout)
         start = self._clock()
         try:
             response = self._http.post(
@@ -329,9 +406,10 @@ class LLMClient:
         data = _read_content(response, schema)
         if data is None:
             return fail("invalid_response", f"{engine}: reply failed schema", failover=True)
-        if self._clock() - start > budget:
+        elapsed = self._clock() - start
+        if elapsed > budget:
             # Valid but past the per-call budget: discard, fail over.
-            return fail("timeout", f"{engine} exceeded {budget:g}s", failover=True)
+            return fail("timeout", f"{engine} replied in {elapsed:.1f}s, past {budget:g}s", failover=True)
         return _Outcome(LLMResult(ok=True, engine=engine, data=data), failover=False)
 
 
@@ -359,6 +437,23 @@ def _read_content(response: httpx.Response, schema: dict[str, Any]) -> dict[str,
     errors = list(Draft202012Validator(schema).iter_errors(data))
     if errors:
         return None
+    return data
+
+
+def _read_search(response: httpx.Response, schema: dict[str, Any]) -> dict[str, Any] | None:
+    """The validated last message of a Responses reply, plus the searched URLs.
+    Earlier messages are the model narrating its search, not the answer."""
+    try:
+        output = response.json()["output"]
+        text = [i for i in output if i["type"] == "message"][-1]["content"][-1]["text"]
+        data = json.loads(text)
+        if not isinstance(data, dict) or list(Draft202012Validator(schema).iter_errors(data)):
+            return None
+        urls = [s.get("url") for i in output if i["type"] == "web_search_call"
+                for s in (i.get("action") or {}).get("sources") or [] if isinstance(s, dict)]
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+        return None
+    data["sources"] = list(dict.fromkeys(u for u in urls if u))
     return data
 
 

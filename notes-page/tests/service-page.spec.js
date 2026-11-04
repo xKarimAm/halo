@@ -103,6 +103,7 @@ test("(S1) service page: meeting, person lists, assigned action, recording link"
 
 test("(S2) service page: action re-tag posts the action id and flips to by you", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await page.locator(".ucol.u-medium .act").first().hover(); // hover-only control
   await page.locator(".ucol.u-medium .act details.retag summary").click();
   await page.locator('[data-retag="' + ACTION_ID + '"][data-val="urgent"]').click();
   await expect.poll(() => postedTags.length, { timeout: 5000 }).toBe(1);

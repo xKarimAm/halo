@@ -4,6 +4,7 @@ no test-only branches: production differs only by transport and keys."""
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 
@@ -522,3 +523,120 @@ def test_usage_counts_tokens_and_estimates_spend_per_engine():
     assert spark["usd"] == round(3 * (0.8 * 1.25 + 0.2 * 0.15 + 0.1 * 4.25), 4)
     assert usage[FAILOVER_ENGINE]["usd"] == round(0.5 * 0.10, 4)
     assert usage["usd_total"] == round(spark["usd"] + 0.05, 4)
+
+
+def test_a_late_primary_reply_warning_names_the_call_and_its_time(caplog):
+    """Live 2026-11-04: six 'spark-open failed (timeout)' warnings in five
+    minutes, none saying which call or how slow; the budget could not be sized."""
+    clock = Clock()
+    script = Script(clock)
+    script.primary.append((200, GOOD, 5.2))
+    script.failover.append((200, GOOD, 0.1))
+    client = script.client(clock, [])
+    try:
+        with caplog.at_level(logging.WARNING, logger="halo.llm"):
+            result = client.complete_json(prompt=PROMPT, schema=SCHEMA, schema_name="coach.tips")
+    finally:
+        client.close()
+    assert result.ok and result.engine == FAILOVER_ENGINE
+    [warning] = [r.getMessage() for r in caplog.records]
+    assert "coach.tips" in warning and "5.2s" in warning
+
+
+def test_idle_connections_stay_open_past_the_failover_cooldown():
+    """Live 2026-11-04: httpx drops idle connections after 5 s, so the first
+    call after a pause paid a new TLS handshake (3.9-4.5 s against ~2 s warm)
+    and timed out at the 4 s budget, once per 30 s cooldown."""
+    client = LLMClient(baseten_key="k", meta_key="k")
+    try:
+        assert client._http._transport._pool._keepalive_expiry >= 120
+    finally:
+        client.close()
+
+
+FACT_SCHEMA = {
+    "type": "object",
+    "properties": {"verdict": {"type": "string"}, "note": {"type": "string"}},
+    "required": ["verdict", "note"],
+    "additionalProperties": False,
+}
+
+
+def search_client(handler) -> LLMClient:
+    return LLMClient(baseten_key="", meta_key="mk", transport=httpx.MockTransport(handler), env={})
+
+
+def search_reply(text: str) -> dict:
+    return {"usage": {"input_tokens": 2000, "output_tokens": 100}, "output": [
+        {"type": "reasoning"},
+        {"type": "message", "content": [{"type": "output_text", "text": "Searching."}]},
+        {"type": "web_search_call", "action": {"sources": [
+            {"type": "url", "url": "https://a.example/1"}, {"type": "url", "url": "https://b.example/2"}]}},
+        {"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+
+
+def test_search_json_reads_the_last_message_and_the_real_source_urls():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(url=str(request.url), body=json.loads(request.content))
+        return httpx.Response(200, json=search_reply('{"verdict": "disputed", "note": "No."}'))
+
+    llm = search_client(handler)
+    result = llm.search_json(prompt="check", schema=FACT_SCHEMA, schema_name="claim_check")
+    assert result.ok and result.data == {"verdict": "disputed", "note": "No.",
+                                         "sources": ["https://a.example/1", "https://b.example/2"]}
+    assert seen["url"].endswith("/responses")
+    assert seen["body"]["model"] == "muse-spark-1.3-contributor"
+    assert seen["body"]["tools"] == [{"type": "web_search"}]
+    assert seen["body"]["include"] == ["web_search_call.action.sources"]
+    assert llm.usage()[FAILOVER_ENGINE]["in"] == 2000  # counted in the health.json spend
+
+
+def test_search_json_fails_soft():
+    assert not search_client(lambda r: httpx.Response(500)).search_json(prompt="p", schema=FACT_SCHEMA).ok
+    assert not search_client(lambda r: httpx.Response(200, json=search_reply("not json"))).search_json(
+        prompt="p", schema=FACT_SCHEMA).ok
+    calls = []
+    keyless = LLMClient(baseten_key="", meta_key="", env={},
+                        transport=httpx.MockTransport(lambda r: calls.append(r) or httpx.Response(500)))
+    assert not keyless.search_json(prompt="p", schema=FACT_SCHEMA).ok and not calls
+
+
+def test_generate_image_returns_png_bytes_from_muse_image():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(url=str(request.url), body=json.loads(request.content))
+        return httpx.Response(200, json={"output": [
+            {"type": "reasoning"}, {"type": "message", "content": []},
+            {"type": "image_generation_call", "result": base64.b64encode(b"png-bytes").decode()}]})
+
+    assert search_client(handler).generate_image("a recap") == b"png-bytes"
+    assert seen["url"].endswith("/responses") and seen["body"]["model"] == "muse-image-1.0"
+    assert seen["body"]["tools"] == [{"type": "image_generation", "output_format": "png"}]
+
+
+def test_generate_image_fails_soft():
+    assert search_client(lambda r: httpx.Response(500)).generate_image("a") is None
+    assert search_client(lambda r: httpx.Response(200, json={"output": []})).generate_image("a") is None
+
+
+def test_search_json_survives_an_odd_source_entry():
+    body = search_reply('{"verdict": "supported", "note": "Yes."}')
+    body["output"][2]["action"]["sources"].insert(0, "not-a-dict")
+    result = search_client(lambda r: httpx.Response(200, json=body)).search_json(prompt="p", schema=FACT_SCHEMA)
+    assert result.ok and result.data["sources"] == ["https://a.example/1", "https://b.example/2"]
+
+
+def test_a_caller_off_the_live_path_can_give_the_call_longer():
+    budgets = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        budgets.append(request.extensions["timeout"]["read"])
+        return httpx.Response(200, json=GOOD)
+
+    llm = LLMClient(baseten_key="bk", meta_key="mk", transport=httpx.MockTransport(handler), env={})
+    assert llm.complete_json(prompt=PROMPT, schema=SCHEMA).ok
+    assert llm.complete_json(prompt=PROMPT, schema=SCHEMA, timeout_s=60).ok
+    assert budgets == [4.0, 60]

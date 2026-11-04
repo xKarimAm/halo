@@ -236,7 +236,7 @@ describe("popup readiness and feedback", () => {
     await off.storage.saveToken("t");
     const r2 = document.createElement("div");
     await initPopup(r2, off);
-    expect(r2.querySelector("#ready-state")?.textContent).toMatch(/Open your Meet call/);
+    expect(r2.querySelector("#ready-state")?.textContent).toMatch(/Open your Meet, Zoom or Teams call/);
 
     const on = depsWith({ onMeetCall: async () => true });
     await on.storage.saveToken("t");
@@ -416,6 +416,19 @@ describe("popup urgency toggle", () => {
     words.click();
     await flush();
     expect(await deps.storage.load()).toMatchObject({ urgencyStyle: "words" });
+  });
+
+  it("view mode defaults to Camera and Frame is written at once (Karim 2026-11-04)", async () => {
+    const deps = depsWith();
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const camera = root.querySelector('input[name="view-mode"][value="face"]') as HTMLInputElement;
+    const frame = root.querySelector('input[name="view-mode"][value="frame"]') as HTMLInputElement;
+    expect(camera.checked).toBe(true);
+    frame.click();
+    await flush();
+    expect(await deps.storage.load()).toMatchObject({ viewMode: "frame" });
   });
 
   it("restores a saved Symbols choice on reopen", async () => {
