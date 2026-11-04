@@ -588,3 +588,9 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .dis-seg.o-settled{background:color-mix(in srgb,var(--dec) 22%,transparent);border-color:var(--dec)} #view.home .dis-seg.o-parked{background:color-mix(in srgb,var(--med) 22%,transparent);border-color:var(--med)}
 #view.home .dis-seg:hover,#view.home .dis-seg:focus-visible{background:color-mix(in srgb,var(--push) 38%,transparent);outline:none}
 #view.home .key .k-dis::before{width:16px;border-radius:3px;background:color-mix(in srgb,var(--c) 22%,transparent);border-block:2px solid var(--c);box-sizing:border-box}
+/* Header tabs (Karim 2026-11-04): Halo | Meetings, Notes. */
+.crumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.crumb .nav-tab{text-decoration:none;padding:5px 12px;border-radius:999px;color:var(--band-muted);font-weight:600}
+.crumb .nav-tab[aria-current=page]{background:#3a3832;color:var(--band-ink)}
+.crumb .nav-tab:disabled{opacity:.45;cursor:default}
+.crumb .nav-title{margin-inline-start:8px;color:var(--band-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}

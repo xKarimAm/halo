@@ -486,3 +486,18 @@ test("(H6) a disagreement tints its stretch of the line and the key names it", a
   await seg.dispatchEvent("mouseenter");
   await expect(page.locator("#preview .tip")).toContainText("Beta launch date");
 });
+
+// Karim 2026-11-04: not "Halo Notes" + "Meetings"; "Halo", then Meetings and Notes tabs.
+test("(H7) the header says Halo with Meetings and Notes tabs", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await expect(page.locator(".logo")).toHaveText("Halo");
+  const meetings = page.locator('#crumb [data-nav="list"]');
+  const notes = page.locator("#crumb .nav-notes");
+  await expect(meetings).toHaveAttribute("aria-current", "page");
+  await page.locator("#preview .pv-open").click();
+  await expect(notes).toHaveAttribute("aria-current", "page");
+  await meetings.click();
+  await expect(meetings).toHaveAttribute("aria-current", "page");
+  await notes.click(); // back to the meeting last opened
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(GOLDEN.meeting.title);
+});

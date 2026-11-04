@@ -1897,14 +1897,18 @@
     exportBtn.textContent = "\u21E9 " + t(lang, "export");
     var crumb = doc.getElementById("crumb");
     crumb.textContent = "";
-    if (app.view === "list") {
-      crumb.appendChild(el("span", null, t(lang, "meetings")));
-    } else {
-      var back = el("button", null, t(lang, "meetings"));
-      back.dataset.nav = "list";
-      crumb.appendChild(back);
-      crumb.appendChild(document.createTextNode(" / " + titleOf(app.page.meeting)));
-      if (app.person) crumb.appendChild(document.createTextNode(" / " + app.person));
+    // Karim 2026-11-04: "Halo", then two tabs: Meetings (the list) and Notes
+    // (the meeting last opened; off until one is).
+    var navMeetings = el("button", "nav-tab", t(lang, "meetings"));
+    navMeetings.dataset.nav = "list";
+    var navNotes = el("button", "nav-tab nav-notes", t(lang, "notes"));
+    if (app.page) navNotes.dataset.open = app.page.meeting.meeting_id;
+    else navNotes.disabled = true;
+    (app.view === "list" ? navMeetings : navNotes).setAttribute("aria-current", "page");
+    crumb.appendChild(navMeetings);
+    crumb.appendChild(navNotes);
+    if (app.view !== "list") {
+      crumb.appendChild(el("span", "nav-title", titleOf(app.page.meeting) + (app.person ? " / " + app.person : "")));
     }
     var view = doc.getElementById("view");
     // A rebuild must not steal the caret: typing in search re-renders per key.
