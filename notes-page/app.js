@@ -15,7 +15,7 @@
 
   var T = {
     en: {
-      notes: "Notes", meetings: "Meetings", people: "People", everyone: "Whole meeting",
+      notes: "Notes", meetings: "Meetings", folders: "Folders", people: "People", everyone: "Whole meeting",
       search: "Search every meeting: points, actions and transcripts",
       results: "Search results", noHits: "No matches.", inPoints: "Point", inTx: "Transcript",
       ask: "Ask your meetings, e.g. what did we decide about the launch?", askBtn: "Ask",
@@ -89,7 +89,7 @@
       pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo notes"
     },
     ar: {
-      notes: "الملاحظات", meetings: "الاجتماعات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
+      notes: "الملاحظات", meetings: "الاجتماعات", folders: "المجلدات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
       search: "ابحث في كل الاجتماعات: النقاط والمهام والنصوص",
       results: "نتائج البحث", noHits: "لا توجد نتائج.", inPoints: "نقطة", inTx: "النص",
       ask: "اسأل اجتماعاتك، مثلاً: ماذا قررنا بشأن الإطلاق؟", askBtn: "اسأل",
@@ -1141,11 +1141,20 @@
     bar.setAttribute("role", "tablist");
     var cur = currentTab(app, lang);
     var base = followed(app, app.meetings);
-    bar.innerHTML = '<span class="ind" id="ind"></span>' + tabsOf(app, lang).map(function (tb) {
+    var btn = function (tb) {
       var n = base.filter(tb.f).length;
       return '<button role="tab" type="button" data-tab="' + esc(tb.id) + '" aria-selected="' + (tb.id === cur.id) + '" class="' +
         (tb.cls || "") + (tb.cls && n ? " has" : "") + '">' + esc(tb.label) + "<em>" + n + "</em></button>";
-    }).join("");
+    };
+    // Karim 2026-11-04: folders and Archived go in one dropdown, so the row stays short.
+    var all = tabsOf(app, lang);
+    var main = all.filter(function (tb) { return !tb.folder && tb.id !== "archived"; });
+    var more = all.filter(function (tb) { return tb.folder || tb.id === "archived"; });
+    var inMore = more.some(function (tb) { return tb.id === cur.id; });
+    bar.innerHTML = '<span class="ind" id="ind"></span>' + main.map(btn).join("") + (more.length
+      ? '<details class="fmenu' + (inMore ? " on" : "") + '"><summary>' + esc(inMore ? cur.label : t(lang, "folders")) + " ▾</summary>" +
+        '<div class="fmenu-list">' + more.map(btn).join("") + "</div></details>"
+      : "");
     return bar;
   }
 

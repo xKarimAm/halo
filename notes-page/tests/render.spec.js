@@ -293,9 +293,12 @@ test("(10) a folder: create it from a meeting, filter by it, rename it, delete i
   await page.goto(baseURL + "/");
   await page.locator("#preview .new-folder").fill("Launch");
   await page.locator("#preview .create-folder").click();
-  const tab = page.locator(".tabs [data-tab^='f:']", { hasText: "Launch" });
+  // Karim 2026-11-04: folders and Archived live in one dropdown, not the tab row.
+  const tab = page.locator(".tabs .fmenu [data-tab^='f:']", { hasText: "Launch" });
   await expect(tab).toContainText("1");
+  await page.locator(".tabs .fmenu summary").click();
   await tab.click();
+  await expect(page.locator(".tabs .fmenu summary")).toContainText("Launch");
   await expect(page.locator("#list .row")).toHaveCount(1);
   await page.locator("[data-fdo=rename]").click();
   await page.locator("#frename").fill("Q4 launch");
@@ -327,7 +330,7 @@ test("(H2) archive a meeting, then undo it", async ({ page }) => {
   await page.locator("#preview [data-archive]").click();
   await expect(page.locator("#list .row .arch-tag")).toHaveText("Archived");
   expect(home.posts.at(-1)).toEqual({ path: "/api/meetings/archive", body: { meeting_id: MEETING_ID, archived: true } });
-  await expect(page.locator(".tabs [data-tab=archived]")).toContainText("1");
+  await expect(page.locator(".tabs .fmenu [data-tab=archived]")).toContainText("1");
   await page.locator("#toast .toast-undo").click();
   await expect(page.locator("#list .row .arch-tag")).toHaveCount(0);
   expect(home.posts.at(-1).body.archived).toBe(false);

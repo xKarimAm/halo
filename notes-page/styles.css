@@ -594,3 +594,11 @@ body:has(#view.home)::before{background:#f2f3f1}
 .crumb .nav-tab[aria-current=page]{background:#3a3832;color:var(--band-ink)}
 .crumb .nav-tab:disabled{opacity:.45;cursor:default}
 .crumb .nav-title{margin-inline-start:8px;color:var(--band-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
+/* Folders + Archived dropdown in the tab row (Karim 2026-11-04). */
+#view.home .tabs .fmenu{position:relative;display:inline-block}
+#view.home .tabs .fmenu summary{list-style:none;cursor:pointer;padding:8px 12px;font-weight:600;color:var(--muted);border-radius:999px;white-space:nowrap}
+#view.home .tabs .fmenu summary::-webkit-details-marker{display:none}
+#view.home .tabs .fmenu.on summary{color:var(--ink)}
+#view.home .tabs .fmenu-list{position:absolute;z-index:20;inset-inline-start:0;top:100%;margin-top:4px;display:flex;flex-direction:column;align-items:stretch;min-width:200px;padding:6px;background:var(--card,#fff);border:1px solid var(--line,rgba(0,0,0,.1));border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.12)}
+#view.home .tabs .fmenu-list button{justify-content:space-between;text-align:start}
+#view.home .tabs:has(.fmenu[open]){position:relative;z-index:40}
