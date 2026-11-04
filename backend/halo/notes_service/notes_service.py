@@ -165,9 +165,9 @@ class NotesService:
             data = json.loads(self._folders_path().read_text(encoding="utf-8"))
             return {"folders": list(data.get("folders", [])), "meetings": dict(data.get("meetings", {})),
                     "archived": list(data.get("archived", [])), "types": dict(data.get("types", {})),
-                    "done": dict(data.get("done", {}))}
+                    "done": dict(data.get("done", {})), "deleted": dict(data.get("deleted", {}))}
         except (OSError, ValueError, AttributeError):
-            return {"folders": [], "meetings": {}, "archived": [], "types": {}, "done": {}}
+            return {"folders": [], "meetings": {}, "archived": [], "types": {}, "done": {}, "deleted": {}}
 
     def _save_folders(self, data: dict[str, Any]) -> None:
         # ponytail: whole-file rewrite, fine for a handful of folders on one PC
@@ -230,6 +230,27 @@ class NotesService:
         rest = [m for m in data["archived"] if m != meeting_id]
         data["archived"] = rest + [meeting_id] if archived else rest
         self._save_folders(data)
+
+    def set_deleted(self, meeting_id: str, deleted: bool) -> None:
+        """Karim 2026-11-04: Deleted keeps a meeting PURGE_DAYS days, then it drops out of every list."""
+        data = self._load_folders()
+        if deleted:
+            data["deleted"][meeting_id] = datetime.now(UTC).isoformat()
+        else:
+            data["deleted"].pop(meeting_id, None)
+        self._save_folders(data)
+
+    def _deleted_days(self) -> dict[str, int]:
+        """Deleted meeting -> days since it was deleted (a bad date counts as just now).
+        ponytail: past PURGE_DAYS it is hidden for good; its files stay in the data folder."""
+        now = datetime.now(UTC)
+        out: dict[str, int] = {}
+        for mid, at in self._load_folders()["deleted"].items():
+            try:
+                out[mid] = max(0, (now - datetime.fromisoformat(str(at))).days)
+            except ValueError:
+                out[mid] = 0
+        return out
 
     def set_done(self, action_id: str, done: bool, note: str = "") -> None:
         """Karim 2026-11-04: a handled action leaves Urgent and Needs action; the note says what was done."""
@@ -572,6 +593,7 @@ class NotesService:
             out = []
             filed = self._load_folders()
             in_folder = filed["meetings"]
+            deleted = self._deleted_days()
             for row in rows:
                 meeting = dict(row)
                 turns = self._turns(conn, meeting["meeting_id"])
@@ -599,6 +621,11 @@ class NotesService:
                 if item["meeting_type"]:
                     item["type_by"] = "you" if mine else "halo"
                 item.update(self._card_counts(meeting["meeting_id"], meeting["t0_ms"] or 0, turns))
+                if deleted.get(meeting["meeting_id"], -1) >= PURGE_DAYS:
+                    continue  # past its 30 days in Deleted
+                if meeting["meeting_id"] in deleted:
+                    item["deleted_at"] = filed["deleted"][meeting["meeting_id"]]
+                    item["purge_in_days"] = PURGE_DAYS - deleted[meeting["meeting_id"]]
                 out.append(item)
             return out
         finally:
@@ -663,7 +690,10 @@ class NotesService:
         try:
             conn.row_factory = sqlite3.Row
             out: list[dict[str, Any]] = []
+            deleted = self._deleted_days()
             for m in conn.execute("SELECT meeting_id, subject, t0_ms FROM meetings ORDER BY t0_ms DESC"):
+                if m["meeting_id"] in deleted:
+                    continue  # a deleted meeting is out of Ask
                 mid, ready = m["meeting_id"], self._latest_ready(conn, m["meeting_id"]) or {}
                 subject = str(ready.get("title") or m["subject"] or "Untitled meeting")
                 date = datetime.fromtimestamp((m["t0_ms"] or 0) / 1000, UTC).strftime("%Y-%m-%d")
@@ -699,8 +729,10 @@ class NotesService:
             return []
         try:
             conn.row_factory = sqlite3.Row
+            deleted = self._deleted_days()
             meetings = [dict(r) for r in conn.execute(
-                "SELECT meeting_id, subject, t0_ms FROM meetings ORDER BY t0_ms DESC")]
+                "SELECT meeting_id, subject, t0_ms FROM meetings ORDER BY t0_ms DESC")
+                if r["meeting_id"] not in deleted]  # a deleted meeting is out of search
             hits: list[dict[str, Any]] = []
             for meeting in meetings:
                 mid = meeting["meeting_id"]
@@ -926,6 +958,7 @@ async def api_speaking(meeting_id: str, request: Request):  # type: ignore[no-un
     return _service(request).speaking_for(meeting_id)
 
 
+PURGE_DAYS = 30  # Karim 2026-11-04: Deleted keeps a meeting this long
 REFERENCE_MAX = 200_000  # chars; Fact Check reads the first 12k of it per claim
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
@@ -1139,6 +1172,20 @@ async def api_archive(request: Request):  # type: ignore[no-untyped-def]
         return JSONResponse({"detail": "meeting_id and archived required"}, status_code=400)
     _service(request).set_archived(body["meeting_id"], body["archived"])
     return {"meeting_id": body["meeting_id"], "archived": body["archived"]}
+
+
+@router.post("/api/meetings/delete")
+async def api_delete(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    if not isinstance(body.get("meeting_id"), str) or not isinstance(body.get("deleted"), bool):
+        return JSONResponse({"detail": "meeting_id and deleted required"}, status_code=400)
+    service = _service(request)
+    if not UUID_RE.match(body["meeting_id"]) or service.page_for(body["meeting_id"]) is None:
+        return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+    service.set_deleted(body["meeting_id"], body["deleted"])
+    return {"meeting_id": body["meeting_id"], "deleted": body["deleted"]}
 
 
 @router.post("/api/actions/done")

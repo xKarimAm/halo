@@ -585,3 +585,24 @@ def test_an_action_marked_done_keeps_its_note_and_leaves_the_open_counts(tmp_pat
     assert "done" not in page["actions"][0]
     item = next(m for m in client.get("/api/meetings").json() if m["meeting_id"] == MEETING)
     assert item["counts"]["open_actions"] == 1
+
+
+def test_a_deleted_meeting_waits_30_days_in_deleted_then_drops_out(tmp_path):
+    """Karim 2026-11-04 22:25: Deleted keeps a meeting 30 days; meanwhile it is
+    out of the lists' other tabs and out of search, and can be restored."""
+    client, _, data = make_client(tmp_path)
+    url = "/api/meetings/delete"
+    assert client.post(url, json={"meeting_id": MEETING, "deleted": True}, headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.post(url, json={"meeting_id": "nope", "deleted": True}).status_code == 404
+    assert client.post(url, json={"meeting_id": MEETING, "deleted": True}).status_code == 200
+    item = client.get("/api/meetings").json()[0]
+    assert item["deleted_at"] and item["purge_in_days"] == 30
+    assert client.get("/api/search", params={"q": "launch"}).json()["hits"] == []
+    assert client.post(url, json={"meeting_id": MEETING, "deleted": False}).status_code == 200
+    assert "deleted_at" not in client.get("/api/meetings").json()[0]
+    # 31 days later it is gone from the list for good
+    client.post(url, json={"meeting_id": MEETING, "deleted": True})
+    store = json.loads((data / "folders.json").read_text(encoding="utf-8"))
+    store["deleted"][MEETING] = "2026-01-01T00:00:00+00:00"
+    (data / "folders.json").write_text(json.dumps(store), encoding="utf-8")
+    assert client.get("/api/meetings").json() == []

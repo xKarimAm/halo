@@ -15,7 +15,7 @@
 
   var T = {
     en: {
-      notes: "Notes", meetings: "Meetings", folders: "Folders", someone: "someone", people: "People", everyone: "Whole meeting",
+      notes: "Notes", meetings: "Meetings", folders: "Projects", someone: "someone", people: "People", everyone: "Whole meeting",
       search: "Search every meeting: points, actions and transcripts",
       results: "Search results", noHits: "No matches.", inPoints: "Point", inTx: "Transcript",
       ask: "Ask your meetings, e.g. what did we decide about the launch?", askBtn: "Ask",
@@ -67,13 +67,15 @@
       translated: "Translated",
       allMeetings: "All meetings", preview: "Click a meeting to preview it",
       noSummary: "No AI summary yet. Meetings get one when they end.",
-      newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
-      noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open meeting",
+      newFolder: "New project name", createFolder: "Create project", moveTo: "Project",
+      noFolder: "No project", email: "Email", decsShort: "Decisions", openNotes: "Open meeting",
       followUp: "Email follow-up", followSubject: "Follow-up: {m} ({d})", factTimes: "Checked {n} times",
       alertsT: "Alerts", tipsT: "Tips",
       refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
       refOn: "Reference notes:", refLive: "the fact check uses them live", refClear: "Remove", refFail: "That file could not be added.",
       yourNotes: "Your notes:", txOpen: "Expand", txShut: "Collapse",
+      binT: "Archive", tabDeleted: "Deleted", delMeeting: "Delete", restore: "Restore",
+      deletedToast: "Moved to Deleted. It stays there 30 days.", purgeIn: "Deleted · removed in {n} days",
       doneBtn: "Done", donePh: "What was done? (optional)", doneSave: "Mark done", doneCancel: "Cancel",
       doneT: "Done", doneUndo: "Undo", doneFail: "That could not be saved.",
       followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
@@ -84,9 +86,9 @@
       nNew1: "1 new meeting", nNew: "{n} new meetings", nMine1: "1 action item in them for you", nMine: "{n} action items in them for you",
       nAct1: "1 action item in them", nAct: "{n} action items in them", nUrg: "{n} urgent", seen: "Mark as seen", unseen: "Show again",
       newTip: "New since your last visit", sortedBy: "Sorted by Halo", allClear: "All clear. Nothing needs you right now.",
-      emptyTab: "No meetings here yet.", renameF: "Rename folder", deleteF: "Delete folder", save: "Save", cancel: "Cancel",
-      deleteQ: "Delete “{n}”? Its meetings stay, just unfiled.", del: "Delete",
-      folderDeleted: "Folder deleted. Its meetings are still here.", notSaved: "Not saved. Try again.",
+      emptyTab: "No meetings here yet.", renameF: "Rename project", deleteF: "Delete project", save: "Save", cancel: "Cancel",
+      deleteQ: "Delete “{n}”? Its meetings stay, outside any project.", del: "Delete",
+      folderDeleted: "Project deleted. Its meetings are still here.", notSaved: "Not saved. Try again.",
       following: "Following {n}", followIn: "in {k} of {t} meetings", followStop: "Stop following",
       sumT: "Summary", noOwner: "No owner", nMore: "+ {n} more", nothing: "Nothing was captured in this meeting.",
       recView: "Recording view", simple: "Simple", detailed: "Detailed", replay: "Replay", stop: "Stop",
@@ -103,7 +105,7 @@
       pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo"
     },
     ar: {
-      notes: "الملاحظات", meetings: "الاجتماعات", folders: "المجلدات", someone: "أحدهم", people: "الأشخاص", everyone: "الاجتماع كاملاً",
+      notes: "الملاحظات", meetings: "الاجتماعات", folders: "المشاريع", someone: "أحدهم", people: "الأشخاص", everyone: "الاجتماع كاملاً",
       search: "ابحث في كل الاجتماعات: النقاط والمهام والنصوص",
       results: "نتائج البحث", noHits: "لا توجد نتائج.", inPoints: "نقطة", inTx: "النص",
       ask: "اسأل اجتماعاتك، مثلاً: ماذا قررنا بشأن الإطلاق؟", askBtn: "اسأل",
@@ -155,13 +157,15 @@
       translated: "مترجم",
       allMeetings: "كل الاجتماعات", preview: "اضغط على اجتماع لمعاينته",
       noSummary: "لا يوجد ملخص آلي بعد. يُكتب عند انتهاء الاجتماع.",
-      newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
-      noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الاجتماع",
+      newFolder: "اسم مشروع جديد", createFolder: "إنشاء مشروع", moveTo: "المشروع",
+      noFolder: "بلا مشروع", email: "بريد", decsShort: "القرارات", openNotes: "افتح الاجتماع",
       followUp: "بريد المتابعة", followSubject: "متابعة: {m} ({d})", factTimes: "تم التحقق {n} مرات",
       alertsT: "التنبيهات", tipsT: "النصائح",
       refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
       refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
       yourNotes: "ملاحظاتك:", txOpen: "توسيع", txShut: "طي",
+      binT: "الأرشيف", tabDeleted: "المحذوفة", delMeeting: "حذف", restore: "استعادة",
+      deletedToast: "نُقل إلى المحذوفة، ويبقى فيها 30 يوماً.", purgeIn: "محذوف · يُزال خلال {n} يوماً",
       doneBtn: "تم", donePh: "ماذا تم؟ (اختياري)", doneSave: "تأكيد", doneCancel: "إلغاء",
       doneT: "تم", doneUndo: "تراجع", doneFail: "تعذّر الحفظ.",
       followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
@@ -171,9 +175,9 @@
       nNew1: "اجتماع جديد واحد", nNew: "اجتماعات جديدة: {n}", nMine1: "فيها مهمة واحدة لك", nMine: "فيها مهام لك: {n}",
       nAct1: "فيها مهمة واحدة", nAct: "فيها مهام: {n}", nUrg: "عاجل: {n}", seen: "تمت المشاهدة", unseen: "أظهرها مجدداً",
       newTip: "جديد منذ زيارتك الأخيرة", sortedBy: "رتّبها Halo", allClear: "لا شيء يحتاجك الآن.",
-      emptyTab: "لا اجتماعات هنا بعد.", renameF: "إعادة تسمية المجلد", deleteF: "حذف المجلد", save: "حفظ", cancel: "إلغاء",
-      deleteQ: "حذف «{n}»؟ تبقى اجتماعاته، بلا مجلد.", del: "حذف",
-      folderDeleted: "حُذف المجلد. اجتماعاته ما زالت هنا.", notSaved: "لم يُحفظ. حاول مرة أخرى.",
+      emptyTab: "لا اجتماعات هنا بعد.", renameF: "إعادة تسمية المشروع", deleteF: "حذف المشروع", save: "حفظ", cancel: "إلغاء",
+      deleteQ: "حذف «{n}»؟ تبقى اجتماعاته خارج أي مشروع.", del: "حذف",
+      folderDeleted: "حُذف المشروع. اجتماعاته ما زالت هنا.", notSaved: "لم يُحفظ. حاول مرة أخرى.",
       following: "تتابع {n}", followIn: "في {k} من {t} اجتماعات", followStop: "إيقاف المتابعة",
       sumT: "الملخص", noOwner: "بلا مسؤول", nMore: "+ {n} أخرى", nothing: "لم يُلتقط شيء في هذا الاجتماع.",
       recView: "عرض التسجيل", simple: "مبسّط", detailed: "مفصّل", replay: "إعادة", stop: "إيقاف",
@@ -1355,6 +1359,14 @@
     if (app.meetings.some(function (m) { return m.archived; }) || app.tab === "archived") {
       tabs.push({ id: "archived", label: t(lang, "tabArchived"), f: function (m) { return m.archived; } });
     }
+    // Karim 2026-11-04: Deleted keeps a meeting 30 days; meanwhile it is in no other tab.
+    tabs.forEach(function (tb) {
+      var keep = tb.f;
+      tb.f = function (m) { return !m.deleted_at && keep(m); };
+    });
+    if (app.meetings.some(function (m) { return m.deleted_at; }) || app.tab === "deleted") {
+      tabs.push({ id: "deleted", bin: true, label: t(lang, "tabDeleted"), f: function (m) { return !!m.deleted_at; } });
+    }
     return tabs;
   }
 
@@ -1385,7 +1397,7 @@
   function sinceHTML(app, lang) {
     if (!app.meetings.length) return "";
     var w = new Date(app.since).toLocaleString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
-    var fresh = app.meetings.filter(function (m) { return (m.t0_ms || 0) > app.since; });
+    var fresh = app.meetings.filter(function (m) { return (m.t0_ms || 0) > app.since && !m.deleted_at; });
     if (!fresh.length) {
       return esc(t(lang, "nothingNew", { w: w })) + ' <button class="seen" id="unseen" type="button">' + esc(t(lang, "unseen")) + "</button>";
     }
@@ -1425,6 +1437,7 @@
     var h = out.join(" · ") || esc(t(lang, "noCapture"));
     if (it.meeting_type) h += '<span class="tchip" data-mt="' + esc(it.meeting_type) + '">' + esc(t(lang, "t_" + it.meeting_type)) + "</span>";
     if (it.archived) h += '<span class="arch-tag">' + esc(t(lang, "archivedTag")) + "</span>";
+    if (it.deleted_at) h += '<span class="arch-tag">' + esc(t(lang, "purgeIn", { n: it.purge_in_days })) + "</span>";
     return h;
   }
 
@@ -1465,13 +1478,14 @@
       return '<button role="tab" type="button" data-tab="' + esc(tb.id) + '" aria-selected="' + (tb.id === cur.id) + '" class="' +
         (tb.cls || "") + (tb.cls && n ? " has" : "") + '">' + esc(tb.label) + "<em>" + n + "</em></button>";
     };
-    // Karim 2026-11-04: folders and Archived go in one dropdown, so the row stays short.
+    // Karim 2026-11-04 22:25: projects sit in the main row; Archived and Deleted share one menu.
     var all = tabsOf(app, lang);
-    var main = all.filter(function (tb) { return !tb.folder && tb.id !== "archived"; });
-    var more = all.filter(function (tb) { return tb.folder || tb.id === "archived"; });
+    var binned = function (tb) { return tb.id === "archived" || tb.id === "deleted"; };
+    var main = all.filter(function (tb) { return !binned(tb); });
+    var more = all.filter(binned);
     var inMore = more.some(function (tb) { return tb.id === cur.id; });
     bar.innerHTML = '<span class="ind" id="ind"></span>' + main.map(btn).join("") + (more.length
-      ? '<details class="fmenu' + (inMore ? " on" : "") + '"><summary>' + esc(inMore ? cur.label : t(lang, "folders")) + " ▾</summary>" +
+      ? '<details class="fmenu' + (inMore ? " on" : "") + '"><summary>' + esc(inMore ? cur.label : t(lang, "binT")) + " ▾</summary>" +
         '<div class="fmenu-list">' + more.map(btn).join("") + "</div></details>"
       : "");
     return bar;
@@ -1630,6 +1644,11 @@
     arch.dataset.archive = m.id;
     arch.dataset.on = it.archived ? "0" : "1";
     acts.appendChild(arch);
+    var del = el("button", "btn-2" + (it.deleted_at ? "" : " danger"), t(lang, it.deleted_at ? "restore" : "delMeeting"));
+    del.type = "button";
+    del.dataset.delete = m.id;
+    del.dataset.on = it.deleted_at ? "0" : "1";
+    acts.appendChild(del);
     var open = el("button", "btn pv-open", t(lang, "openNotes"));
     open.type = "button";
     open.dataset.open = m.id;
@@ -2685,6 +2704,17 @@
         stored(LAST_KEY, null);
         app.since = sinceStart(app);
         render(app);
+        return;
+      }
+      if ((b = g("[data-delete]"))) {
+        var dmid = b.dataset.delete;
+        var dOn = b.dataset.on === "1";
+        var setDel = function (state) {
+          return postJson("/api/meetings/delete", { meeting_id: dmid, deleted: state }).then(refreshList);
+        };
+        setDel(dOn).then(function () {
+          if (dOn) toast(app, t(app.lang, "deletedToast"), t(app.lang, "undo"), function () { setDel(false); });
+        }).catch(function () { toast(app, t(app.lang, "notSaved")); });
         return;
       }
       if ((b = g("[data-archive]"))) {

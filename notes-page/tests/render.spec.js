@@ -72,7 +72,8 @@ test.beforeAll(async () => {
           people: ["Layla"], date: "Tue 28 Oct", folder_id: folders.byMeeting[MEETING_ID] || null,
           t0_ms: GOLDEN.meeting.t0_ms, self_name: "Layla", minutes: 1,
           counts: { decision: 1, question: 0, pushback: 0, urgent: home.urgent },
-          archived: home.archived, meeting_type: home.type, ...(home.typeBy ? { type_by: home.typeBy } : {}) },
+          archived: home.archived, meeting_type: home.type, ...(home.typeBy ? { type_by: home.typeBy } : {}),
+          ...(home.deleted ? { deleted_at: "2026-11-04T20:00:00+00:00", purge_in_days: 30 } : {}) },
       ]));
     }
     if (req.method === "GET" && url.pathname === "/api/meetings/" + MEETING_ID) {
@@ -102,7 +103,7 @@ test.beforeAll(async () => {
         : [];
       return send(res, 200, JSON.stringify({ hits }));
     }
-    if (req.method === "POST" && ["/api/meetings/archive", "/api/meetings/type", "/api/folders/rename",
+    if (req.method === "POST" && ["/api/meetings/archive", "/api/meetings/delete", "/api/meetings/type", "/api/folders/rename",
       "/api/folders/delete", "/api/folders/move"].includes(url.pathname)) {
       let raw = "";
       req.on("data", (chunk) => { raw += chunk; });
@@ -110,6 +111,7 @@ test.beforeAll(async () => {
         const body = JSON.parse(raw);
         home.posts.push({ path: url.pathname, body });
         if (url.pathname === "/api/meetings/archive") home.archived = body.archived;
+        if (url.pathname === "/api/meetings/delete") home.deleted = body.deleted;
         if (url.pathname === "/api/meetings/type") { home.type = body.meeting_type; home.typeBy = body.meeting_type ? "you" : null; }
         if (url.pathname === "/api/folders/delete") {
           folders.list.splice(folders.list.findIndex((f) => f.folder_id === body.folder_id), 1);
@@ -184,7 +186,7 @@ test.beforeEach(async ({ page }) => {
   status.meta_key = true;
   audio.status = 404;
   audio.hits = 0;
-  Object.assign(home, { archived: false, type: null, typeBy: null, urgent: 1, posts: [] });
+  Object.assign(home, { archived: false, deleted: false, type: null, typeBy: null, urgent: 1, posts: [] });
   folders.list.length = 0;
   for (const k of Object.keys(folders.byMeeting)) delete folders.byMeeting[k];
 });
@@ -404,12 +406,11 @@ test("(10) a folder: create it from a meeting, filter by it, rename it, delete i
   await page.goto(baseURL + "/");
   await page.locator("#preview .new-folder").fill("Launch");
   await page.locator("#preview .create-folder").click();
-  // Karim 2026-11-04: folders and Archived live in one dropdown, not the tab row.
-  const tab = page.locator(".tabs .fmenu [data-tab^='f:']", { hasText: "Launch" });
+  // Karim 2026-11-04 22:25: projects sit in the main tab row; Archived and Deleted in the menu.
+  const tab = page.locator(".tabs > [data-tab^='f:']", { hasText: "Launch" });
   await expect(tab).toContainText("1");
-  await page.locator(".tabs .fmenu summary").click();
   await tab.click();
-  await expect(page.locator(".tabs .fmenu summary")).toContainText("Launch");
+  await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#list .row")).toHaveCount(1);
   await page.locator("[data-fdo=rename]").click();
   await page.locator("#frename").fill("Q4 launch");
@@ -984,4 +985,18 @@ test("(M13) Done moves an action to a Done column with its note; Undo brings it 
   await page.locator(".act.done [data-undone]").click();
   await expect(page.locator(".act.done")).toHaveCount(0);
   expect(posts[1]).toMatchObject({ done: false });
+});
+
+// Karim 2026-11-04 22:25: Deleted keeps a meeting 30 days, out of every other tab; Restore brings it back.
+test("(M14) Delete moves a meeting to Deleted (30 days); Restore brings it back", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#preview [data-delete]").click();
+  await expect(page.locator("#list .row")).toHaveCount(0);
+  await page.locator(".tabs .fmenu summary").click();
+  await page.locator(".tabs .fmenu [data-tab=deleted]").click();
+  await expect(page.locator("#list .row")).toHaveCount(1);
+  await expect(page.locator("#list .row")).toContainText("removed in 30 days");
+  await page.locator("#preview [data-delete]").click();
+  await page.locator(".tabs [data-tab=all]").click();
+  await expect(page.locator("#list .row")).toHaveCount(1);
 });
