@@ -6,7 +6,7 @@ import {
   type SetupForm,
 } from "./context";
 import { PairingError, pairWithCode } from "./pairing";
-import type { MicState, SavedSetup, SetupStorage, UrgencyStyle } from "./storage";
+import type { MicState, SavedSetup, SetupStorage, UrgencyStyle, ViewMode } from "./storage";
 import type { StartResult } from "./start_target";
 
 /** Minimal Port to the hub: the hub wraps the payload in an envelope. */
@@ -381,6 +381,28 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   }
   prefs.append(urgencySaved, seg);
   prefsSection.appendChild(prefs);
+
+  // Karim 2026-11-04: pick Frame even with a camera on (name in the tile corner).
+  const view = el("div", { id: "view-mode", class: "row" });
+  view.appendChild(el("span", { class: "f" }, "View"));
+  const viewSaved = el("span", { class: "ok", role: "status", hidden: "true" });
+  const viewSeg = el("span", { class: "seg", role: "radiogroup", "aria-label": "View" });
+  for (const [value, labelText, hint] of [["face", "Camera", "Name above the head"], ["frame", "Frame", "Name in the tile corner"]] as const) {
+    const radio = el("input", { type: "radio", name: "view-mode", value }) as HTMLInputElement;
+    radio.checked = (saved.viewMode ?? "face") === value;
+    radio.addEventListener("change", () => {
+      if (!radio.checked) return;
+      void deps.storage.saveViewMode(value as ViewMode).then(
+        () => flash(viewSaved, "Saved ✓"),
+        () => flash(viewSaved, "Not saved", 3000),
+      );
+    });
+    const option = el("label", { title: hint }, labelText);
+    option.prepend(radio);
+    viewSeg.appendChild(option);
+  }
+  view.append(viewSaved, viewSeg);
+  prefsSection.appendChild(view);
 
   /** Builds the meeting context from the form, stores it and sends it to the hub. */
   const saveContext = async (): Promise<void> => {

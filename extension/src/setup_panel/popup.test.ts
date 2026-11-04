@@ -418,6 +418,19 @@ describe("popup urgency toggle", () => {
     expect(await deps.storage.load()).toMatchObject({ urgencyStyle: "words" });
   });
 
+  it("view mode defaults to Camera and Frame is written at once (Karim 2026-11-04)", async () => {
+    const deps = depsWith();
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const camera = root.querySelector('input[name="view-mode"][value="face"]') as HTMLInputElement;
+    const frame = root.querySelector('input[name="view-mode"][value="frame"]') as HTMLInputElement;
+    expect(camera.checked).toBe(true);
+    frame.click();
+    await flush();
+    expect(await deps.storage.load()).toMatchObject({ viewMode: "frame" });
+  });
+
   it("restores a saved Symbols choice on reopen", async () => {
     const deps = depsWith();
     await deps.storage.saveUrgencyStyle("symbols");

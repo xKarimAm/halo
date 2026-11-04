@@ -11,6 +11,8 @@ import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
 // chrome types in this lane: structural access keeps the two lanes' globals
 // from colliding).
 export const URGENCY_STYLE_KEY = "halo.urgencyStyle";
+/** Popup "View": face (name above the head) or frame (tile corner). Same key as setup_panel. */
+export const VIEW_MODE_KEY = "halo.viewMode";
 interface LocalStore {
   get(keys: string[]): Promise<Record<string, unknown>>;
   set?(items: Record<string, unknown>): Promise<void>;
@@ -31,6 +33,23 @@ export async function readUrgencyStyle(): Promise<UrgencyStyle> {
     return v === "symbols" ? "symbols" : "words"; // default: draft-2 word tabs
   } catch {
     return "words";
+  }
+}
+
+/** Apply the stored view mode now, then follow popup changes live. */
+export function watchViewMode(overlay: Overlay, rerender: () => void): void {
+  try {
+    const api = chromeApi();
+    void api?.storage?.local?.get([VIEW_MODE_KEY])
+      .then((items) => { overlay.setViewMode(items?.[VIEW_MODE_KEY]); rerender(); }, () => {});
+    api?.storage?.onChanged?.addListener((changes) => {
+      if (VIEW_MODE_KEY in changes) {
+        overlay.setViewMode(changes[VIEW_MODE_KEY].newValue);
+        rerender();
+      }
+    });
+  } catch {
+    // storage unavailable (tests): stays on face.
   }
 }
 
@@ -81,6 +100,7 @@ export function boot(context: { port: PortIn }): Overlay {
     }
   });
   watchUrgencyStyle(overlay, rerender);
+  watchViewMode(overlay, rerender);
   const refresh = mountControls(document, overlay, context.port);
   overlay.requestRender = () => { rerender(); refresh(); }; // bubbles and the coach card
   syncPopover = mountPopover(document, overlay, root as unknown as Element, rerender);

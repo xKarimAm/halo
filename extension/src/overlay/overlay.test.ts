@@ -481,3 +481,19 @@ describe("the meeting ends: nothing lingers", () => {
     expect(overlay.notesToast).not.toBeNull();
   });
 });
+
+
+describe("view mode", () => {
+  it("Frame view keeps the name in the tile corner even when a face is found", () => {
+    const { overlay } = make();
+    overlay.applyFaces({ tile_id: "tile-1", frame_ts_ms: 0, engine: "sam", space: { frame_w: 640, frame_h: 360 },
+      face: { box: [0.4, 0.4, 0.15, 0.35], head_anchor: [0.475, 0.4], conf: 0.9 } });
+    expect(overlay.layout("tile-1").mode).toBe("face");
+    overlay.setViewMode("frame");
+    expect(overlay.layout("tile-1").mode).toBe("frame");
+    overlay.setViewMode("bogus");
+    expect(overlay.layout("tile-1").mode).toBe("frame");
+    overlay.setViewMode("face");
+    expect(overlay.layout("tile-1").mode).toBe("face");
+  });
+});

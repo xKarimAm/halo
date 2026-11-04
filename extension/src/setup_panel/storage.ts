@@ -3,6 +3,12 @@ import type { MeetingContext } from "../../../contracts/ext/gen/types";
 /** Bubble urgency-mark style (viewer setting, shared with the overlay lane). */
 export type UrgencyStyle = "words" | "symbols";
 
+/** Name tags: above the head (camera, face tracking) or in the tile corner (frame). */
+export type ViewMode = "face" | "frame";
+
+/** Storage key the overlay reads on boot and watches live (Karim 2026-11-04). */
+export const VIEW_MODE_KEY = "halo.viewMode";
+
 /** Microphone grant state (viewer setting, shown in the popup). */
 export type MicState = "granted" | "denied";
 
@@ -19,6 +25,7 @@ export interface SavedSetup {
   token?: string;
   context?: MeetingContext;
   urgencyStyle?: UrgencyStyle;
+  viewMode?: ViewMode;
   micState?: MicState;
   micLabel?: string;
 }
@@ -29,6 +36,7 @@ export interface SetupStorage {
   saveToken(token: string): Promise<void>;
   saveContext(context: MeetingContext): Promise<void>;
   saveUrgencyStyle(style: UrgencyStyle): Promise<void>;
+  saveViewMode(mode: ViewMode): Promise<void>;
   saveMicState(state: MicState): Promise<void>;
 }
 
@@ -45,7 +53,7 @@ export interface StorageArea {
 export function chromeSetupStorage(area: StorageArea): SetupStorage {
   return {
     async load(): Promise<SavedSetup> {
-      const items = await area.get([TOKEN_KEY, CONTEXT_KEY, URGENCY_STYLE_KEY, MIC_STATE_KEY]);
+      const items = await area.get([TOKEN_KEY, CONTEXT_KEY, URGENCY_STYLE_KEY, VIEW_MODE_KEY, MIC_STATE_KEY]);
       const saved: SavedSetup = {};
       if (typeof items[TOKEN_KEY] === "string") {
         saved.token = items[TOKEN_KEY] as string;
@@ -57,6 +65,8 @@ export function chromeSetupStorage(area: StorageArea): SetupStorage {
       if (style === "words" || style === "symbols") {
         saved.urgencyStyle = style;
       }
+      const view = items[VIEW_MODE_KEY];
+      if (view === "face" || view === "frame") saved.viewMode = view;
       const mic = items[MIC_STATE_KEY];
       if (mic === "granted" || mic === "denied") {
         saved.micState = mic;
@@ -72,6 +82,9 @@ export function chromeSetupStorage(area: StorageArea): SetupStorage {
     },
     async saveUrgencyStyle(style: UrgencyStyle): Promise<void> {
       await area.set({ [URGENCY_STYLE_KEY]: style });
+    },
+    async saveViewMode(mode: ViewMode): Promise<void> {
+      await area.set({ [VIEW_MODE_KEY]: mode });
     },
     async saveMicState(state: MicState): Promise<void> {
       await area.set({ [MIC_STATE_KEY]: state });
@@ -94,6 +107,9 @@ export function memorySetupStorage(seed: SavedSetup = {}): SetupStorage {
     },
     async saveUrgencyStyle(style: UrgencyStyle): Promise<void> {
       saved = { ...saved, urgencyStyle: style };
+    },
+    async saveViewMode(mode: ViewMode): Promise<void> {
+      saved = { ...saved, viewMode: mode };
     },
     async saveMicState(state: MicState): Promise<void> {
       saved = { ...saved, micState: state };

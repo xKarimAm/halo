@@ -117,6 +117,11 @@ export class Overlay {
   private overflowEls = new Map<string, El>();
   private expanded = new Set<string>(); // tiles whose +N the viewer opened
   urgencyStyle: UrgencyStyle = "words";
+  viewMode: "face" | "frame" = "face"; // frame: never follow a face (popup "View")
+
+  setViewMode(mode: unknown): void {
+    if (mode === "face" || mode === "frame") this.viewMode = mode;
+  }
 
   constructor(private clock: { now: number }) {}
 
@@ -267,7 +272,7 @@ export class Overlay {
     // stackPos (page space for Face mode, tile space for Frame mode).
     // null captions_rect = no floor.
     const captionsTop = tile?.captions_rect ? tile.captions_rect[1] : null;
-    if (tile && face && index >= 0 && index < 6) {
+    if (tile && face && this.viewMode === "face" && index >= 0 && index < 6) {
       const box = projectFaceBox(tile, face.box);
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
       const right = roomRight >= box.x - tile.rect[0];
