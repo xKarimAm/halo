@@ -1049,3 +1049,21 @@ test("(M16) Induction tours the home, carries on into a meeting and ends on the 
   await page.locator(".tour-card .pv-open").click();
   await expect(page.locator("#tour")).toHaveCount(0);
 });
+
+test("(M17) Arabic UI keeps English content left to right, dates and roles in Arabic", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  p.people.forEach((x) => { x.role = "Participant"; });
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await page.locator('[data-lang="ar"]').click();
+  await expect(page.locator("html[dir='rtl']")).toBeAttached();
+  // an English point keeps its own direction, so its full stop stays at the end
+  const dirs = await page.locator(".act .atext").evaluateAll((ns) => ns.map((n) => getComputedStyle(n).direction));
+  expect(dirs.length).toBeGreaterThan(0);
+  expect(dirs.every((d) => d === "ltr")).toBe(true);
+  await expect(page.locator(".rl").first()).toHaveText("مشارك");
+  await expect(page.locator("#view")).not.toContainText("Participant");
+  const facts = await page.locator(".head .facts").textContent();
+  expect(facts).toMatch(/[\u0600-\u06FF]/); // the weekday and month are Arabic
+});

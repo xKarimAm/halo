@@ -89,7 +89,7 @@
       tabOthers: "With others", tabArchived: "Archived", noCapture: "Nothing captured", archivedTag: "Archived",
       sinceHead: "Since your last visit ({w}):", nothingNew: "Nothing new since your last visit ({w}).",
       nNew1: "1 new meeting", nNew: "{n} new meetings", nMine1: "1 action item in them for you", nMine: "{n} action items in them for you",
-      nAct1: "1 action item in them", nAct: "{n} action items in them", nUrg: "{n} urgent", seen: "Mark as seen", unseen: "Show again",
+      nAct1: "1 action item in them", nAct: "{n} action items in them", nUrg: "{n} urgent", seen: "Mark as seen", participant: "Participant", unseen: "Show again",
       newTip: "New since your last visit", sortedBy: "Sorted by Halo", allClear: "All clear. Nothing needs you right now.",
       emptyTab: "No meetings here yet.", renameF: "Rename project", deleteF: "Delete project", save: "Save", cancel: "Cancel",
       deleteQ: "Delete “{n}”? Its meetings stay, outside any project.", del: "Delete",
@@ -183,7 +183,7 @@
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
       sinceHead: "منذ زيارتك الأخيرة ({w}):", nothingNew: "لا جديد منذ زيارتك الأخيرة ({w}).",
       nNew1: "اجتماع جديد واحد", nNew: "اجتماعات جديدة: {n}", nMine1: "فيها مهمة واحدة لك", nMine: "فيها مهام لك: {n}",
-      nAct1: "فيها مهمة واحدة", nAct: "فيها مهام: {n}", nUrg: "عاجل: {n}", seen: "تمت المشاهدة", unseen: "أظهرها مجدداً",
+      nAct1: "فيها مهمة واحدة", nAct: "فيها مهام: {n}", nUrg: "عاجل: {n}", seen: "تعليم كمقروء", participant: "مشارك", unseen: "أظهرها مجدداً",
       newTip: "جديد منذ زيارتك الأخيرة", sortedBy: "رتّبها Halo", allClear: "لا شيء يحتاجك الآن.",
       emptyTab: "لا اجتماعات هنا بعد.", renameF: "إعادة تسمية المشروع", deleteF: "حذف المشروع", save: "حفظ", cancel: "إلغاء",
       deleteQ: "حذف «{n}»؟ تبقى اجتماعاته خارج أي مشروع.", del: "حذف",
@@ -283,6 +283,11 @@
     return page;
   }
 
+  // The backend's default role is the English word; show it in the page language.
+  function roleText(role, lang) {
+    return role === "Participant" ? t(lang, "participant") : role;
+  }
+
   function rtlText(text) {
     return /^[^A-Za-z\u0590-\u08FF]*[\u0590-\u08FF]/.test(String(text || ""));
   }
@@ -295,12 +300,16 @@
   function alignArabic(root) {
     if (!root || !root.querySelectorAll) return;
     var nodes = Array.prototype.slice.call(root.querySelectorAll(TEXT_BLOCKS));
+    var rtlPage = root.ownerDocument && root.ownerDocument.documentElement.dir === "rtl";
     if (root.matches && root.matches(TEXT_BLOCKS)) nodes.push(root);
     nodes.forEach(function (n) {
       var d = n.getAttribute("dir");
       if (d === "rtl" || d === "ltr") return; // a renderer already decided
       for (var c = n.firstElementChild; c; c = c.nextElementSibling) if (!INLINE[c.tagName]) return;
-      if (rtlText(n.textContent.trim())) n.setAttribute("dir", "rtl");
+      var text = n.textContent.trim();
+      if (rtlText(text)) n.setAttribute("dir", "rtl");
+      // On the Arabic page, English content keeps its own order (the full stop at its end).
+      else if (rtlPage && /^[^A-Za-z֐-ࣿ]*[A-Za-z]/.test(text)) n.setAttribute("dir", "ltr");
     });
   }
 
@@ -551,7 +560,10 @@
     var badge = el("span", "badge " + (assigned ? "as" : "sg"),
       t(lang, assigned ? "assigned" : "suggested"));
     badge.title = t(lang, assigned ? "asNote" : "sgNote");
-    var body = el("div", "body", action.text);
+    var body = el("div", "body");
+    var words = el("span", "atext", action.text); // its own direction, whatever the page's
+    words.dir = "auto";
+    body.appendChild(words);
     // The Assigned pill already says it was said aloud; only a suggestion explains itself.
     if (!assigned) body.appendChild(el("small", null, t(lang, "sgNote")));
     var ameta = el("div", "ameta");
@@ -565,9 +577,6 @@
     // Karim 2026-11-04: a handled action leaves Urgent / Needs action, with what was done.
     if (action.done) {
       li.classList.add("done");
-      var tn = body.firstChild, struck = el("span", "atext"); // only the action's own words are struck
-      body.replaceChild(struck, tn);
-      struck.appendChild(tn);
       var undo = el("button", "chip", t(lang, "doneUndo"));
       undo.type = "button";
       undo.dataset.undone = action.action_id;
@@ -634,7 +643,8 @@
   }
 
   function fmtDate(ms) {
-    return ms ? new Date(ms).toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }) : "";
+    var ar = typeof document !== "undefined" && document.documentElement.lang === "ar";
+    return ms ? new Date(ms).toLocaleDateString(ar ? "ar" : "en-GB", { weekday: "short", day: "2-digit", month: "short" }) : "";
   }
 
   function mailHref(m, action, lang) {
@@ -922,7 +932,7 @@
     head.appendChild(avatar(person.name));
     var title = el("div");
     title.appendChild(el("h2", null, person.name));
-    var sub = el("div", "sub", person.role);
+    var sub = el("div", "sub", roleText(person.role, lang));
     sub.title = t(lang, "role");
     title.appendChild(sub);
     head.appendChild(title);
@@ -1199,7 +1209,7 @@
       btn.style.setProperty("--h", String(hueOf(person.name)));
       btn.appendChild(avatar(person.name));
       btn.appendChild(el("span", "nm", person.name));
-      var rl = el("span", "rl", person.role);
+      var rl = el("span", "rl", roleText(person.role, lang));
       rl.title = t(lang, "role");
       btn.appendChild(rl);
       people.appendChild(btn);
@@ -1709,7 +1719,7 @@
   }
 
   // ---- The preview's recording line: audio, marks, tip, flag, Replay, the living line ----
-  var PREVIEW_REST_MS = 250;
+  var PREVIEW_REST_MS = 400;
   var LIVING = { sg: 60, follow: 0.12, k: 0.08, damp: 0.78, phs: 0.045 };
   var lineSeq = 0;
 
