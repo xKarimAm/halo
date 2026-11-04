@@ -61,7 +61,9 @@ POINT_RESULT_SCHEMA: dict[str, Any] = {
 INSTRUCTIONS = (
     "Live meeting note. Reply with one JSON object for the new words below. "
     "kind: point|question|decision|pushback, or none for filler, greetings, "
-    "mic checks, small talk or a sentence cut off before its point. "
+    "mic checks, small talk, a sentence cut off before its point, or a fragment "
+    "that only reacts (looks good, it's okay) with no claim of its own; never "
+    "finish a fragment with words nobody said. "
     "text: the point as one short sentence (at most 12 words) with a capital "
     "first letter, ending with a period (a question mark for a question), "
     "in the viewer language. rank: 1-3 (1 = most important). "
