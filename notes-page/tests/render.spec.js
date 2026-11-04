@@ -714,3 +714,23 @@ test("(H11) the Simple/Detailed pill: a slim pill whose knob sits inside it", as
   expect(m.kL).toBeGreaterThanOrEqual(m.segL + 2);
   expect(m.t).toMatch(/^matrix\(1, 0, 0, 1,/); // moved, never stretched
 });
+
+test("(H12) Coaching tips: everything the coach said, on the preview and the meeting page", async ({ page }) => {
+  const coached = JSON.parse(JSON.stringify(GOLDEN));
+  coached.coaching = [
+    { text: "Ask Omar for the date.", alert: false, at_ms: 60000 },
+    { text: "Take a breath; your tone is rising.", alert: true, at_ms: 90000 },
+    { text: "Park the pricing talk.", alert: false, at_ms: 90000 },
+    { text: "Invite Layla in.", alert: false, at_ms: 120000 },
+    { text: "Agree on an owner.", alert: false, at_ms: 150000 },
+  ];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(coached) }));
+  await page.goto(baseURL + "/");
+  const plate = page.locator("#view.home .plate.p-coach");
+  await expect(plate.locator("h3")).toContainText("Coaching tips");
+  await expect(plate.locator("li.c-alert")).toContainText("Take a breath");
+  await expect(plate).toContainText("Agree on an owner."); // all of it, not the first three
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".board.coach .coach-item")).toHaveCount(5);
+  await expect(page.locator(".board.coach .coach-item.c-alert")).toContainText("Take a breath");
+});

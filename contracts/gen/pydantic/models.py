@@ -177,6 +177,14 @@ class MeetingPageFactChecks(BaseModel):
     sources: list[str]
 
 
+class MeetingPageCoaching(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    text: str
+    alert: bool
+    at_ms: int
+
+
 class MeetingPage(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -187,6 +195,7 @@ class MeetingPage(BaseModel):
     transcript_lines: list[MeetingPageTranscriptLines]
     recording: MeetingPageRecording
     fact_checks: list[MeetingPageFactChecks] | None = None
+    coaching: list[MeetingPageCoaching] | None = None
     visual_recap: bool | None = None
 
 class MeetingContextRoles(BaseModel):

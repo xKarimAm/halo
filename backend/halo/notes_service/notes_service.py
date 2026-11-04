@@ -225,7 +225,26 @@ class NotesService:
             "SELECT data FROM events WHERE type = 'claim.checked' AND meetingid = ? ORDER BY seq",
             (meeting_id,))]
         return {"meeting": meeting, "turns": turns, "points": points, "tags": tags, "context": context,
-                "ready": ready, "checks": list({c["point_id"]: c for c in checks}.values())}
+                "ready": ready, "checks": list({c["point_id"]: c for c in checks}.values()),
+                "coaching": self._coaching(conn, meeting_id, meeting["t0_ms"] or 0)}
+
+    def _coaching(self, conn: sqlite3.Connection, meeting_id: str, t0_ms: int) -> list[dict[str, Any]]:
+        """Every tip and alert the coach showed, each text once, oldest first."""
+        seen: dict[str, dict[str, Any]] = {}
+        for time_s, data in conn.execute(
+                "SELECT time, data FROM events WHERE type = 'coach.tips' AND meetingid = ? ORDER BY seq",
+                (meeting_id,)):
+            try:
+                tips = json.loads(data)
+                at_ms = max(0, int(datetime.fromisoformat(time_s).timestamp() * 1000) - t0_ms)
+            except (ValueError, TypeError):
+                continue
+            said = [(tips["alert"], True)] if tips.get("alert") else []
+            said += [(tip, False) for tip in tips.get("tips") or []]
+            for text, alert in said:
+                if isinstance(text, str) and text.strip() and text.strip().lower() not in seen:
+                    seen[text.strip().lower()] = {"text": text.strip()[:160], "alert": alert, "at_ms": at_ms}
+        return list(seen.values())
 
     def _turns(self, conn: sqlite3.Connection, meeting_id: str) -> list[dict[str, Any]]:
         turns = []
@@ -445,6 +464,8 @@ class NotesService:
         if store["checks"]:
             page["fact_checks"] = [{k: c[k] for k in ("point_id", "claim", "speaker_name", "verdict",
                                                       "note", "sources")} for c in store["checks"]]
+        if store["coaching"]:
+            page["coaching"] = store["coaching"]
         return page
 
     # -- list / search ---------------------------------------------------------

@@ -56,6 +56,7 @@
       noSpeech: "No speech was captured in this meeting.",
       recapBtn: "Visual recap", recapBusy: "Muse Image is drawing, about 20 s…", recapFail: "The recap could not be drawn. Try again.",
       recapAlt: "Visual recap of this meeting, drawn by Muse Image.",
+      coachT: "Coaching tips", coachNote: "Everything the coach showed you in this meeting.", alertT: "Alert",
       fact: "Fact checks", factNote: "Numbers said in the call, checked on the web by Muse Spark.",
       factOk: "Checks out", factBad: "Disputed",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
@@ -135,6 +136,7 @@
       noSpeech: "لم يُلتقط أي كلام في هذا الاجتماع.",
       recapBtn: "ملخص مرسوم", recapBusy: "Muse Image يرسم الآن، نحو 20 ثانية…", recapFail: "تعذّر رسم الملخص. حاول مرة أخرى.",
       recapAlt: "ملخص مرسوم لهذا الاجتماع من Muse Image.",
+      coachT: "نصائح المدرب", coachNote: "كل ما عرضه عليك المدرب في هذا الاجتماع.", alertT: "تنبيه",
       fact: "التحقق من المعلومات", factNote: "أرقام قيلت في الاجتماع، تحقق منها Muse Spark عبر الويب.",
       factOk: "صحيح", factBad: "غير دقيق",
       keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
@@ -659,6 +661,23 @@
     return section;
   }
 
+  function coachBoard(app, lang) {
+    var list = app.page.coaching || [];
+    if (!list.length || app.cat !== "all") return null;
+    var section = el("section", "board glass coach");
+    section.appendChild(el("h2", null, t(lang, "coachT")));
+    section.appendChild(el("p", "fact-sub", t(lang, "coachNote")));
+    list.forEach(function (c) {
+      var item = el("div", "coach-item" + (c.alert ? " c-alert" : ""));
+      var text = el("p", null, c.text);
+      text.dir = "auto";
+      item.appendChild(text);
+      item.appendChild(el("small", null, (c.alert ? t(lang, "alertT") + " · " : "") + clock(c.at_ms)));
+      section.appendChild(item);
+    });
+    return section;
+  }
+
   // Claims checked on the web (Spark search grounding). The links are the URLs
   // the search returned; anything but http(s) stays plain text out of the page.
   function factBoard(app, lang) {
@@ -928,6 +947,8 @@
       if (dis) stage.appendChild(dis);
       var facts = factBoard(app, lang);
       if (facts) stage.appendChild(facts);
+      var coach = coachBoard(app, lang);
+      if (coach) stage.appendChild(coach);
       if (app.cat === "all" && !page.meeting.in_progress) stage.appendChild(recapBoard(app, lang));
       var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
       (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
@@ -1071,7 +1092,10 @@
     return {
       id: page.meeting.meeting_id, title: titleOf(page.meeting), summary: page.meeting.summary || "",
       t0: page.meeting.t0_ms, duration: dur, points: points, actions: actions, people: people,
-      disagreements: page.meeting.disagreements || []
+      disagreements: page.meeting.disagreements || [],
+      coaching: (page.coaching || []).map(function (c) {
+        return { text: c.text, alert: !!c.alert, at: Math.min(dur, Math.max(0, c.at_ms + (page.meeting.t0_ms || base) - base)) };
+      })
     };
   }
 
@@ -1295,6 +1319,20 @@
       if (ps.length > 3) h += '<li class="more">' + esc(t(lang, "nMore", { n: ps.length - 3 })) + "</li>";
       h += "</ul></section>";
     });
+    if (m.coaching.length) {
+      h += '<section class="plate p-coach"><h3>' + esc(t(lang, "coachT")) + " <em>" + m.coaching.length + "</em></h3><ul>";
+      var li = function (c) {
+        return "<li" + (c.alert ? ' class="c-alert"' : "") + '><span dir="auto">' + esc(c.text) + "</span><small>" +
+          (c.alert ? esc(t(lang, "alertT")) + " · " : "") + clock(c.at) + "</small></li>";
+      };
+      // A 13 min call had 47; the first four show, the rest open in place.
+      h += m.coaching.slice(0, 4).map(li).join("") + "</ul>";
+      if (m.coaching.length > 4) {
+        h += '<details><summary class="more">' + esc(t(lang, "nMore", { n: m.coaching.length - 4 })) + "</summary><ul>" +
+          m.coaching.slice(4).map(li).join("") + "</ul></details>";
+      }
+      h += "</section>";
+    }
     return h || '<section class="plate p-sum"><h3>' + esc(t(lang, "sumT")) + "</h3><p>" + esc(t(lang, "nothing")) + "</p></section>";
   }
 

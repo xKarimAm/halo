@@ -139,6 +139,12 @@ export interface MeetingPageFactChecks {
   sources: string[];
 }
 
+export interface MeetingPageCoaching {
+  text: string;
+  alert: boolean;
+  at_ms: number;
+}
+
 export interface MeetingPage {
   meeting: MeetingPageMeeting;
   people: MeetingPagePeople[];
@@ -147,6 +153,7 @@ export interface MeetingPage {
   transcript_lines: MeetingPageTranscriptLines[];
   recording: MeetingPageRecording;
   fact_checks?: MeetingPageFactChecks[];
+  coaching?: MeetingPageCoaching[];
   visual_recap?: boolean;
 }
 

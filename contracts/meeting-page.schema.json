@@ -363,6 +363,35 @@
         "additionalProperties": false
       }
     },
+    "coaching": {
+      "type": "array",
+      "description": "Everything the coach showed the viewer in this meeting, oldest first, each text once; absent when none.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "alert": {
+            "type": "boolean",
+            "description": "True for an alert (act now), false for a steering tip."
+          },
+          "at_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "When it was shown, from the meeting start."
+          }
+        },
+        "required": [
+          "text",
+          "alert",
+          "at_ms"
+        ],
+        "additionalProperties": false
+      }
+    },
     "visual_recap": {
       "type": "boolean",
       "description": "True when a Muse Image recap is saved for this meeting (GET /api/meetings/{id}/recap)."

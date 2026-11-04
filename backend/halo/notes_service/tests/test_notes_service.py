@@ -13,6 +13,7 @@ import sqlite3
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -382,10 +383,38 @@ def test_page_lists_fact_checks_newest_per_point(tmp_path):
     assert [c["note"] for c in page["fact_checks"]] == ["New note."]
 
 
+def test_page_lists_everything_the_coach_said_once_oldest_first(tmp_path):
+    # Karim 2026-11-04: "have everything the coach has said to me" on the meeting page.
+    db = tmp_path / "events.sqlite"
+    seed_db(db)
+    conn = sqlite3.connect(db)
+    at = lambda s: datetime.fromtimestamp(T0 / 1000 + s, UTC).isoformat()
+    for n, (sec, data) in enumerate([
+        (60, {"tips": ["Ask Omar for the date."], "lang": "en"}),
+        (90, {"tips": ["Ask Omar for the date.", "Park the pricing talk."], "alert": "Take a breath; your tone is rising.",
+              "lang": "en"}),
+        (120, {"tips": [], "lang": "en"}),
+    ]):
+        conn.execute(
+            "INSERT INTO events (id, type, time, meetingid, source, datacontenttype, data)"
+            " VALUES (?, 'coach.tips', ?, ?, 'halo/coach', 'application/json', ?)",
+            (f"ct-{n}", at(sec), MEETING, json.dumps(data)))
+    conn.commit()
+    conn.close()
+    page = NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    assert_valid_page(page)
+    assert page["coaching"] == [
+        {"text": "Ask Omar for the date.", "alert": False, "at_ms": 60_000},
+        {"text": "Take a breath; your tone is rising.", "alert": True, "at_ms": 90_000},
+        {"text": "Park the pricing talk.", "alert": False, "at_ms": 90_000},
+    ]
+
+
 def test_page_without_fact_checks_has_no_key(tmp_path):
     db = tmp_path / "events.sqlite"
     seed_db(db)
-    assert "fact_checks" not in NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    page = NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+    assert "fact_checks" not in page and "coaching" not in page
 
 
 class ImageLLM:
