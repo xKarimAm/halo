@@ -3032,9 +3032,13 @@
     var tourBtn = doc.getElementById("tourBtn");
     if (tourBtn) tourBtn.addEventListener("click", function () { startTour(app); });
     window.__haloApp = app; // tests and the console
+    // The extension's one-time welcome page links here with ?tour=1 (Karim 2026-11-04).
+    // The flag leaves the address at once, so a reload or a bookmark never restarts it.
+    var tourOnce = /[?&]tour=1(&|$)/.test(window.location.search);
+    if (tourOnce) window.history.replaceState(null, "", window.location.pathname);
     var first = meetingId || idFromPath();
     if (first) app.openMeeting(first, false);
-    else app.loadMeetings(false);
+    else Promise.resolve(app.loadMeetings(false)).then(function () { if (tourOnce) startTour(app); });
     return app;
   }
 

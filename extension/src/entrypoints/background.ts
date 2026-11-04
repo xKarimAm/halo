@@ -12,6 +12,7 @@
 //   opened before the hub existed, so its meeting.context never arrived.
 // - Writes: the hub sends "halo/storage.set" and the worker applies them.
 import { defineBackground } from "wxt/sandbox";
+import { welcomeOnInstall } from "../hub_capture/welcome";
 
 declare const chrome: any;
 
@@ -31,6 +32,8 @@ async function takeStart(): Promise<{ start: unknown; token: string; extVersion:
 }
 
 export default defineBackground(() => {
+  chrome.runtime.onInstalled?.addListener((details: { reason: string }) =>
+    welcomeOnInstall(details, chrome.tabs, (p: string) => chrome.runtime.getURL(p)));
   chrome.runtime.onMessage.addListener(
     (msg: { type?: string; items?: Record<string, unknown> }, _sender: unknown, reply: (r: unknown) => void) => {
       if (msg?.type === "halo/storage.set" && msg.items) {

@@ -1071,3 +1071,13 @@ test("(M17) Arabic UI keeps English content left to right, dates and roles in Ar
   const facts = await page.locator(".mband .facts").textContent();
   expect(facts).toMatch(/[\u0600-\u06FF]/); // the weekday and month are Arabic
 });
+
+test("(M18) the welcome page's link starts the tour once; a reload never restarts it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(baseURL + "/?tour=1");
+  await expect(page.locator(".tour-card h2")).toHaveText("Halo");
+  expect(page.url()).not.toContain("tour=1");
+  await page.reload();
+  await page.locator("#list .row").first().waitFor();
+  await expect(page.locator("#tour")).toHaveCount(0);
+});
