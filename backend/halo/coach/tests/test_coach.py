@@ -274,8 +274,8 @@ def test_the_prompt_remembers_earlier_tips_not_only_the_last_set():
 
 
 def test_an_alert_read_aloud_is_not_proof_of_a_new_one():
-    # Live 2026-11-04: Karim read "Lower your tone with Test User" aloud and got
-    # "Karim, lower your tone." for his own reading.
+    # Live 2026-11-04: the viewer read "Lower your tone with Omar" aloud and got
+    # "Karim, lower your tone." for their own reading.
     async def run():
         bus, _llm, coach, tips, clock = setup([
             {"tips": [], "alert": "Let Omar finish.", "alert_quote": "wait wait"},
