@@ -77,6 +77,8 @@
       cmpT: "Compared with {n}", cmpHere: "This meeting", cmpThere: "Your notes",
       r_agrees: "Agrees", r_differs: "Differs", r_followup: "Follow-up", r_new: "New here", refClear: "Remove", refFail: "That file could not be added.",
       yourNotes: "Your notes:", txOpen: "Expand", txShut: "Collapse",
+      tourBtn: "Induction", tourWhat: "What:", tourWhy: "Why:", tourHow: "How:", tourNext: "Next", tourBack: "Back",
+      tourDone: "Finish", tourOpen: "Open a meeting", tourClose: "Close the tour",
       binT: "Archive", tabDeleted: "Deleted", delMeeting: "Delete", restore: "Restore",
       deletedToast: "Moved to Deleted. It stays there 30 days.", purgeIn: "Deleted · removed in {n} days",
       doneBtn: "Done", donePh: "What was done? (optional)", doneSave: "Mark done", doneCancel: "Cancel",
@@ -170,6 +172,8 @@
       cmpT: "مقارنة مع {n}", cmpHere: "هذا الاجتماع", cmpThere: "ملاحظاتك",
       r_agrees: "متفق", r_differs: "مختلف", r_followup: "متابعة", r_new: "جديد هنا", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
       yourNotes: "ملاحظاتك:", txOpen: "توسيع", txShut: "طي",
+      tourBtn: "جولة تعريفية", tourWhat: "ما هو:", tourWhy: "لماذا:", tourHow: "كيف:", tourNext: "التالي", tourBack: "السابق",
+      tourDone: "إنهاء", tourOpen: "افتح اجتماعاً", tourClose: "أغلق الجولة",
       binT: "الأرشيف", tabDeleted: "المحذوفة", delMeeting: "حذف", restore: "استعادة",
       deletedToast: "نُقل إلى المحذوفة، ويبقى فيها 30 يوماً.", purgeIn: "محذوف · يُزال خلال {n} يوماً",
       doneBtn: "تم", donePh: "ماذا تم؟ (اختياري)", doneSave: "تأكيد", doneCancel: "إلغاء",
@@ -3004,11 +3008,288 @@
       var bar = doc.getElementById("keybar");
       if (bar && s && s.meta_key === false) bar.hidden = false;
     }).catch(function () {});
+    var tourBtn = doc.getElementById("tourBtn");
+    if (tourBtn) tourBtn.addEventListener("click", function () { startTour(app); });
     window.__haloApp = app; // tests and the console
     var first = meetingId || idFromPath();
     if (first) app.openMeeting(first, false);
     else app.loadMeetings(false);
     return app;
+  }
+
+  // -- Induction: a guided tour of every feature (Karim 2026-11-04 22:34) -------------
+  // Each step names what the feature is, why it exists and how it is built. Steps
+  // whose element is not on screen are skipped; a step with no selector is a centred card.
+  var TOUR_HOME = [
+    { sel: ".top .logo", en: ["Halo", "A live meeting copilot for Google Meet, and for Zoom and Teams on the web, in Arabic and English.",
+      "Decisions and tasks get lost in calls. Halo writes them down while they are said, so nobody takes notes.",
+      "A Chrome extension captures the call tab and your mic. A backend on this PC runs Meta's models and serves this page. Your data stays here."],
+      ar: ["هالو", "مساعد مباشر للاجتماعات في Google Meet وفي Zoom وTeams على الويب، بالعربية والإنجليزية.",
+      "القرارات والمهام تضيع في المكالمات. يكتبها هالو لحظة قولها، فلا يحتاج أحد لتدوين الملاحظات.",
+      "إضافة Chrome تلتقط صوت تبويب المكالمة وميكروفونك، وخادم على هذا الجهاز يشغّل نماذج Meta ويعرض هذه الصفحة. بياناتك تبقى هنا."] },
+    { sel: "#q", en: ["Search", "Search every meeting's points, action items and transcript at once.",
+      "You can find what was said without opening each meeting.",
+      "Every event is stored in a local SQLite database with full-text search. Nothing leaves this PC."],
+      ar: ["البحث", "ابحث في نقاط كل الاجتماعات ومهامها ونصوصها مرة واحدة.",
+      "تجد ما قيل دون فتح كل اجتماع.",
+      "كل حدث محفوظ في قاعدة SQLite محلية مع بحث نصي كامل، ولا يغادر شيء هذا الجهاز."] },
+    { sel: "#askq", en: ["Ask", "Ask a question across all your meetings, like \"what did we decide about pricing?\"",
+      "One answer with its sources beats rereading five meetings.",
+      "Muse Spark reads your meetings' summaries, points and lines, answers, and cites each line so you can jump to it."],
+      ar: ["اسأل", "اطرح سؤالاً على كل اجتماعاتك، مثل: «ماذا قررنا بشأن التسعير؟»",
+      "إجابة واحدة مع مصادرها أفضل من إعادة قراءة خمسة اجتماعات.",
+      "يقرأ Muse Spark ملخصات اجتماعاتك ونقاطها وسطورها، ثم يجيب ويستشهد بكل سطر لتنتقل إليه."] },
+    { sel: ".tabs", en: ["Tabs and projects", "Urgent, Needs action and With others sort meetings by what needs you. Your projects sit next to them; Archived and Deleted are in the Archive menu.",
+      "You triage by what is open, not by date.",
+      "The Classifier (Muse Spark) sets each item's urgency every 10 seconds during the call; your own re-tag always wins. Marking an action Done takes it out of these tabs. Deleted keeps a meeting for 30 days."],
+      ar: ["التبويبات والمشاريع", "«عاجل» و«يحتاج إجراء» و«مع آخرين» ترتب الاجتماعات حسب ما يحتاجك، ومشاريعك بجانبها، والمؤرشفة والمحذوفة في قائمة الأرشيف.",
+      "تفرز حسب ما هو مفتوح، لا حسب التاريخ.",
+      "يحدد المصنّف (Muse Spark) أولوية كل بند كل 10 ثوانٍ أثناء المكالمة، وتعديلك يتقدم دائماً. عند وضع «تم» على مهمة تخرج من هذه التبويبات، والمحذوف يبقى 30 يوماً."] },
+    { sel: ".types", en: ["Meeting types", "Halo sorts each meeting into a type: sprint, planning, product discovery and more.",
+      "You can filter a long list down to one kind of meeting.",
+      "The Notes Builder labels the meeting when it ends. If you pick a different type, your choice is kept."],
+      ar: ["أنواع الاجتماعات", "يصنّف هالو كل اجتماع: سبرنت، تخطيط، اكتشاف منتج وغيرها.",
+      "تصفّي قائمة طويلة إلى نوع واحد.",
+      "يضع منشئ الملاحظات النوع عند انتهاء الاجتماع، وإن اخترت نوعاً آخر يُحفظ اختيارك."] },
+    { sel: "#list", en: ["The meeting list", "Each row is one meeting, with a timeline of when its decisions, questions and pushbacks happened.",
+      "You see a meeting's shape at a glance: where it decided, where it argued.",
+      "Every point keeps the transcript turn it came from, so its mark sits at its real minute."],
+      ar: ["قائمة الاجتماعات", "كل صف اجتماع، مع خط زمني لمتى جاءت قراراته وأسئلته واعتراضاته.",
+      "ترى شكل الاجتماع بنظرة: أين قرر وأين اختلف.",
+      "كل نقطة تحتفظ بالسطر الذي جاءت منه، فتظهر علامتها في دقيقتها الحقيقية."] },
+    { sel: "#preview", en: ["Preview", "The selected meeting: summary, action items, coaching tips and the recording's timeline.",
+      "You can decide what to do without opening the meeting.",
+      "Select a row; the preview loads that meeting's page. Play the timeline to hear any moment."],
+      ar: ["المعاينة", "الاجتماع المختار: الملخص والمهام ونصائح التدريب والخط الزمني للتسجيل.",
+      "تقرر ما تفعله دون فتح الاجتماع.",
+      "اختر صفاً فتُحمَّل صفحة ذلك الاجتماع، وشغّل الخط الزمني لتسمع أي لحظة."] },
+    { sel: ".pfoot", en: ["File it", "Put the meeting in a project, archive it, delete it, or open its full page.",
+      "A short list stays useful. Projects group meetings that belong together.",
+      "Projects and archive state live in one small file on this PC; Delete can be undone for 30 days."],
+      ar: ["رتّبه", "ضع الاجتماع في مشروع، أو أرشفه، أو احذفه، أو افتح صفحته الكاملة.",
+      "القائمة القصيرة تبقى مفيدة، والمشاريع تجمع الاجتماعات المترابطة.",
+      "المشاريع والأرشيف محفوظة في ملف صغير على هذا الجهاز، والحذف يمكن التراجع عنه 30 يوماً."] },
+    { open: true, en: ["Now a meeting", "Next, the page of one meeting: everything Halo wrote down in that call.", "", ""],
+      ar: ["الآن اجتماع", "التالي صفحة اجتماع واحد: كل ما كتبه هالو في تلك المكالمة.", "", ""] }
+  ];
+  var TOUR_MEETING = [
+    { sel: ".head h1", up: ".head", en: ["Title and summary", "An AI title and summary, written in the meeting's own language, plus Email follow-up.",
+      "It is the paragraph you would send afterwards, ready when the call ends.",
+      "The Notes Builder (Muse Spark) reads the whole meeting once it ends. Email follow-up drafts a message with the action items."],
+      ar: ["العنوان والملخص", "عنوان وملخص بالذكاء الاصطناعي بلغة الاجتماع نفسها، مع زر «بريد المتابعة».",
+      "هي الفقرة التي سترسلها بعد الاجتماع، جاهزة عند انتهائه.",
+      "يقرأ منشئ الملاحظات (Muse Spark) الاجتماع كاملاً عند انتهائه، ويجهّز زر البريد رسالة بالمهام."] },
+    { sel: ".refrow", en: ["Your notes", "Add a Markdown file. During a meeting, every claim is fact-checked against it live. Afterwards, Halo compares the two meetings.",
+      "Last week's notes are the best check on this week's call.",
+      "Muse Spark checks each claim against your notes and the web; a quote from your notes is shown only if it is in the file word for word. Afterwards, one call lists what agrees, differs or needs follow-up."],
+      ar: ["ملاحظاتك", "أضف ملف Markdown. أثناء الاجتماع يُتحقق من كل ادعاء مقابله مباشرة، وبعده يقارن هالو بين الاجتماعين.",
+      "ملاحظات الأسبوع الماضي أفضل اختبار لمكالمة هذا الأسبوع.",
+      "يتحقق Muse Spark من كل ادعاء مقابل ملاحظاتك والويب، ولا يُعرض اقتباس إلا إن ورد في الملف حرفياً. وبعد الاجتماع تسرد مقارنة واحدة ما يتفق وما يختلف وما يحتاج متابعة."] },
+    { sel: ".people", en: ["People", "Switch between the whole meeting and one person: what they said and what they own.",
+      "Before a one-to-one, you see exactly that person's part.",
+      "Muse Voice Transcribe labels each speaker; the Correlator matches the voice to the Meet tile that lit up as they spoke, so names are real."],
+      ar: ["الأشخاص", "بدّل بين الاجتماع كاملاً وشخص واحد: ما قاله وما يملكه.",
+      "قبل لقاء ثنائي ترى دور ذلك الشخص بالضبط.",
+      "يميّز Muse Voice Transcribe كل متحدث، ويطابق المُطابِق الصوت بمربّع Meet الذي أضاء عند كلامه، فتكون الأسماء حقيقية."] },
+    { sel: "[data-fold=\"actions\"]", up: "section", en: ["Action items", "Tasks grouped by urgency, marked Assigned (said aloud) or Suggested. Each has Done, Email and a jump to the moment it was said.",
+      "Nothing someone promised gets lost, and you can close what is handled.",
+      "Insight (Spark Open, about 3 seconds per point) finds each task live in the call; Done keeps a note of what was done."],
+      ar: ["المهام", "مهام مرتبة حسب الأولوية، معلَّمة «مسندة» (قيلت بصوت) أو «مقترحة»، ولكل منها «تم» والبريد والانتقال إلى لحظة قولها.",
+      "لا يضيع وعد قطعه أحد، وتغلق ما أُنجز.",
+      "يجد Insight (Spark Open، نحو 3 ثوانٍ للنقطة) كل مهمة مباشرة في المكالمة، و«تم» يحفظ ملاحظة بما أُنجز."] },
+    { sel: ".cols", en: ["Decisions, questions, pushbacks, points", "Everything said that matters, sorted by kind. Each section folds to its heading.",
+      "Skimming four short lists is faster than reading a transcript.",
+      "Insight on Spark Open writes each point a few seconds after it is said; every point links to its exact transcript line."],
+      ar: ["القرارات والأسئلة والاعتراضات والنقاط", "كل ما قيل ومهم، مرتب حسب النوع، وكل قسم يُطوى إلى عنوانه.",
+      "تصفّح أربع قوائم قصيرة أسرع من قراءة النص كاملاً.",
+      "يكتب Insight على Spark Open كل نقطة بعد ثوانٍ من قولها، وكل نقطة مرتبطة بسطرها في النص."] },
+    { sel: ".dis", en: ["Disagreements", "Who held which view on what, and whether it was settled, parked or left open.",
+      "Unresolved disagreements are where the next meeting goes wrong.",
+      "The Notes Builder reads the pushbacks with their context at the end of the meeting."],
+      ar: ["الخلافات", "من تبنّى أي رأي في ماذا، وهل حُسم أو أُجّل أو بقي مفتوحاً.",
+      "الخلافات غير المحسومة هي حيث يتعثر الاجتماع التالي.",
+      "يقرأ منشئ الملاحظات الاعتراضات مع سياقها عند انتهاء الاجتماع."] },
+    { sel: ".facts", en: ["Fact checks", "Specific claims (numbers, dates, names) checked on the web while you talk, each with a verdict and sources.",
+      "A wrong number said confidently becomes a decision.",
+      "Muse Spark 1.3 with web search grounding, off the live path; it skips opinions, plans and your team's own product."],
+      ar: ["التحقق من المعلومات", "ادعاءات محددة (أرقام وتواريخ وأسماء) يُتحقق منها على الويب أثناء الحديث، مع حكم ومصادر.",
+      "رقم خاطئ يُقال بثقة يصبح قراراً.",
+      "Muse Spark 1.3 مع البحث على الويب، خارج المسار المباشر، ويتجاهل الآراء والخطط ومنتج فريقك نفسه."] },
+    { sel: ".coach", en: ["Coaching tips", "What the live coach told you during the call: lead with the point, cut filler, watch your tone.",
+      "Feedback during the call changes this call, not only the next one.",
+      "The coach (Muse Spark) reads your recent words within seconds; an alert needs real back-and-forth and a quote, so false alarms stay rare."],
+      ar: ["نصائح التدريب", "ما قاله لك المدرب المباشر أثناء المكالمة: ابدأ بالنقطة، احذف الحشو، انتبه لنبرتك.",
+      "الملاحظة أثناء المكالمة تغيّر هذه المكالمة، لا التالية فقط.",
+      "يقرأ المدرب (Muse Spark) كلماتك الأخيرة خلال ثوانٍ، ولا يُطلق تنبيهاً إلا مع حوار حقيقي واقتباس، فتبقى الإنذارات الخاطئة نادرة."] },
+    { sel: ".speaking", en: ["How you spoke", "Your talk time, pace and interruptions in this meeting.",
+      "Numbers about your own speaking are hard to see from inside the call.",
+      "Worked out on this PC from the transcript's timings, with no model call."],
+      ar: ["طريقة حديثك", "وقت حديثك وسرعتك ومقاطعاتك في هذا الاجتماع.",
+      "يصعب أن ترى أرقام حديثك وأنت داخل المكالمة.",
+      "تُحسب على هذا الجهاز من توقيتات النص، دون أي نموذج."] },
+    { sel: ".recap", en: ["Visual recap", "A hand-drawn mind map of everything said, in the meeting's language.",
+      "One picture to share in a chat or put on a slide.",
+      "Muse Spark lays out the map, then Muse Image draws it. It runs only when you press the button, and the image is saved."],
+      ar: ["الملخص المرئي", "خريطة ذهنية مرسومة لكل ما قيل، بلغة الاجتماع.",
+      "صورة واحدة تشاركها في محادثة أو تضعها في عرض.",
+      "يرتّب Muse Spark الخريطة ثم يرسمها Muse Image، ولا يعمل إلا عند الضغط، والصورة تُحفظ."] },
+    { sel: "#tx", en: ["Transcript", "The whole call, Arabic and English mixed, each line with its speaker and time. Click a line to play the recording there; Collapse to save room.",
+      "Every point above can be checked against what was really said.",
+      "Muse Voice Transcribe in realtime, biased to Arabic and English; the call audio and your mic are recorded only on this PC."],
+      ar: ["النص", "المكالمة كاملة، عربي وإنجليزي معاً، لكل سطر متحدثه ووقته. اضغط سطراً لتشغيل التسجيل عنده، و«طي» لتوفير المساحة.",
+      "كل نقطة في الأعلى يمكن مراجعتها مقابل ما قيل فعلاً.",
+      "Muse Voice Transcribe مباشرة مع تفضيل العربية والإنجليزية، والصوت يُسجَّل على هذا الجهاز فقط."] },
+    { sel: "#export", en: ["Export", "Save the whole meeting as a Markdown file.",
+      "It goes straight into your docs, or becomes next week's notes for the fact check.",
+      "Built in the page from the same data you see; no server call."],
+      ar: ["التصدير", "احفظ الاجتماع كاملاً كملف Markdown.",
+      "يذهب مباشرة إلى مستنداتك، أو يصبح ملاحظات الأسبوع القادم للتحقق.",
+      "يُنشأ في الصفحة من البيانات نفسها التي تراها، دون طلب للخادم."] }
+  ];
+  var TOUR_END = [
+    { sel: ".top .seg", en: ["Arabic or English", "The whole app switches language, and Arabic always reads right to left, even inside the English page.",
+      "Halo is built for teams that mix Arabic and English in one sentence.",
+      "Every text block takes its direction from its first letter, so a mixed meeting lines up correctly."],
+      ar: ["العربية أو الإنجليزية", "يتحول التطبيق كله إلى اللغة المختارة، والعربية تُقرأ دائماً من اليمين، حتى داخل الصفحة الإنجليزية.",
+      "هالو مصمم لفرق تمزج العربية والإنجليزية في الجملة الواحدة.",
+      "كل نص يأخذ اتجاهه من أول حرف فيه، فيصطف الاجتماع المختلط صحيحاً."] },
+    { en: ["In the call", "On the Meet page, each person's points float beside their video, with the coach, live fact checks and a consent badge in one Halo pill.",
+      "You see who said what without looking away from the call.",
+      "SAM 3.1 tracks each face on this PC so the points sit by the head; without it, they sit at the tile's corner. Zoom and Teams on the web work too."],
+      ar: ["أثناء المكالمة", "في صفحة Meet تطفو نقاط كل شخص بجانب صورته، مع المدرب والتحقق المباشر وشارة الموافقة في زر هالو واحد.",
+      "ترى من قال ماذا دون أن تبعد عينك عن المكالمة.",
+      "يتتبع SAM 3.1 كل وجه على هذا الجهاز لتظهر النقاط بجانب الرأس، ومن دونه تظهر في زاوية المربع. ويعمل أيضاً مع Zoom وTeams على الويب."] },
+    { en: ["Built on Meta's models", "Muse Voice Transcribe hears the call. Spark Open writes live points in about 3 seconds. Muse Spark 1.3 is the schema-checked fallback and searches the web for fact checks. Muse Image draws the recap. SAM 3.1 finds faces.",
+      "Each model does the one job it is best at, and the fastest one sits on the live path.",
+      "One shared client checks every reply against Halo's contracts and fails over per call. Keys stay in the backend; the extension holds none."],
+      ar: ["مبني على نماذج Meta", "Muse Voice Transcribe يسمع المكالمة، وSpark Open يكتب النقاط مباشرة في نحو 3 ثوانٍ، وMuse Spark 1.3 هو البديل المتحقَّق من مخططه ويبحث في الويب للتحقق، وMuse Image يرسم الملخص، وSAM 3.1 يجد الوجوه.",
+      "كل نموذج يؤدي المهمة التي يتقنها، والأسرع على المسار المباشر.",
+      "عميل واحد مشترك يتحقق من كل رد مقابل عقود هالو وينتقل للبديل في كل طلب، والمفاتيح تبقى في الخادم ولا تحمل الإضافة أياً منها."] }
+  ];
+
+  function startTour(app) {
+    var doc = app.doc;
+    if (doc.getElementById("tour")) return;
+    var lang = app.lang;
+    var steps = app.view === "list" || !app.page ? TOUR_HOME.slice() : TOUR_MEETING.concat(TOUR_END);
+    if (app.view === "list" && !(app.meetings || []).length) steps = TOUR_HOME.filter(function (s) { return !s.open; }).concat(TOUR_END);
+    var at = 0;
+    var back = doc.activeElement;
+    var shade = el("div", "tour");
+    shade.id = "tour";
+    var spot = el("div", "tour-spot");
+    var card = el("div", "tour-card glass");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "tourTitle");
+    shade.appendChild(spot);
+    shade.appendChild(card);
+    doc.body.appendChild(shade);
+    var target = function (s) {
+      if (!s.sel) return null;
+      var n = doc.querySelector(s.sel);
+      if (n && s.up) n = n.closest(s.up) || n;
+      return n && n.getClientRects().length ? n : null;
+    };
+    var place = function () {
+      var s = steps[at];
+      var n = target(s);
+      var vw = doc.documentElement.clientWidth, vh = doc.documentElement.clientHeight;
+      if (!n) {
+        spot.style.opacity = "0";
+        card.style.left = Math.max(16, (vw - card.offsetWidth) / 2) + "px";
+        card.style.top = Math.max(16, (vh - card.offsetHeight) / 2) + "px";
+        return;
+      }
+      var r = n.getBoundingClientRect();
+      var pad = 8;
+      spot.style.opacity = "1";
+      spot.style.left = (r.left - pad) + "px";
+      spot.style.top = (r.top - pad) + "px";
+      spot.style.width = (r.width + 2 * pad) + "px";
+      spot.style.height = Math.min(r.height + 2 * pad, vh - 16) + "px";
+      var below = r.bottom + 16 + card.offsetHeight < vh;
+      var top = below ? r.bottom + 16 : Math.max(16, r.top - 16 - card.offsetHeight);
+      if (!below && top + card.offsetHeight > r.top) top = Math.max(16, vh - card.offsetHeight - 16); // tall target: card at the foot
+      card.style.top = top + "px";
+      card.style.left = Math.min(Math.max(16, r.left), vw - card.offsetWidth - 16) + "px";
+    };
+    var close = function () {
+      win.removeEventListener("resize", place);
+      win.removeEventListener("scroll", place, true);
+      doc.removeEventListener("keydown", onKey, true);
+      shade.remove();
+      if (back && back.focus) back.focus();
+    };
+    var go = function (i) {
+      while (i >= 0 && i < steps.length && steps[i].sel && !steps[i].open && !target(steps[i])) i += i >= at ? 1 : -1;
+      if (i < 0) i = 0;
+      if (i >= steps.length) { close(); return; }
+      at = i;
+      var s = steps[at];
+      var words = s[lang] || s.en;
+      while (card.firstChild) card.removeChild(card.firstChild);
+      var top = el("div", "tour-top");
+      top.appendChild(el("span", "tour-n", (at + 1) + " / " + steps.length));
+      var x = el("button", "tour-x", "×");
+      x.type = "button";
+      x.setAttribute("aria-label", t(lang, "tourClose"));
+      x.addEventListener("click", close);
+      top.appendChild(x);
+      card.appendChild(top);
+      var h = el("h2", null, words[0]);
+      h.id = "tourTitle";
+      card.appendChild(h);
+      [["tourWhat", words[1]], ["tourWhy", words[2]], ["tourHow", words[3]]].forEach(function (row) {
+        if (!row[1]) return;
+        var p = el("p", "tour-line");
+        p.appendChild(el("b", null, t(lang, row[0]) + " "));
+        p.appendChild(doc.createTextNode(row[1]));
+        card.appendChild(p);
+      });
+      var nav = el("div", "tour-nav");
+      var prev = el("button", "chip", t(lang, "tourBack"));
+      prev.type = "button";
+      prev.disabled = at === 0;
+      prev.addEventListener("click", function () { go(at - 1); });
+      var next = el("button", "chip pv-open", t(lang, s.open ? "tourOpen" : at === steps.length - 1 ? "tourDone" : "tourNext"));
+      next.type = "button";
+      next.addEventListener("click", function () {
+        if (!s.open) { go(at + 1); return; }
+        var pv = doc.querySelector("#preview [data-open]");
+        var first = (pv && pv.dataset.open) || (app.meetings[0] || {}).meeting_id;
+        close();
+        app.openMeeting(first, true).then(function () { setTimeout(function () { startTour(app); }, 400); });
+      });
+      nav.appendChild(prev);
+      nav.appendChild(next);
+      card.appendChild(nav);
+      var n = target(s);
+      if (n && n.scrollIntoView) n.scrollIntoView({ block: "center", behavior: "smooth" });
+      place();
+      setTimeout(place, 420); // after the smooth scroll settles
+      next.focus();
+    };
+    var onKey = function (ev) {
+      if (ev.key === "Escape") { ev.preventDefault(); close(); }
+      else if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        var fwd = (ev.key === "ArrowRight") !== (doc.documentElement.dir === "rtl");
+        go(at + (fwd ? 1 : -1));
+      } else if (ev.key === "Tab") { // keep focus inside the card
+        var f = card.querySelectorAll("button:not([disabled])");
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (ev.shiftKey && doc.activeElement === first) { ev.preventDefault(); last.focus(); }
+        else if (!ev.shiftKey && doc.activeElement === last) { ev.preventDefault(); first.focus(); }
+      }
+    };
+    var win = doc.defaultView || window;
+    win.addEventListener("resize", place);
+    win.addEventListener("scroll", place, true);
+    doc.addEventListener("keydown", onKey, true);
+    shade.addEventListener("click", function (ev) { if (ev.target === shade || ev.target === spot) close(); });
+    go(0);
   }
 
   window.HaloNotes = {

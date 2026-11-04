@@ -1019,3 +1019,33 @@ test("(M15) after the meeting, added notes are compared with it: what agrees, di
   await expect(page.locator(".cmp .r-differs .cmp-rel")).toHaveText("Differs");
   await expect(page.locator(".refrow")).toContainText("compared with this meeting below");
 });
+
+// Karim 2026-11-04 22:34: an Induction button walks through every feature: what, why, how.
+test("(M16) Induction tours the home, carries on into a meeting and ends on the models", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(baseURL + "/");
+  await page.locator("#list .row").first().waitFor();
+  await page.locator("#tourBtn").click();
+  const card = page.locator(".tour-card");
+  await expect(card.locator("h2")).toHaveText("Halo");
+  await expect(card).toContainText("Why:");
+  await page.keyboard.press("ArrowRight");
+  await expect(card.locator("h2")).toHaveText("Search");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#tour")).toHaveCount(0);
+  await page.locator("#tourBtn").click();
+  for (let i = 0; i < 20 && !(await card.locator("[class*=pv-open]").textContent()).includes("Open a meeting"); i++) {
+    await card.locator(".pv-open").click();
+  }
+  await card.locator(".pv-open").click(); // Open a meeting: the tour goes on there
+  await expect(page.locator(".tour-card h2")).toHaveText("Title and summary");
+  for (let i = 0; i < 25 && (await page.locator("#tour").count()); i++) {
+    const title = await page.locator(".tour-card h2").textContent();
+    if (title === "Built on Meta's models") break;
+    await page.locator(".tour-card .pv-open").click();
+  }
+  await expect(page.locator(".tour-card h2")).toHaveText("Built on Meta's models");
+  await expect(page.locator(".tour-card .pv-open")).toHaveText("Finish");
+  await page.locator(".tour-card .pv-open").click();
+  await expect(page.locator("#tour")).toHaveCount(0);
+});
