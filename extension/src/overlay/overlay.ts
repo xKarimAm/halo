@@ -122,6 +122,8 @@ export interface FactCheckCard {
 export class Overlay {
   points = new Map<string, StoredPoint>();
   hidden = false;
+  // Badge menu switches (Karim 2026-11-04): each layer can be turned off.
+  show = { names: true, points: true, coach: true, facts: true };
   status: unknown = null;
   notesToast: unknown = null;
   // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
@@ -410,7 +412,7 @@ export class Overlay {
       name.style.setProperty("left", `${layout.namePos.x}px`);
       name.style.setProperty("top", `${layout.namePos.y}px`);
       if (layout.mode === "face") name.style.setProperty("transform", "translate(-50%, -100%)");
-      layer.appendChild(name);
+      if (this.show.names) layer.appendChild(name);
       const stack = doc.createElement("div");
       stack.classList.add("halo-stack");
       // DECISIONS 1: in face mode each bubble's tail points back at the face.
@@ -418,7 +420,7 @@ export class Overlay {
       stack.style.setProperty("left", `${layout.stackPos.x}px`);
       stack.style.setProperty("top", `${layout.stackPos.y}px`);
       layer.appendChild(stack);
-      if (this.hidden) continue;
+      if (this.hidden || !this.show.points) continue;
       const words = this.caption(tileId);
       if (words) {
         // ponytail: the caption is not counted in the captions-floor fit rule

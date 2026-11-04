@@ -16,6 +16,7 @@ const FACTS_SHOWN = 2;
 export const URGENCY_STYLE_KEY = "halo.urgencyStyle";
 /** Popup "View": face (name above the head) or frame (tile corner). Same key as setup_panel. */
 export const VIEW_MODE_KEY = "halo.viewMode";
+export const SHOW_KEY = "halo.show";
 interface LocalStore {
   get(keys: string[]): Promise<Record<string, unknown>>;
   set?(items: Record<string, unknown>): Promise<void>;
@@ -322,7 +323,35 @@ export function mountControls(
   for (const [k, word] of [["point", "Point"], ["question", "Question"], ["decision", "Decision"], ["pushback", "Pushback"]] as const) {
     legend.append(make("span", "halo-kind", KIND_GLYPHS[k]), make("span", "", word));
   }
-  menu.append(lang, legend);
+  // What shows on the call (Karim 2026-11-04), remembered across meetings.
+  const show = make("fieldset", "halo-show");
+  show.append(make("legend", "", "Show on screen"));
+  for (const [key, word] of [["names", "Name pills"], ["points", "Points"], ["coach", "Coach"], ["facts", "Fact checks"]] as const) {
+    const row = make("label", "");
+    const box = make("input", "");
+    box.type = "checkbox";
+    box.name = key;
+    box.checked = overlay.show[key];
+    box.addEventListener("change", () => {
+      overlay.show[key] = box.checked;
+      void chromeApi()?.storage?.local?.set?.({ [SHOW_KEY]: overlay.show });
+      overlay.requestRender();
+      refresh();
+    });
+    row.append(box, make("span", "", word));
+    show.append(row);
+  }
+  void chromeApi()?.storage?.local?.get([SHOW_KEY]).then((got) => {
+    const saved = got?.[SHOW_KEY] as Partial<Overlay["show"]> | undefined;
+    if (!saved) return;
+    for (const box of show.querySelectorAll("input")) {
+      const key = box.name as keyof Overlay["show"];
+      if (typeof saved[key] === "boolean") overlay.show[key] = box.checked = saved[key];
+    }
+    overlay.requestRender();
+    refresh();
+  }).catch(() => {});
+  menu.append(lang, show, legend);
 
   bar.append(badge, toast, menu);
   doc.body.append(bar);
@@ -390,7 +419,7 @@ export function mountControls(
     toast.hidden = href === null;
     if (href) link.href = href;
     const tips = overlay.coach;
-    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || tips === dismissedTips;
+    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || !overlay.show.coach || tips === dismissedTips;
     if (tips && tips !== shownTips) {
       shownTips = tips;
       coach.dir = tips.lang === "ar" ? "rtl" : "ltr";
@@ -399,7 +428,7 @@ export function mountControls(
       alert.hidden = !tips.alert;
       tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
     }
-    facts.hidden = !overlay.factChecks.length || overlay.hidden;
+    facts.hidden = !overlay.factChecks.length || overlay.hidden || !overlay.show.facts;
     if (overlay.factChecks !== shownFacts) {
       shownFacts = overlay.factChecks;
       const more = overlay.factChecks.length - FACTS_SHOWN;

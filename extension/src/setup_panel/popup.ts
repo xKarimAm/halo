@@ -112,7 +112,7 @@ export function micStatusText(state: SavedSetup["micState"], label?: string): st
 
 /**
  * Boot the toolbar popup (Karim 2026-11-04: sections, not steps). A status
- * pill on top; This call (Start) first; About this meeting (optional,
+ * pill on top; This call (Start) first; Meeting topic (optional,
  * folds to its subject); Preferences (save on change); Pair again in the
  * footer. Pairing is automatic when the Halo app answers; the 6-digit code
  * shows only when that is missing or refused. Busy, done and error states
@@ -187,10 +187,10 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   const readyState = el("p", { id: "ready-state", class: "ready", role: "status" });
   const micLine = el("p", { id: "mic-state", class: "tiny" });
 
-  // About this meeting: optional. A saved meeting folds to its subject.
+  // Meeting topic: optional. A saved meeting folds to its subject.
   const formTitle = el("div", { class: "title" });
   const formSummary = el("span", { class: "tiny" });
-  formTitle.append(el("b", {}, "About this meeting"), formSummary);
+  formTitle.append(el("b", {}, "Meeting topic"), formSummary);
   const { card: form, head: formHead } = card("meeting-form", formTitle);
   const saveState = el("span", { id: "save-state", class: "ok", role: "status", hidden: "true" });
   const editButton = el("button", { id: "meeting-edit", type: "button", class: "link" }, "Edit") as HTMLButtonElement;
@@ -346,7 +346,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   };
   renderRows();
 
-  field(form, "Subject", subjectInput);
+  field(form, "Topic", subjectInput);
   field(form, "Agenda", agendaInput);
   form.appendChild(el("span", { class: "f" }, "People and roles"));
   form.appendChild(rolesBox);

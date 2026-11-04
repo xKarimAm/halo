@@ -409,3 +409,17 @@ describe("meeting coach panel", () => {
     expect(panel.hidden).toBe(true);
   });
 });
+
+describe("show on screen", () => {
+  it("lists four switches and unticking Coach hides the coach card", () => {
+    const { overlay, deliver } = setup({ writeText: () => {} });
+    deliver({ id: "c1", type: "coach.tips", data: { tips: ["Ask Sam for a date."], lang: "en" } });
+    expect($<HTMLElement>(".halo-coach").hidden).toBe(false);
+    const boxes = [...document.querySelectorAll<HTMLInputElement>(".halo-show input")];
+    expect(boxes.map((b) => b.name)).toEqual(["names", "points", "coach", "facts"]);
+    expect(boxes.every((b) => b.checked)).toBe(true);
+    boxes[2].click();
+    expect(overlay.show.coach).toBe(false);
+    expect($<HTMLElement>(".halo-coach").hidden).toBe(true);
+  });
+});

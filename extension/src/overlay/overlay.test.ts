@@ -558,3 +558,21 @@ describe("minimized tile", () => {
     expect(withFace(800).layout("t").mode).toBe("face");
   });
 });
+
+// Karim 2026-11-04: each on-screen layer can be switched off from the badge menu.
+describe("show switches", () => {
+  it("names off drops the name pills, points off drops the bubbles", () => {
+    const { overlay } = make();
+    const root = new FakeEl();
+    overlay.applyPointsUpsert(point(), "env-1");
+    overlay.render(doc as never, root as never, 0);
+    expect(root.find((e) => e.classes.has("halo-name")).length).toBeGreaterThan(0);
+    overlay.show.names = false;
+    overlay.render(doc as never, root as never, 10);
+    expect(root.find((e) => e.classes.has("halo-name"))).toHaveLength(0);
+    expect(root.find((e) => e.attrs.has("data-point-id"))).toHaveLength(1);
+    overlay.show.points = false;
+    overlay.render(doc as never, root as never, 20);
+    expect(root.find((e) => e.attrs.has("data-point-id"))).toHaveLength(0);
+  });
+});

@@ -52,6 +52,10 @@ export const OVERLAY_CSS = `
 .halo-menu{display:flex;flex-direction:column;gap:12px;width:max-content;padding:12px 14px;border-radius:16px;${PANEL}}
 .halo-menu[hidden]{display:none}
 .halo-menu:not([hidden]){animation:halo-pop-in 180ms cubic-bezier(.22,1,.36,1);transform-origin:top center}
+.halo-show{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:0;padding:0;border:0}
+.halo-show legend{grid-column:1/-1;padding:0;margin-bottom:2px;font-weight:600}
+.halo-show label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.halo-show input{margin:0;accent-color:#8fb08f}
 .halo-legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
 .halo-legend .halo-swatch{width:12px;height:12px;border-radius:3px}
 .halo-pop-actions{display:flex;gap:8px;margin-top:10px}
