@@ -475,7 +475,7 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .u-urgent .udot{background:var(--urg)}
 #view.home .u-medium .udot{background:var(--med)}
 #view.home .pfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
-@media (prefers-reduced-motion:no-preference){#view.home.enter .row,#view.home.enter .day{animation:h-rise 440ms var(--ease) both;animation-delay:calc(var(--i,0) * 55ms)}
+@media (prefers-reduced-motion:no-preference){#view.home.enter .row,#view.home.enter .day{animation:h-rise 440ms var(--ease) both;animation-delay:calc(min(var(--i,0), 6) * 55ms)}
 ::view-transition-old(preview){animation:h-out 240ms ease both}
 ::view-transition-new(preview){animation:h-in 420ms var(--ease) both}}
 @keyframes h-rise{from{opacity:0;transform:translateY(10px)}}
@@ -568,7 +568,7 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .l-hov{fill:rgba(28,28,26,.10)}
 #view.home .l-play{fill:rgba(28,28,26,.55)}
 #view.home .l-glow{fill:#1c1c1a;fill-opacity:0}
-@media (prefers-reduced-motion:no-preference){#view.home.arrive .row .strip::before{animation:h-draw 760ms var(--ease) both;transform-origin:0 50%;animation-delay:calc(var(--d,0) * 70ms)}
+@media (prefers-reduced-motion:no-preference){#view.home.arrive .row .strip::before{animation:h-draw 760ms var(--ease) both;transform-origin:0 50%;animation-delay:calc(min(var(--d,0), 8) * 70ms)}
 #view.home.arrive .row .strip i{animation:h-drop 380ms var(--ease) both;animation-delay:calc(var(--d,0) * 70ms + 320ms + var(--n,0) * 28ms)}}
 @keyframes h-draw{from{transform:scaleX(0)}}
 @keyframes h-drop{from{opacity:0;transform:translateY(-5px)}}

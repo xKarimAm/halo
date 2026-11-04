@@ -677,3 +677,23 @@ test("(H9) a plate's Email link is its own control: Enter and click do not jump 
   await mail.evaluate((a) => { a.addEventListener("click", (e) => e.preventDefault()); a.click(); });
   await expect(page.locator("#preview .flag")).toHaveCount(0);
 });
+
+// Karim 2026-11-04: the home felt sluggish. Measured: every row waited 55 ms
+// more than the one above and its line 70 ms more, so the 19th row's line
+// finished about 3 s after load. The stagger stops after the first rows.
+test("(H10) the list's entrance stagger is capped", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  const delays = await page.evaluate(() => {
+    const ms = (v) => Math.max(...v.split(",").map((x) => parseFloat(x) * (x.includes("ms") ? 1 : 1000)));
+    const row = document.createElement("button");
+    row.className = "row";
+    row.style.cssText = "--i:30;--d:34";
+    const strip = document.createElement("div");
+    strip.className = "strip";
+    row.appendChild(strip);
+    document.querySelector("#view.home #list, #view.home").appendChild(row);
+    return [ms(getComputedStyle(row).animationDelay), ms(getComputedStyle(strip, "::before").animationDelay)];
+  });
+  expect(delays[0]).toBeLessThanOrEqual(400);
+  expect(delays[1]).toBeLessThanOrEqual(600);
+});
