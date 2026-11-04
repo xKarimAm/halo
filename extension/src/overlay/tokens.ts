@@ -27,8 +27,6 @@ const PANEL = `background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,
 // correct in RTL.
 export const URGENCY_TAB_FONT_PX = 9;
 export const URGENCY_SEAL_PX = 14;
-export const POINT_LIFETIME_MS = 60_000;
-export const AGEING_FRACTION = 0.72;
 
 export const OVERLAY_CSS = `
 .halo-name{position:absolute;font:500 12px/1.25 Inter,system-ui,sans-serif;padding:4px 10px;border-radius:999px;color:#fff;${GLASS}}
@@ -57,7 +55,6 @@ export const OVERLAY_CSS = `
 .halo-legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
 .halo-legend .halo-swatch{width:12px;height:12px;border-radius:3px}
 .halo-pop-actions{display:flex;gap:8px;margin-top:10px}
-.halo-aged{color:#d5d9df}
 .halo-thinking{animation:halo-sweep 1.3s linear infinite}
 .halo-thinking-dotted{border-bottom:2px dotted #fff3d1}
 @media (prefers-reduced-motion:reduce){.halo-thinking{animation:none}}
@@ -81,8 +78,10 @@ export const OVERLAY_CSS = `
 .halo-coach-alert{margin:0 0 8px;padding:6px 9px;border-radius:9px;background:${URGENCY_COLORS.urgent};color:#fff;font-weight:700;font-size:13px}
 .halo-coach-alert[hidden]{display:none}
 .halo-coach ul{margin:0;padding-inline-start:16px;display:flex;flex-direction:column;gap:6px}
-.halo-fact{position:fixed;left:12px;bottom:92px;z-index:2147483647;width:min(280px,calc(100vw - 24px));box-sizing:border-box;padding:10px 12px 12px;border-radius:16px;${PANEL};color:#f5f7fa;font:500 13px/1.4 Inter,system-ui,sans-serif;pointer-events:auto}
-.halo-fact[hidden]{display:none}
+.halo-facts{position:fixed;left:12px;bottom:92px;z-index:2147483647;width:min(280px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px}
+.halo-facts[hidden]{display:none}
+.halo-facts-more{margin:0;padding-inline-start:4px;color:#f5f7fa;font:500 12px/1.4 Inter,system-ui,sans-serif}
+.halo-fact{box-sizing:border-box;padding:10px 12px 12px;border-radius:16px;${PANEL};color:#f5f7fa;font:500 13px/1.4 Inter,system-ui,sans-serif;pointer-events:auto}
 .halo-fact.disputed .halo-coach-head{color:${URGENCY_COLORS.urgent}}
 .halo-fact-note{margin:0 0 6px}
 .halo-fact a{color:${HALO_GOLD};font-size:12px}

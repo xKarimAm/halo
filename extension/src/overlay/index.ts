@@ -4,11 +4,11 @@ import type { ToPagePortMessage } from "../../../contracts/ext/port";
 import {
   Overlay, SystemClock, notesHref,
   type DocLike, type El, type UrgencyStyle,
-  sourceLink,
+  sourceLink, type FactCheckCard,
 } from "./overlay";
 import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
 
-const FACT_SHOW_MS = 30_000;
+const FACTS_SHOWN = 2;
 
 // Viewer urgency-mark setting, shared with the setup panel (no ambient
 // chrome types in this lane: structural access keeps the two lanes' globals
@@ -348,27 +348,38 @@ export function mountControls(
   coach.append(coachHead, alert, tipList);
   doc.body.append(coach);
 
-  // Fact check (Spark web search): lower left, above Meet's controls. It stays
-  // FACT_SHOW_MS, long enough to read, unless x hides it first.
-  const fact = make("aside", "halo-fact");
-  fact.setAttribute("aria-label", "Fact check");
-  fact.setAttribute("aria-live", "polite");
-  const factVerdict = make("span", "");
-  const closeFact = button("halo-dismiss", "×", () => {
-    hiddenFact = overlay.factCheck;
-    refresh();
-  });
-  closeFact.setAttribute("aria-label", "Hide fact check");
-  const factHead = make("div", "halo-coach-head");
-  factHead.append(factVerdict, closeFact);
-  const factNote = make("p", "halo-fact-note");
-  const factSource = doc.createElement("a");
-  factSource.target = "_blank";
-  factSource.rel = "noopener noreferrer";
-  fact.append(factHead, factNote, factSource);
-  doc.body.append(fact);
-  let shownFact: unknown = null;
-  let hiddenFact: unknown = null;
+  // Fact checks (Spark web search): lower left, above Meet's controls. Each
+  // stays until its x (Karim 2026-11-04); the two newest show, the rest wait.
+  const facts = make("aside", "halo-facts");
+  facts.setAttribute("aria-label", "Fact checks");
+  facts.setAttribute("aria-live", "polite");
+  doc.body.append(facts);
+  let shownFacts: unknown = null;
+  const factCard = (check: FactCheckCard): HTMLElement => {
+    const ar = check.lang === "ar";
+    const card = make("div", check.verdict === "disputed" ? "halo-fact disputed" : "halo-fact");
+    card.dir = ar ? "rtl" : "ltr";
+    card.lang = check.lang;
+    const word = check.verdict === "disputed" ? (ar ? "غير دقيق" : "Disputed") : (ar ? "صحيح" : "Checks out");
+    const close = button("halo-dismiss", "×", () => {
+      overlay.dismissFact(check);
+      refresh();
+    });
+    close.setAttribute("aria-label", "Hide fact check");
+    const head = make("div", "halo-coach-head");
+    head.append(make("span", "", `${ar ? "تحقق" : "Fact check"} · ${word}`), close);
+    card.append(head, make("p", "halo-fact-note", check.note));
+    const link = check.sources.map(sourceLink).find(Boolean);
+    if (link) {
+      const a = doc.createElement("a");
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.href = link.href;
+      a.textContent = link.host;
+      card.append(a);
+    }
+    return card;
+  };
 
   const refresh = (): void => {
     badge.textContent = overlay.badgeText();
@@ -385,29 +396,14 @@ export function mountControls(
       alert.hidden = !tips.alert;
       tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
     }
-    const check = overlay.factCheck;
-    fact.hidden = !check || overlay.hidden || check === hiddenFact;
-    if (check && check !== shownFact) {
-      shownFact = check;
-      const ar = check.lang === "ar";
-      fact.dir = ar ? "rtl" : "ltr";
-      fact.lang = check.lang;
-      fact.classList.toggle("disputed", check.verdict === "disputed");
-      const word = check.verdict === "disputed" ? (ar ? "غير دقيق" : "Disputed") : (ar ? "صحيح" : "Checks out");
-      factVerdict.textContent = `${ar ? "تحقق" : "Fact check"} · ${word}`;
-      factNote.textContent = check.note;
-      const link = check.sources.map(sourceLink).find(Boolean);
-      factSource.hidden = !link;
-      if (link) {
-        factSource.href = link.href;
-        factSource.textContent = link.host;
-      }
-      setTimeout(() => {
-        if (overlay.factCheck === check) {
-          hiddenFact = check;
-          refresh();
-        }
-      }, FACT_SHOW_MS);
+    facts.hidden = !overlay.factChecks.length || overlay.hidden;
+    if (overlay.factChecks !== shownFacts) {
+      shownFacts = overlay.factChecks;
+      const more = overlay.factChecks.length - FACTS_SHOWN;
+      facts.replaceChildren(
+        ...overlay.factChecks.slice(0, FACTS_SHOWN).map(factCard),
+        ...(more > 0 ? [make("p", "halo-facts-more", `+${more} more`)] : []),
+      );
     }
   };
   port.onMessage.addListener(refresh);

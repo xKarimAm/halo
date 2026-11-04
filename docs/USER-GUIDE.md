@@ -26,7 +26,7 @@ Install and first run: [install guide](INSTALL.md). Every feature and how far it
 |---|---|
 | Bubbles | A point appears on the speaker's tile a few seconds after they say it. The tab colour is urgency (red urgent, amber medium, blue later). The glyph is the kind: • point, ? question, ✓ decision, ≠ pushback. |
 | The original words | Click a bubble to see the kind, the speaker, the point and the exact words said, in their own script (Arabic right to left). |
-| Urgent items stay | Urgent points stay until you click them and press **Archive**. Others fade after 60 s. |
+| Points stay | Every point stays until you click it and press **Archive**. Urgent ones come first, then the newest; the rest sit behind **+N**. Fact checks stay until you press their **×**. |
 | More than 3 points | `+2` opens the rest; **Less** folds them back. |
 | Live caption | The speaker's last few words appear above their bubbles while they talk. Captions are not saved; the final transcript is. |
 | Coach | A panel on the left with 0 to 3 tips, for example a decision with no owner, a question nobody answered, or someone who hasn't spoken. A short alert appears when you should act now ("You cut Hana off; hand it back."). × hides it until the next tips. Alone in a call, it treats the call as a rehearsal and coaches your delivery. |

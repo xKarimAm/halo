@@ -5,7 +5,7 @@
 import type {
   FacesUpdate, PointsUpsert, SpeakerActive, TagsSet, TilesSnapshot, TilesSnapshotTiles,
 } from "../../../contracts/ext/gen/types";
-import { AGEING_FRACTION, KIND_GLYPHS, POINT_LIFETIME_MS } from "./tokens";
+import { KIND_GLYPHS } from "./tokens";
 
 export type PointUpsert = PointsUpsert;
 
@@ -94,6 +94,10 @@ interface StoredPoint extends PointsUpsert {
   el?: El;
 }
 
+// ponytail: measured live, Meet's minimized self view is 234-427 px wide. A smaller
+// tile falls back to Frame view by itself; tune this if a dense grid loses Camera view.
+const MIN_CAMERA_TILE_W = 480;
+
 /** A source URL safe to link, with its host for the label; null for anything but http(s). */
 export function sourceLink(url: string): { href: string; host: string } | null {
   try {
@@ -105,6 +109,14 @@ export function sourceLink(url: string): { href: string; host: string } | null {
   }
 }
 
+export interface FactCheckCard {
+  claim: string;
+  verdict: "supported" | "disputed";
+  note: string;
+  sources: string[];
+  lang: "en" | "ar";
+}
+
 export class Overlay {
   points = new Map<string, StoredPoint>();
   hidden = false;
@@ -112,8 +124,8 @@ export class Overlay {
   notesToast: unknown = null;
   // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
   coach: { tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
-  // Fact Check (claim.checked): the newest spoken claim checked on the web; null until the first.
-  factCheck: { claim: string; verdict: "supported" | "disputed"; note: string; sources: string[]; lang: "en" | "ar" } | null = null;
+  // Fact Check (claim.checked): every claim checked this meeting, newest first, until dismissed.
+  factChecks: FactCheckCard[] = [];
   perFace = 3;
   private tiles = new Map<string, TilesSnapshotTiles>();
   private tileOrder: string[] = [];
@@ -156,7 +168,7 @@ export class Overlay {
     this.ended = true; // replies still in flight must not refill the page
     this.points.clear();
     this.coach = null;
-    this.factCheck = null;
+    this.factChecks = [];
     this.captions = { tab: "", mic: "" };
     this.faces.clear();
     this.thinkingStart.clear();
@@ -204,7 +216,7 @@ export class Overlay {
     } else if (env.type === "system.status") this.status = env.data;
     else if (env.type === "notes.ready") this.notesToast = env.data;
     else if (env.type === "coach.tips") this.coach = env.data as never;
-    else if (env.type === "claim.checked") this.factCheck = env.data as never;
+    else if (env.type === "claim.checked") this.factChecks = [env.data as never, ...this.factChecks];
   }
 
   applyPointsUpsert(point: PointsUpsert, _envelopeId?: string): void {
@@ -231,13 +243,16 @@ export class Overlay {
     if (tag.urgency) stored.urgency = tag.urgency;
   }
 
-  /** Urgent points stay until archived (Karim 2026-11-01); others age out. */
+  /** Every point stays until archived (Karim 2026-11-04): urgent first, then newest. */
   private live(tileId: string): StoredPoint[] {
     const urgent = (p: StoredPoint) => (p.urgency === "urgent" ? 0 : 1);
     return [...this.points.values()]
-      .filter((p) => p.tile_id === tileId && !this.archived.has(p.point_id)
-        && (p.urgency === "urgent" || this.clock.now - p.arrivedMs < POINT_LIFETIME_MS))
-      .sort((a, b) => urgent(a) - urgent(b) || a.rank - b.rank || a.arrivedMs - b.arrivedMs);
+      .filter((p) => p.tile_id === tileId && !this.archived.has(p.point_id))
+      .sort((a, b) => urgent(a) - urgent(b) || b.arrivedMs - a.arrivedMs || a.rank - b.rank);
+  }
+
+  dismissFact(check: FactCheckCard): void {
+    this.factChecks = this.factChecks.filter((c) => c !== check);
   }
 
   /** The viewer handled it: gone from the bubbles (the notes keep it). */
@@ -276,11 +291,6 @@ export class Overlay {
     return Math.max(0, this.live(tileId).length - this.visiblePoints(tileId).length);
   }
 
-  isAged(pointId: string): boolean {
-    const p = this.points.get(pointId);
-    return !!p && this.clock.now - p.arrivedMs > AGEING_FRACTION * POINT_LIFETIME_MS;
-  }
-
   layout(tileId: string): {
     mode: "face" | "frame";
     namePos: { x: number; y: number };
@@ -296,7 +306,7 @@ export class Overlay {
     // stackPos (page space for Face mode, tile space for Frame mode).
     // null captions_rect = no floor.
     const captionsTop = tile?.captions_rect ? tile.captions_rect[1] : null;
-    if (tile && face && this.viewMode === "face" && index >= 0 && index < 6) {
+    if (tile && face && this.viewMode === "face" && index >= 0 && index < 6 && tile.rect[2] >= MIN_CAMERA_TILE_W) {
       const box = projectFaceBox(tile, face.box);
       const roomRight = tile.rect[0] + tile.rect[2] - (box.x + box.w);
       const right = roomRight >= box.x - tile.rect[0];
