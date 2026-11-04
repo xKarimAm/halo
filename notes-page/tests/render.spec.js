@@ -275,6 +275,24 @@ test("(6c) fact checks show the verdict, the note and a real source link", async
   await expect(items.nth(1)).toContainText("Checks out");
 });
 
+test("(6d) Visual recap draws only on request, then shows the saved image", async ({ page }) => {
+  let posts = 0;
+  await page.route("**/api/meetings/" + MEETING_ID + "/recap", (route) => {
+    if (route.request().method() === "POST") {
+      posts += 1;
+      return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    }
+    return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") });
+  });
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".recap img")).toHaveCount(0);
+  expect(posts).toBe(0);
+  await page.locator("#recapbtn").click();
+  await expect(page.locator(".recap img")).toBeVisible();
+  expect(posts).toBe(1);
+});
+
 test("(6b) a meeting with no speech says so, not that the AI failed (#102)", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=empty");
   await expect(page.locator(".degraded")).toContainText("No speech was captured");

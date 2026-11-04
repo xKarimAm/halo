@@ -186,6 +186,7 @@ class MeetingPage(BaseModel):
     transcript_lines: list[MeetingPageTranscriptLines]
     recording: MeetingPageRecording
     fact_checks: list[MeetingPageFactChecks] | None = None
+    visual_recap: bool | None = None
 
 class MeetingContextRoles(BaseModel):
     model_config = ConfigDict(extra='forbid')

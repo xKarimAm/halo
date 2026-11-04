@@ -384,3 +384,44 @@ def test_page_without_fact_checks_has_no_key(tmp_path):
     db = tmp_path / "events.sqlite"
     seed_db(db)
     assert "fact_checks" not in NotesService(Bus(), data_dir=tmp_path).page_for(MEETING)
+
+
+class ImageLLM:
+    def __init__(self, image=b"png-bytes"):
+        self.image = image
+        self.prompts = []
+
+    def generate_image(self, prompt):
+        self.prompts.append(prompt)
+        return self.image
+
+
+def recap_client(tmp_path, llm):
+    client, _, data = make_client(tmp_path)
+    client.app.state.notes_service._llm = llm
+    return client, data
+
+
+def test_recap_is_made_once_on_request_and_then_served_from_disk(tmp_path):
+    llm = ImageLLM()
+    client, _ = recap_client(tmp_path, llm)
+    url = f"/api/meetings/{MEETING}/recap"
+    assert client.get(url).status_code == 404  # nothing is spent until someone asks
+    assert llm.prompts == [] and client.get(f"/api/meetings/{MEETING}").json().get("visual_recap") is not True
+    assert client.post(url).status_code == 200
+    assert client.post(url).status_code == 200  # the second press costs nothing
+    assert len(llm.prompts) == 1
+    shown = client.get(url)
+    assert shown.status_code == 200 and shown.content == b"png-bytes"
+    assert shown.headers["content-type"] == "image/png"
+    assert client.get(f"/api/meetings/{MEETING}").json()["visual_recap"] is True
+
+
+def test_recap_refuses_foreign_origins_unknown_meetings_and_reports_failure(tmp_path):
+    llm = ImageLLM(image=None)
+    client, _ = recap_client(tmp_path, llm)
+    url = f"/api/meetings/{MEETING}/recap"
+    assert client.post(url, headers={"origin": "https://evil.example"}).status_code == 403
+    assert llm.prompts == []
+    assert client.post("/api/meetings/unknown-id/recap").status_code == 404
+    assert client.post(url).status_code == 502

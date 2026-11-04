@@ -4,6 +4,7 @@ no test-only branches: production differs only by transport and keys."""
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 
@@ -600,3 +601,22 @@ def test_search_json_fails_soft():
     keyless = LLMClient(baseten_key="", meta_key="", env={},
                         transport=httpx.MockTransport(lambda r: calls.append(r) or httpx.Response(500)))
     assert not keyless.search_json(prompt="p", schema=FACT_SCHEMA).ok and not calls
+
+
+def test_generate_image_returns_png_bytes_from_muse_image():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(url=str(request.url), body=json.loads(request.content))
+        return httpx.Response(200, json={"output": [
+            {"type": "reasoning"}, {"type": "message", "content": []},
+            {"type": "image_generation_call", "result": base64.b64encode(b"png-bytes").decode()}]})
+
+    assert search_client(handler).generate_image("a recap") == b"png-bytes"
+    assert seen["url"].endswith("/responses") and seen["body"]["model"] == "muse-image-1.0"
+    assert seen["body"]["tools"] == [{"type": "image_generation", "output_format": "png"}]
+
+
+def test_generate_image_fails_soft():
+    assert search_client(lambda r: httpx.Response(500)).generate_image("a") is None
+    assert search_client(lambda r: httpx.Response(200, json={"output": []})).generate_image("a") is None

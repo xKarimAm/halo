@@ -25,6 +25,7 @@ Rules implemented here:
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -78,6 +79,8 @@ CALL_TIMEOUT_S = 4.0
 # ponytail: the contributor is the last resort; measured live at ~3-4.5 s per
 # Insight call, so a 4 s cut drops most points. Late beats none.
 FAILOVER_TIMEOUT_S = 10.0
+IMAGE_MODEL = "muse-image-1.0"
+IMAGE_TIMEOUT_S = 90.0  # measured 21 s; the viewer pressed a button and sees it drawing
 SEARCH_TIMEOUT_S = 25.0  # measured 3-14 s; off the live path, so a slow search only arrives later
 COOLDOWN_S = 30.0
 BACKOFF_BASE_S = 0.5
@@ -283,6 +286,26 @@ class LLMClient:
         if data is None:
             return fail("bad_reply", f"{engine}: search reply failed the schema")
         return LLMResult(ok=True, engine=engine, data=data)
+
+    def generate_image(self, prompt: str) -> bytes | None:
+        """One PNG from Muse Image, or None. Its price is per image, so it is
+        not in `usage()`: callers ask only when the viewer does."""
+        key = self._keys[FAILOVER_ENGINE]
+        if not key:
+            return None
+        try:
+            response = self._http.post(
+                self._config(FAILOVER_ENGINE)["base_url"].rstrip("/") + "/responses",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"model": IMAGE_MODEL, "input": prompt,
+                      "tools": [{"type": "image_generation", "output_format": "png"}]},
+                timeout=httpx.Timeout(IMAGE_TIMEOUT_S),
+            )
+            calls = [i for i in response.json().get("output", []) if i.get("type") == "image_generation_call"]
+            return base64.b64decode(calls[-1]["result"], validate=True)
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
+            log.warning("muse image call failed: %r", exc)
+            return None
 
     def _call_engine(
         self,

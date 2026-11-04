@@ -85,6 +85,7 @@ mark{background:var(--mark-bg);color:var(--mark-text);border-radius:3px;padding:
 .dis-sides{margin:6px 0 0;padding-inline-start:18px}
 .dis-sides b{font-weight:600}
 .dis-res{margin:6px 0 0;color:var(--muted)}
+.recap img{display:block;width:100%;height:auto;border-radius:12px}
 .fact-sub{margin:2px 0 6px;color:var(--muted);font-size:13px}
 .fact-item{padding:10px 0;border-top:1px solid var(--hair)}
 .fact-item:first-of-type{border-top:0}

@@ -146,6 +146,7 @@ export interface MeetingPage {
   transcript_lines: MeetingPageTranscriptLines[];
   recording: MeetingPageRecording;
   fact_checks?: MeetingPageFactChecks[];
+  visual_recap?: boolean;
 }
 
 export interface MeetingContextRoles {

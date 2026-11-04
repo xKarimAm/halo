@@ -358,6 +358,10 @@
         ],
         "additionalProperties": false
       }
+    },
+    "visual_recap": {
+      "type": "boolean",
+      "description": "True when a Muse Image recap is saved for this meeting (GET /api/meetings/{id}/recap)."
     }
   },
   "required": [

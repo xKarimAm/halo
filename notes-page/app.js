@@ -54,6 +54,8 @@
       recAt: "Recording: {p} at {t}", close: "Close profile", role: "Role from Setup",
       degraded: "AI summary failed, showing live notes.",
       noSpeech: "No speech was captured in this meeting.",
+      recapBtn: "Visual recap", recapBusy: "Muse Image is drawing, about 20 s…", recapFail: "The recap could not be drawn. Try again.",
+      recapAlt: "Visual recap of this meeting, drawn by Muse Image.",
       fact: "Fact checks", factNote: "Numbers said in the call, checked on the web by Muse Spark.",
       factOk: "Checks out", factBad: "Disputed",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
@@ -131,6 +133,8 @@
       recAt: "التسجيل: {p} عند {t}", close: "إغلاق الملف", role: "الدور من الإعداد",
       degraded: "فشل التلخيص الآلي، تُعرض الملاحظات المباشرة.",
       noSpeech: "لم يُلتقط أي كلام في هذا الاجتماع.",
+      recapBtn: "ملخص مرسوم", recapBusy: "Muse Image يرسم الآن، نحو 20 ثانية…", recapFail: "تعذّر رسم الملخص. حاول مرة أخرى.",
+      recapAlt: "ملخص مرسوم لهذا الاجتماع من Muse Image.",
       fact: "التحقق من المعلومات", factNote: "أرقام قيلت في الاجتماع، تحقق منها Muse Spark عبر الويب.",
       factOk: "صحيح", factBad: "غير دقيق",
       keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
@@ -637,6 +641,26 @@
     return section;
   }
 
+  // The Muse Image recap: drawn only when the viewer presses the button (each
+  // image is billed), then saved, so it shows at once on every later visit.
+  function recapBoard(app, lang) {
+    var section = el("section", "board glass recap");
+    if (app.page.visual_recap) {
+      var img = el("img");
+      img.src = "/api/meetings/" + encodeURIComponent(app.page.meeting.meeting_id) + "/recap";
+      img.alt = t(lang, "recapAlt");
+      section.appendChild(img);
+      return section;
+    }
+    var btn = el("button", "btn", t(lang, app.recapBusy ? "recapBusy" : "recapBtn"));
+    btn.id = "recapbtn";
+    btn.type = "button";
+    btn.disabled = !!app.recapBusy;
+    section.appendChild(btn);
+    if (app.recapFailed) section.appendChild(el("p", "fact-sub", t(lang, "recapFail")));
+    return section;
+  }
+
   // Claims checked on the web (Spark search grounding). The links are the URLs
   // the search returned; anything but http(s) stays plain text out of the page.
   function factBoard(app, lang) {
@@ -905,6 +929,7 @@
       if (dis) stage.appendChild(dis);
       var facts = factBoard(app, lang);
       if (facts) stage.appendChild(facts);
+      if (app.cat === "all") stage.appendChild(recapBoard(app, lang));
       var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
       (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
         cols.appendChild(kindColumn(app, k, lang));
@@ -2366,6 +2391,20 @@
       }
       if ((b = g("[data-nav]"))) {
         app.loadMeetings(true);
+        return;
+      }
+      if ((b = g("#recapbtn"))) {
+        app.recapBusy = true;
+        app.recapFailed = false;
+        render(app);
+        postJson("/api/meetings/" + encodeURIComponent(app.page.meeting.meeting_id) + "/recap", {}).then(function () {
+          app.page.visual_recap = true;
+        }).catch(function () {
+          app.recapFailed = true;
+        }).then(function () {
+          app.recapBusy = false;
+          render(app);
+        });
         return;
       }
       if ((b = g("#export"))) {

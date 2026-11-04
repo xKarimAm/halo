@@ -80,6 +80,17 @@ def owner_for(text: str, speaker: str, names: list[str]) -> str:
     return min(found)[1] if found else speaker
 
 
+def recap_prompt(page: dict[str, Any]) -> str:
+    """Muse Image brief from the meeting's own words; nothing else goes in."""
+    meeting = page["meeting"]
+    decisions = [p["text"] for p in page["points"] if p["kind"] == "decision"][:3]
+    actions = [a["text"] for a in page["actions"]][:3]
+    lines = [str(meeting.get("title") or meeting.get("subject")), *decisions, *actions]
+    if len(lines) == 1 and meeting.get("summary"):
+        lines.append(meeting["summary"])
+    return RECAP_STYLE + "\n".join(lines)
+
+
 class NotesService:
     """Stateless HTTP reads over the store file. Constructed by app.py."""
 
@@ -314,6 +325,28 @@ class NotesService:
 
     # -- page ---------------------------------------------------------------
 
+    def _recap_path(self, meeting_id: str) -> Path:
+        return self._data_dir / "recaps" / f"{meeting_id}.png"
+
+    def recap_file(self, meeting_id: str) -> Path | None:
+        path = self._recap_path(meeting_id)
+        return path if self.page_for(meeting_id) is not None and path.is_file() else None
+
+    def make_recap(self, meeting_id: str) -> Path | None:
+        """Draw this meeting's Muse Image recap once; later presses reuse the file."""
+        page = self.page_for(meeting_id)
+        if page is None or self._llm is None:
+            return None
+        path = self._recap_path(meeting_id)
+        if path.is_file():
+            return path
+        image = self._llm.generate_image(recap_prompt(page))
+        if image is None:
+            return None
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(image)
+        return path
+
     def page_for(self, meeting_id: str) -> dict[str, Any] | None:
         """The #14 page JSON, or None for an unknown meeting."""
         conn = self._connect()
@@ -400,6 +433,8 @@ class NotesService:
                 page["meeting"][key] = ready[key].strip()
         if ready and isinstance(ready.get("disagreements"), list) and ready["disagreements"]:
             page["meeting"]["disagreements"] = ready["disagreements"]
+        if self._recap_path(meeting_id).is_file():
+            page["visual_recap"] = True
         if store["checks"]:
             page["fact_checks"] = [{k: c[k] for k in ("point_id", "claim", "speaker_name", "verdict",
                                                       "note", "sources")} for c in store["checks"]]
@@ -663,6 +698,13 @@ def _snippet(text: str, needle: str, window: int = 60) -> str:
     return text[start:end]
 
 
+RECAP_STYLE = (
+    "A clean one-page visual recap of a work meeting, like a page from a designer's "
+    "notebook: warm paper background, charcoal and sage green, simple hand-drawn icons, "
+    "generous space, landscape. Spell every word exactly as written below and add no other "
+    "words, names or numbers. The first line is the title at the top; each line after it is one small panel:\n"
+)
+
 router = APIRouter()
 
 
@@ -757,6 +799,28 @@ async def api_search(request: Request, q: str | None = None):  # type: ignore[no
 
 
 ASK_MAX_CHARS = 300
+
+
+@router.get("/api/meetings/{meeting_id}/recap")
+async def api_recap(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    path = _service(request).recap_file(meeting_id)
+    if path is None:
+        return JSONResponse({"detail": "no recap"}, status_code=404)
+    return FileResponse(path, media_type="image/png")
+
+
+@router.post("/api/meetings/{meeting_id}/recap")
+async def api_make_recap(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    """Draws the recap. POST + the Origin check: each image costs money, so no other site may ask."""
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    service = _service(request)
+    if service.page_for(meeting_id) is None:
+        return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+    path = await asyncio.to_thread(service.make_recap, meeting_id)
+    if path is None:
+        return JSONResponse({"detail": "the image could not be drawn"}, status_code=502)
+    return JSONResponse({"ok": True})
 
 
 @router.post("/api/ask")
