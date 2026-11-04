@@ -484,10 +484,10 @@ body:has(#view.home)::before{background:#f2f3f1}
 @property --hx{syntax:"<percentage>";inherits:true;initial-value:0%}
 #view.home .phead{display:flex;align-items:flex-start;gap:16px}
 #view.home .phead h2{flex:1;min-width:0}
-#view.home .vseg{position:relative;display:flex;flex:none;padding:3px;border-radius:999px;background:var(--active)}
-#view.home .vseg button{position:relative;z-index:1;height:28px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;color:var(--muted);transition:color 200ms}
+#view.home .vseg{position:relative;display:flex;flex:none;padding:2px;border-radius:999px;background:var(--active)}
+#view.home .vseg button{position:relative;z-index:1;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500;color:var(--muted);transition:color 200ms}
 #view.home .vseg button[aria-pressed=true]{color:var(--text)}
-#view.home .vknob{position:absolute;top:3px;bottom:3px;left:0;width:1px;border-radius:999px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08);transform-origin:0 0;transition:transform 440ms var(--ease)}
+#view.home .vknob{position:absolute;top:2px;bottom:2px;left:0;width:0;border-radius:999px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08);transition:transform 440ms var(--ease),width 440ms var(--ease)}
 #view.home .timeline{--lab:40px}
 #view.home .timeline.detailed{--lab:112px}
 #view.home .big{display:grid;grid-template-columns:var(--lab) minmax(0,1fr);column-gap:12px;align-items:center;--hx:0%;--px:0%;transition:--hx 380ms var(--ease)}

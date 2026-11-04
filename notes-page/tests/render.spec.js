@@ -697,3 +697,20 @@ test("(H10) the list's entrance stagger is capped", async ({ page }) => {
   expect(delays[0]).toBeLessThanOrEqual(400);
   expect(delays[1]).toBeLessThanOrEqual(600);
 });
+
+test("(H11) the Simple/Detailed pill: a slim pill whose knob sits inside it", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#view.home .vseg").waitFor();
+  await page.locator('#view.home .vseg [data-view="detailed"]').click();
+  await page.waitForTimeout(600);
+  const m = await page.evaluate(() => {
+    const seg = document.querySelector("#view.home .vseg").getBoundingClientRect();
+    const k = document.querySelector("#view.home .vknob");
+    const kb = k.getBoundingClientRect();
+    return { segH: seg.height, segR: seg.right, kR: kb.right, kL: kb.left, segL: seg.left, t: getComputedStyle(k).transform };
+  });
+  expect(m.segH).toBeLessThanOrEqual(30);
+  expect(m.kR).toBeLessThanOrEqual(m.segR - 2);
+  expect(m.kL).toBeGreaterThanOrEqual(m.segL + 2);
+  expect(m.t).toMatch(/^matrix\(1, 0, 0, 1,/); // moved, never stretched
+});

@@ -1802,7 +1802,11 @@
   function moveKnob(H) {
     var on = H.pv.querySelector(".vseg [aria-pressed=true]");
     var knob = H.pv.querySelector(".vknob");
-    if (on && knob) knob.style.transform = "translateX(" + on.offsetLeft + "px) scaleX(" + on.offsetWidth + ")";
+    if (on && knob) {
+      // live 2026-11-04: scaleX on a 1px knob smeared its shadow past the pill
+      knob.style.width = on.offsetWidth + "px";
+      knob.style.transform = "translateX(" + on.offsetLeft + "px)";
+    }
   }
 
   // Replay: the line fills over 6 s; each mark nods as it is reached, its words
