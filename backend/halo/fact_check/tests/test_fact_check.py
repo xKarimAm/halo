@@ -170,3 +170,11 @@ def test_a_rewrite_with_the_same_figure_is_kept():
     llm = FakeLLM({"verdict": "disputed", "claim": "Qatar's population is 3.1 million.", "note": "No.", "sources": [URL]})
     out = run(llm, point("Qatar has 3.1 Million people."))
     assert out[0]["data"]["claim"] == "Qatar's population is 3.1 million."
+
+
+def test_a_different_scale_is_a_different_claim():
+    # Review 2026-11-04: "3 million" then "3 billion" shared 4 of 6 words and the
+    # same digit, so the second, the one to dispute, was never checked.
+    llm = FakeLLM()
+    run(llm, point("Qatar population is 3 million", 1), point("Qatar population is 3 billion", 2))
+    assert len(llm.prompts) == 2

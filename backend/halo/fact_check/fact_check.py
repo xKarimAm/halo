@@ -84,10 +84,10 @@ def _shown_claim(rewrite: str, claim: str, spoken: str) -> str:
     return rewrite if rewrite and _numbers(rewrite) <= _numbers(f"{claim} {spoken}") else claim
 
 
-def _same_claim(a: set[str], b: set[str]) -> bool:
-    """A reworded repeat: the same numbers and most of the same words."""
-    numbers = {w for w in a | b if w[0].isdigit() and not (w in a and w in b)}
-    return not numbers and len(a & b) / len(a | b) >= SAME_CLAIM_OVERLAP
+def _same_claim(a: tuple[set[str], set[str]], b: tuple[set[str], set[str]]) -> bool:
+    """A reworded repeat: the same figures (scale words too) and most of the same words."""
+    (wa, na), (wb, nb) = a, b
+    return na == nb and len(wa & wb) / len(wa | wb) >= SAME_CLAIM_OVERLAP
 
 
 class FactCheck:
@@ -97,7 +97,7 @@ class FactCheck:
         self._pending: list[tuple[str, dict[str, Any]]] = []
         self._seen: set[str] = set()  # point ids: the Classifier re-upserts them
         self._calls: dict[str, int] = {}
-        self._claims: dict[str, list[set[str]]] = {}
+        self._claims: dict[str, list[tuple[set[str], set[str]]]] = {}  # (words, figures)
         self._task: asyncio.Task | None = None
         bus.subscribe("points.upsert", self._on_point)
 
@@ -125,7 +125,7 @@ class FactCheck:
         if not HAS_NUMBER.search(str(data.get("text", ""))):
             return
         self._seen.add(point_id)
-        words = _words(str(data["text"]))
+        words = (_words(str(data["text"])), _numbers(str(data["text"])))
         claims = self._claims.setdefault(meetingid, [])
         if self._calls.get(meetingid, 0) >= MAX_CALLS or any(_same_claim(words, c) for c in claims):
             return
