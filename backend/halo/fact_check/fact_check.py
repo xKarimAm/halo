@@ -30,6 +30,8 @@ CLAIM_MAX = 300
 # ponytail: a digit is the gate; a claim with no number is never checked.
 # Widen it (a cheap model gate) if wordy claims turn out to matter.
 HAS_NUMBER = re.compile(r"[0-9٠-٩]")
+# Live 2026-11-04: Spark leaves its citation marks in the JSON note.
+CITATION_MARK = re.compile(r"\s*\u3010[^\u3011]*\u3011")
 
 CHECK_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -114,7 +116,8 @@ class FactCheck:
             return True
         data = result.data
         sources = data.get("sources", [])[:MAX_SOURCES]
-        if data["verdict"] not in ("supported", "disputed") or not sources or not data["note"].strip():
+        note = CITATION_MARK.sub("", data["note"]).strip()[:NOTE_MAX]
+        if data["verdict"] not in ("supported", "disputed") or not sources or not note:
             return True
         await self._bus.publish({
             "specversion": "1.0", "id": str(uuid.uuid4()), "type": "claim.checked",
@@ -122,6 +125,6 @@ class FactCheck:
             "meetingid": meetingid, "datacontenttype": "application/json",
             "data": {"point_id": point["point_id"], "claim": claim,
                      "speaker_name": str(point.get("speaker_name", "")), "verdict": data["verdict"],
-                     "note": data["note"].strip()[:NOTE_MAX], "sources": sources, "lang": lang},
+                     "note": note, "sources": sources, "lang": lang},
         })
         return True

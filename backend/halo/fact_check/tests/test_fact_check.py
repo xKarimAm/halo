@@ -97,3 +97,9 @@ def test_spending_is_capped_per_meeting():
     llm = FakeLLM()
     run(llm, *[point(f"Item number {i}", i + 1) for i in range(MAX_CALLS + 5)])
     assert len(llm.prompts) == MAX_CALLS
+
+
+def test_the_model_citation_marker_never_reaches_the_note():
+    marked = "It entered into force on 1 August 2024. \u30106230298502374729676\u2020L7-L9\u3011"
+    out = run(FakeLLM({"verdict": "supported", "note": marked, "sources": [URL]}), point("It began in 2024"))
+    assert out[0]["data"]["note"] == "It entered into force on 1 August 2024."
