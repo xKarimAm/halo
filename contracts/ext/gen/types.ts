@@ -95,6 +95,11 @@ export interface MeetingPagePeople {
   own_points: string[];
 }
 
+export interface MeetingPageActionsDone {
+  note: string;
+  at: string;
+}
+
 export interface MeetingPageActions {
   action_id: string;
   text: string;
@@ -102,6 +107,7 @@ export interface MeetingPageActions {
   status: "assigned" | "suggested";
   urgency: "urgent" | "medium" | "later";
   point_id: string;
+  done?: MeetingPageActionsDone;
 }
 
 export interface MeetingPagePoints {

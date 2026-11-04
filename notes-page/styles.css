@@ -688,3 +688,11 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
    class rule, so no later rule pulls an Arabic block back to the left. */
 #view [dir="rtl"]{text-align:right}
 #view :is(h1,h2,h3,h4)[dir="rtl"]{flex:1 1 auto}
+
+/* Karim 2026-11-04: Done on an action, with an optional note of what was done. */
+.act.done .body{color:var(--muted)}
+.act.done .atext{text-decoration:line-through}
+.doneline{margin:4px 0 0;font-size:13px;color:var(--text)}
+.doneform{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;grid-column:1/-1}
+.doneform .in{flex:1 1 220px;height:32px;padding:0 10px;border:1px solid var(--control);border-radius:7px;background:var(--surface);font:inherit;font-size:13px;color:var(--text)}
+.ucol.u-done .udot{background:var(--muted)}

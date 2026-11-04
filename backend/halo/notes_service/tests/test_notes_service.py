@@ -167,7 +167,7 @@ def test_list_and_project_filter(tmp_path):
                          "people": ["Layla", "Omar"], "date": "Thu 09 Oct", "folder_id": None,
                          "t0_ms": T0, "minutes": 0,  # card facts (locked design)
                          "archived": False, "meeting_type": None, "self_name": "Karim",
-                         "counts": {"decision": 1, "question": 0, "pushback": 0, "urgent": 0}}]
+                         "counts": {"decision": 1, "question": 0, "pushback": 0, "urgent": 0, "open_actions": 1}}]
     assert client.get("/api/meetings", params={"project_id": "halo-q4"}).json() == meetings
     assert client.get("/api/meetings", params={"project_id": "other"}).json() == []
 
@@ -563,3 +563,25 @@ def test_without_a_map_the_recap_never_orders_arabic_over_english_lines():
     assert "in Arabic" not in fallback and "exactly as written" in fallback
     mapped = recap_prompt(page, {"center": "مركز", "branches": [{"label": "فرع", "leaves": ["ورقة"]}]})
     assert "in Arabic" in mapped
+
+
+def test_an_action_marked_done_keeps_its_note_and_leaves_the_open_counts(tmp_path):
+    """Karim 2026-11-04 22:25: urgent / needs-action items can be marked done, with what was done."""
+    client, _, _ = make_client(tmp_path)
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    action = page["actions"][0]
+    url = "/api/actions/done"
+    body = {"meeting_id": MEETING, "action_id": action["action_id"], "done": True, "note": "Sent the new date to the team"}
+    assert client.post(url, json=body, headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.post(url, json={**body, "action_id": "not-an-id"}).status_code == 404
+    assert client.post(url, json=body).status_code == 200
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    MeetingPage.model_validate(page)
+    assert page["actions"][0]["done"]["note"] == "Sent the new date to the team"
+    item = next(m for m in client.get("/api/meetings").json() if m["meeting_id"] == MEETING)
+    assert item["counts"]["urgent"] == 0 and item["counts"]["open_actions"] == 0
+    assert client.post(url, json={**body, "done": False}).status_code == 200
+    page = client.get(f"/api/meetings/{MEETING}").json()
+    assert "done" not in page["actions"][0]
+    item = next(m for m in client.get("/api/meetings").json() if m["meeting_id"] == MEETING)
+    assert item["counts"]["open_actions"] == 1

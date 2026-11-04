@@ -74,6 +74,8 @@
       refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
       refOn: "Reference notes:", refLive: "the fact check uses them live", refClear: "Remove", refFail: "That file could not be added.",
       yourNotes: "Your notes:", txOpen: "Expand", txShut: "Collapse",
+      doneBtn: "Done", donePh: "What was done? (optional)", doneSave: "Mark done", doneCancel: "Cancel",
+      doneT: "Done", doneUndo: "Undo", doneFail: "That could not be saved.",
       followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
       // Home (Karim 2026-11-04, AV)
       lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
@@ -160,6 +162,8 @@
       refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
       refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
       yourNotes: "ملاحظاتك:", txOpen: "توسيع", txShut: "طي",
+      doneBtn: "تم", donePh: "ماذا تم؟ (اختياري)", doneSave: "تأكيد", doneCancel: "إلغاء",
+      doneT: "تم", doneUndo: "تراجع", doneFail: "تعذّر الحفظ.",
       followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
       lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
@@ -544,7 +548,46 @@
     mail.href = mailHref(app.page.meeting, action, lang);
     ameta.appendChild(mail);
     ameta.appendChild(retagControl(action, action.action_id, true, lang, app.userTags));
+    // Karim 2026-11-04: a handled action leaves Urgent / Needs action, with what was done.
+    if (action.done) {
+      li.classList.add("done");
+      var tn = body.firstChild, struck = el("span", "atext"); // only the action's own words are struck
+      body.replaceChild(struck, tn);
+      struck.appendChild(tn);
+      var undo = el("button", "chip", t(lang, "doneUndo"));
+      undo.type = "button";
+      undo.dataset.undone = action.action_id;
+      ameta.appendChild(undo);
+      body.appendChild(el("p", "doneline", t(lang, "doneT") + (action.done.note ? " \u00B7 " + action.done.note : "")));
+    } else if (app.doneEdit !== action.action_id) {
+      var done = el("button", "chip donebtn", t(lang, "doneBtn"));
+      done.type = "button";
+      done.dataset.done = action.action_id;
+      ameta.appendChild(done);
+    }
     body.appendChild(ameta);
+    if (!action.done && app.doneEdit === action.action_id) {
+      var form = el("div", "doneform");
+      var note = el("input", "in");
+      note.id = "doneNote";
+      note.maxLength = 500;
+      note.placeholder = t(lang, "donePh");
+      note.setAttribute("aria-label", t(lang, "donePh"));
+      note.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { ev.preventDefault(); form.querySelector("[data-done-save]").click(); }
+        if (ev.key === "Escape") form.querySelector("[data-done-cancel]").click();
+      });
+      var save = el("button", "chip pv-open", t(lang, "doneSave"));
+      save.type = "button";
+      save.dataset.doneSave = action.action_id;
+      var cancel = el("button", "chip", t(lang, "doneCancel"));
+      cancel.type = "button";
+      cancel.dataset.doneCancel = "1";
+      form.appendChild(note);
+      form.appendChild(save);
+      form.appendChild(cancel);
+      body.appendChild(form);
+    }
     li.appendChild(body);
     return li;
   }
@@ -676,12 +719,13 @@
     head.appendChild(el("p", "prov", t(lang, "prov")));
     section.appendChild(head);
     var grid = el("div", "ugrid");
-    byUrg(actions).forEach(function (pair) {
+    var finished = actions.filter(function (a) { return a.done; });
+    byUrg(actions.filter(function (a) { return !a.done; })).concat(finished.length ? [["done", finished]] : []).forEach(function (pair) {
       var u = pair[0], list = pair[1];
       var col = el("section", "ucol u-" + u);
       var h3 = el("h3");
       h3.appendChild(el("i", "udot"));
-      h3.appendChild(document.createTextNode(t(lang, u) + " "));
+      h3.appendChild(document.createTextNode(t(lang, u === "done" ? "doneT" : u) + " "));
       h3.appendChild(el("em", null, String(list.length)));
       col.appendChild(h3);
       var ul = el("ul");
@@ -1262,7 +1306,7 @@
     });
     var atOf = {};
     points.forEach(function (p) { atOf[p.id] = p.at; });
-    var actions = (page.actions || []).map(function (a) {
+    var actions = (page.actions || []).filter(function (a) { return !a.done; }).map(function (a) {
       return {
         id: a.action_id, text: a.text, owner: a.owner || "", status: a.status, urgency: urgOf(a),
         at: atOf[a.point_id] != null ? atOf[a.point_id] : null
@@ -1294,7 +1338,8 @@
 
   function hasActions(app, it) {
     var m = modelOf(app, it.meeting_id);
-    return m ? m.actions.length > 0 : ((it.counts || {}).urgent || 0) > 0;
+    var c = it.counts || {};
+    return m ? m.actions.length > 0 : (c.open_actions != null ? c.open_actions : c.urgent || 0) > 0;
   }
 
   function tabsOf(app, lang) {
@@ -2549,6 +2594,44 @@
       if ((b = g("[data-retag][data-val]"))) {
         event.preventDefault();
         onRetag(b.dataset.retag, b.dataset.val, b.dataset.action === "1");
+        return;
+      }
+      if ((b = g("[data-done]"))) {
+        app.doneEdit = b.dataset.done;
+        render(app);
+        var box = app.doc.getElementById("doneNote");
+        if (box) box.focus();
+        return;
+      }
+      if ((b = g("[data-done-cancel]"))) {
+        app.doneEdit = null;
+        render(app);
+        return;
+      }
+      if ((b = g("[data-done-save]")) || (b = g("[data-undone]"))) {
+        var aid = b.dataset.doneSave || b.dataset.undone;
+        var marking = !!b.dataset.doneSave;
+        var noteBox = app.doc.getElementById("doneNote");
+        var text = marking && noteBox ? noteBox.value.trim() : "";
+        var mid = app.page.meeting.meeting_id;
+        b.disabled = true;
+        postJson("/api/actions/done", { meeting_id: mid, action_id: aid, done: marking, note: text }).then(function () {
+          var act = (app.page && app.page.meeting.meeting_id === mid ? app.page.actions : []).filter(function (a) { return a.action_id === aid; })[0];
+          if (act) {
+            if (marking) act.done = { note: text, at: new Date().toISOString() };
+            else delete act.done;
+          }
+          var item = listed(app, mid);
+          if (item && item.counts && act) {
+            var step = marking ? -1 : 1;
+            if (item.counts.open_actions != null) item.counts.open_actions += step;
+            if (urgOf(act) === "urgent") item.counts.urgent = Math.max(0, (item.counts.urgent || 0) + step);
+          }
+          delete app.previews[mid];
+          delete app.models[mid];
+          app.doneEdit = null;
+          render(app);
+        }).catch(function () { b.disabled = false; toast(app, t(app.lang, "doneFail")); });
         return;
       }
       if ((b = g("[data-fold]"))) {

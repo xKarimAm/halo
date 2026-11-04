@@ -175,6 +175,25 @@
           "point_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "done": {
+            "type": "object",
+            "description": "Karim 2026-11-04: the viewer marked it done; note says what was done (may be empty).",
+            "properties": {
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "note",
+              "at"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [

@@ -965,3 +965,23 @@ test("(M12) every Arabic text block on the meeting page reads right to left on t
   const topicGap = await page.locator(".dis-head h3").first().evaluate((h) => h.parentElement.getBoundingClientRect().right - h.getBoundingClientRect().right);
   expect(topicGap).toBeLessThan(140); // only the "Still open" chip is to its right
 });
+
+// Karim 2026-11-04 22:25: an action can be marked done (with what was done) and undone.
+test("(M13) Done moves an action to a Done column with its note; Undo brings it back", async ({ page }) => {
+  const posts = [];
+  await page.route("**/api/actions/done", (route) => {
+    posts.push(JSON.parse(route.request().postData()));
+    route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const first = page.locator(".act [data-done]").first();
+  await first.click();
+  await page.locator("#doneNote").fill("Sent the new date to the team");
+  await page.locator("#doneNote").press("Enter");
+  await expect(page.locator(".ucol.u-done .act.done")).toHaveCount(1);
+  await expect(page.locator(".act.done .doneline")).toContainText("Sent the new date to the team");
+  expect(posts[0]).toMatchObject({ done: true, note: "Sent the new date to the team" });
+  await page.locator(".act.done [data-undone]").click();
+  await expect(page.locator(".act.done")).toHaveCount(0);
+  expect(posts[1]).toMatchObject({ done: false });
+});

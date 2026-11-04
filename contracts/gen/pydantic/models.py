@@ -123,6 +123,13 @@ class MeetingPagePeople(BaseModel):
     own_points: list[UUID]
 
 
+class MeetingPageActionsDone(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    note: str
+    at: datetime
+
+
 class MeetingPageActions(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -132,6 +139,7 @@ class MeetingPageActions(BaseModel):
     status: Literal["assigned", "suggested"]
     urgency: Literal["urgent", "medium", "later"]
     point_id: UUID
+    done: MeetingPageActionsDone | None = None
 
 
 class MeetingPagePoints(BaseModel):

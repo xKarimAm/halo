@@ -164,9 +164,10 @@ class NotesService:
         try:
             data = json.loads(self._folders_path().read_text(encoding="utf-8"))
             return {"folders": list(data.get("folders", [])), "meetings": dict(data.get("meetings", {})),
-                    "archived": list(data.get("archived", [])), "types": dict(data.get("types", {}))}
+                    "archived": list(data.get("archived", [])), "types": dict(data.get("types", {})),
+                    "done": dict(data.get("done", {}))}
         except (OSError, ValueError, AttributeError):
-            return {"folders": [], "meetings": {}, "archived": [], "types": {}}
+            return {"folders": [], "meetings": {}, "archived": [], "types": {}, "done": {}}
 
     def _save_folders(self, data: dict[str, Any]) -> None:
         # ponytail: whole-file rewrite, fine for a handful of folders on one PC
@@ -228,6 +229,15 @@ class NotesService:
         data = self._load_folders()
         rest = [m for m in data["archived"] if m != meeting_id]
         data["archived"] = rest + [meeting_id] if archived else rest
+        self._save_folders(data)
+
+    def set_done(self, action_id: str, done: bool, note: str = "") -> None:
+        """Karim 2026-11-04: a handled action leaves Urgent and Needs action; the note says what was done."""
+        data = self._load_folders()
+        if done:
+            data["done"][action_id] = {"note": note.strip()[:500], "at": datetime.now(UTC).isoformat()}
+        else:
+            data["done"].pop(action_id, None)
         self._save_folders(data)
 
     def set_type(self, meeting_id: str, meeting_type: str | None) -> None:
@@ -515,7 +525,7 @@ class NotesService:
                 "quote": p["quote"], "turn_ids": p["turn_ids"], "rank": p["rank"],
                 "urgency": p["urgency"], "is_action": p["is_action"],
             } for p in points],
-            "actions": actions,
+            "actions": self._with_done(actions),
             "transcript_lines": [{
                 "turn_id": t["turn_id"], "speaker_name": t["speaker"],
                 "text": t["text"], "ts_start_ms": t["ts_start_ms"],
@@ -625,6 +635,10 @@ class NotesService:
             me = next(iter(speakers))
         return speaking_insights(turns, me, row[0] or 0) if me else None
 
+    def _with_done(self, actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        done = self._load_folders()["done"]
+        return [{**a, "done": done[a["action_id"]]} if a["action_id"] in done else a for a in actions]
+
     def _card_counts(self, meeting_id: str, t0_ms: int, turns: list[dict[str, Any]]) -> dict[str, Any]:
         """The meeting card's facts (locked design: duration, decisions, open
         questions, pushbacks, urgent actions), with the user's re-tags applied.
@@ -636,7 +650,8 @@ class NotesService:
             "minutes": max(0, round((end - t0_ms) / 60000)) if turns and t0_ms else 0,
             "counts": {"decision": kinds.count("decision"), "question": kinds.count("question"),
                        "pushback": kinds.count("pushback"),
-                       "urgent": sum(a["urgency"] == "urgent" for a in page["actions"])},
+                       "urgent": sum(a["urgency"] == "urgent" and "done" not in a for a in page["actions"]),
+                       "open_actions": sum("done" not in a for a in page["actions"])},
         }
 
     def passages(self) -> list[dict[str, Any]]:
@@ -1124,6 +1139,24 @@ async def api_archive(request: Request):  # type: ignore[no-untyped-def]
         return JSONResponse({"detail": "meeting_id and archived required"}, status_code=400)
     _service(request).set_archived(body["meeting_id"], body["archived"])
     return {"meeting_id": body["meeting_id"], "archived": body["archived"]}
+
+
+@router.post("/api/actions/done")
+async def api_action_done(request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    body = await _body(request)
+    meeting_id, action_id, done = body.get("meeting_id"), body.get("action_id"), body.get("done")
+    note = body.get("note", "")
+    if not isinstance(meeting_id, str) or not isinstance(action_id, str) or not isinstance(done, bool) \
+            or not isinstance(note, str):
+        return JSONResponse({"detail": "meeting_id, action_id and done required"}, status_code=400)
+    service = _service(request)
+    page = service.page_for(meeting_id)
+    if page is None or all(a["action_id"] != action_id for a in page["actions"]):
+        return JSONResponse({"detail": "unknown action"}, status_code=404)
+    service.set_done(action_id, done, note)
+    return {"action_id": action_id, "done": done}
 
 
 @router.post("/api/meetings/type")
