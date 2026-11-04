@@ -696,3 +696,16 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 .doneform{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;grid-column:1/-1}
 .doneform .in{flex:1 1 220px;height:32px;padding:0 10px;border:1px solid var(--control);border-radius:7px;background:var(--surface);font:inherit;font-size:13px;color:var(--text)}
 .ucol.u-done .udot{background:var(--muted)}
+
+/* Notes added after a meeting, compared with it (Karim 2026-11-04). */
+.cmp-sum{margin:4px 0 10px;color:var(--text)}
+.cmp-list{list-style:none;margin:0;padding:0}
+.cmp-item{padding:10px 0;border-top:1px solid var(--hair)}
+.cmp-item:first-child{border-top:0}
+.cmp-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cmp-head h3{margin:0;font-size:15px}
+.cmp-item p{margin:4px 0 0;font-size:14px}
+.cmp-item p b{font-weight:600}
+.cmp-rel{font-size:12px}
+.r-differs .cmp-rel{color:var(--urgent,#b3261e);border-color:currentColor}
+.r-agrees .cmp-rel{color:var(--ok,#2e7d32);border-color:currentColor}

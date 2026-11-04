@@ -1000,3 +1000,22 @@ test("(M14) Delete moves a meeting to Deleted (30 days); Restore brings it back"
   await page.locator(".tabs [data-tab=all]").click();
   await expect(page.locator("#list .row")).toHaveCount(1);
 });
+
+// Karim 2026-11-04 22:25: notes added after the meeting are compared with it.
+test("(M15) after the meeting, added notes are compared with it: what agrees, differs, follows up", async ({ page }) => {
+  const compare = { summary: "The launch moved a week.", items: [
+    { topic: "Launch date", here: "Launch moves to Nov 12", there: "Launch on 20 November", relation: "differs" },
+    { topic: "Pricing page", here: "Omar owns it", there: "Omar owns it", relation: "agrees" }] };
+  await page.route("**/api/meetings/" + MEETING_ID + "/reference", (route) => {
+    const post = route.request().method() === "POST";
+    return route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify(post ? { name: "last-week.md", chars: 20, compare } : { name: null, chars: 0 }) });
+  });
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".refrow")).toContainText("Compare with another meeting's notes");
+  await page.locator("#refFile").setInputFiles({ name: "last-week.md", mimeType: "text/markdown", buffer: Buffer.from("# Launch\n\n- Launch on 20 November.\n") });
+  await expect(page.locator(".cmp .cmp-item")).toHaveCount(2);
+  await expect(page.locator(".cmp h2")).toContainText("Compared with last-week.md");
+  await expect(page.locator(".cmp .r-differs .cmp-rel")).toHaveText("Differs");
+  await expect(page.locator(".refrow")).toContainText("compared with this meeting below");
+});

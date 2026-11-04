@@ -72,7 +72,10 @@
       followUp: "Email follow-up", followSubject: "Follow-up: {m} ({d})", factTimes: "Checked {n} times",
       alertsT: "Alerts", tipsT: "Tips",
       refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
-      refOn: "Reference notes:", refLive: "the fact check uses them live", refClear: "Remove", refFail: "That file could not be added.",
+      refOn: "Reference notes:", refLive: "the fact check uses them live",
+      refCmpT: "Compare with another meeting's notes:", refCmpOn: "compared with this meeting below", refBusy: "Comparing with this meeting\u2026",
+      cmpT: "Compared with {n}", cmpHere: "This meeting", cmpThere: "Your notes",
+      r_agrees: "Agrees", r_differs: "Differs", r_followup: "Follow-up", r_new: "New here", refClear: "Remove", refFail: "That file could not be added.",
       yourNotes: "Your notes:", txOpen: "Expand", txShut: "Collapse",
       binT: "Archive", tabDeleted: "Deleted", delMeeting: "Delete", restore: "Restore",
       deletedToast: "Moved to Deleted. It stays there 30 days.", purgeIn: "Deleted · removed in {n} days",
@@ -162,7 +165,10 @@
       followUp: "بريد المتابعة", followSubject: "متابعة: {m} ({d})", factTimes: "تم التحقق {n} مرات",
       alertsT: "التنبيهات", tipsT: "النصائح",
       refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
-      refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
+      refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة",
+      refCmpT: "قارن بملاحظات اجتماع آخر:", refCmpOn: "مقارنة بهذا الاجتماع في الأسفل", refBusy: "تجري المقارنة بهذا الاجتماع\u2026",
+      cmpT: "مقارنة مع {n}", cmpHere: "هذا الاجتماع", cmpThere: "ملاحظاتك",
+      r_agrees: "متفق", r_differs: "مختلف", r_followup: "متابعة", r_new: "جديد هنا", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
       yourNotes: "ملاحظاتك:", txOpen: "توسيع", txShut: "طي",
       binT: "الأرشيف", tabDeleted: "المحذوفة", delMeeting: "حذف", restore: "استعادة",
       deletedToast: "نُقل إلى المحذوفة، ويبقى فيها 30 يوماً.", purgeIn: "محذوف · يُزال خلال {n} يوماً",
@@ -1065,6 +1071,37 @@
     if (active && active.scrollIntoView) active.scrollIntoView({ block: "nearest" });
   }
 
+  /** Notes added after the meeting, compared with it (AI): what agrees, differs, follows up. */
+  function compareBoard(app, lang) {
+    var ref = app.reference || {};
+    var cmp = ref.compare;
+    if (!cmp || !(cmp.items || []).length) return null;
+    var section = el("section", "board glass cmp");
+    section.appendChild(el("h2", null, t(lang, "cmpT", { n: ref.name })));
+    if (cmp.summary) section.appendChild(el("p", "cmp-sum", cmp.summary));
+    var ul = el("ul", "cmp-list");
+    cmp.items.forEach(function (x) {
+      var li = el("li", "cmp-item r-" + x.relation);
+      var head = el("div", "cmp-head");
+      head.appendChild(el("h3", null, x.topic));
+      head.appendChild(el("span", "chip cmp-rel", t(lang, "r_" + String(x.relation).replace("-", ""))));
+      li.appendChild(head);
+      var here = el("p", null);
+      here.appendChild(el("b", null, t(lang, "cmpHere") + ": "));
+      here.appendChild(document.createTextNode(x.here));
+      li.appendChild(here);
+      if (x.there) {
+        var there = el("p", null);
+        there.appendChild(el("b", null, t(lang, "cmpThere") + ": "));
+        there.appendChild(document.createTextNode(x.there));
+        li.appendChild(there);
+      }
+      ul.appendChild(li);
+    });
+    section.appendChild(ul);
+    return section;
+  }
+
   // Karim 2026-11-04: last meeting's Markdown as context; the fact check reads it live.
   function refRow(app, lang) {
     var row = el("div", "refrow");
@@ -1072,13 +1109,20 @@
     if (ref.name) {
       row.appendChild(el("b", null, t(lang, "refOn") + " "));
       row.appendChild(el("span", "refname", ref.name));
-      row.appendChild(el("span", "refnote", " \u00B7 " + t(lang, "refLive") + " "));
+      var live = app.page.meeting.in_progress;
+      var said = live ? "refLive" : ref.compare ? "refCmpOn" : null;
+      if (said) row.appendChild(el("span", "refnote", " \u00B7 " + t(lang, said) + " "));
       var clear = el("button", "chip", t(lang, "refClear"));
       clear.dataset.refClear = "1";
       row.appendChild(clear);
       return row;
     }
-    row.appendChild(el("span", "refnote", t(lang, "refT") + " "));
+    if (app.refBusy) {
+      row.appendChild(el("span", "refnote", t(lang, "refBusy")));
+      return row;
+    }
+    // Karim 2026-11-04 22:25: during the meeting the notes feed the live check; after it, a comparison.
+    row.appendChild(el("span", "refnote", t(lang, app.page.meeting.in_progress ? "refT" : "refCmpT") + " "));
     var label = el("label", "chip refadd", t(lang, "refAdd"));
     var input = el("input");
     input.type = "file";
@@ -1164,6 +1208,8 @@
       stage.appendChild(personPanel(app, selected, lang));
     } else if (!silent) {
       var all = app.cat === "all";
+      var cmp = compareBoard(app, lang);
+      if (cmp) stage.appendChild(foldable(app, cmp, "cmp"));
       stage.appendChild(foldable(app, summaryBoard(app, lang), "actions"));
       if (all) {
         var dq = el("div", "cols dq");
@@ -2854,9 +2900,12 @@
 
     function setReference(name, text) {
       var id = app.page.meeting.meeting_id;
+      app.refBusy = !app.page.meeting.in_progress; // an ended meeting is compared, which takes a few seconds
+      render(app);
       return postJson("/api/meetings/" + encodeURIComponent(id) + "/reference", { name: name, text: text })
-        .then(function (r) { if (app.page && app.page.meeting.meeting_id === id) { app.reference = r; render(app); } })
-        .catch(function () { toast(app, t(app.lang, "refFail")); });
+        .then(function (r) { if (app.page && app.page.meeting.meeting_id === id) app.reference = r; })
+        .catch(function () { toast(app, t(app.lang, "refFail")); })
+        .then(function () { app.refBusy = false; render(app); });
     }
 
     function onChange(event) {

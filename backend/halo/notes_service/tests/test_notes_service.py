@@ -606,3 +606,41 @@ def test_a_deleted_meeting_waits_30_days_in_deleted_then_drops_out(tmp_path):
     store["deleted"][MEETING] = "2026-01-01T00:00:00+00:00"
     (data / "folders.json").write_text(json.dumps(store), encoding="utf-8")
     assert client.get("/api/meetings").json() == []
+
+
+class CompareLLM:
+    def __init__(self, result):
+        self.result, self.prompts = result, []
+
+    def complete_json(self, *, prompt, schema, schema_name="", **_):
+        from types import SimpleNamespace
+        self.prompts.append(prompt)
+        return SimpleNamespace(ok=self.result is not None, data=self.result)
+
+
+def test_notes_added_after_the_meeting_are_compared_with_it(tmp_path):
+    """Karim 2026-11-04 22:25: notes added once the meeting ended (no live fact check
+    left to feed) are compared with this meeting: overlaps, agreements, differences."""
+    result = {"summary": "Both meetings set the launch; the date moved.", "items": [
+        {"topic": "Launch date", "here": "Launch moves to Nov 12", "there": "Launch on 20 November",
+         "relation": "differs"}]}
+    llm = CompareLLM(result)
+    client, _, _ = make_client(tmp_path)
+    client.app.state.notes_service._llm = llm
+    url = f"/api/meetings/{MEETING}/reference"
+    body = {"name": "last-week.md", "text": "# Launch sync\n\n- Launch on 20 November."}
+    got = client.post(url, json=body).json()
+    assert got["compare"] == result
+    assert "Launch on 20 November" in llm.prompts[0] and "Launch moves to Nov 12" in llm.prompts[0]
+    assert client.get(url).json()["compare"] == result
+    # a failed comparison still keeps the notes
+    llm.result = None
+    got = client.post(url, json={**body, "name": "other.md"}).json()
+    assert got["name"] == "other.md" and "compare" not in got
+
+
+def test_notes_added_during_a_meeting_feed_the_live_check_and_are_not_compared(tmp_path):
+    llm = CompareLLM({"summary": "x", "items": []})
+    client, _, = recap_client_open(tmp_path, llm)
+    got = client.post(f"/api/meetings/{MEETING}/reference", json={"name": "n.md", "text": "notes"}).json()
+    assert got["name"] == "n.md" and "compare" not in got and llm.prompts == []
