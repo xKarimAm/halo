@@ -72,7 +72,9 @@ INSTRUCTIONS = (
     "customers or money; medium when it is needed soon; "
     "later otherwise. why: only when urgent, 1-4 words on the deadline or "
     "what it blocks (today, blocks signups). "
-    "is_action: true when someone is asked to do something. "
+    "is_action: true when someone takes on or is given a task with a result "
+    "(I will..., can you send..., X owns...); false for advice on behaviour "
+    "(lower your tone, calm down) and for remarks about the meeting. "
     "replaces: only when this point supersedes an earlier point id. "
     "Decide fast; do not deliberate."
 )
