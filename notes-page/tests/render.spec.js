@@ -910,3 +910,24 @@ test("(M9) a section folds to its heading and opens again", async ({ page }) => 
   await expect(page.locator(".col.c-decision li").first()).toBeVisible();
   await expect(page.locator(".board [data-fold]").first()).toBeVisible(); // Action items fold too
 });
+
+// Karim 2026-11-04 22:25: an Arabic summary sits right, next to the transcript wall.
+test("(M10) an Arabic summary's box sits on the right edge of the meeting header", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  p.meeting.summary = "اتفق الفريق على نشر النسخة الأولى في مارس مع تقليل الميزات، ويراجع Omar خطة التسويق قبل نهاية الأسبوع القادم مع فريق التصميم والمبيعات.";
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const gap = await page.locator(".mtg-summary").evaluate((n) => n.parentElement.getBoundingClientRect().right - parseFloat(getComputedStyle(n.parentElement).paddingRight) - n.getBoundingClientRect().right);
+  expect(gap).toBeLessThan(4);
+  expect(await page.locator(".mtg-summary").getAttribute("dir")).toBe("rtl");
+});
+
+// Karim 2026-11-04 22:25: room to breathe above the folder row.
+test("(M11) the preview's folder row sits clear of the summary cards", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(baseURL + "/");
+  await page.locator(".pfoot").first().waitFor();
+  const gap = await page.locator(".pfoot").first().evaluate((n) => n.getBoundingClientRect().top - n.previousElementSibling.getBoundingClientRect().bottom);
+  expect(gap).toBeGreaterThanOrEqual(16);
+});

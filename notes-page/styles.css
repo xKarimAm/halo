@@ -484,7 +484,7 @@ body:has(#view.home)::before{background:var(--bg)}
 #view.home .udot{width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--lat)}
 #view.home .u-urgent .udot{background:var(--urg)}
 #view.home .u-medium .udot{background:var(--med)}
-#view.home .pfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+#view.home .pfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 @media (prefers-reduced-motion:no-preference){#view.home.enter .row,#view.home.enter .day{animation:h-rise 440ms var(--ease) both;animation-delay:calc(min(var(--i,0), 6) * 55ms)}
 ::view-transition-old(preview){animation:h-out 240ms ease both}
 ::view-transition-new(preview){animation:h-in 420ms var(--ease) both}}
@@ -682,3 +682,4 @@ button.fold::after{content:"";width:7px;height:7px;border-right:2px solid var(--
 button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 [dir="rtl"] button.fold[aria-expanded="false"]::after{transform:rotate(135deg)}
 .folded{padding-bottom:12px}
+.head .mtg-summary[dir="rtl"]{margin-left:auto}

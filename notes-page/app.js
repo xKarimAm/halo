@@ -1053,7 +1053,11 @@
     facts.push((page.people || []).map(function (p) { return p.name; }).join(", "));
     if (page.meeting.title && page.meeting.title !== page.meeting.subject) facts.push(page.meeting.subject);
     head.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
-    if (page.meeting.summary) head.appendChild(el("p", "mtg-summary", page.meeting.summary));
+    if (page.meeting.summary) {
+      var summary = el("p", "mtg-summary", page.meeting.summary);
+      summary.dir = rtlText(page.meeting.summary) ? "rtl" : "auto"; // Karim 2026-11-04: Arabic sits on the right edge
+      head.appendChild(summary);
+    }
     head.appendChild(refRow(app, lang));
     left.appendChild(head);
     left.appendChild(el("h2", "sr", t(lang, "people")));
