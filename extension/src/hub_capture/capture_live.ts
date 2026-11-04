@@ -163,7 +163,7 @@ export async function startLiveCapture(
       for (let c = 0; c < ev.inputBuffer.numberOfChannels; c += 1) {
         input.push(ev.inputBuffer.getChannelData(c));
       }
-      for (const frame of acc.push(input)) {
+      for (const frame of acc.push(input, deps.now())) {
         deps.sendAudio(kind, pcmBytes(frame.pcm), frame.ts_ms);
       }
     };

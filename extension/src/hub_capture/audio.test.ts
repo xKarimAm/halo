@@ -70,4 +70,23 @@ describe("CaptureAccumulator", () => {
     expect(second[0].ts_ms).toBe(0);
     expect(second[0].pcm[0]).toBe(Math.round(0.1 * 32767));
   });
+
+  it("keeps stamps on the wall clock when capture loses audio", () => {
+    // Live 2026-11-01..03: the Meet tab's capture ran 2.3-3.1% short of real
+    // time, so stamps fell 19 s behind in 10 min and missed Meet's speaker edges.
+    const acc = new CaptureAccumulator(0, 16000);
+    const quantum = new Float32Array(1024); // 64 ms of audio
+    let wall = 0;
+    let worst = 0;
+    let last = -100;
+    while (wall < 600_000) {
+      wall += 64 / 0.97;
+      for (const f of acc.push([quantum], wall)) {
+        worst = Math.max(worst, wall - (f.ts_ms + 100));
+        expect(f.ts_ms - last).toBeGreaterThanOrEqual(100);
+        last = f.ts_ms;
+      }
+    }
+    expect(worst).toBeLessThan(450); // the correlator allows 500 ms
+  });
 });
