@@ -41,7 +41,8 @@ INSTRUCTIONS = (
     "with kind and urgency. kind: decision = something agreed or settled; "
     "question = something asked and not answered; pushback = disagreement "
     "with something said; point = anything else, including tasks and plans. "
-    "urgency: urgent = must happen today or blocks others; medium; later. "
+    "urgency: urgent = the speaker calls it urgent, it is due today or by "
+    "tomorrow morning, or it blocks others; medium; later. "
     "Keep the first guess unless it is clearly wrong. Never contradict the "
     "current tags: keep any field they already set."
 )
