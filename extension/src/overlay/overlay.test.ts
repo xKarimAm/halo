@@ -479,6 +479,19 @@ describe("the meeting ends: nothing lingers", () => {
     expect(overlay.coach).toBeNull();
     expect(overlay.visiblePoints("tile-1")).toEqual([]);
     expect(overlay.notesToast).not.toBeNull();
+    expect(overlay.caption("tile-1")).toBe("");
+  });
+
+  it("a point or tip still in flight when the meeting ends stays off the page until the next Start", () => {
+    const { overlay } = make();
+    overlay.endMeeting();
+    overlay.applyEnvelope({ id: "late-1", type: "points.upsert", data: point() as never });
+    overlay.applyEnvelope({ id: "late-2", type: "coach.tips", data: { tips: ["Late."], lang: "en" } });
+    expect(overlay.points.size).toBe(0);
+    expect(overlay.coach).toBeNull();
+    overlay.startMeeting();
+    overlay.applyEnvelope({ id: "new-1", type: "points.upsert", data: point() as never });
+    expect(overlay.points.size).toBe(1);
   });
 });
 

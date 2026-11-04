@@ -140,6 +140,7 @@ export class Overlay {
    * on the page, urgent points included. The notes toast stays: it is the
    * way to the notes. */
   endMeeting(): void {
+    this.ended = true; // replies still in flight must not refill the page
     this.points.clear();
     this.coach = null;
     this.captions = { tab: "", mic: "" };
@@ -148,6 +149,13 @@ export class Overlay {
     this.expanded.clear();
     this.speakingTile = null;
   }
+
+  /** The next Start: live envelopes count again. */
+  startMeeting(): void {
+    this.ended = false;
+  }
+
+  private ended = false;
 
   /** Set by boot(): redraw now (faces arrive outside backend envelopes). */
   requestRender: () => void = () => {};
@@ -162,6 +170,7 @@ export class Overlay {
   }
 
   applyEnvelope(env: { id: string; type: string; data: Record<string, unknown> }): void {
+    if (this.ended && ["points.upsert", "tags.set", "coach.tips", "transcript.partial"].includes(env.type)) return;
     if (env.type === "transcript.partial") {
       // ponytail: no dedupe, a repeat caption is harmless; keeps seenEnvelopes small
       const { stream, text } = env.data as { stream: "tab" | "mic"; text: string };

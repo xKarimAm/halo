@@ -15,7 +15,7 @@
 
   var T = {
     en: {
-      notes: "Notes", meetings: "Meetings", folders: "Folders", people: "People", everyone: "Whole meeting",
+      notes: "Notes", meetings: "Meetings", folders: "Folders", someone: "someone", people: "People", everyone: "Whole meeting",
       search: "Search every meeting: points, actions and transcripts",
       results: "Search results", noHits: "No matches.", inPoints: "Point", inTx: "Transcript",
       ask: "Ask your meetings, e.g. what did we decide about the launch?", askBtn: "Ask",
@@ -89,7 +89,7 @@
       pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo notes"
     },
     ar: {
-      notes: "الملاحظات", meetings: "الاجتماعات", folders: "المجلدات", people: "الأشخاص", everyone: "الاجتماع كاملاً",
+      notes: "الملاحظات", meetings: "الاجتماعات", folders: "المجلدات", someone: "أحدهم", people: "الأشخاص", everyone: "الاجتماع كاملاً",
       search: "ابحث في كل الاجتماعات: النقاط والمهام والنصوص",
       results: "نتائج البحث", noHits: "لا توجد نتائج.", inPoints: "نقطة", inTx: "النص",
       ask: "اسأل اجتماعاتك، مثلاً: ماذا قررنا بشأن الإطلاق؟", askBtn: "اسأل",
@@ -513,7 +513,7 @@
   // Karim 2026-11-04: send any statement to the person it concerns.
   function pointMailHref(app, point, lang) {
     var m = app.page.meeting;
-    var vars = { m: titleOf(m), p: point.text, s: point.speaker_name || "", d: fmtDate(m.t0_ms) };
+    var vars = { m: titleOf(m), p: point.text, s: point.speaker_name || t(lang, "someone"), d: fmtDate(m.t0_ms) };
     return "mailto:?subject=" + encodeURIComponent(t(lang, "pointMailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "pointMailBody", vars));
   }
@@ -1783,6 +1783,8 @@
     var H = app.home;
     var ind = doc.getElementById("ind");
     var on = doc.querySelector(".tabs [aria-selected=true]");
+    // A folder tab sits in the closed Folders menu (0 wide): underline the menu instead.
+    if (on && on.closest(".fmenu")) on = doc.querySelector(".tabs .fmenu summary");
     if (ind && on) {
       var to = "translateX(" + on.offsetLeft + "px) scaleX(" + on.offsetWidth + ")";
       if (H.ind && H.ind !== to && !stillMotion()) {

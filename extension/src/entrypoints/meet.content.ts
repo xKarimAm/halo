@@ -45,7 +45,9 @@ export async function bootMeetPage(): Promise<void> {
   // Live 2026-11-04: the pill, points and coach stayed on "You left the
   // meeting". The hub clears this flag on Stop and on call.left.
   chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {
-    if (MEETING_RUNNING_KEY in changes && changes[MEETING_RUNNING_KEY].newValue !== true) {
+    if (!(MEETING_RUNNING_KEY in changes)) return;
+    if (changes[MEETING_RUNNING_KEY].newValue === true) overlay.startMeeting();
+    else {
       overlay.endMeeting();
       overlay.requestRender();
     }
