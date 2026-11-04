@@ -1673,10 +1673,9 @@
   }
 
   function drawArcs(H, big) {
-    if (!big.classList.contains("simple")) return;
-    var st = big.querySelector(".strip:not(.arail)");
+    var strips = big.querySelectorAll(".strip:not(.arail)"); // Simple: one line; Detailed: every lane
     var pairs = arcPairs(H.m);
-    if (!st || !pairs.length) return;
+    if (!strips.length || !pairs.length) return;
     var lang = H.app.lang;
     var outcomes = { settled: "disSettled", parked: "disParked", open: "disOpen" };
     // Karim 2026-11-04: no arcs; the stretch between the two sides is tinted.
@@ -1701,7 +1700,12 @@
       path.addEventListener("mouseenter", show);
       path.addEventListener("focus", show);
       path.addEventListener("click", function (e) { e.stopPropagation(); show(); seek(H, Math.min(pr.a.at, pr.b.at) / H.m.duration); });
-      st.appendChild(path);
+      strips.forEach(function (st, i) {
+        var seg = i ? path.cloneNode(false) : path;
+        if (i) ["mouseenter", "focus"].forEach(function (ev) { seg.addEventListener(ev, show); });
+        if (i) seg.addEventListener("click", function (e) { e.stopPropagation(); show(); seek(H, Math.min(pr.a.at, pr.b.at) / H.m.duration); });
+        st.appendChild(seg);
+      });
     });
   }
 
