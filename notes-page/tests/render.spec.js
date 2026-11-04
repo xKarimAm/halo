@@ -677,8 +677,8 @@ test("(M1) the meeting page follows the approved draft", async ({ page }) => {
     body: JSON.stringify({ speakers: 2, talk_share: 60, fair_share: 50, longest_ms: 39000, longest_at_ms: 1000, questions: 2, follow_ups: 0,
       cut_ins: [], pace_wpm: 140, hedged: [], try_next: { key: "ask" } }) }));
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
-  // the title sits on the page ground, not in a dark box
-  expect(await page.locator(".head").evaluate((n) => getComputedStyle(n).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  // Karim 2026-11-04 23:31, "Ink over stone": the title sits on the warm stone band under the charcoal row
+  expect(await page.locator(".head").evaluate((n) => getComputedStyle(n).backgroundColor)).toBe("rgb(125, 119, 107)");
   // one email drafts every action and decision
   const follow = page.locator("a.follow-up");
   await expect(follow).toHaveText("Email follow-up");
