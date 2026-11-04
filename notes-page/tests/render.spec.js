@@ -509,6 +509,12 @@ test("(H6) a disagreement tints its stretch of the line and the key names it", a
   await expect(page.locator("#preview .tip")).toContainText("Beta launch date");
 });
 
+test("(H7b) on a fresh home, Notes opens the newest meeting instead of sitting disabled", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#crumb .nav-notes").click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(GOLDEN.meeting.title);
+});
+
 // Karim 2026-11-04: not "Halo Notes" + "Meetings"; "Halo", then Meetings and Notes tabs.
 test("(H7) the header says Halo with Meetings and Notes tabs", async ({ page }) => {
   await page.goto(baseURL + "/");

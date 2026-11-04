@@ -1913,11 +1913,12 @@
     var crumb = doc.getElementById("crumb");
     crumb.textContent = "";
     // Karim 2026-11-04: "Halo", then two tabs: Meetings (the list) and Notes
-    // (the meeting last opened; off until one is).
+    // (the meeting last opened, else the newest).
     var navMeetings = el("button", "nav-tab", t(lang, "meetings"));
     navMeetings.dataset.nav = "list";
     var navNotes = el("button", "nav-tab nav-notes", t(lang, "notes"));
-    if (app.page) navNotes.dataset.open = app.page.meeting.meeting_id;
+    var noteId = app.page ? app.page.meeting.meeting_id : ((app.meetings || [])[0] || {}).meeting_id;
+    if (noteId) navNotes.dataset.open = noteId;
     else navNotes.disabled = true;
     (app.view === "list" ? navMeetings : navNotes).setAttribute("aria-current", "page");
     crumb.appendChild(navMeetings);
