@@ -461,7 +461,7 @@ test("(H4) since your last visit: new meetings and your action items until Mark 
   await page.goto(baseURL + "/");
   const finding = page.locator("#finding");
   await expect(finding).toContainText("1 new meeting");
-  await expect(finding).toContainText("1 action item for you");
+  await expect(finding).toContainText("1 action item in them for you");
   await expect(page.locator("#list .row .newdot")).toHaveCount(1);
   await page.locator("#seen").click();
   await expect(finding).toContainText("Nothing new since your last visit");
