@@ -23,16 +23,13 @@ from typing import Any
 log = logging.getLogger("halo.fact_check")
 
 TICK_S = 1.0
-MAX_CALLS = 20  # per meeting, per backend run: a restart mid-meeting allows 20 more
+MAX_CALLS = 60  # per meeting, per backend run; most are skips that never search (contributor, $0.10/M in)
 MAX_SOURCES = 3
 NOTE_MAX = 200
 ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫", "0123456789.")
 FIGURE = re.compile(r"\d+(?:\.\d+)?|hundred|thousand|million|billion|trillion|percent|مليون|ملايين|مليار|بالمئة|بالمائة")
 SAME_CLAIM_OVERLAP = 0.6  # live 2026-11-04: one Qatar figure was checked three times
 CLAIM_MAX = 300
-# ponytail: digits, or a scale word (speech-to-text can spell numbers out). A claim
-# with neither is never checked; widen with a cheap model gate if that matters.
-HAS_NUMBER = re.compile(r"[0-9٠-٩]|\b(?:hundred|thousand|million|billion|trillion|percent)\b|مليون|ملايين|مليار|بالمئة|بالمائة", re.IGNORECASE)
 # Live 2026-11-04: Spark leaves its citation marks in the JSON note.
 CITATION_MARK = re.compile(r"\s*\u3010[^\u3011]*\u3011")
 
@@ -122,7 +119,9 @@ class FactCheck:
         meetingid, point_id = envelope.get("meetingid"), data.get("point_id")
         if not meetingid or not point_id or point_id in self._seen:
             return
-        if not HAS_NUMBER.search(str(data.get("text", ""))):
+        # Live 2026-11-04: a digits-only gate missed "the pyramids are the only pyramids
+        # in the world". Every statement goes; the model skips internal ones unsearched.
+        if data.get("kind") not in ("point", "pushback") or data.get("is_action"):
             return
         self._seen.add(point_id)
         words = (_words(str(data["text"])), _numbers(str(data["text"])))

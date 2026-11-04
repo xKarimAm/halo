@@ -63,9 +63,21 @@ def test_a_point_with_a_number_is_checked_and_published():
     assert "10 million" in llm.prompts[0]
 
 
-def test_words_without_a_number_spend_nothing():
+def test_a_fact_without_a_number_is_checked():
+    # Live 2026-11-04: "The pyramids are the only pyramids in the world" was never checked.
     llm = FakeLLM()
-    assert run(llm, point("We should talk to the design team.")) == [] and llm.prompts == []
+    run(llm, point("The Giza pyramids are the only pyramids in the world."))
+    assert len(llm.prompts) == 1
+
+
+def test_questions_and_tasks_spend_nothing():
+    llm = FakeLLM()
+    q = env("points.upsert", {"point_id": "00000000-0000-4000-8000-000000000001", "speaker_name": "Omar",
+                              "text": "Is Qatar 10 million people?", "kind": "question", "lang": "en"}, 1)
+    task = env("points.upsert", {"point_id": "00000000-0000-4000-8000-000000000002", "speaker_name": "Omar",
+                                 "text": "Send the 10 slides by Thursday.", "kind": "point", "is_action": True,
+                                 "lang": "en"}, 2)
+    assert run(llm, q, task) == [] and llm.prompts == []
 
 
 def test_arabic_digits_count():
