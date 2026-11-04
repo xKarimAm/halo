@@ -95,10 +95,9 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
       await page.waitForTimeout(500);
     }
 
-    const chip = page.locator(`[data-tile-id="${TILE_ID}"] [data-point-id]`).first();
+    // Newest shows first now that points stay, so find this point by its words.
+    const chip = page.locator(`[data-tile-id="${TILE_ID}"] [data-point-id]`).filter({ hasText: POINT_TEXT }).first();
     await expect(chip).toBeVisible({ timeout: 30000 });
-    const text = await chip.textContent();
-    expect(text).toContain(POINT_TEXT);
 
     // The bubble sits on the speaker's tile, not somewhere else on the page.
     const tileBox = await page.locator(`[data-participant-id="${TILE_ID}"]`).boundingBox();
@@ -129,7 +128,7 @@ test("thin joined run: pair, Start, bubble on the right tile", async () => {
     await expect(page.locator(".halo-lang")).toBeVisible();
 
     writeFileSync(`${JOINED_DIR}/result.json`, JSON.stringify({
-      ok: true, tileId: TILE_ID, text, seenAt: Date.now(),
+      ok: true, tileId: TILE_ID, text: await chip.textContent(), seenAt: Date.now(),
     }));
   } finally {
     await context.close();
