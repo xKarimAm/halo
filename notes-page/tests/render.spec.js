@@ -649,3 +649,14 @@ test("(H7) the header says Halo with Meetings and Notes tabs", async ({ page }) 
   await notes.click(); // back to the meeting last opened
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(GOLDEN.meeting.title);
 });
+
+// Karim 2026-11-04: Archive and Open notes sat on different lines at 1024-1100 px and on phones.
+test("(H8) Archive and Open notes stay side by side at every width", async ({ page }) => {
+  for (const width of [1440, 1100, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(baseURL + "/");
+    const arch = await page.locator("#preview [data-archive]").boundingBox();
+    const open = await page.locator("#preview .pv-open").boundingBox();
+    expect(Math.abs(arch.y - open.y), `at ${width}px`).toBeLessThan(2);
+  }
+});

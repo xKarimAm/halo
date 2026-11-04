@@ -1357,15 +1357,18 @@
     create.dataset.meeting = m.id;
     foot.appendChild(create);
     foot.appendChild(el("span", "sp"));
+    // Karim 2026-11-04: the two main buttons wrap together, never apart.
+    var acts = el("span", "pacts");
     var arch = el("button", "btn-2", t(lang, it.archived ? "unarchive" : "archive"));
     arch.type = "button";
     arch.dataset.archive = m.id;
     arch.dataset.on = it.archived ? "0" : "1";
-    foot.appendChild(arch);
+    acts.appendChild(arch);
     var open = el("button", "btn pv-open", t(lang, "openNotes"));
     open.type = "button";
     open.dataset.open = m.id;
-    foot.appendChild(open);
+    acts.appendChild(open);
+    foot.appendChild(acts);
     panel.appendChild(foot);
     return panel;
   }
