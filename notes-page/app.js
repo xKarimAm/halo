@@ -655,6 +655,9 @@
       var ul = el("ul", "dis-sides");
       d.sides.forEach(function (x) {
         var li = el("li");
+        // The name comes first but the view sets the line's direction (an Arabic view
+        // after a Latin name read left to right).
+        li.dir = /^[^A-Za-z؀-ۿ]*[؀-ۿ]/.test(x.view) ? "rtl" : "ltr";
         li.appendChild(el("b", null, x.name));
         li.appendChild(document.createTextNode(" " + x.view));
         ul.appendChild(li);

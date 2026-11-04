@@ -658,3 +658,7 @@ body:has(#view.home)::before{background:var(--bg)}
   .pt .hov .chip[data-orig],.pt .hov .retag{opacity:1}
   .pt:hover .hov,.pt:focus-within .hov,.pt .hov:has(.retag[open]){opacity:1;pointer-events:auto}
 }
+/* Karim 2026-11-04: an Arabic paragraph in the English page (and English in the Arabic
+   one) takes its direction from its own first letter, and lines up on that side. */
+.head h1,.mtg-summary,.ln .o,.pt .txt,.act .body,.dis-item h3,.dis-res,.fact-item h3,.fact-item p,.coach-item p,
+.speaking blockquote{unicode-bidi:plaintext;text-align:start}

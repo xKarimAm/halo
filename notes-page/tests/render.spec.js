@@ -818,3 +818,25 @@ test("(M4) hover-only controls take no room at rest, so rows keep one height", a
   await page.locator(".col.c-question li.pt").first().hover();
   await expect(retag).toBeVisible();
 });
+
+// Karim 2026-11-04: Arabic paragraphs on the meeting page were set left to right.
+test("(M5) an Arabic summary, transcript line and disagreement read right to left in the English UI", async ({ page }) => {
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  p.meeting.summary = "اتفق الفريق على نشر النسخة الأولى في مارس مع تقليل الميزات، ويراجع Omar خطة التسويق.";
+  p.transcript_lines[0].text = "خلينا نراجع ال roadmap قبل الاجتماع الجاي";
+  p.meeting.disagreements = [{ topic: "موعد الإطلاق", outcome: "open", sides: [{ name: "Layla", view: "تفضل الإطلاق في أبريل." }], resolution: "" }];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const firstWordAtRight = (sel) => page.locator(sel).first().evaluate((n) => {
+    const walk = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
+    let t = walk.nextNode();
+    while (t && !/[\u0600-\u06FF]/.test(t.data)) t = walk.nextNode();
+    const r = document.createRange();
+    const i = t.data.search(/[\u0600-\u06FF]/);
+    r.setStart(t, i); r.setEnd(t, i + 3);
+    return n.getBoundingClientRect().right - r.getBoundingClientRect().right;
+  });
+  expect(await firstWordAtRight(".mtg-summary")).toBeLessThan(4);
+  expect(await firstWordAtRight(".ln .o")).toBeLessThan(4);
+  expect(await page.locator(".dis-sides li").first().getAttribute("dir")).toBe("rtl");
+});
