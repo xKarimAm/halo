@@ -31,6 +31,7 @@ TICK_S = 1.0
 MIN_GAP_S = 8.0  # ponytail: one call per 8 s per meeting at most (~7 RPM); raise if RPM gets tight
 SILENCE_S = 15.0  # one silence call per quiet stretch
 MAX_WORDS = 2000  # newest words only; shorter input, faster call
+COACH_TIMEOUT_S = 8.0  # live 2026-11-04: 14 coach timeouts at 4 s, each demoting live points for 30 s
 ALERT_GAP_S = 180.0  # live 2026-11-04: at most one alert per 3 minutes
 MAX_SAID = 12  # earlier tips kept in the prompt so they are not reworded (live 2026-11-04)
 PROMPT_CACHE_KEY = "coach-v4"
@@ -233,7 +234,8 @@ class Coach:
             self._last_call[meetingid] = now
             result = await asyncio.to_thread(
                 self._llm.complete_json, prompt=self.build_prompt(meetingid, reason),
-                schema=TIPS_SCHEMA, schema_name="coach.tips", prompt_cache_key=PROMPT_CACHE_KEY)
+                schema=TIPS_SCHEMA, schema_name="coach.tips", prompt_cache_key=PROMPT_CACHE_KEY,
+                timeout_s=COACH_TIMEOUT_S)
             if meetingid not in self._turns:
                 continue  # the meeting ended during the call
             if result is None or not result.ok or not isinstance(result.data, dict):

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from halo.bus import Bus
 from halo.coach import Coach
-from halo.coach.coach import MIN_GAP_S, SILENCE_S
+from halo.coach.coach import COACH_TIMEOUT_S, MIN_GAP_S, SILENCE_S
 
 from contracts.validate import validate_envelope
 
@@ -19,8 +19,9 @@ class FakeLLM:
         self.replies = list(replies)
         self.prompts: list[str] = []
 
-    def complete_json(self, *, prompt, schema, schema_name="", system=None, prompt_cache_key=None):
+    def complete_json(self, *, prompt, schema, schema_name="", system=None, prompt_cache_key=None, timeout_s=None):
         self.prompts.append(prompt)
+        self.timeouts = [*getattr(self, "timeouts", []), timeout_s]
         data = self.replies.pop(0)
         if data is None:
             return SimpleNamespace(ok=False, engine="x", data=None, error={"code": "engine_error"})
@@ -323,5 +324,17 @@ def test_a_second_alert_waits_three_minutes():
         await bus.publish(turn("okay go on", name="Layla", n=4))
         await coach.tick()
         assert [t["data"].get("alert") for t in tips] == ["Bring it back to dates.", None, "Let Omar finish."]
+
+    asyncio.run(run())
+
+
+def test_a_coach_call_gets_more_time_than_a_live_point():
+    # Live 2026-11-04: 14 coach calls timed out at Spark Open's 4 s live budget,
+    # and each one pushed the live points onto the backup model for 30 s.
+    async def run():
+        bus, llm, coach, _tips, _clock = setup([{"tips": [], "alert": "", "alert_quote": ""}])
+        await bus.publish(turn("the gateway is late again", n=2))
+        await coach.tick()
+        assert llm.timeouts == [COACH_TIMEOUT_S] and COACH_TIMEOUT_S >= 8
 
     asyncio.run(run())
