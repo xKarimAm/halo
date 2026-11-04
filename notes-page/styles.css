@@ -730,6 +730,3 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 .tour-line b{font-weight:600}
 .tour-nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
 @media (prefers-reduced-motion:reduce){.tour-spot,.tour-card{transition:none}}
-#view .head,#view.home .home-head{background:var(--band-2);color:#fff;border-radius:0 0 var(--r) var(--r);margin:-6px 0 14px;padding:18px 24px 16px}
-#view .head .facts,#view .head .mtg-summary,#view .head .sub,#view.home .home-head .finding,#view.home .home-head .finding *,#view .head .refrow,#view .head .refrow *{color:#fff}
-#view .head .refrow button{border-color:rgba(255,255,255,.5);background:transparent}
