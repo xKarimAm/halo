@@ -73,7 +73,7 @@
       alertsT: "Alerts", tipsT: "Tips",
       refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
       refOn: "Reference notes:", refLive: "the fact check uses them live", refClear: "Remove", refFail: "That file could not be added.",
-      yourNotes: "Your notes:",
+      yourNotes: "Your notes:", txWider: "Expand", txNarrow: "Collapse",
       followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
       // Home (Karim 2026-11-04, AV)
       lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
@@ -159,7 +159,7 @@
       alertsT: "التنبيهات", tipsT: "النصائح",
       refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
       refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
-      yourNotes: "ملاحظاتك:",
+      yourNotes: "ملاحظاتك:", txWider: "توسيع", txNarrow: "تصغير",
       followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
       lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
@@ -263,6 +263,30 @@
       l.text = String(l.text || "").charAt(0).toUpperCase() + String(l.text || "").slice(1);
     });
     return page;
+  }
+
+  function rtlText(text) {
+    return /^[^A-Za-z\u0590-\u08FF]*[\u0590-\u08FF]/.test(String(text || ""));
+  }
+
+  // Karim 2026-11-04: sections fold to their heading. Call after the section is built;
+  // the choice is kept per section kind across meetings (localStorage).
+  function foldable(app, section, key) {
+    var head = section.querySelector(":scope > .bhead") || section.querySelector(":scope > h2");
+    var h2 = head && (head.tagName === "H2" ? head : head.querySelector("h2"));
+    if (!h2) return section;
+    var open = !app.folded[key];
+    var btn = el("button", "fold");
+    btn.type = "button";
+    btn.dataset.fold = key;
+    btn.setAttribute("aria-expanded", String(open));
+    while (h2.firstChild) btn.appendChild(h2.firstChild);
+    h2.appendChild(btn);
+    if (!open) {
+      section.classList.add("folded");
+      Array.prototype.slice.call(section.children).forEach(function (c) { if (c !== head) section.removeChild(c); });
+    }
+    return section;
   }
 
   function el(tag, cls, text) {
@@ -663,7 +687,7 @@
         var li = el("li");
         // The name comes first but the view sets the line's direction (an Arabic view
         // after a Latin name read left to right).
-        li.dir = /^[^A-Za-z؀-ۿ]*[؀-ۿ]/.test(x.view) ? "rtl" : "ltr";
+        li.dir = rtlText(x.view) ? "rtl" : "ltr";
         li.appendChild(el("b", null, x.name));
         li.appendChild(document.createTextNode(" " + x.view));
         ul.appendChild(li);
@@ -924,14 +948,20 @@
       })));
     }
     aside.appendChild(player);
-    var h2 = el("h2", null, t(lang, "tx"));
-    h2.style.padding = "12px 20px 0";
-    aside.appendChild(h2);
+    var txhead = el("div", "txhead");
+    txhead.appendChild(el("h2", null, t(lang, "tx")));
+    var wide = el("button", "chip", t(lang, app.txWide ? "txNarrow" : "txWider"));
+    wide.id = "txWide";
+    wide.type = "button";
+    wide.setAttribute("aria-expanded", String(!!app.txWide));
+    txhead.appendChild(wide);
+    aside.appendChild(txhead);
     var lines = el("div", "lines");
     lines.id = "lines";
     page.transcript_lines.forEach(function (ln, index) {
       var btn = el("button", "ln" + (index === app.lineIndex ? " on" : ""));
       btn.dataset.line = ln.turn_id;
+      btn.dir = rtlText(ln.text) ? "rtl" : "ltr"; // Karim 2026-11-04: Arabic sits on the right wall
       btn.id = "ln-" + index;
       if (index === app.lineIndex) btn.setAttribute("aria-current", "true");
       // Chat-style: a run of lines by one speaker shows the name and face once.
@@ -1004,7 +1034,7 @@
     if (page.meeting.degraded && !page.meeting.in_progress) {
       view.appendChild(el("div", "degraded", t(lang, silent ? "noSpeech" : "degraded")));
     }
-    var wrap = el("div", "mtg");
+    var wrap = el("div", "mtg" + (app.txWide ? " tx-wide" : ""));
     var left = el("div");
     var head = el("section", "head glass");
     var hrow = el("div", "head-row");
@@ -1052,26 +1082,26 @@
       stage.appendChild(personPanel(app, selected, lang));
     } else if (!silent) {
       var all = app.cat === "all";
-      stage.appendChild(summaryBoard(app, lang));
+      stage.appendChild(foldable(app, summaryBoard(app, lang), "actions"));
       if (all) {
         var dq = el("div", "cols dq");
-        ["decision", "question"].forEach(function (k) { dq.appendChild(kindColumn(app, k, lang)); });
+        ["decision", "question"].forEach(function (k) { dq.appendChild(foldable(app, kindColumn(app, k, lang), k)); });
         stage.appendChild(dq);
       }
       var dis = disagreementsBoard(app, lang);
-      if (dis) stage.appendChild(dis);
+      if (dis) stage.appendChild(foldable(app, dis, "dis"));
       var facts = factBoard(app, lang);
-      if (facts) stage.appendChild(facts);
+      if (facts) stage.appendChild(foldable(app, facts, "facts"));
       var coach = coachBoard(app, lang);
-      if (coach) stage.appendChild(coach);
+      if (coach) stage.appendChild(foldable(app, coach, "coach"));
       stage.appendChild(filtersBar(app, boardPoints(page), lang));
       var cols = el("div", "cols" + (all ? "" : " one"));
       (all ? ["pushback", "point"] : [app.cat]).forEach(function (k) {
-        cols.appendChild(kindColumn(app, k, lang));
+        cols.appendChild(foldable(app, kindColumn(app, k, lang), k));
       });
       stage.appendChild(cols);
       if (all && !page.meeting.in_progress) stage.appendChild(recapBoard(app, lang));
-      if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
+      if (app.speaking) stage.appendChild(foldable(app, speakingPanel(app.speaking, lang), "speaking"));
     }
     left.appendChild(stage);
     wrap.appendChild(left);
@@ -1134,6 +1164,8 @@
   var MTYPES = ["sprint", "planning", "discovery", "sales", "induction", "one_on_one", "interview", "other"];
   var LAST_KEY = "halo-notes-lastvisit";
   var MODE_KEY = "halo-notes-view";
+  var FOLD_KEY = "halo-notes-folded";
+  var TXWIDE_KEY = "halo-notes-txwide";
 
   function stored(key, value) {
     try {
@@ -2308,6 +2340,8 @@
     };
     var postJson = opts.postJson || function () { return Promise.reject(new Error("no postJson")); };
     var win = opts.win || { history: { pushState: function () {} } };
+    try { app.folded = JSON.parse(stored(FOLD_KEY) || "{}") || {}; } catch (e) { app.folded = {}; }
+    app.txWide = stored(TXWIDE_KEY) === "1";
 
     app.showList = function (meetings) {
       app.view = "list";
@@ -2480,6 +2514,23 @@
       if ((b = g("[data-retag][data-val]"))) {
         event.preventDefault();
         onRetag(b.dataset.retag, b.dataset.val, b.dataset.action === "1");
+        return;
+      }
+      if ((b = g("[data-fold]"))) {
+        app.folded[b.dataset.fold] = !app.folded[b.dataset.fold];
+        if (!app.folded[b.dataset.fold]) delete app.folded[b.dataset.fold];
+        stored(FOLD_KEY, JSON.stringify(app.folded));
+        render(app);
+        var again = app.doc.querySelector('[data-fold="' + b.dataset.fold + '"]');
+        if (again) again.focus();
+        return;
+      }
+      if ((b = g("#txWide"))) {
+        app.txWide = !app.txWide;
+        stored(TXWIDE_KEY, app.txWide ? "1" : null);
+        render(app);
+        var w = app.doc.getElementById("txWide");
+        if (w) w.focus();
         return;
       }
       if ((b = g("[data-ref-clear]")) && app.page && win.fetch) {

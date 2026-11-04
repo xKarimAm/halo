@@ -864,3 +864,45 @@ test("(M6) a Markdown file becomes the meeting's reference notes, and a check ca
   await expect(page.locator(".refrow")).not.toContainText("last-week.md");
   await expect(page.locator("#refFile")).toHaveCount(1);
 });
+
+// Karim 2026-11-04: an Arabic line sits against the transcript's right wall, avatar and
+// time with it; the transcript can be widened and narrowed; sections fold.
+test("(M7) an Arabic transcript line is laid out right to left, against the right wall", async ({ page }) => {
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  p.transcript_lines[0].text = "خلينا نراجع ال roadmap قبل الاجتماع الجاي";
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const ln = page.locator(".ln").first();
+  await expect(ln).toHaveAttribute("dir", "rtl");
+  const gap = await ln.evaluate((n) => {
+    const lines = document.querySelector("#lines");
+    return lines.getBoundingClientRect().left + lines.clientWidth - n.querySelector(".av").getBoundingClientRect().right;
+  });
+  expect(gap).toBeLessThan(20);
+});
+
+test("(M8) the transcript widens and narrows, and remembers it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const w0 = (await page.locator("#tx").boundingBox()).width;
+  await page.locator("#txWide").click();
+  await expect(page.locator("#txWide")).toHaveAttribute("aria-expanded", "true");
+  expect((await page.locator("#tx").boundingBox()).width).toBeGreaterThan(w0 + 150);
+  await page.reload();
+  await expect(page.locator("#txWide")).toHaveAttribute("aria-expanded", "true");
+  await page.locator("#txWide").click();
+  expect(Math.round((await page.locator("#tx").boundingBox()).width)).toBe(Math.round(w0));
+});
+
+test("(M9) a section folds to its heading and opens again", async ({ page }) => {
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const fold = page.locator('.col.c-decision [data-fold]');
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".col.c-decision li").first()).toBeVisible();
+  await fold.click();
+  await expect(page.locator('.col.c-decision [data-fold]')).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".col.c-decision li")).toHaveCount(0);
+  await page.locator('.col.c-decision [data-fold]').click();
+  await expect(page.locator(".col.c-decision li").first()).toBeVisible();
+  await expect(page.locator(".board [data-fold]").first()).toBeVisible(); // Action items fold too
+});

@@ -671,3 +671,16 @@ body:has(#view.home)::before{background:var(--bg)}
 .refrow .refadd:focus-within{outline:2px solid var(--text);outline-offset:2px}
 .refrow select.chip{font:inherit;font-size:13px;background:var(--panel);color:var(--text)}
 .notes-quote{margin:4px 0 0;font-size:13px;unicode-bidi:plaintext;text-align:start}
+
+/* Karim 2026-11-04: the transcript widens and narrows; sections fold to their heading. */
+.mtg.tx-wide{grid-template-columns:minmax(0,1fr) 560px}
+@media (max-width:900px){.mtg.tx-wide{grid-template-columns:minmax(0,1fr)}}
+.txhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 20px 0}
+.txhead h2{margin:0}
+.lines{scrollbar-width:thin}
+button.fold{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;border-radius:6px}
+button.fold:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+button.fold::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);margin-inline-start:4px;transition:transform .15s ease}
+button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
+[dir="rtl"] button.fold[aria-expanded="false"]::after{transform:rotate(135deg)}
+.folded{padding-bottom:12px}
