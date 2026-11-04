@@ -79,6 +79,19 @@ describe("off nudge: tells the user when Halo is not running in a call", () => {
 });
 
 describe("off nudge toast", () => {
+  // Live 2026-11-04: Chrome gave no visible panel and the toast never changed.
+  it("says where Start is at once, even when the panel call reports success or never answers", () => {
+    for (const onStart of [async () => true, () => new Promise<boolean>(() => {})]) {
+      document.body.innerHTML = '<div class="halo-controls"></div>';
+      const ui = mountOffNudge(document, { onStart, onDismiss: () => {} });
+      ui.show("off");
+      const box = document.querySelector<HTMLElement>(".halo-nudge")!;
+      box.querySelector<HTMLButtonElement>(".halo-primary")!.click();
+      expect(box.textContent).toContain("Click the Halo icon in the toolbar, then Start.");
+      expect(box.querySelector<HTMLButtonElement>(".halo-primary")!.hidden).toBe(true);
+    }
+  });
+
   it("shows its words with Start Halo, and points at the icon when the panel cannot open", async () => {
     document.body.innerHTML = '<div class="halo-controls"></div>';
     let dismissed = 0;
