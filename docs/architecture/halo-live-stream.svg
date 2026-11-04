@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Halo's live path. Audio streams from Chrome over one local WebSocket to the backend and on to Muse Voice over a second WebSocket. Live words and points stream back to the overlay. Spark calls are request and response with a time budget and per-call failover.">
+  <title>Halo live stream</title>
+  <style>
+    text{font-family:Inter,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;fill:#fbf8f1}
+    .mono{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+    .h{font-size:13px;font-weight:700;letter-spacing:1.2px;fill:#a9c7ac}
+    .t{font-size:15px;font-weight:600}.s{font-size:12px;fill:#cfc9bb}
+    .box{fill:#34332d;stroke:#57544b;stroke-width:1.2}
+    .pan{fill:#232219;fill-opacity:.55;stroke:#46443c}
+    .wire{fill:none;stroke:#57544b;stroke-width:1.6}
+    .a{fill:#8fc79a}.e{fill:#e8c98a}
+    @media (prefers-reduced-motion:reduce){.dot{display:none}}
+  </style>
+  <rect width="1280" height="640" rx="20" fill="#2a2924"/>
+  <text x="40" y="46" font-size="24" font-weight="700">One meeting, live</text>
+  <circle cx="830" cy="40" r="6" class="a"/><text x="844" y="45" class="s">audio, streamed in 100 ms frames</text>
+  <circle cx="1056" cy="40" r="6" class="e"/><text x="1070" y="45" class="s">events, back to the call</text>
+
+  <!-- panels -->
+  <rect x="30" y="70" width="240" height="400" rx="16" class="pan"/><text x="50" y="98" class="h">CHROME EXTENSION</text>
+  <rect x="330" y="70" width="600" height="400" rx="16" class="pan"/><text x="350" y="98" class="h">BACKEND  ·  FASTAPI  ·  127.0.0.1:8765</text>
+  <rect x="990" y="70" width="260" height="400" rx="16" class="pan"/><text x="1010" y="98" class="h">META MODELS</text>
+
+  <!-- wires -->
+  <path id="w1" class="wire" d="M250 145H350"/>
+  <path id="w2" class="wire" d="M250 215H300V160H350"/>
+  <path id="w3" class="wire" d="M490 145H560"/>
+  <path id="w4" class="wire" d="M730 145H1010"/>
+  <path id="w5" class="wire" d="M1010 170H730"/>
+  <path id="w6" class="wire" d="M645 182V235"/>
+  <path id="w7" class="wire" d="M730 295H1010"/>
+  <path id="w8" class="wire" d="M560 300H420V182"/>
+  <path id="w9" class="wire" d="M350 170H300V395H250"/>
+  <path id="w10" class="wire" d="M250 285H300"/>
+  <path class="wire" d="M645 355V378"/>
+
+  <!-- extension -->
+  <g><rect x="50" y="116" width="200" height="58" rx="10" class="box"/><text x="66" y="141" class="t">Tab audio</text><text x="66" y="160" class="s">the call, 16 kHz PCM16</text></g>
+  <g><rect x="50" y="186" width="200" height="58" rx="10" class="box"/><text x="66" y="211" class="t">Mic audio</text><text x="66" y="230" class="s">you, 16 kHz PCM16</text></g>
+  <g><rect x="50" y="256" width="200" height="58" rx="10" class="box"/><text x="66" y="281" class="t">Meet adapter</text><text x="66" y="300" class="s">tiles, names, speaking</text></g>
+  <g><rect x="50" y="366" width="200" height="82" rx="10" fill="#3c4a3e" stroke="#5f7f62"/><text x="66" y="391" class="t">Overlay</text><text x="66" y="410" class="s">caption and bubbles on the tile,</text><text x="66" y="427" class="s">coach, fact-check cards</text></g>
+
+  <!-- backend -->
+  <g><rect x="350" y="116" width="140" height="66" rx="10" class="box"/><text x="364" y="140" class="t">Gateway</text><text x="364" y="158" class="s mono">/ws  one socket</text><text x="364" y="173" class="s">ACK, dedupe</text></g>
+  <g><rect x="560" y="116" width="170" height="66" rx="10" class="box"/><text x="574" y="140" class="t">Transcriber</text><text x="574" y="158" class="s">call: who is talking</text><text x="574" y="173" class="s">mic: that's you</text></g>
+  <g><rect x="560" y="235" width="170" height="120" rx="10" class="box"/><text x="574" y="259" class="t">Correlator, then</text><text x="574" y="281" class="s">Insight: points at the pause</text><text x="574" y="299" class="s">Classifier: urgency re-check</text><text x="574" y="317" class="s">Coach: 0 to 3 tips</text><text x="574" y="335" class="s">Fact Check: its own loop</text></g>
+  <g><rect x="350" y="378" width="560" height="72" rx="10" class="box"/><text x="364" y="402" class="t">In-process event bus  →  SQLite + FTS5</text><text x="364" y="421" class="s">Every message is a typed envelope, checked against contracts/ on publish.</text><text x="364" y="437" class="s">Modules never import each other, and a lint rule fails the build if one does.</text></g>
+  <text x="794" y="136" class="s mono">wss, binary audio</text><text x="794" y="186" class="s mono">live words, turns</text>
+  <text x="794" y="285" class="s mono">https, JSON schema</text>
+
+  <!-- models -->
+  <g><rect x="1010" y="116" width="220" height="66" rx="10" class="box"/><text x="1024" y="140" class="t">Muse Voice Transcribe</text><text x="1024" y="158" class="s">two realtime sessions</text><text x="1024" y="173" class="s">Arabic, English, mixed</text></g>
+  <g><rect x="1010" y="235" width="220" height="120" rx="10" class="box"/><text x="1024" y="259" class="t">Muse Spark Open</text><text x="1024" y="279" class="s">4 s budget per call</text><text x="1024" y="303" fill="#e8c98a" style="fill:#e8c98a" font-size="12">↓ per-call failover</text><text x="1024" y="327" class="t">Muse Spark 1.3</text><text x="1024" y="345" class="s">same schema, checked locally</text></g>
+  <g><rect x="1010" y="378" width="220" height="72" rx="10" class="box"/><text x="1024" y="402" class="t">Spark web_search</text><text x="1024" y="421" class="s">fact check, off the live path,</text><text x="1024" y="437" class="s">a slow search only arrives later</text></g>
+  <path class="wire" d="M910 414H1010"/>
+
+  <!-- strip -->
+  <g transform="translate(30 490)">
+    <rect width="1220" height="124" rx="14" fill="#7d776b" fill-opacity=".28"/>
+    <text x="20" y="32" class="t">Streamed</text><text x="20" y="54" class="s">Audio in 100 ms frames, up to Muse Voice and back as live words.</text><text x="20" y="72" class="s">Binary frames and JSON envelopes share the one local socket.</text>
+    <text x="440" y="32" class="t">Request and response</text><text x="440" y="54" class="s">Spark calls return whole, schema-checked JSON, so there are</text><text x="440" y="72" class="s">no partial replies to trust. Points fire at the speaker's pause.</text>
+    <text x="860" y="32" class="t">Stays on your PC</text><text x="860" y="54" class="s">The socket, database and recordings never leave 127.0.0.1.</text><text x="860" y="72" class="s">Only model calls go out, and the keys stay in the backend.</text>
+    <text x="20" y="106" class="s mono">backend/halo/gateway · transcriber · llm/llm.py · extension/src/hub_capture · contracts/</text>
+  </g>
+
+  <!-- traffic -->
+  <g class="dot">
+    <circle r="4.5" class="a"><animateMotion dur="1.3s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
+    <circle r="4.5" class="a"><animateMotion dur="1.3s" begin=".65s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
+    <circle r="4.5" class="a"><animateMotion dur="1.7s" repeatCount="indefinite"><mpath href="#w2"/></animateMotion></circle>
+    <circle r="4.5" class="a"><animateMotion dur="1s" repeatCount="indefinite"><mpath href="#w3"/></animateMotion></circle>
+    <circle r="4.5" class="a"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#w4"/></animateMotion></circle>
+    <circle r="4.5" class="a"><animateMotion dur="1.6s" begin=".8s" repeatCount="indefinite"><mpath href="#w4"/></animateMotion></circle>
+    <circle r="4.5" class="e"><animateMotion dur="1.8s" begin=".3s" repeatCount="indefinite"><mpath href="#w5"/></animateMotion></circle>
+    <circle r="4.5" class="e"><animateMotion dur="1.3s" begin=".5s" repeatCount="indefinite"><mpath href="#w6"/></animateMotion></circle>
+    <circle r="4.5" class="e"><animateMotion dur="2.2s" begin="1s" repeatCount="indefinite"><mpath href="#w7"/></animateMotion></circle>
+    <circle r="4.5" class="e"><animateMotion dur="2s" begin=".2s" repeatCount="indefinite"><mpath href="#w8"/></animateMotion></circle>
+    <circle r="4.5" class="e"><animateMotion dur="2s" begin="1.2s" repeatCount="indefinite"><mpath href="#w9"/></animateMotion></circle>
+  </g>
+</svg>

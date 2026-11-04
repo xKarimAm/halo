@@ -1303,7 +1303,7 @@
     return section;
   }
 
-  // ---- Home (Karim 2026-11-04, "AV" from docs/ui/drafts/landing/av-home.html) ----
+  // ---- Home (Karim 2026-11-04, "AV" from the AV landing mockup) ----
   // Each meeting is a call strip: every point at the second it was said. The
   // preview has a living recording line, Simple and Detailed views, Replay,
   // and coloured plates whose items jump to their mark. Tabs: All, Urgent,

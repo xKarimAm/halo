@@ -328,7 +328,7 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 @keyframes fade{from{opacity:0}}
 @keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.98)}}
 
-/* ---- Home (Karim 2026-11-04, "AV": docs/ui/drafts/landing/av-home.html). Light ledger: white
+/* ---- Home (Karim 2026-11-04, "AV": the AV landing mockup). Light ledger: white
    sheets on a stone ground, colour only on what a meeting produced. Scoped to the list view. ---- */
 body:has(#view.home){background:var(--bg)}
 body:has(#view.home)::before{background:var(--bg)}
