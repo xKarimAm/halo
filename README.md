@@ -1,6 +1,6 @@
 <div align="center">
 
-# Halo
+<img src="docs/assets/halo-hero.svg" alt="Halo: Arabic and English meetings, understood live" width="100%" />
 
 ### A bilingual Arabic/English meeting copilot for Google Meet, running on Meta models.
 
@@ -98,6 +98,10 @@ The [install guide](docs/INSTALL.md) has the same steps by hand with a check aft
 The Chrome extension calls no models itself; it talks to the local backend and, in Halo mode, to the local SAM worker.
 
 ## How it works
+
+<img src="docs/architecture/halo-live-stream.svg" alt="Halo's live path: audio streams from Chrome in 100 ms frames over one local WebSocket to the backend, then over a second WebSocket to Muse Voice. Live words and points flow back to the overlay. Spark calls are request and response, with a 4 second budget and per-call failover." width="100%" />
+
+**Does it stream?** Audio and live words do: 16 kHz PCM goes up in 100 ms frames, over one local WebSocket and on to Muse Voice's realtime socket, and the words come back as a live caption while the person is talking. Spark calls don't stream on purpose: each reply is whole, schema-checked JSON, with a 4 s budget and per-call failover.
 
 <img src="docs/architecture/halo-architecture.svg" alt="Halo's architecture: the Chrome extension in the Meet tab sends audio and page events over one local WebSocket to the FastAPI backend, whose modules talk only over an in-process event bus and call Meta's Voice and Spark models; the notes page reads the same SQLite store." width="100%" />
 
