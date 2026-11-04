@@ -3,7 +3,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,"Segoe UI",sans-serif;min-height:100vh}
-.top{background:var(--ink);color:#fbf8f1;padding:10px 24px}
+.top{background:var(--ink);color:#fbf8f1;padding:7px 24px}
 .logo{display:inline-flex;align-items:center;gap:8px;font-weight:700}
 .logo i{width:10px;height:10px;border-radius:50%;background:var(--sage)}
 .band{height:56px;background:var(--stone)}
