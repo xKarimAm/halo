@@ -881,17 +881,21 @@ test("(M7) an Arabic transcript line is laid out right to left, against the righ
   expect(gap).toBeLessThan(20);
 });
 
-test("(M8) the transcript widens and narrows, and remembers it", async ({ page }) => {
+test("(M8) the transcript collapses to its header (shorter, same width), and remembers it", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
-  const w0 = (await page.locator("#tx").boundingBox()).width;
-  await page.locator("#txWide").click();
-  await expect(page.locator("#txWide")).toHaveAttribute("aria-expanded", "true");
-  expect((await page.locator("#tx").boundingBox()).width).toBeGreaterThan(w0 + 150);
+  const open = await page.locator("#tx").boundingBox();
+  await expect(page.locator("#txFold")).toHaveAttribute("aria-expanded", "true");
+  await page.locator("#txFold").click();
+  await expect(page.locator("#txFold")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#lines")).toHaveCount(0);
+  const shut = await page.locator("#tx").boundingBox();
+  expect(shut.height).toBeLessThan(open.height);
+  expect(Math.round(shut.width)).toBe(Math.round(open.width));
   await page.reload();
-  await expect(page.locator("#txWide")).toHaveAttribute("aria-expanded", "true");
-  await page.locator("#txWide").click();
-  expect(Math.round((await page.locator("#tx").boundingBox()).width)).toBe(Math.round(w0));
+  await expect(page.locator("#txFold")).toHaveAttribute("aria-expanded", "false");
+  await page.locator("#txFold").click();
+  await expect(page.locator("#lines .ln").first()).toBeVisible();
 });
 
 test("(M9) a section folds to its heading and opens again", async ({ page }) => {

@@ -73,7 +73,7 @@
       alertsT: "Alerts", tipsT: "Tips",
       refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
       refOn: "Reference notes:", refLive: "the fact check uses them live", refClear: "Remove", refFail: "That file could not be added.",
-      yourNotes: "Your notes:", txWider: "Expand", txNarrow: "Collapse",
+      yourNotes: "Your notes:", txOpen: "Expand", txShut: "Collapse",
       followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
       // Home (Karim 2026-11-04, AV)
       lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
@@ -159,7 +159,7 @@
       alertsT: "التنبيهات", tipsT: "النصائح",
       refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
       refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
-      yourNotes: "ملاحظاتك:", txWider: "توسيع", txNarrow: "تصغير",
+      yourNotes: "ملاحظاتك:", txOpen: "توسيع", txShut: "طي",
       followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
       lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
@@ -950,12 +950,14 @@
     aside.appendChild(player);
     var txhead = el("div", "txhead");
     txhead.appendChild(el("h2", null, t(lang, "tx")));
-    var wide = el("button", "chip", t(lang, app.txWide ? "txNarrow" : "txWider"));
-    wide.id = "txWide";
-    wide.type = "button";
-    wide.setAttribute("aria-expanded", String(!!app.txWide));
-    txhead.appendChild(wide);
+    // Karim 2026-11-04: the toggle shortens the transcript to its header, never widens it.
+    var fold = el("button", "chip", t(lang, app.txShut ? "txOpen" : "txShut"));
+    fold.id = "txFold";
+    fold.type = "button";
+    fold.setAttribute("aria-expanded", String(!app.txShut));
+    txhead.appendChild(fold);
     aside.appendChild(txhead);
+    if (app.txShut) return;
     var lines = el("div", "lines");
     lines.id = "lines";
     page.transcript_lines.forEach(function (ln, index) {
@@ -1034,7 +1036,7 @@
     if (page.meeting.degraded && !page.meeting.in_progress) {
       view.appendChild(el("div", "degraded", t(lang, silent ? "noSpeech" : "degraded")));
     }
-    var wrap = el("div", "mtg" + (app.txWide ? " tx-wide" : ""));
+    var wrap = el("div", "mtg");
     var left = el("div");
     var head = el("section", "head glass");
     var hrow = el("div", "head-row");
@@ -1165,7 +1167,7 @@
   var LAST_KEY = "halo-notes-lastvisit";
   var MODE_KEY = "halo-notes-view";
   var FOLD_KEY = "halo-notes-folded";
-  var TXWIDE_KEY = "halo-notes-txwide";
+  var TXSHUT_KEY = "halo-notes-txshut";
 
   function stored(key, value) {
     try {
@@ -2341,7 +2343,7 @@
     var postJson = opts.postJson || function () { return Promise.reject(new Error("no postJson")); };
     var win = opts.win || { history: { pushState: function () {} } };
     try { app.folded = JSON.parse(stored(FOLD_KEY) || "{}") || {}; } catch (e) { app.folded = {}; }
-    app.txWide = stored(TXWIDE_KEY) === "1";
+    app.txShut = stored(TXSHUT_KEY) === "1";
 
     app.showList = function (meetings) {
       app.view = "list";
@@ -2525,11 +2527,11 @@
         if (again) again.focus();
         return;
       }
-      if ((b = g("#txWide"))) {
-        app.txWide = !app.txWide;
-        stored(TXWIDE_KEY, app.txWide ? "1" : null);
+      if ((b = g("#txFold"))) {
+        app.txShut = !app.txShut;
+        stored(TXSHUT_KEY, app.txShut ? "1" : null);
         render(app);
-        var w = app.doc.getElementById("txWide");
+        var w = app.doc.getElementById("txFold");
         if (w) w.focus();
         return;
       }
