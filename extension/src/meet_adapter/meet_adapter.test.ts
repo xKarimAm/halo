@@ -362,3 +362,27 @@ describe("matches()", () => {
     adapter.dispose();
   });
 });
+
+// Live 2026-11-04: a name "visual_effectsBackgrounds and effects" reached the notes.
+// Meet draws that control as role="button", not <button>; its icon text is no name.
+describe("names never come from Meet's own controls", () => {
+  it("skips role=button controls and icon ligatures, and keeps the real name", () => {
+    const room = document.createElement("div");
+    room.innerHTML = [
+      '<div class="t" data-participant-id="id-7">',
+      '<div role="button" aria-label="Backgrounds and effects"><span class="notranslate">visual_effects</span><span>Backgrounds and effects</span></div>',
+      '<span class="notranslate">Omar Ali</span>',
+      "</div>",
+      '<div class="t" data-participant-id="id-8">',
+      '<div role="button"><span>visual_effects</span><span>Backgrounds and effects</span></div>',
+      "</div>",
+    ].join("");
+    document.body.appendChild(room);
+    const adapter = new MeetDomAdapter({ root: room, pollIntervalMs: 0 });
+    const names = Object.fromEntries(adapter.tiles().map((t) => [t.tile_id, t.name]));
+    expect(names["id-7"]).toBe("Omar Ali");
+    expect(names["id-8"]).toBe("");
+    adapter.dispose();
+    room.remove();
+  });
+});
