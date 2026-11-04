@@ -222,11 +222,9 @@ body::before{background:var(--bg)}
 .top .seg,.top .btn{background:#3a3832;border-color:#4a473f;color:var(--band-ink)}
 .top .seg button{color:var(--band-muted)}
 .top .seg button[aria-pressed="true"]{background:var(--band-ink);color:var(--band)}
-/* Diagonal split banner (Karim 2026-11-04, draft 3): charcoal, then warm stone (--photo) where the
-   controls sit. The cut mirrors in Arabic, where the controls are on the left. */
+/* Ink over stone (Karim 2026-11-04 23:31, draft 1 in the palette's stone): a charcoal
+   top row, then the page title on a warm stone band. */
 [data-palette="2"]{--band-2:var(--photo)}
-.top{background:linear-gradient(105deg,var(--band) calc(62% - .5px),var(--band-2,var(--band)) 62%)}
-[dir="rtl"] .top{background:linear-gradient(255deg,var(--band) calc(62% - .5px),var(--band-2,var(--band)) 62%)}
 .top .seg,.top .btn,.top .btn.glass{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18)}
 .head{background:var(--band);color:var(--band-ink);border:0;border-radius:0 0 var(--r) var(--r);margin-top:-6px;padding:22px 26px}
 .head .sub,.head .mtg-summary{color:var(--band-muted)}
@@ -732,3 +730,6 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 .tour-line b{font-weight:600}
 .tour-nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
 @media (prefers-reduced-motion:reduce){.tour-spot,.tour-card{transition:none}}
+#view .head,#view.home .home-head{background:var(--band-2);color:#fff;border-radius:0 0 var(--r) var(--r);margin:-6px 0 14px;padding:18px 24px 16px}
+#view .head .facts,#view .head .mtg-summary,#view .head .sub,#view.home .home-head .finding,#view.home .home-head .finding *,#view .head .refrow,#view .head .refrow *{color:#fff}
+#view .head .refrow button{border-color:rgba(255,255,255,.5);background:transparent}
