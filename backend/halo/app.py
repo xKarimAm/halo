@@ -144,7 +144,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     # Coach: the slow lane, 1-3 steering tips about once a minute.
     app.state.coach = Coach(app.state.bus, app.state.llm)
     # Claims with numbers go to a web search; HALO_FACT_CHECK=0 keeps them off the web.
-    fact_check_on = os.environ.get("HALO_FACT_CHECK", "1") != "0"
+    fact_check_on = os.environ.get("HALO_FACT_CHECK") != "0"
     app.state.fact_check = FactCheck(app.state.bus, app.state.llm) if fact_check_on else None
     # Notes Builder: meeting.ended in, one validated notes.ready out.
     # The store file is the Event Store's own; this lane only ever reads it.

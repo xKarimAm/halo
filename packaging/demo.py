@@ -7,7 +7,7 @@ Each scripted turn goes on the bus exactly as the Correlator would publish it
 run on the real Meta models; only the microphone, Meet and speech-to-text are
 skipped. The meetings land in the normal data folder, so `uv run halo` then
 shows them on the notes page. Needs META_API_KEY in .env (about 3 minutes,
-roughly 40 model calls). Safe to run while `uv run halo` is running.
+about 110 model calls, about $0.09 at list price). Safe to run while `uv run halo` is running.
 """
 
 from __future__ import annotations
@@ -42,6 +42,7 @@ MIXED = {
     "turns": [["Karim", "OK let's start, we need to lock the launch date today."],
               ["Layla", "أنا أشوف إن الإطلاق يكون في خمسة عشر يناير، the QA team needs two more weeks."],
               ["Omar", "Honestly I disagree, ديسمبر أفضل لأن الحملة التسويقية جاهزة."],
+              ["Omar", "And the Gulf is the prize here, Saudi Arabia alone has 100 million people."],
               ["Karim", "What does the data say about December signups?"],
               ["Layla", "ما عندنا بيانات واضحة، it's mostly a guess from last year."],
               ["Omar", "طيب، I can pull the numbers by Thursday."],

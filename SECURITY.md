@@ -27,6 +27,7 @@ Since 2026-11-04 the popup pairs on its own: `POST /pair/auto` mints a token onl
 
 - Transcripts, notes, recordings and logs stay in `data/` (git-ignored). Delete the folder to wipe everything.
 - What leaves your PC: the call and mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at Baseten, Modal or your own server when you set a Spark Open key). Video frames never leave the PC; in Halo mode they go only to the local SAM worker.
+- **Web searches:** a sentence with a number in it goes to Muse Spark's web search for the live fact check, so that sentence can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
 
 ## Reporting a problem
 
