@@ -507,7 +507,7 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
       try {
         await deps.onStop?.();
         running = false;
-        showStartMessage("Meeting ended. Your notes are being built.");
+        showStartMessage("Meeting ended. Your meeting page is being built.");
         startMessage.classList.add("note");
       } catch {
         showStartMessage("Could not stop. Try again.");

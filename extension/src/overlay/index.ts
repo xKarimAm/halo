@@ -288,7 +288,7 @@ export function mountControls(
   badge.setAttribute("aria-controls", "halo-menu");
   const toast = make("div", "halo-toast");
   toast.setAttribute("role", "status");
-  const link = make("a", "", "Open notes");
+  const link = make("a", "", "Open meeting");
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   const dismiss = button("halo-dismiss", "×", () => {
@@ -296,7 +296,7 @@ export function mountControls(
     refresh();
   });
   dismiss.setAttribute("aria-label", "Dismiss");
-  toast.append(make("span", "", "Meeting notes are ready."), link, dismiss);
+  toast.append(make("span", "", "Your meeting page is ready."), link, dismiss);
   // Points language (later turns only; points already shown keep theirs).
   const lang = make("select", "halo-lang");
   lang.setAttribute("aria-label", "Points language");
