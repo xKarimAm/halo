@@ -428,6 +428,22 @@ describe("left the call", () => {
     expect(socket.envelopes().filter((e) => e.type === "meeting.ended")).toHaveLength(1);
   });
 
+  it("only the Start's tab feeds tiles and speakers, and only it is a page to send to (security review 2026-11-04)", () => {
+    // A second Teams tab (chat) reports call tiles while Halo runs; it must not replace the call's.
+    const { hub, socket } = makeHub();
+    openAndPair(hub, socket);
+    handleHubRuntimeMessage(hub, { type: HUB_START_MESSAGE, meeting_code: "teams", platform: "teams", tabId: 7 });
+    const before = socket.envelopes().filter((e) => e.type === "tiles.snapshot").length;
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles: [] } }, 8);
+    hub.onPortMessage({ type: "speaker.active", data: { tile_id: "x", speaking: true, ts_ms: 1 } }, 8);
+    expect(socket.envelopes().filter((e) => e.type === "tiles.snapshot")).toHaveLength(before);
+    expect(socket.envelopes().some((e) => e.type === "speaker.active")).toBe(false);
+    hub.onPortMessage({ type: "tiles.snapshot", data: { tiles: [] } }, 7);
+    expect(socket.envelopes().filter((e) => e.type === "tiles.snapshot")).toHaveLength(before + 1);
+    expect(hub.isPageTab(7)).toBe(true);
+    expect(hub.isPageTab(8)).toBe(false);
+  });
+
   it("a page reload (Port disconnect) does not end the meeting", () => {
     const { hub, socket } = makeHub();
     openAndPair(hub, socket);

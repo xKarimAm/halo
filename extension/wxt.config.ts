@@ -28,7 +28,7 @@ export default defineConfig({
     permissions: ["tabCapture", "offscreen", "storage", "alarms", "activeTab"],
     host_permissions: ["http://127.0.0.1:8765/*", "ws://127.0.0.1:8765/*", "http://127.0.0.1:8766/*", "https://meet.google.com/*",
       // Zoom and Teams web clients (DECISIONS 9.2); the desktop apps are out of reach.
-      "https://*.zoom.us/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
+      "https://*.zoom.us/wc/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },

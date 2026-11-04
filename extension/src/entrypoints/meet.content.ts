@@ -166,7 +166,7 @@ export function listenForMicStart(): void {
 }
 
 export default defineContentScript({
-  matches: ["https://meet.google.com/*", "https://*.zoom.us/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
+  matches: ["https://meet.google.com/*", "https://*.zoom.us/wc/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
   main() {
     void bootMeetPage();
     listenForMicStart();

@@ -4,7 +4,7 @@ import { defineContentScript } from "wxt/sandbox";
 import { rememberMeetMic } from "../hub_capture/mic_device";
 
 export default defineContentScript({
-  matches: ["https://meet.google.com/*", "https://*.zoom.us/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
+  matches: ["https://meet.google.com/*", "https://*.zoom.us/wc/*", "https://teams.microsoft.com/*", "https://teams.live.com/*", "https://teams.cloud.microsoft/*"],
   world: "MAIN",
   runAt: "document_start",
   main() {
