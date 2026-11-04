@@ -500,3 +500,54 @@ def test_a_markdown_reference_is_stored_per_meeting_and_only_from_the_page(tmp_p
     assert client.get(url).json()["name"] == "last-week.md"
     assert client.delete(url).status_code == 200
     assert client.get(url).json() == {"name": None, "chars": 0}
+
+
+# -- Karim 2026-11-04: the recap is a mind map of everything said, in the meeting's language --
+
+def _recap_page(title, summary=""):
+    return {"meeting": {"title": title, "summary": summary},
+            "points": [{"kind": k, "text": f"{k} {i}"} for i, k in enumerate(
+                ["decision", "point", "point", "point", "pushback", "question", "decision"])],
+            "actions": [{"text": f"action {i}"} for i in range(5)]}
+
+
+def test_the_recap_is_drawn_in_the_meetings_language():
+    from halo.notes_service.notes_service import recap_language, recap_prompt
+    arabic = _recap_page("عرض تطبيق الاجتماعات", "ملخص قصير")
+    assert recap_language(arabic) == "Arabic"
+    assert recap_language(_recap_page("Launch sync")) == "English"
+    assert "Arabic" in recap_prompt(arabic) and "mind map" in recap_prompt(arabic)
+
+
+def test_the_mind_map_brief_carries_everything_said_not_the_first_three():
+    from halo.notes_service.notes_service import mind_map_prompt
+    page = _recap_page("Launch sync")
+    brief = mind_map_prompt(page)
+    for p in page["points"]:
+        assert p["text"] in brief
+    for a in page["actions"]:
+        assert a["text"] in brief
+
+
+class MindLLM(ImageLLM):
+    def __init__(self, mind):
+        super().__init__()
+        self.mind, self.text_prompts = mind, []
+
+    def complete_json(self, *, prompt, schema, schema_name="", **_):
+        from types import SimpleNamespace  # the LLMResult shape; lanes never import each other
+        self.text_prompts.append(prompt)
+        return SimpleNamespace(ok=self.mind is not None, data=self.mind)
+
+
+def test_the_recap_draws_the_mind_map_and_still_draws_when_the_map_fails(tmp_path):
+    mind = {"center": "مركز", "branches": [{"label": "فرع", "leaves": ["ورقة أولى", "ورقة ثانية"]}]}
+    llm = MindLLM(mind)
+    client, _ = recap_client(tmp_path, llm)
+    assert client.post(f"/api/meetings/{MEETING}/recap").status_code == 200
+    assert len(llm.text_prompts) == 1
+    assert all(w in llm.prompts[0] for w in ("مركز", "فرع", "ورقة أولى", "ورقة ثانية"))
+    llm2 = MindLLM(None)
+    client2, _ = recap_client(tmp_path / "b", llm2)
+    assert client2.post(f"/api/meetings/{MEETING}/recap").status_code == 200
+    assert len(llm2.prompts) == 1 and "mind map" in llm2.prompts[0]
