@@ -307,6 +307,57 @@
         "start_ts_ms"
       ],
       "additionalProperties": false
+    },
+    "fact_checks": {
+      "type": "array",
+      "description": "Claims checked on the web during the meeting; absent when none.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "point_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "speaker_name": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "disputed"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "minItems": 1,
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "point_id",
+          "claim",
+          "speaker_name",
+          "verdict",
+          "note",
+          "sources"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [

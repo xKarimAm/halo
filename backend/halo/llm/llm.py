@@ -78,6 +78,7 @@ CALL_TIMEOUT_S = 4.0
 # ponytail: the contributor is the last resort; measured live at ~3-4.5 s per
 # Insight call, so a 4 s cut drops most points. Late beats none.
 FAILOVER_TIMEOUT_S = 10.0
+SEARCH_TIMEOUT_S = 25.0  # measured 3-14 s; off the live path, so a slow search only arrives later
 COOLDOWN_S = 30.0
 BACKOFF_BASE_S = 0.5
 BACKOFF_CAP_S = 4.0
@@ -191,9 +192,9 @@ class LLMClient:
             return
         tally = self._usage[engine]
         tally["calls"] += 1
-        tally["in"] += int(u.get("prompt_tokens") or 0)
+        tally["in"] += int(u.get("prompt_tokens") or u.get("input_tokens") or 0)
         tally["cached"] += int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
-        tally["out"] += int(u.get("completion_tokens") or 0)
+        tally["out"] += int(u.get("completion_tokens") or u.get("output_tokens") or 0)
 
     def complete_json(
         self,
@@ -238,6 +239,50 @@ class LLMClient:
             if i == len(engines) - 1:
                 return last
         return last
+
+    def search_json(
+        self,
+        *,
+        prompt: str,
+        schema: dict[str, Any],
+        schema_name: str = "halo.search",
+    ) -> LLMResult:
+        """One web-searched JSON reply (Meta Responses API, web_search tool).
+        Data is the reply plus `sources`, the URLs the search returned. One try,
+        no failover: only Meta has the tool, and a missed check costs nothing."""
+        engine = FAILOVER_ENGINE
+
+        def fail(code: str, message: str) -> LLMResult:
+            return LLMResult(ok=False, engine=engine, error={"code": code, "message": message})
+
+        key = self._keys[engine]
+        if not key:
+            return fail("missing_key", f"{engine}: no key")
+        cfg = self._config(engine)
+        try:
+            response = self._http.post(
+                cfg["base_url"].rstrip("/") + "/responses",
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "model": cfg["model"],
+                    "input": prompt,
+                    "tools": [{"type": "web_search"}],
+                    "include": ["web_search_call.action.sources"],
+                    "reasoning": {"effort": "minimal"},
+                    "text": {"format": {"type": "json_schema", "name": schema_name,
+                                        "schema": schema, "strict": True}},
+                },
+                timeout=httpx.Timeout(SEARCH_TIMEOUT_S),
+            )
+        except httpx.HTTPError as exc:
+            return fail("connection_error", f"{engine}: {exc!r}"[:200])
+        if response.status_code != 200:
+            return fail("engine_error", f"{engine}: HTTP {response.status_code} {_excerpt(response)}")
+        self._count(engine, response)
+        data = _read_search(response, schema)
+        if data is None:
+            return fail("bad_reply", f"{engine}: search reply failed the schema")
+        return LLMResult(ok=True, engine=engine, data=data)
 
     def _call_engine(
         self,
@@ -365,6 +410,23 @@ def _read_content(response: httpx.Response, schema: dict[str, Any]) -> dict[str,
     errors = list(Draft202012Validator(schema).iter_errors(data))
     if errors:
         return None
+    return data
+
+
+def _read_search(response: httpx.Response, schema: dict[str, Any]) -> dict[str, Any] | None:
+    """The validated last message of a Responses reply, plus the searched URLs.
+    Earlier messages are the model narrating its search, not the answer."""
+    try:
+        output = response.json()["output"]
+        text = [i for i in output if i["type"] == "message"][-1]["content"][-1]["text"]
+        data = json.loads(text)
+    except (ValueError, KeyError, IndexError, TypeError):
+        return None
+    if not isinstance(data, dict) or list(Draft202012Validator(schema).iter_errors(data)):
+        return None
+    urls = [s.get("url") for i in output if i["type"] == "web_search_call"
+            for s in (i.get("action") or {}).get("sources") or []]
+    data["sources"] = list(dict.fromkeys(u for u in urls if u))
     return data
 
 

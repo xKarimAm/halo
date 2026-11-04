@@ -22,6 +22,17 @@ class Ack(BaseModel):
     status: Literal["ok", "error"]
     error: AckError | None = None
 
+class ClaimChecked(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    point_id: UUID
+    claim: str
+    speaker_name: str
+    verdict: Literal["supported", "disputed"]
+    note: str
+    sources: list[str]
+    lang: Literal["en", "ar"]
+
 class CoachTips(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -34,7 +45,7 @@ class Envelope(BaseModel):
 
     specversion: Literal["1.0"]
     id: UUID
-    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready", "coach.tips"]
+    type: Literal["pair.hello", "pair.ok", "pair.rejected", "meeting.started", "meeting.ended", "system.status", "meeting.context", "tiles.snapshot", "speaker.active", "transcript.final", "transcript.partial", "turn.attributed", "speaker.mapped", "points.upsert", "llm.health", "tags.set", "notes.ready", "coach.tips", "claim.checked"]
     source: str
     time: datetime
     meetingid: UUID | None
@@ -154,6 +165,17 @@ class MeetingPageRecording(BaseModel):
     start_ts_ms: int
 
 
+class MeetingPageFactChecks(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    point_id: UUID
+    claim: str
+    speaker_name: str
+    verdict: Literal["supported", "disputed"]
+    note: str
+    sources: list[str]
+
+
 class MeetingPage(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -163,6 +185,7 @@ class MeetingPage(BaseModel):
     points: list[MeetingPagePoints]
     transcript_lines: list[MeetingPageTranscriptLines]
     recording: MeetingPageRecording
+    fact_checks: list[MeetingPageFactChecks] | None = None
 
 class MeetingContextRoles(BaseModel):
     model_config = ConfigDict(extra='forbid')

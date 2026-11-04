@@ -551,3 +551,52 @@ def test_idle_connections_stay_open_past_the_failover_cooldown():
         assert client._http._transport._pool._keepalive_expiry >= 120
     finally:
         client.close()
+
+
+FACT_SCHEMA = {
+    "type": "object",
+    "properties": {"verdict": {"type": "string"}, "note": {"type": "string"}},
+    "required": ["verdict", "note"],
+    "additionalProperties": False,
+}
+
+
+def search_client(handler) -> LLMClient:
+    return LLMClient(baseten_key="", meta_key="mk", transport=httpx.MockTransport(handler), env={})
+
+
+def search_reply(text: str) -> dict:
+    return {"usage": {"input_tokens": 2000, "output_tokens": 100}, "output": [
+        {"type": "reasoning"},
+        {"type": "message", "content": [{"type": "output_text", "text": "Searching."}]},
+        {"type": "web_search_call", "action": {"sources": [
+            {"type": "url", "url": "https://a.example/1"}, {"type": "url", "url": "https://b.example/2"}]}},
+        {"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+
+
+def test_search_json_reads_the_last_message_and_the_real_source_urls():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(url=str(request.url), body=json.loads(request.content))
+        return httpx.Response(200, json=search_reply('{"verdict": "disputed", "note": "No."}'))
+
+    llm = search_client(handler)
+    result = llm.search_json(prompt="check", schema=FACT_SCHEMA, schema_name="claim_check")
+    assert result.ok and result.data == {"verdict": "disputed", "note": "No.",
+                                         "sources": ["https://a.example/1", "https://b.example/2"]}
+    assert seen["url"].endswith("/responses")
+    assert seen["body"]["model"] == "muse-spark-1.3-contributor"
+    assert seen["body"]["tools"] == [{"type": "web_search"}]
+    assert seen["body"]["include"] == ["web_search_call.action.sources"]
+    assert llm.usage()[FAILOVER_ENGINE]["in"] == 2000  # counted in the health.json spend
+
+
+def test_search_json_fails_soft():
+    assert not search_client(lambda r: httpx.Response(500)).search_json(prompt="p", schema=FACT_SCHEMA).ok
+    assert not search_client(lambda r: httpx.Response(200, json=search_reply("not json"))).search_json(
+        prompt="p", schema=FACT_SCHEMA).ok
+    calls = []
+    keyless = LLMClient(baseten_key="", meta_key="", env={},
+                        transport=httpx.MockTransport(lambda r: calls.append(r) or httpx.Response(500)))
+    assert not keyless.search_json(prompt="p", schema=FACT_SCHEMA).ok and not calls

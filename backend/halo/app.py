@@ -22,6 +22,7 @@ from halo.classifier import Classifier
 from halo.coach import Coach
 from halo.correlator import Correlator
 from halo.event_store import EventStore
+from halo.fact_check import FactCheck
 from halo.gateway import Gateway, host_check, router
 from halo.insight import Insight
 from halo.llm import LLMClient
@@ -80,12 +81,16 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.insight.start()
     app.state.classifier.start()
     app.state.coach.start()
+    if app.state.fact_check:
+        app.state.fact_check.start()
     app.state.recorder.start()
     health = asyncio.create_task(health_loop(app, _data_dir()))
     yield
     health.cancel()
     app.state.recorder.stop()
     app.state.coach.stop()
+    if app.state.fact_check:
+        app.state.fact_check.stop()
     app.state.classifier.stop()
     app.state.insight.stop()
     app.state.gateway.stop()
@@ -138,6 +143,9 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     app.state.bus.register_health("tagger", app.state.classifier.health)
     # Coach: the slow lane, 1-3 steering tips about once a minute.
     app.state.coach = Coach(app.state.bus, app.state.llm)
+    # Claims with numbers go to a web search; HALO_FACT_CHECK=0 keeps them off the web.
+    fact_check_on = os.environ.get("HALO_FACT_CHECK", "1") != "0"
+    app.state.fact_check = FactCheck(app.state.bus, app.state.llm) if fact_check_on else None
     # Notes Builder: meeting.ended in, one validated notes.ready out.
     # The store file is the Event Store's own; this lane only ever reads it.
     app.state.notes_builder = NotesBuilder(

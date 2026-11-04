@@ -20,7 +20,7 @@ Envelope = dict[str, Any]
 
 #: Bus types the Gateway forwards to paired sockets (the Overlay).
 FORWARD_TYPES = ("points.upsert", "tags.set", "speaker.mapped", "notes.ready", "transcript.partial",
-                 "coach.tips")
+                 "coach.tips", "claim.checked")
 
 
 def _non_uuid_ids(msg: Envelope) -> list[str]:

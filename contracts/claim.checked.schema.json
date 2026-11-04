@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halo.local/contracts/claim.checked",
+  "title": "claim.checked",
+  "description": "Fact Check: one spoken claim checked against the live web by Muse Spark search grounding. sources are the URLs the search returned, never model-written.",
+  "type": "object",
+  "properties": {
+    "point_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "speaker_name": {
+      "type": "string"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "disputed"
+      ]
+    },
+    "note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "minItems": 1,
+      "maxItems": 3
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar"
+      ]
+    }
+  },
+  "required": [
+    "point_id",
+    "claim",
+    "speaker_name",
+    "verdict",
+    "note",
+    "sources",
+    "lang"
+  ],
+  "additionalProperties": false
+}
