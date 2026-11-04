@@ -241,6 +241,7 @@ test("(4) point click jumps to the transcript line and recording position", asyn
 
 test("(5) re-tag posts tags.set fields and re-renders as by you", async ({ page }) => {
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await page.locator(".col.c-decision li.pt").first().hover(); // hover-only control
   await page.locator(".col.c-decision details.retag summary").click();
   await page.locator('[data-retag="' + POINT_ID + '"][data-val="question"]').click();
   await expect.poll(() => postedTags.length, { timeout: 5000 }).toBe(1);
@@ -629,25 +630,93 @@ test("(H6) a disagreement tints its stretch of the line and the key names it", a
   await expect(page.locator("#preview .tip")).toContainText("Beta launch date");
 });
 
-test("(H7b) on a fresh home, Notes opens the newest meeting instead of sitting disabled", async ({ page }) => {
-  await page.goto(baseURL + "/");
-  await page.locator("#crumb .nav-notes").click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(GOLDEN.meeting.title);
-});
-
-// Karim 2026-11-04: not "Halo Notes" + "Meetings"; "Halo", then Meetings and Notes tabs.
-test("(H7) the header says Halo with Meetings and Notes tabs", async ({ page }) => {
+// Karim 2026-11-04: "Notes" is just the focused view of a meeting, so there is
+// no Notes tab: the header reads Meetings, then the open meeting's title.
+test("(H7) the header says Halo, Meetings, then the open meeting; no Notes tab", async ({ page }) => {
   await page.goto(baseURL + "/");
   await expect(page.locator(".logo")).toHaveText("Halo");
   const meetings = page.locator('#crumb [data-nav="list"]');
-  const notes = page.locator("#crumb .nav-notes");
   await expect(meetings).toHaveAttribute("aria-current", "page");
+  await expect(page.locator("#crumb .nav-notes")).toHaveCount(0);
+  await expect(page.locator("#preview .pv-open")).toHaveText("Open meeting");
   await page.locator("#preview .pv-open").click();
-  await expect(notes).toHaveAttribute("aria-current", "page");
+  await expect(page.locator("#crumb .nav-title")).toHaveText(GOLDEN.meeting.title);
+  await expect(page.locator("#crumb .nav-title")).toHaveAttribute("aria-current", "page");
   await meetings.click();
   await expect(meetings).toHaveAttribute("aria-current", "page");
-  await notes.click(); // back to the meeting last opened
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(GOLDEN.meeting.title);
+  await expect(page.locator("#crumb .nav-title")).toHaveCount(0);
+});
+
+// Karim 2026-11-04 approved the meeting-page draft: title on the ground, one
+// follow-up email, actions as one list, decisions beside questions, fact checks
+// grouped by claim, alerts apart from tips, your speaking last, one player.
+function richPage() {
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  const turn = GOLDEN.transcript_lines[0].turn_id;
+  const pt = (n, kind, text) => ({ ...GOLDEN.points[0], point_id: `00000040-0000-4000-8000-0000000000${n}`, kind, text,
+    quote: text, is_action: false, urgency: "later" });
+  p.points.push(pt(41, "question", "When does the gateway go live?"), pt(42, "pushback", "March is too risky."),
+    pt(43, "point", "Qatar has about 10 million people."));
+  p.actions.push({ action_id: "00000050-0000-4000-8000-000000000051", text: "Finish the demo build.", owner: "Layla",
+    status: "assigned", urgency: "urgent", point_id: GOLDEN.points[0].point_id });
+  const fc = (claim) => ({ point_id: GOLDEN.points[0].point_id, claim, speaker_name: "Layla", verdict: "disputed",
+    note: "It is about 3.2 million.", sources: ["https://a.example/q"] });
+  p.fact_checks = [fc("Qatar has about 10 million people."), fc("Qatar has around 10 million people."),
+    fc("Qatar has about 10 million people."), { ...fc("The EU AI Act entered into force in 2024."), verdict: "supported", note: "1 August 2024." }];
+  p.coaching = [{ text: "Ask Layla for the date.", alert: false, at_ms: 1000 },
+    { text: "Take a breath; your tone is rising.", alert: true, at_ms: 2000 }]
+    .concat([1, 2, 3, 4, 5, 6].map((i) => ({ text: "Tip number " + i + ".", alert: false, at_ms: 3000 + i })));
+  void turn;
+  return p;
+}
+
+test("(M1) the meeting page follows the approved draft", async ({ page }) => {
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(richPage()) }));
+  await page.route("**/api/meetings/" + MEETING_ID + "/speaking", (route) => route.fulfill({ status: 200, contentType: "application/json",
+    body: JSON.stringify({ speakers: 2, talk_share: 60, fair_share: 50, longest_ms: 39000, longest_at_ms: 1000, questions: 2, follow_ups: 0,
+      cut_ins: [], pace_wpm: 140, hedged: [], try_next: { key: "ask" } }) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  // the title sits on the page ground, not in a dark box
+  expect(await page.locator(".head").evaluate((n) => getComputedStyle(n).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  // one email drafts every action and decision
+  const follow = page.locator("a.follow-up");
+  await expect(follow).toHaveText("Email follow-up");
+  const href = decodeURIComponent(await follow.getAttribute("href"));
+  expect(href).toContain("Finish the demo build.");
+  expect(href).toContain("Launch moves to Nov 12");
+  // action items: one list, urgency groups stacked, urgent first
+  const groups = page.locator(".ucol");
+  const xs = await groups.evaluateAll((ns) => ns.map((n) => Math.round(n.getBoundingClientRect().left)));
+  expect(new Set(xs).size).toBe(1);
+  await expect(groups.first()).toHaveClass(/u-urgent/);
+  // decisions beside open questions, above the disagreements
+  const dec = await page.locator(".col.c-decision").boundingBox();
+  const q = await page.locator(".col.c-question").boundingBox();
+  expect(Math.abs(dec.y - q.y)).toBeLessThan(2);
+  expect(dec.x).not.toBe(q.x);
+  expect(dec.y).toBeLessThan((await page.locator(".board.dis").boundingBox()).y);
+  // fact checks grouped by claim
+  await expect(page.locator(".fact-item")).toHaveCount(2);
+  await expect(page.locator(".fact-item").first()).toContainText("Checked 3 times");
+  // coaching: alerts first, then tips, the rest folded
+  await expect(page.locator(".board.coach h3").first()).toContainText("Alerts");
+  await expect(page.locator(".board.coach .coach-item.c-alert")).toHaveCount(1);
+  await expect(page.locator(".board.coach details summary")).toHaveText("+ 2 more");
+  // your speaking is the last block
+  await expect(page.locator("#stage > :last-child")).toHaveClass(/speaking/);
+});
+
+test("(M2) with a recording, the rail has one player, not two", async ({ page }) => {
+  await page.route("**/api/audio?**", (route) => route.fulfill({ status: 206, contentType: "audio/webm", body: Buffer.from([0]) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator("audio#rec")).toBeVisible();
+  await expect(page.locator(".player .prow")).toBeHidden();
+});
+
+test("(M3) Meetings uses the meeting page's background", async ({ page }) => {
+  await page.goto(baseURL + "/");
+  await page.locator("#view.home").waitFor();
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(233, 228, 218)");
 });
 
 // Karim 2026-11-04: Archive and Open notes sat on different lines at 1024-1100 px and on phones.
@@ -733,4 +802,18 @@ test("(H12) Coaching tips: everything the coach said, on the preview and the mee
   await page.goto(baseURL + "/?meeting=" + MEETING_ID);
   await expect(page.locator(".board.coach .coach-item")).toHaveCount(5);
   await expect(page.locator(".board.coach .coach-item.c-alert")).toContainText("Take a breath");
+});
+
+test("(M4) hover-only controls take no room at rest, so rows keep one height", async ({ page }) => {
+  const p = JSON.parse(JSON.stringify(GOLDEN));
+  ["When does the gateway go live?", "Is it supposed to say this?", "Should we worry about that for the first release?"]
+    .forEach((text, i) => p.points.push({ ...GOLDEN.points[0], point_id: `00000040-0000-4000-8000-00000000006${i}`, kind: "question", text, quote: text, is_action: false }));
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) }));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const hs = await page.locator(".col.c-question li.pt").evaluateAll((ns) => ns.map((n) => Math.round(n.getBoundingClientRect().height)));
+  expect(Math.max(...hs) - Math.min(...hs)).toBeLessThanOrEqual(2);
+  const retag = page.locator(".col.c-question li.pt").first().locator(".retag summary");
+  await page.locator(".col.c-question li.pt").first().hover();
+  await expect(retag).toBeVisible();
 });

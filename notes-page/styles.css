@@ -326,8 +326,8 @@ h3,.ucol h3,.ugroup h3,.preview h3{font-size:13px;font-weight:600}
 
 /* ---- Home (Karim 2026-11-04, "AV": docs/ui/drafts/landing/av-home.html). Light ledger: white
    sheets on a stone ground, colour only on what a meeting produced. Scoped to the list view. ---- */
-body:has(#view.home){background:#f2f3f1}
-body:has(#view.home)::before{background:#f2f3f1}
+body:has(#view.home){background:var(--bg)}
+body:has(#view.home)::before{background:var(--bg)}
 #view.home{max-width:1312px;padding:24px 32px 64px;
   --ground:#f2f3f1; --surface:#fff; --border:#e5e3dd; --rule:#efede8; --control:#d3d0c8;
   --text:#1c1c1a; --muted:#5b5a55; --active:#ebe9e3; --primary:#1d1f1c;
@@ -623,3 +623,38 @@ body:has(#view.home)::before{background:#f2f3f1}
 #view.home .tabs .fmenu-list button{justify-content:space-between;text-align:start}
 #view.home .tabs:has(.fmenu[open]){position:relative;z-index:40}
 #view.home .pfoot .pacts{display:inline-flex;gap:8px;align-items:center;margin-inline-start:auto;flex:none}
+
+/* ---- Meeting page v3 (Karim 2026-11-04 approved the draft): the title on the page
+   ground, actions as one list grouped by urgency, decisions beside questions. ---- */
+.top .nav-sep{color:var(--band-muted);margin:0 2px}
+.top .nav-title{font-weight:600;color:var(--band-ink)}
+.head{background:transparent;color:var(--text);border:0;border-radius:0;margin:0 0 6px;padding:4px 0 0}
+.head .facts{color:var(--muted)}
+.head .mtg-summary{color:var(--text);font-size:16px;line-height:1.6}
+.people{align-items:center}
+.head-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.head-row h1{flex:1 1 320px}
+.head .follow-up{margin-top:4px;background:var(--text);color:var(--on-accent);text-decoration:none;border-radius:999px;padding:7px 16px;font-weight:600;font-size:14px}
+.head .follow-up:hover{opacity:.9}
+.ugrid{display:flex;flex-direction:column;gap:6px}
+.ucol h3{margin:10px 0 2px}
+.act,.act.u-urgent,.act.u-medium,.act.u-later{box-shadow:none;padding:9px 0}
+.act .body{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:center}
+.act .body>small{grid-column:1}
+.act .ameta{grid-column:2;grid-row:1 / span 2;margin-top:0;justify-content:flex-end}
+@media (max-width:700px){.act .body{grid-template-columns:minmax(0,1fr)}.act .ameta{grid-column:1;grid-row:auto;justify-content:flex-start}}
+.cols.dq{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start;margin-bottom:12px}
+.cols.dq>.col{margin:0}
+.fact-n{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.board.coach h3{margin:12px 0 2px;font-size:13px}
+.board.coach summary{cursor:pointer;font-weight:600;font-size:13px;padding-top:6px;color:var(--text)}
+/* Live 2026-11-04: the hover-only Original and Retag kept their width while hidden, so in
+   the narrow decision and question columns they wrapped into a blank second line. With a
+   mouse they now float as a small toolbar at the row's end (no reflow); touch keeps them inline. */
+.pt .hov{display:contents}
+@media (hover:hover){
+  .pt{position:relative}
+  .pt .hov{position:absolute;inset-inline-end:4px;top:4px;display:flex;gap:6px;padding:3px;border-radius:999px;background:var(--panel);box-shadow:0 2px 8px rgba(0,0,0,.12);opacity:0;pointer-events:none;transition:opacity .15s ease}
+  .pt .hov .chip[data-orig],.pt .hov .retag{opacity:1}
+  .pt:hover .hov,.pt:focus-within .hov,.pt .hov:has(.retag[open]){opacity:1;pointer-events:auto}
+}

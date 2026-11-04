@@ -57,7 +57,7 @@
       recapBtn: "Visual recap", recapBusy: "Muse Image is drawing, about 20 s…", recapFail: "The recap could not be drawn. Try again.",
       recapAlt: "Visual recap of this meeting, drawn by Muse Image.",
       coachT: "Coaching tips", coachNote: "Everything the coach showed you in this meeting.", alertT: "Alert",
-      fact: "Fact checks", factNote: "Numbers said in the call, checked on the web by Muse Spark.",
+      fact: "Fact checks", factNote: "Claims said in the call, checked on the web by Muse Spark.",
       factOk: "Checks out", factBad: "Disputed",
       keep: "Call audio and your mic, kept on this PC until you delete the data folder.",
       norec: "No recording for this meeting. The notes and transcript are complete.",
@@ -68,7 +68,10 @@
       allMeetings: "All meetings", preview: "Click a meeting to preview it",
       noSummary: "No AI summary yet. Meetings get one when they end.",
       newFolder: "New folder name", createFolder: "Create folder", moveTo: "Folder",
-      noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open notes",
+      noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open meeting",
+      followUp: "Email follow-up", followSubject: "Follow-up: {m} ({d})", factTimes: "Checked {n} times",
+      alertsT: "Alerts", tipsT: "Tips",
+      followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
       // Home (Karim 2026-11-04, AV)
       lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
       tabOthers: "With others", tabArchived: "Archived", noCapture: "Nothing captured", archivedTag: "Archived",
@@ -90,9 +93,9 @@
       t_sprint: "Sprint", t_planning: "Planning", t_discovery: "Product discovery", t_sales: "Sales",
       t_induction: "Induction", t_one_on_one: "1:1", t_interview: "Interview", t_other: "Other",
       mailSubject: "Action item from \u201C{m}\u201D: {a}",
-      mailBody: "Hi{o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo notes",
+      mailBody: "Hi{o},\n\nFrom the meeting \u201C{m}\u201D ({d}):\n\n{a}\nUrgency: {u}\n\nSent from Halo",
       pointMailSubject: "From \u201C{m}\u201D: {p}",
-      pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo notes"
+      pointMailBody: "Hi,\n\nIn the meeting \u201C{m}\u201D ({d}), {s} said:\n\n{p}\n\nSent from Halo"
     },
     ar: {
       notes: "الملاحظات", meetings: "الاجتماعات", folders: "المجلدات", someone: "أحدهم", people: "الأشخاص", everyone: "الاجتماع كاملاً",
@@ -137,7 +140,7 @@
       recapBtn: "ملخص مرسوم", recapBusy: "Muse Image يرسم الآن، نحو 20 ثانية…", recapFail: "تعذّر رسم الملخص. حاول مرة أخرى.",
       recapAlt: "ملخص مرسوم لهذا الاجتماع من Muse Image.",
       coachT: "نصائح المدرب", coachNote: "كل ما عرضه عليك المدرب في هذا الاجتماع.", alertT: "تنبيه",
-      fact: "التحقق من المعلومات", factNote: "أرقام قيلت في الاجتماع، تحقق منها Muse Spark عبر الويب.",
+      fact: "التحقق من المعلومات", factNote: "معلومات قيلت في الاجتماع، تحقق منها Muse Spark عبر الويب.",
       factOk: "صحيح", factBad: "غير دقيق",
       keep: "تسجيل صوت المكالمة وميكروفونك محفوظ على هذا الجهاز حتى تحذف مجلد البيانات.",
       norec: "لا يوجد تسجيل لهذا الاجتماع، لكن الملاحظات والنص الكامل متاحة.",
@@ -148,7 +151,10 @@
       allMeetings: "كل الاجتماعات", preview: "اضغط على اجتماع لمعاينته",
       noSummary: "لا يوجد ملخص آلي بعد. يُكتب عند انتهاء الاجتماع.",
       newFolder: "اسم مجلد جديد", createFolder: "إنشاء مجلد", moveTo: "المجلد",
-      noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الملاحظات",
+      noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الاجتماع",
+      followUp: "بريد المتابعة", followSubject: "متابعة: {m} ({d})", factTimes: "تم التحقق {n} مرات",
+      alertsT: "التنبيهات", tipsT: "النصائح",
+      followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
       lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
       sinceHead: "منذ زيارتك الأخيرة ({w}):", nothingNew: "لا جديد منذ زيارتك الأخيرة ({w}).",
@@ -169,9 +175,9 @@
       t_sprint: "سبرنت", t_planning: "تخطيط", t_discovery: "استكشاف المنتج", t_sales: "مبيعات",
       t_induction: "تهيئة موظف", t_one_on_one: "فردي", t_interview: "مقابلة", t_other: "أخرى",
       mailSubject: "مهمة من \u00AB{m}\u00BB: {a}",
-      mailBody: "مرحباً{o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من ملاحظات Halo",
+      mailBody: "مرحباً{o}،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n\n{a}\nالأولوية: {u}\n\nأُرسلت من Halo",
       pointMailSubject: "من \u00AB{m}\u00BB: {p}",
-      pointMailBody: "مرحباً،\n\nفي اجتماع \u00AB{m}\u00BB ({d})، قال {s}:\n\n{p}\n\nأُرسلت من ملاحظات Halo"
+      pointMailBody: "مرحباً،\n\nفي اجتماع \u00AB{m}\u00BB ({d})، قال {s}:\n\n{p}\n\nأُرسلت من Halo"
     }
   };
 
@@ -446,8 +452,12 @@
     var origBtn = el("button", "chip", app.openQuote[point.point_id] ? t(lang, "hide") : t(lang, "orig"));
     origBtn.dataset.orig = point.point_id;
     origBtn.setAttribute("aria-expanded", app.openQuote[point.point_id] ? "true" : "false");
-    meta.appendChild(origBtn);
-    meta.appendChild(retagControl(point, point.point_id, false, lang, app.userTags));
+    var retag = retagControl(point, point.point_id, false, lang, app.userTags);
+    var hov = el("span", "hov"); // with a mouse: a toolbar on hover (styles.css)
+    hov.appendChild(origBtn);
+    if (!retag.classList.contains("mine")) hov.appendChild(retag);
+    meta.appendChild(hov);
+    if (retag.classList.contains("mine")) meta.appendChild(retag);
     li.appendChild(meta);
     if (app.openQuote[point.point_id]) {
       var quote = el("blockquote", null, "\u201C" + point.quote + "\u201D");
@@ -524,6 +534,23 @@
     var vars = { m: titleOf(m), p: point.text, s: point.speaker_name || t(lang, "someone"), d: fmtDate(m.t0_ms) };
     return "mailto:?subject=" + encodeURIComponent(t(lang, "pointMailSubject", vars)) +
       "&body=" + encodeURIComponent(t(lang, "pointMailBody", vars));
+  }
+
+  // Karim 2026-11-04: one email for the whole meeting, decisions then actions.
+  function followHref(page, lang) {
+    var m = page.meeting, x = "";
+    var decs = page.points.filter(function (p) { return kindKey(p.kind) === "decision"; });
+    if (decs.length) x += "\n" + t(lang, "decsShort") + "\n" + decs.map(function (p) { return "- " + p.text; }).join("\n") + "\n";
+    if (page.actions.length) {
+      x += "\n" + t(lang, "actions") + "\n" + byUrg(page.actions).map(function (pair) {
+        return pair[1].map(function (a) {
+          return "- " + a.text + " (" + (a.owner || t(lang, "noOwner")) + ", " + t(lang, pair[0]).split(" /")[0] + ")";
+        }).join("\n");
+      }).filter(Boolean).join("\n") + "\n";
+    }
+    var vars = { m: titleOf(m), d: fmtDate(m.t0_ms), x: x };
+    return "mailto:?subject=" + encodeURIComponent(t(lang, "followSubject", vars)) +
+      "&body=" + encodeURIComponent(t(lang, "followBody", vars));
   }
 
   function hitRow(app, hit, lang) {
@@ -667,13 +694,26 @@
     var section = el("section", "board glass coach");
     section.appendChild(el("h2", null, t(lang, "coachT")));
     section.appendChild(el("p", "fact-sub", t(lang, "coachNote")));
-    list.forEach(function (c) {
-      var item = el("div", "coach-item" + (c.alert ? " c-alert" : ""));
+    var item = function (c) {
+      var div = el("div", "coach-item" + (c.alert ? " c-alert" : ""));
       var text = el("p", null, c.text);
       text.dir = "auto";
-      item.appendChild(text);
-      item.appendChild(el("small", null, (c.alert ? t(lang, "alertT") + " · " : "") + clock(c.at_ms)));
-      section.appendChild(item);
+      div.appendChild(text);
+      div.appendChild(el("small", null, clock(c.at_ms)));
+      return div;
+    };
+    var alerts = list.filter(function (c) { return c.alert; });
+    var tips = list.filter(function (c) { return !c.alert; });
+    [["alertsT", alerts], ["tipsT", tips]].forEach(function (g) {
+      if (!g[1].length) return;
+      section.appendChild(el("h3", null, t(lang, g[0]) + " " + g[1].length));
+      g[1].slice(0, 5).forEach(function (c) { section.appendChild(item(c)); });
+      if (g[1].length > 5) {
+        var more = el("details");
+        more.appendChild(el("summary", null, t(lang, "nMore", { n: g[1].length - 5 })));
+        g[1].slice(5).forEach(function (c) { more.appendChild(item(c)); });
+        section.appendChild(more);
+      }
     });
     return section;
   }
@@ -686,7 +726,16 @@
     var section = el("section", "board glass facts");
     section.appendChild(el("h2", null, t(lang, "fact")));
     section.appendChild(el("p", "fact-sub", t(lang, "factNote")));
+    var groups = [], byKey = {};
     list.forEach(function (c) {
+      var key = c.verdict + ":" + String(c.claim).toLowerCase().replace(/\b(about|around|roughly|approximately|nearly|almost|some|the|a|an)\b/g, " ")
+        .replace(/[^\w\u0600-\u06FF.]+/g, " ").trim();
+      if (byKey[key]) { byKey[key].n += 1; return; }
+      byKey[key] = { c: c, n: 1 };
+      groups.push(byKey[key]);
+    });
+    groups.forEach(function (g) {
+      var c = g.c;
       var item = el("div", "fact-item v-" + c.verdict);
       var head = el("div", "dis-head");
       var claim = el("h3", null, c.claim);
@@ -706,6 +755,7 @@
         a.rel = "noopener noreferrer";
         item.appendChild(a);
       });
+      if (g.n > 1) item.appendChild(el("small", "fact-n", t(lang, "factTimes", { n: g.n })));
       section.appendChild(item);
     });
     return section;
@@ -833,6 +883,7 @@
       audio.controls = true;
       audio.preload = "none";
       audio.src = src;
+      row.hidden = true; // live 2026-11-04: two players in the rail; the native one has the seek bar
       player.appendChild(audio);
       var keep = el("div", "keep", t(lang, "keep"));
       player.appendChild(keep);
@@ -902,7 +953,12 @@
     var wrap = el("div", "mtg");
     var left = el("div");
     var head = el("section", "head glass");
-    head.appendChild(el("h1", null, titleOf(page.meeting)));
+    var hrow = el("div", "head-row");
+    hrow.appendChild(el("h1", null, titleOf(page.meeting)));
+    var follow = el("a", "follow-up", t(lang, "followUp"));
+    follow.href = followHref(page, lang);
+    hrow.appendChild(follow);
+    head.appendChild(hrow);
     // Date · length · people, so the page says when and with whom.
     var lines = page.transcript_lines || [];
     var mins = lines.length ? Math.round((lines[lines.length - 1].ts_end_ms - page.meeting.t0_ms) / 60000) : 0;
@@ -940,21 +996,27 @@
     if (selected) {
       stage.appendChild(personPanel(app, selected, lang));
     } else if (!silent) {
+      var all = app.cat === "all";
       stage.appendChild(summaryBoard(app, lang));
-      if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
-      stage.appendChild(filtersBar(app, boardPoints(page), lang));
+      if (all) {
+        var dq = el("div", "cols dq");
+        ["decision", "question"].forEach(function (k) { dq.appendChild(kindColumn(app, k, lang)); });
+        stage.appendChild(dq);
+      }
       var dis = disagreementsBoard(app, lang);
       if (dis) stage.appendChild(dis);
       var facts = factBoard(app, lang);
       if (facts) stage.appendChild(facts);
       var coach = coachBoard(app, lang);
       if (coach) stage.appendChild(coach);
-      if (app.cat === "all" && !page.meeting.in_progress) stage.appendChild(recapBoard(app, lang));
-      var cols = el("div", "cols" + (app.cat === "all" ? "" : " one"));
-      (app.cat === "all" ? KIND_KEYS : [app.cat]).forEach(function (k) {
+      stage.appendChild(filtersBar(app, boardPoints(page), lang));
+      var cols = el("div", "cols" + (all ? "" : " one"));
+      (all ? ["pushback", "point"] : [app.cat]).forEach(function (k) {
         cols.appendChild(kindColumn(app, k, lang));
       });
       stage.appendChild(cols);
+      if (all && !page.meeting.in_progress) stage.appendChild(recapBoard(app, lang));
+      if (app.speaking) stage.appendChild(speakingPanel(app.speaking, lang));
     }
     left.appendChild(stage);
     wrap.appendChild(left);
@@ -2029,21 +2091,21 @@
     var exportBtn = doc.getElementById("export");
     exportBtn.hidden = app.view !== "meeting";
     exportBtn.textContent = "\u21E9 " + t(lang, "export");
+    doc.title = app.view === "list" || !app.page ? "Halo · " + t(lang, "meetings") : titleOf(app.page.meeting) + " · Halo";
     var crumb = doc.getElementById("crumb");
     crumb.textContent = "";
-    // Karim 2026-11-04: "Halo", then two tabs: Meetings (the list) and Notes
-    // (the meeting last opened, else the newest).
+    // Karim 2026-11-04: a meeting's page is the focused view of Meetings, so no
+    // Notes tab: "Halo  Meetings > <the open meeting>".
     var navMeetings = el("button", "nav-tab", t(lang, "meetings"));
     navMeetings.dataset.nav = "list";
-    var navNotes = el("button", "nav-tab nav-notes", t(lang, "notes"));
-    var noteId = app.page ? app.page.meeting.meeting_id : ((app.meetings || [])[0] || {}).meeting_id;
-    if (noteId) navNotes.dataset.open = noteId;
-    else navNotes.disabled = true;
-    (app.view === "list" ? navMeetings : navNotes).setAttribute("aria-current", "page");
     crumb.appendChild(navMeetings);
-    crumb.appendChild(navNotes);
-    if (app.view !== "list") {
-      crumb.appendChild(el("span", "nav-title", titleOf(app.page.meeting) + (app.person ? " / " + app.person : "")));
+    if (app.view === "list" || !app.page) {
+      navMeetings.setAttribute("aria-current", "page");
+    } else {
+      crumb.appendChild(el("span", "nav-sep", "\u203A")).setAttribute("aria-hidden", "true");
+      var here = el("span", "nav-title", titleOf(app.page.meeting) + (app.person ? " / " + app.person : ""));
+      here.setAttribute("aria-current", "page");
+      crumb.appendChild(here);
     }
     var view = doc.getElementById("view");
     // A rebuild must not steal the caret: typing in search re-renders per key.
