@@ -71,6 +71,9 @@
       noFolder: "No folder", email: "Email", decsShort: "Decisions", openNotes: "Open meeting",
       followUp: "Email follow-up", followSubject: "Follow-up: {m} ({d})", factTimes: "Checked {n} times",
       alertsT: "Alerts", tipsT: "Tips",
+      refT: "Fact-check against your notes:", refAdd: "Add a Markdown file", refPast: "or use a past meeting",
+      refOn: "Reference notes:", refLive: "the fact check uses them live", refClear: "Remove", refFail: "That file could not be added.",
+      yourNotes: "Your notes:",
       followBody: "Hi,\n\nFrom the meeting \u201C{m}\u201D ({d}):\n{x}\nSent from Halo",
       // Home (Karim 2026-11-04, AV)
       lenSec: "{n} s", today: "Today", tabAll: "All meetings", tabUrgent: "Urgent", tabAction: "Needs action",
@@ -154,6 +157,9 @@
       noFolder: "بلا مجلد", email: "بريد", decsShort: "القرارات", openNotes: "افتح الاجتماع",
       followUp: "بريد المتابعة", followSubject: "متابعة: {m} ({d})", factTimes: "تم التحقق {n} مرات",
       alertsT: "التنبيهات", tipsT: "النصائح",
+      refT: "تحقق من المعلومات مقابل ملاحظاتك:", refAdd: "أضف ملف Markdown", refPast: "أو استخدم اجتماعاً سابقاً",
+      refOn: "الملاحظات المرجعية:", refLive: "يستخدمها التحقق مباشرة", refClear: "إزالة", refFail: "تعذّرت إضافة هذا الملف.",
+      yourNotes: "ملاحظاتك:",
       followBody: "مرحباً،\n\nمن اجتماع \u00AB{m}\u00BB ({d}):\n{x}\nأُرسلت من Halo",
       lenSec: "{n} ث", today: "اليوم", tabAll: "كل الاجتماعات", tabUrgent: "عاجل", tabAction: "يحتاج إجراء",
       tabOthers: "مع آخرين", tabArchived: "مؤرشف", noCapture: "لم يُلتقط شيء", archivedTag: "مؤرشف",
@@ -749,6 +755,12 @@
       var note = el("p", "dis-res", (c.speaker_name ? c.speaker_name + ": " : "") + c.note);
       note.dir = "auto";
       item.appendChild(note);
+      if (c.notes_quote) {
+        var nq = el("p", "notes-quote");
+        nq.appendChild(el("b", null, t(lang, "yourNotes") + " "));
+        nq.appendChild(document.createTextNode("\u201C" + c.notes_quote + "\u201D"));
+        item.appendChild(nq);
+      }
       (c.sources || []).forEach(function (url) {
         var host = /^https?:\/\/(?:www\.)?([^\/?#]+)/i.exec(url);
         if (!host) return;
@@ -945,6 +957,45 @@
     if (active && active.scrollIntoView) active.scrollIntoView({ block: "nearest" });
   }
 
+  // Karim 2026-11-04: last meeting's Markdown as context; the fact check reads it live.
+  function refRow(app, lang) {
+    var row = el("div", "refrow");
+    var ref = app.reference || {};
+    if (ref.name) {
+      row.appendChild(el("b", null, t(lang, "refOn") + " "));
+      row.appendChild(el("span", "refname", ref.name));
+      row.appendChild(el("span", "refnote", " \u00B7 " + t(lang, "refLive") + " "));
+      var clear = el("button", "chip", t(lang, "refClear"));
+      clear.dataset.refClear = "1";
+      row.appendChild(clear);
+      return row;
+    }
+    row.appendChild(el("span", "refnote", t(lang, "refT") + " "));
+    var label = el("label", "chip refadd", t(lang, "refAdd"));
+    var input = el("input");
+    input.type = "file";
+    input.id = "refFile";
+    input.accept = ".md,.markdown,.txt,text/markdown,text/plain";
+    input.className = "sr";
+    label.appendChild(input);
+    row.appendChild(label);
+    var others = (app.meetings || []).filter(function (m) { return m.meeting_id !== app.page.meeting.meeting_id; });
+    if (others.length) {
+      var sel = el("select", "chip");
+      sel.id = "refPast";
+      sel.setAttribute("aria-label", t(lang, "refPast"));
+      sel.appendChild(el("option", null, t(lang, "refPast")));
+      sel.firstChild.value = "";
+      others.slice(0, 30).forEach(function (m) {
+        var o = el("option", null, titleOf(m));
+        o.value = m.meeting_id;
+        sel.appendChild(o);
+      });
+      row.appendChild(sel);
+    }
+    return row;
+  }
+
   function renderMeeting(app, view, lang) {
     var page = app.page;
     // A meeting nobody spoke in is not a failed summary (#102).
@@ -971,6 +1022,7 @@
     if (page.meeting.title && page.meeting.title !== page.meeting.subject) facts.push(page.meeting.subject);
     head.appendChild(el("p", "facts", facts.filter(Boolean).join(" · ")));
     if (page.meeting.summary) head.appendChild(el("p", "mtg-summary", page.meeting.summary));
+    head.appendChild(refRow(app, lang));
     left.appendChild(head);
     left.appendChild(el("h2", "sr", t(lang, "people")));
     var people = el("div", "people");
@@ -2296,8 +2348,12 @@
       app.person = null;
       app.lineIndex = 0;
       app.speaking = null;
+      app.reference = null;
       render(app);
       var id = page.meeting.meeting_id;
+      app.fetchJson("/api/meetings/" + encodeURIComponent(id) + "/reference").then(function (r) {
+        if (r && app.page && app.page.meeting.meeting_id === id) { app.reference = r; render(app); }
+      }).catch(function () {});
       app.fetchJson("/api/meetings/" + encodeURIComponent(id) + "/speaking").then(function (s) {
         if (s && app.page && app.page.meeting.meeting_id === id) { app.speaking = s; render(app); }
       }).catch(function () {});
@@ -2424,6 +2480,13 @@
       if ((b = g("[data-retag][data-val]"))) {
         event.preventDefault();
         onRetag(b.dataset.retag, b.dataset.val, b.dataset.action === "1");
+        return;
+      }
+      if ((b = g("[data-ref-clear]")) && app.page && win.fetch) {
+        var rid = app.page.meeting.meeting_id;
+        win.fetch("/api/meetings/" + encodeURIComponent(rid) + "/reference", { method: "DELETE" }).then(function () {
+          if (app.page && app.page.meeting.meeting_id === rid) { app.reference = null; render(app); }
+        }).catch(function () { toast(app, t(app.lang, "notSaved")); });
         return;
       }
       if ((b = g("[data-follow]"))) {
@@ -2590,8 +2653,28 @@
       if (row) restTimer = setTimeout(function () { app.setPreview(row.dataset.sel); }, PREVIEW_REST_MS);
     }
 
+    function setReference(name, text) {
+      var id = app.page.meeting.meeting_id;
+      return postJson("/api/meetings/" + encodeURIComponent(id) + "/reference", { name: name, text: text })
+        .then(function (r) { if (app.page && app.page.meeting.meeting_id === id) { app.reference = r; render(app); } })
+        .catch(function () { toast(app, t(app.lang, "refFail")); });
+    }
+
     function onChange(event) {
       var sel = event.target;
+      if (sel && sel.id === "refFile" && sel.files && sel.files[0]) {
+        var file = sel.files[0];
+        file.text().then(function (text) { return setReference(file.name, text); });
+        return;
+      }
+      if (sel && sel.id === "refPast" && sel.value) {
+        app.fetchJson("/api/meetings/" + encodeURIComponent(sel.value)).then(function (p) {
+          var past = tidyPage(p);
+          var text = "# " + titleOf(past.meeting) + "\n\n" + (past.meeting.summary || "") + "\n\n" + exportMarkdown(past, app.lang);
+          return setReference(titleOf(past.meeting) + ".md", text);
+        }).catch(function () { toast(app, t(app.lang, "refFail")); });
+        return;
+      }
       if (sel && sel.classList && sel.classList.contains("mtype-set")) {
         postJson("/api/meetings/type", { meeting_id: sel.dataset.meeting, meeting_type: sel.value || null })
           .then(refreshList).catch(function () { toast(app, t(app.lang, "notSaved")); });

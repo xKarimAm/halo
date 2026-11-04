@@ -115,6 +115,8 @@ export interface FactCheckCard {
   note: string;
   sources: string[];
   lang: "en" | "ar";
+  /** The sentence from the viewer's reference notes that settled it (Karim 2026-11-04). */
+  notes_quote?: string;
 }
 
 export class Overlay {

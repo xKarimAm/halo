@@ -348,6 +348,28 @@ class NotesService:
 
     # -- page ---------------------------------------------------------------
 
+    # -- reference notes: a Markdown file the viewer adds; Fact Check reads it ------
+
+    def _reference_path(self, meeting_id: str) -> Path:
+        return self._data_dir / "references" / f"{meeting_id}.json"
+
+    def reference(self, meeting_id: str) -> dict[str, Any]:
+        try:
+            ref = json.loads(self._reference_path(meeting_id).read_text(encoding="utf-8"))
+            return {"name": str(ref["name"]), "chars": len(str(ref["text"]))}
+        except (OSError, ValueError, KeyError, TypeError):
+            return {"name": None, "chars": 0}
+
+    def set_reference(self, meeting_id: str, name: str, text: str) -> None:
+        path = self._reference_path(meeting_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"name": name, "text": text}, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+
+    def clear_reference(self, meeting_id: str) -> None:
+        self._reference_path(meeting_id).unlink(missing_ok=True)
+
     def _recap_path(self, meeting_id: str) -> Path:
         return self._data_dir / "recaps" / f"{meeting_id}.png"
 
@@ -463,7 +485,8 @@ class NotesService:
             page["visual_recap"] = True
         if store["checks"]:
             page["fact_checks"] = [{k: c[k] for k in ("point_id", "claim", "speaker_name", "verdict",
-                                                      "note", "sources")} for c in store["checks"]]
+                                                      "note", "sources", "notes_quote") if k in c}
+                                   for c in store["checks"]]
         if store["coaching"]:
             page["coaching"] = store["coaching"]
         return page
@@ -815,6 +838,45 @@ async def api_meeting_page(meeting_id: str, request: Request):  # type: ignore[n
 async def api_speaking(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
     """Private facts about how the viewer talked (speaking.py); null when too little."""
     return _service(request).speaking_for(meeting_id)
+
+
+REFERENCE_MAX = 200_000  # chars; Fact Check reads the first 12k of it per claim
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+@router.get("/api/meetings/{meeting_id}/reference")
+async def api_reference(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    if not UUID_RE.match(meeting_id):
+        return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+    return _service(request).reference(meeting_id)
+
+
+@router.post("/api/meetings/{meeting_id}/reference")
+async def api_set_reference(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    """Karim 2026-11-04: a Markdown file (e.g. last meeting's notes) the fact check uses live."""
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    service = _service(request)
+    if not UUID_RE.match(meeting_id) or service.page_for(meeting_id) is None:
+        return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+    body = await _body(request)
+    name, text = body.get("name"), body.get("text")
+    if not isinstance(name, str) or not isinstance(text, str) or not text.strip():
+        return JSONResponse({"detail": "name and text required"}, status_code=400)
+    if len(text) > REFERENCE_MAX:
+        return JSONResponse({"detail": "the file is too large"}, status_code=413)
+    await asyncio.to_thread(service.set_reference, meeting_id, name.strip()[:120] or "notes.md", text)
+    return service.reference(meeting_id)
+
+
+@router.delete("/api/meetings/{meeting_id}/reference")
+async def api_clear_reference(meeting_id: str, request: Request):  # type: ignore[no-untyped-def]
+    if (refused := _foreign_origin(request)) is not None:
+        return refused
+    if not UUID_RE.match(meeting_id):
+        return JSONResponse({"detail": "unknown meeting"}, status_code=404)
+    _service(request).clear_reference(meeting_id)
+    return {"name": None, "chars": 0}
 
 
 @router.get("/api/search")

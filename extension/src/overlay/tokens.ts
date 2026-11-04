@@ -84,6 +84,7 @@ export const OVERLAY_CSS = `
 .halo-fact{box-sizing:border-box;padding:10px 12px 12px;border-radius:16px;${PANEL};color:#f5f7fa;font:500 13px/1.4 Inter,system-ui,sans-serif;pointer-events:auto}
 .halo-fact.disputed .halo-coach-head{color:${URGENCY_COLORS.urgent}}
 .halo-fact-note{margin:0 0 6px}
+.halo-fact-quote{margin:0 0 6px;font-size:12px;opacity:.85;unicode-bidi:plaintext}
 .halo-fact a{color:${HALO_GOLD};font-size:12px}
 .halo-fact a[hidden]{display:none}
 .halo-fact :focus-visible{outline:2px solid ${HALO_GOLD};outline-offset:2px}

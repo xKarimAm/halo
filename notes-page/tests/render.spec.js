@@ -840,3 +840,27 @@ test("(M5) an Arabic summary, transcript line and disagreement read right to lef
   expect(await firstWordAtRight(".ln .o")).toBeLessThan(4);
   expect(await page.locator(".dis-sides li").first().getAttribute("dir")).toBe("rtl");
 });
+
+// Karim 2026-11-04: add last meeting's Markdown; the fact check uses it live.
+test("(M6) a Markdown file becomes the meeting's reference notes, and a check can cite it", async ({ page }) => {
+  let ref = { name: null, chars: 0 };
+  const posted = [];
+  await page.route("**/api/meetings/" + MEETING_ID + "/reference", (route) => {
+    const m = route.request().method();
+    if (m === "POST") { const b = route.request().postDataJSON(); posted.push(b); ref = { name: b.name, chars: b.text.length }; }
+    if (m === "DELETE") ref = { name: null, chars: 0 };
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(ref) });
+  });
+  const checked = JSON.parse(JSON.stringify(GOLDEN));
+  checked.fact_checks = [{ point_id: POINT_ID, claim: "We launch on 20 November.", speaker_name: "Layla", verdict: "disputed",
+    note: "Your notes say 12 November.", sources: [], notes_quote: "We agreed to launch on 12 November." }];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(checked) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  await expect(page.locator(".fact-item .notes-quote")).toContainText("We agreed to launch on 12 November.");
+  await page.locator("#refFile").setInputFiles({ name: "last-week.md", mimeType: "text/markdown", buffer: Buffer.from("# Launch\n\n- We agreed to launch on 12 November.\n") });
+  await expect(page.locator(".refrow")).toContainText("last-week.md");
+  expect(posted[0]).toEqual({ name: "last-week.md", text: "# Launch\n\n- We agreed to launch on 12 November.\n" });
+  await page.locator(".refrow [data-ref-clear]").click();
+  await expect(page.locator(".refrow")).not.toContainText("last-week.md");
+  await expect(page.locator("#refFile")).toHaveCount(1);
+});

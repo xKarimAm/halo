@@ -143,9 +143,10 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     app.state.bus.register_health("tagger", app.state.classifier.health)
     # Coach: the slow lane, 1-3 steering tips about once a minute.
     app.state.coach = Coach(app.state.bus, app.state.llm)
-    # Claims with numbers go to a web search; HALO_FACT_CHECK=0 keeps them off the web.
+    # Claims go to a web search (and to the meeting's reference notes, a file the Notes
+    # Service writes under data/references); HALO_FACT_CHECK=0 keeps them off the web.
     fact_check_on = os.environ.get("HALO_FACT_CHECK") != "0"
-    app.state.fact_check = FactCheck(app.state.bus, app.state.llm) if fact_check_on else None
+    app.state.fact_check = FactCheck(app.state.bus, app.state.llm, data_dir=_data_dir()) if fact_check_on else None
     # Notes Builder: meeting.ended in, one validated notes.ready out.
     # The store file is the Event Store's own; this lane only ever reads it.
     app.state.notes_builder = NotesBuilder(

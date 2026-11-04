@@ -18,6 +18,7 @@ export interface ClaimChecked {
   verdict: "supported" | "disputed";
   note: string;
   sources: string[];
+  notes_quote?: string;
   lang: "en" | "ar";
 }
 
@@ -137,6 +138,7 @@ export interface MeetingPageFactChecks {
   verdict: "supported" | "disputed";
   note: string;
   sources: string[];
+  notes_quote?: string;
 }
 
 export interface MeetingPageCoaching {

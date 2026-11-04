@@ -662,3 +662,12 @@ body:has(#view.home)::before{background:var(--bg)}
    one) takes its direction from its own first letter, and lines up on that side. */
 .head h1,.mtg-summary,.ln .o,.pt .txt,.act .body,.dis-item h3,.dis-res,.fact-item h3,.fact-item p,.coach-item p,
 .speaking blockquote{unicode-bidi:plaintext;text-align:start}
+
+/* Reference notes for the fact check (Karim 2026-11-04). */
+.refrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0 10px;font-size:13px;color:var(--muted)}
+.refrow b{color:var(--text);font-weight:600}
+.refrow .refname{color:var(--text)}
+.refrow .refadd{cursor:pointer;position:relative}
+.refrow .refadd:focus-within{outline:2px solid var(--text);outline-offset:2px}
+.refrow select.chip{font:inherit;font-size:13px;background:var(--panel);color:var(--text)}
+.notes-quote{margin:4px 0 0;font-size:13px;unicode-bidi:plaintext;text-align:start}

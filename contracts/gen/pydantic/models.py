@@ -31,6 +31,7 @@ class ClaimChecked(BaseModel):
     verdict: Literal["supported", "disputed"]
     note: str
     sources: list[str]
+    notes_quote: str | None = None
     lang: Literal["en", "ar"]
 
 class CoachTips(BaseModel):
@@ -175,6 +176,7 @@ class MeetingPageFactChecks(BaseModel):
     verdict: Literal["supported", "disputed"]
     note: str
     sources: list[str]
+    notes_quote: str | None = None
 
 
 class MeetingPageCoaching(BaseModel):

@@ -348,8 +348,14 @@
               "type": "string",
               "format": "uri"
             },
-            "minItems": 1,
+            "minItems": 0,
             "maxItems": 3
+          },
+          "notes_quote": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "The sentence from the viewer's reference notes that settles the claim; present only when the notes did."
           }
         },
         "required": [

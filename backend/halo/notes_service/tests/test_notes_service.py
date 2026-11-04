@@ -484,3 +484,19 @@ def recap_client_open(tmp_path, llm):
     client, _, data = make_client(tmp_path, ended=False, ready=False)
     client.app.state.notes_service._llm = llm
     return client, data
+
+
+def test_a_markdown_reference_is_stored_per_meeting_and_only_from_the_page(tmp_path):
+    client, _, data = make_client(tmp_path)
+    url = f"/api/meetings/{MEETING}/reference"
+    assert client.get(url).json() == {"name": None, "chars": 0}
+    body = {"name": "last-week.md", "text": "# Launch\n\n- Launch on 12 November."}
+    assert client.post(url, json=body, headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.post(f"/api/meetings/{'9' * 8}-0000-4000-8000-000000000000/reference", json=body).status_code == 404
+    assert client.post(url, json={"name": "big.md", "text": "x" * 200_001}).status_code == 413
+    assert client.post(url, json=body).json() == {"name": "last-week.md", "chars": len(body["text"])}
+    stored = json.loads((data / "references" / f"{MEETING}.json").read_text(encoding="utf-8"))
+    assert stored == body
+    assert client.get(url).json()["name"] == "last-week.md"
+    assert client.delete(url).status_code == 200
+    assert client.get(url).json() == {"name": None, "chars": 0}

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://halo.local/contracts/claim.checked",
   "title": "claim.checked",
-  "description": "Fact Check: one spoken claim checked against the live web by Muse Spark search grounding. sources are the URLs the search returned, never model-written.",
+  "description": "Fact Check: one spoken claim checked against the live web by Muse Spark search grounding, or against the viewer's reference notes. sources are the URLs the search returned, never model-written; notes_quote is a sentence found in the notes. At least one of the two is present.",
   "type": "object",
   "properties": {
     "point_id": {
@@ -35,8 +35,14 @@
         "type": "string",
         "format": "uri"
       },
-      "minItems": 1,
+      "minItems": 0,
       "maxItems": 3
+    },
+    "notes_quote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "The sentence from the viewer's reference notes that settles the claim; present only when the notes did."
     },
     "lang": {
       "type": "string",
