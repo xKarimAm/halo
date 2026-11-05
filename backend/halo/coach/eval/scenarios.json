@@ -1,0 +1,618 @@
+[
+  {
+    "id": "healthy-build-vs-buy",
+    "about": "Two engineers disagree on build vs buy for feature flags, and the disagreement stays on the work. No alert should fire.",
+    "self_name": "Karim",
+    "people": ["Karim", "Lina", "Omar"],
+    "context": {
+      "subject": "Feature flags: build or buy",
+      "agenda": ["Options and costs", "Decide next step"],
+      "roles": [
+        {"name": "Karim", "role": "Engineering manager"},
+        {"name": "Lina", "role": "Senior backend engineer"},
+        {"name": "Omar", "role": "Mobile engineer"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Karim", "Okay, so the main thing today is feature flags. Lina, Omar, you both looked at this. Lina, do you want to start?"],
+      ["Lina", "Sure. I think we should build it. We already have the config service, and adding per-user targeting is maybe three weeks of work."],
+      ["Omar", "I see it differently. Three weeks to build, but then we own it forever. The vendor quote was about eighteen thousand a year and it comes with audit logs and all the SDKs."],
+      ["Lina", "Eighteen thousand is fine, but their SDK adds a network call on startup. On mobile that hurt us the last time we tried a third party."],
+      ["Omar", "That's fair. They do have a local evaluation mode though. It caches the rules on the device."],
+      ["Lina", "Okay, I didn't know that. Did you test it or is that from the docs?"],
+      ["Omar", "Just the docs. I haven't tested it yet."],
+      ["Lina", "Then I'd want numbers before we commit. My worry is cold start time."],
+      ["Omar", "Agreed. And my worry is the three weeks. We said three weeks for the config service and it took seven."],
+      ["Lina", "Yeah, that's true, that one slipped. Um, but the scope was bigger on that one."],
+      ["Karim", "Okay. So what would change your minds?"],
+      ["Lina", "If the vendor SDK adds less than fifty milliseconds to cold start, I'm fine buying."],
+      ["Omar", "And if the build really is three weeks with a named person on it, I'm fine building. I just doubt it."],
+      ["Karim", "Okay. Hmm."],
+      ["Omar", "So, um, yeah."],
+      ["Karim", "Let's do that then. Omar, can you test the SDK cold start by Thursday? Lina, a real build estimate with a name on it, also Thursday. I'll make the call on Friday."],
+      ["Omar", "Thursday works."],
+      ["Lina", "Yep, I'll have it."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 10,
+        "why_now": "new words",
+        "ideal": "Healthy, fact-based disagreement. Tips keep it on the work: Omar's local-evaluation claim is from the docs, not tested, so get a measurement; agree the decision criteria (cold start, cost, maintenance) and who makes the final call. No alert.",
+        "must_not": "Any alert (conflict, tension, personal). Calling the exchange heated or telling anyone to calm down."
+      },
+      {
+        "after_turn": 15,
+        "why_now": "12 s of silence since the last words",
+        "ideal": "Both have stated what would change their mind, and the talk has stalled. Tip: turn the two conditions into actions: Omar measures SDK cold start, Lina gives a named build estimate, each by a date, and say who decides when. No alert.",
+        "must_not": "An alert about silence or stalling. Taking a side on build vs buy."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "20 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. Owners, dates and the decider are all set.",
+        "must_not": "Repeating 'assign an owner' or 'set a date' advice that the viewer already acted on. Any alert."
+      }
+    ]
+  },
+  {
+    "id": "disagreement-turns-personal",
+    "about": "A technical disagreement on a database upgrade turns personal mid-way ('you always do this', 'junior take'). The alert should fire only after the personal remark.",
+    "self_name": "Karim",
+    "people": ["Karim", "Nour", "Daniel", "Fatima"],
+    "context": {
+      "subject": "Postgres 16 upgrade plan",
+      "agenda": ["Upgrade approach", "Rollback plan", "Timeline vs compliance deadline"],
+      "roles": [
+        {"name": "Karim", "role": "Engineering team lead"},
+        {"name": "Nour", "role": "Database engineer"},
+        {"name": "Daniel", "role": "Staff SRE"},
+        {"name": "Fatima", "role": "Backend engineer"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Karim", "Next item is the Postgres upgrade. Nour, you wrote the plan, right?"],
+      ["Nour", "Yes. I want to do it in place over a weekend with a two hour window. We tested it on staging and it took forty minutes."],
+      ["Daniel", "I don't love in place. If it fails we're stuck. I'd rather do logical replication to a new cluster and switch over."],
+      ["Nour", "Replication is safer, but it's two extra weeks of setup and we have the compliance deadline at the end of the month."],
+      ["Daniel", "Two weeks is a guess though. We've done replication before on the billing database."],
+      ["Nour", "That was a much smaller database. This one is four terabytes."],
+      ["Fatima", "Can I ask, what's our rollback if the in place upgrade fails halfway?"],
+      ["Nour", "We take a snapshot before we start. Restore is about ninety minutes."],
+      ["Daniel", "Ninety minutes on paper. Honestly Nour, you always do this. You pick the fastest option and then the rest of us clean it up."],
+      ["Nour", "That's not fair. I picked the fastest option because of the deadline you agreed to."],
+      ["Daniel", "Come on. An in place upgrade on four terabytes is a junior take. Anyone who has been on call for this knows that."],
+      ["Nour", "Okay, wow. I've been on call for this database for two years."],
+      ["Karim", "Let's pause there. Daniel, let's keep it on the plan. What specifically worries you about the restore?"],
+      ["Daniel", "Fair, sorry. The restore time. We've never actually tested a ninety minute restore at this size."],
+      ["Nour", "That's a fair point. I can run a full restore test on staging this week."],
+      ["Fatima", "And I can get a real estimate for the replication path, so we compare properly."],
+      ["Karim", "Good. Let's bring both numbers on Thursday and decide then."],
+      ["Nour", "Sounds good."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 8,
+        "why_now": "new words",
+        "ideal": "Still a healthy trade-off (risk vs deadline). Tips: the ninety-minute restore is untested at this size; ask Daniel what his two-week replication estimate is based on. No alert.",
+        "must_not": "Any alert about conflict or personal attacks: nothing personal has been said yet."
+      },
+      {
+        "after_turn": 12,
+        "why_now": "new words",
+        "ideal": "Alert fires now: the disagreement turned personal ('you always do this', 'junior take'). Alert like 'Step in: back to the plan, not the person.' Tips: name Daniel's real concern (untested restore), ask both for numbers.",
+        "must_not": "No alert. An alert aimed at the viewer (Karim has done nothing wrong). Declaring who is technically right."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "16 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. The viewer de-escalated, Daniel apologised, and both have actions for Thursday.",
+        "must_not": "Firing the personal-conflict alert again after it was resolved. Repeating 'ask for numbers'."
+      }
+    ]
+  },
+  {
+    "id": "viewer-hot-headed",
+    "about": "The viewer gets hot-headed with QA (interrupts, sarcasm, raised tone). The alert must target the viewer's own behaviour.",
+    "self_name": "Karim",
+    "people": ["Karim", "Hana", "Ahmed"],
+    "context": {
+      "subject": "Release 4.2 go/no-go",
+      "agenda": ["Open bugs", "Go/no-go for Friday"],
+      "roles": [
+        {"name": "Karim", "role": "Product manager"},
+        {"name": "Hana", "role": "QA lead"},
+        {"name": "Ahmed", "role": "Mobile engineer"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Hana", "So I have to say it, the release isn't ready. We have eleven open bugs and two of them are crashes on checkout."],
+      ["Karim", "Eleven? We were at three on Monday."],
+      ["Hana", "Right, the new payment flow came in on Tuesday and that's where most of them are."],
+      ["Ahmed", "Two of the crashes might be the same issue. I'm looking at it now."],
+      ["Karim", "Okay, but we promised marketing Friday. Can we ship with the non crash ones?"],
+      ["Hana", "Possibly, I need to go through them, some are about refunds which"],
+      ["Karim", "No no, wait. Every single release QA finds something on the last day. Every time."],
+      ["Hana", "That's because the build reached us on Tuesday. We can't test what we don't have."],
+      ["Karim", "Oh great, so it's my fault now. Fantastic. Really helpful, Hana."],
+      ["Ahmed", "I don't think anyone said that."],
+      ["Karim", "Look, I'm the one who has to tell marketing. Not you. So I just need a yes or a no."],
+      ["Hana", "Then it's a no. Not with the checkout crashes."],
+      ["Karim", "Okay. Sorry. That came out wrong. Hana, which of the eleven actually block the release?"],
+      ["Hana", "The two crashes, and one refund bug where we charge the customer twice. The rest can wait."],
+      ["Ahmed", "If the two crashes are the same issue, I could have a fix by tomorrow afternoon."],
+      ["Karim", "Okay, so three blockers, Ahmed on the crash by tomorrow. Who takes the double charge?"],
+      ["Ahmed", "I can take that too, but not both by tomorrow."],
+      ["Hana", "Then Friday is tight. Maybe Monday."],
+      ["Karim", "Alright. I'll ask Yasmin from payments to take the double charge."],
+      ["Hana", "Okay."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 5,
+        "why_now": "new words",
+        "ideal": "Tip: ask Hana which bugs actually block release before talking about shipping. No alert yet; the viewer is pressing but not hostile.",
+        "must_not": "Any alert yet."
+      },
+      {
+        "after_turn": 11,
+        "why_now": "new words",
+        "ideal": "Alert fires, aimed at the viewer: he cut Hana off, used sarcasm and blamed QA. Something like 'Drop the sarcasm; let Hana finish.' Tips: apologise, then ask which bugs block.",
+        "must_not": "An alert blaming Hana or Ahmed, or calling it a mutual conflict. A tip that backs pushing QA for a yes/no answer."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "new words",
+        "ideal": "The viewer has calmed down. Tips: the double-charge bug has no owner; tell marketing early that Monday is likely. No alert.",
+        "must_not": "Repeating the tone alert now that the viewer apologised."
+      },
+      {
+        "after_turn": 20,
+        "why_now": "18 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. Blockers, owners and the likely date are set.",
+        "must_not": "Repeating the tone alert or the owner tip."
+      }
+    ]
+  },
+  {
+    "id": "going-in-circles",
+    "about": "Two people repeat the same positions three times with no new facts. A 'park it' alert should come late, not early.",
+    "self_name": "Karim",
+    "people": ["Karim", "Rami", "Sophie", "Layla"],
+    "context": {
+      "subject": "Onboarding checklist placement",
+      "agenda": ["Where the checklist lives", "Launch plan"],
+      "roles": [
+        {"name": "Karim", "role": "Product manager"},
+        {"name": "Rami", "role": "Growth engineer"},
+        {"name": "Sophie", "role": "Product designer"},
+        {"name": "Layla", "role": "Data analyst"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Karim", "Last thing, where does the onboarding checklist live. Rami, Sophie?"],
+      ["Rami", "Home page. Top of the feed. If it's not on home, people won't see it."],
+      ["Sophie", "I think it should be its own tab. Putting it on home pushes the feed down, and the feed is why people open the app."],
+      ["Rami", "But new users don't have a feed yet. There's nothing to push down."],
+      ["Sophie", "Some do, if they follow the suggested accounts at signup. Most of them do actually."],
+      ["Layla", "Do we know what percent follow the suggestions?"],
+      ["Sophie", "Not offhand."],
+      ["Rami", "Look, I just think if it's not on home it's invisible. A tab nobody taps is dead."],
+      ["Sophie", "And I think if it's on home it gets in the way of the feed, which is the thing people came for."],
+      ["Rami", "New users don't have a feed though."],
+      ["Sophie", "They do if they followed suggestions."],
+      ["Rami", "Even so, home is where they look."],
+      ["Sophie", "Home is where the feed is. That's my point."],
+      ["Layla", "Could we just test both?"],
+      ["Rami", "We could, but honestly I think home is obvious. If they don't see it, they won't do it."],
+      ["Sophie", "And I think the feed matters more. It pushes the feed down."],
+      ["Rami", "There is no feed for a new user."],
+      ["Sophie", "There is if they follow suggestions. We've been over this."],
+      ["Karim", "Okay, let's park it. Layla, can you pull the percent of new users who follow suggestions?"],
+      ["Layla", "Yeah, I'll have it by Wednesday."],
+      ["Karim", "Then we decide Thursday, and if it's close we run Layla's test."],
+      ["Rami", "Fine."],
+      ["Sophie", "Works for me."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 7,
+        "why_now": "new words",
+        "ideal": "A normal debate. Tip: Layla's question about the follow-suggestions rate wasn't answered, and that number would settle it. No alert.",
+        "must_not": "A going-in-circles or park-it alert this early."
+      },
+      {
+        "after_turn": 13,
+        "why_now": "new words",
+        "ideal": "Second loop of the same points. Tip: point out they are repeating, and ask what data would decide it (the follow rate). An alert is not needed yet.",
+        "must_not": "Taking a side (home vs tab). A harsh alert."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "new words",
+        "ideal": "Alert fires: third loop with no new facts ('We've been over this'). Something like 'Going in circles: park it, get the follow rate, decide Thursday.' Tips: pick up Layla's A/B test idea and give someone the data pull.",
+        "must_not": "No alert. A tip that takes Rami's or Sophie's side."
+      },
+      {
+        "after_turn": 23,
+        "why_now": "20 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. It's parked, with an owner, a date and a decision day.",
+        "must_not": "Repeating the park-it alert or the get-data tip."
+      }
+    ]
+  },
+  {
+    "id": "decision-no-owner-unanswered-question",
+    "about": "The team agrees to shut down API v1 with no owner or date, and Khalid's question about enterprise customers gets skipped. Tips should catch both.",
+    "self_name": "Karim",
+    "people": ["Karim", "Mariam", "Tom", "Khalid"],
+    "context": {
+      "subject": "Platform weekly",
+      "agenda": ["API v1 deprecation", "On-call rotation"],
+      "roles": [
+        {"name": "Karim", "role": "Engineering manager"},
+        {"name": "Mariam", "role": "Platform lead"},
+        {"name": "Tom", "role": "Backend engineer"},
+        {"name": "Khalid", "role": "Customer engineering"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Mariam", "So, on the v1 API, I think we all agree it's time to turn it off."],
+      ["Tom", "Yeah, it's costing us. Every incident this quarter touched v1 somewhere."],
+      ["Khalid", "Quick question, what happens to the three enterprise customers still calling v1? Do they get notice?"],
+      ["Tom", "Also, the docs still link to v1 everywhere. That needs cleaning up."],
+      ["Mariam", "True. Okay, so we're agreed, v1 goes away."],
+      ["Tom", "Agreed."],
+      ["Karim", "Sounds good to me."],
+      ["Mariam", "Great. Next thing is the on-call rotation."],
+      ["Tom", "On-call, I'm swapping with Khalid next week. He's got the week after."],
+      ["Khalid", "Yes, that's fine."],
+      ["Mariam", "Okay, noted. Anything else on on-call?"],
+      ["Tom", "No, that's it."],
+      ["Karim", "Before we close, back to v1. Who owns the shutdown, and what's the date?"],
+      ["Mariam", "Tom, can you own it? End of next quarter?"],
+      ["Tom", "I can own it. End of March works."],
+      ["Karim", "And Khalid's question, the three enterprise customers."],
+      ["Mariam", "Khalid, can you email their account managers this week so they get ninety days notice?"],
+      ["Khalid", "Yes, I'll do it by Friday."],
+      ["Mariam", "Great. Thanks everyone."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 8,
+        "why_now": "new words",
+        "ideal": "Two tips: (1) the v1 shutdown has no owner and no date, so ask who and by when; (2) Khalid's question about the three enterprise customers was never answered. No alert.",
+        "must_not": "Missing either of the two gaps. Any alert."
+      },
+      {
+        "after_turn": 12,
+        "why_now": "15 s of silence since the last words",
+        "ideal": "The meeting is about to close with both v1 gaps still open. One short reminder to return to v1 owner/date and Khalid's question before ending is right. No alert needed.",
+        "must_not": "Tips about the on-call swap, which is settled. New generic advice that ignores the two open v1 gaps."
+      },
+      {
+        "after_turn": 19,
+        "why_now": "20 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. Tom owns the shutdown by end of March, and Khalid notifies customers by Friday.",
+        "must_not": "Repeating owner/date or unanswered-question tips that are now resolved."
+      }
+    ]
+  },
+  {
+    "id": "silence-after-viewer-question",
+    "about": "The viewer asks the team an open question and gets 20 s of silence. Advice should be to wait, rephrase or ask someone by name, not to fill the air.",
+    "self_name": "Karim",
+    "people": ["Karim", "Aisha", "Ben", "Salma"],
+    "context": {
+      "subject": "Code review turnaround",
+      "agenda": ["Why reviews are slow", "One or two fixes to try"],
+      "roles": [
+        {"name": "Karim", "role": "Engineering manager"},
+        {"name": "Aisha", "role": "Senior engineer"},
+        {"name": "Ben", "role": "Engineer"},
+        {"name": "Salma", "role": "Senior engineer"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Karim", "Thanks for joining. I wanted a short one today on code reviews."],
+      ["Karim", "Our median time to first review went from four hours to almost two days this month."],
+      ["Aisha", "Two days? Wow, that's a lot."],
+      ["Ben", "I've definitely been waiting on reviews more, yeah."],
+      ["Karim", "So my question for all of you is, what's actually slowing reviews down? Be honest, there's no wrong answer."],
+      ["Karim", "Ben, you said you've been waiting more. What does that look like for you?"],
+      ["Ben", "Um, mostly my pull requests sit, because the only people who know the payments code are Salma and Aisha, and they're both swamped."],
+      ["Salma", "Yeah, honestly that's true. I have like nine reviews assigned to me right now."],
+      ["Aisha", "Same. And the PRs are big. Ben's last one was like two thousand lines."],
+      ["Ben", "That's fair, it was big."],
+      ["Karim", "Okay, so two things. Few reviewers on payments, and big PRs."],
+      ["Salma", "And a third, nobody gets time blocked for reviews. It's always squeezed in."],
+      ["Karim", "Okay. Let's try a four hundred line limit on PRs, Ben pairs with Salma on payments reviews for a month, and everyone blocks thirty minutes after standup for reviews."],
+      ["Ben", "I'm in."],
+      ["Salma", "Works for me."],
+      ["Aisha", "Good. Let's check the numbers again in a month."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 5,
+        "why_now": "20 s of silence since the last words",
+        "ideal": "Silence after the viewer's open question. Tip: wait a moment longer, or narrow the question and ask someone by name (Ben just said he's been waiting on reviews). No alert.",
+        "must_not": "Telling the viewer to answer his own question or fill the silence with his opinion. Any alert about the silence."
+      },
+      {
+        "after_turn": 12,
+        "why_now": "new words",
+        "ideal": "Three causes are named. Tips: get one fix per cause with an owner, and note that Salma and Aisha are overloaded. No alert.",
+        "must_not": "Any alert. Generic 'summarise the meeting' advice that ignores the three named causes."
+      },
+      {
+        "after_turn": 16,
+        "why_now": "18 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. All three causes have a fix, and there is a check-in date.",
+        "must_not": "Repeating cause/fix tips. Prompting the viewer to fill the silence."
+      }
+    ]
+  },
+  {
+    "id": "tpm-product-review-no-metrics",
+    "about": "A product review where nobody mentions users, metrics or revenue. The coach should bring Technical-product-manager angles.",
+    "self_name": "Karim",
+    "people": ["Karim", "Joanna", "Hassan", "Priya"],
+    "context": {
+      "subject": "Customisable dashboard review",
+      "agenda": ["Demo", "Rollout plan"],
+      "roles": [
+        {"name": "Karim", "role": "Technical product manager"},
+        {"name": "Joanna", "role": "Design lead"},
+        {"name": "Hassan", "role": "Engineering lead"},
+        {"name": "Priya", "role": "Frontend engineer"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Joanna", "Okay, so this is the new dashboard. Users can drag widgets around and resize them, and we have twelve widget types now."],
+      ["Hassan", "On the engineering side we used a grid library, and layouts are saved per user in the database."],
+      ["Priya", "Resize was the hardest part. On small screens the widgets snap to one column."],
+      ["Joanna", "We also added custom colors per widget. That was a late addition, but it looks great."],
+      ["Hassan", "That added about a week. We also want to add widget sharing next sprint."],
+      ["Priya", "Sharing needs permissions work though. That's probably two sprints, honestly."],
+      ["Joanna", "And I'd love to do animated transitions when you drag. It feels more alive."],
+      ["Hassan", "Doable. Maybe three days."],
+      ["Joanna", "So the plan is to ship to everyone in two weeks, with sharing to follow."],
+      ["Hassan", "Yeah, sounds right."],
+      ["Priya", "I'd like a feature flag at least."],
+      ["Joanna", "Sure, but I think it's ready."],
+      ["Karim", "Before we ship to everyone, what do we expect to move? Do we know how many people even customise the old dashboard?"],
+      ["Hassan", "I don't think we've looked."],
+      ["Joanna", "Anecdotally people asked for it. Sales mentioned it a few times."],
+      ["Karim", "Okay. Can we pull the usage numbers and roll out to ten percent first, behind Priya's flag?"],
+      ["Priya", "Yes, the flag is easy."],
+      ["Hassan", "I'll pull the numbers by Wednesday."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 8,
+        "why_now": "new words",
+        "ideal": "TPM angles nobody has raised: which user problem twelve widgets solve, and is there usage data on the current dashboard; what metric would show success; scope creep (custom colors cost a week, animations and two-sprint sharing are being added), so cut or defer. No alert.",
+        "must_not": "Generic meeting tips ('keep it on track', 'summarise'). Design-only or engineering-only tips. Any alert."
+      },
+      {
+        "after_turn": 12,
+        "why_now": "new words",
+        "ideal": "Shipping to everyone with no success metric. TPM tips: a staged rollout behind Priya's flag, measuring adoption and support tickets; ask whether sharing is tied to a paid tier or customer requests (revenue). No alert.",
+        "must_not": "Repeating the turn-8 tips word for word. An alert."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "16 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat metric or rollout advice the viewer already acted on. At most one new angle: ask Sales which accounts asked for it (the revenue link).",
+        "must_not": "Repeating 'define a metric' or 'roll out gradually'. Any alert."
+      }
+    ]
+  },
+  {
+    "id": "sales-discovery-price-objection",
+    "about": "A sales discovery call with a price objection and no next step agreed. The coach should coach like a sales coach.",
+    "self_name": "Karim",
+    "people": ["Karim", "Zaid", "Mona", "Peter"],
+    "context": {
+      "subject": "Discovery call: Nordline Logistics",
+      "agenda": ["Their workflow and pain", "Requirements", "Next steps"],
+      "roles": [
+        {"name": "Karim", "role": "Sales lead (account executive)"},
+        {"name": "Zaid", "role": "Solutions engineer"},
+        {"name": "Mona", "role": "Head of operations (customer)"},
+        {"name": "Peter", "role": "IT manager (customer)"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Karim", "Thanks for making the time, Mona, Peter. To start, what made you look at us now?"],
+      ["Mona", "We have about forty dispatchers, and they lose a lot of time copying orders between our TMS and email. It's becoming a problem as we grow."],
+      ["Karim", "How much time would you say?"],
+      ["Mona", "I'd guess an hour a day each, maybe more on Mondays."],
+      ["Peter", "From my side, it has to work with our single sign-on, and the data needs to stay in the EU."],
+      ["Zaid", "Both are fine. We support SSO and we have an EU region."],
+      ["Mona", "Okay, good. So, I saw the pricing page. Honestly, sixty euros per seat per month is a lot more than we expected."],
+      ["Karim", "I understand. We do have some flexibility on annual plans."],
+      ["Mona", "That would help. But I'd need to take it to our CFO anyway."],
+      ["Peter", "And I'd want to see the SSO setup before anything."],
+      ["Karim", "Of course. Well, I'll send over some material after this."],
+      ["Mona", "Sounds good. I think that's everything from our side."],
+      ["Karim", "Actually, before you go. Peter, could we do a thirty minute SSO walkthrough with Zaid next Tuesday?"],
+      ["Peter", "Tuesday afternoon works."],
+      ["Karim", "And Mona, what would your CFO need to see to say yes?"],
+      ["Mona", "Probably the cost against the time saved. A simple one pager."],
+      ["Karim", "I'll put that together with your numbers, forty dispatchers at about an hour a day, and send it by Thursday."],
+      ["Mona", "Perfect."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 7,
+        "why_now": "new words",
+        "ideal": "Sales-coach tips: don't discount yet; explore the objection ('more than expected compared to what?'); anchor on the pain they quantified (40 dispatchers x 1 hour a day); find out who else signs off on budget. No alert.",
+        "must_not": "Suggesting an immediate discount. Generic meeting-facilitation tips. Any alert."
+      },
+      {
+        "after_turn": 12,
+        "why_now": "new words",
+        "ideal": "The call is ending with no next step, and the viewer offered a discount and 'some material'. Tips: book a concrete next step now (SSO demo with Peter on a date); ask what the CFO needs (ROI from their own numbers) and offer to help make the case; ask about timeline and decision process. A short alert like 'Book the next step before they hang up' is justified because the call is ending.",
+        "must_not": "Tips that accept 'I'll send material' as a next step. Non-sales advice."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "15 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. There is a dated SSO demo and an ROI one-pager due Thursday.",
+        "must_not": "Repeating next-step or don't-discount tips. Any alert."
+      }
+    ]
+  },
+  {
+    "id": "viewer-alone-rehearsal",
+    "about": "The viewer is alone in the call, rehearsing a presentation out loud that names Sara and John. No talk-over, dominating or invite-others alert may fire.",
+    "self_name": "Karim",
+    "people": ["Karim"],
+    "context": {
+      "subject": "Rehearsal: Q3 business review",
+      "agenda": ["Headline results", "What didn't work", "Q1 priorities"],
+      "roles": [
+        {"name": "Karim", "role": "Head of product"}
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      ["Karim", "Okay, let me run through this once more from the top."],
+      ["Karim", "Good morning everyone. Thanks for being here. I want to walk through where we landed this quarter and what's next."],
+      ["Karim", "First, the headline. We shipped the new onboarding, and activation went from thirty one percent to thirty eight."],
+      ["Karim", "Sara, your team did most of that work, so thank you. I'd love you to say a few words about the experiment setup after this slide."],
+      ["Karim", "Um, then churn. Churn is flat, which is, uh, not great, but it's not worse."],
+      ["Karim", "John, I know you've been asking about the enterprise pipeline. I'll get to that in a second, hold that thought."],
+      ["Karim", "So, enterprise. We closed four deals, two of them came through the new partner channel."],
+      ["Karim", "Hmm, that sounded flat. Let me say it again. We closed four enterprise deals, and half came from a channel that didn't exist in June."],
+      ["Karim", "Okay, next slide. What didn't work. The mobile redesign slipped six weeks."],
+      ["Karim", "The reason is we underestimated the design system migration. That's on me."],
+      ["Karim", "John, before you ask, yes, it affects the Q1 roadmap, and I'll show how."],
+      ["Karim", "Sara, I'd like your view on whether we keep the same scope or cut the tablet layout."],
+      ["Karim", "Okay. Pause there. Water."],
+      ["Karim", "Alright, Q1. Three priorities. One, finish mobile. Two, grow the partner channel to ten deals. Three, get churn under four percent."],
+      ["Karim", "Each one has an owner. Mobile is me, partners is John, churn is Sara."],
+      ["Karim", "And, um, I think that's, yeah, I think that's basically it. Any questions?"],
+      ["Karim", "No, ending on 'basically it' is weak. Let me try the close again."],
+      ["Karim", "So, three priorities, three owners, and we review progress in six weeks. Questions?"],
+      ["Karim", "Better. Okay, one more full run, from the headline."],
+      ["Karim", "Activation went from thirty one to thirty eight percent this quarter. That's the headline."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 8,
+        "why_now": "new words",
+        "ideal": "Rehearsal coaching is fine, or empty tips: e.g. lead with the 31 to 38 number, drop 'which is not great'. No alert.",
+        "must_not": "Any alert about talking too long, dominating, talking over others, or letting Sara/John speak. Tips to 'pause and let Sara answer' as if she were in the call."
+      },
+      {
+        "after_turn": 13,
+        "why_now": "20 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. The viewer is taking a break while rehearsing alone.",
+        "must_not": "Prompting the viewer to invite Sara or John, or to fill the silence. Any alert."
+      },
+      {
+        "after_turn": 20,
+        "why_now": "new words",
+        "ideal": "Empty tips or one rehearsal tip (e.g. the second close is stronger, keep it). No alert, even though the viewer has spoken 20 turns in a row: nobody else is in the call.",
+        "must_not": "A dominating, talk-over or 'invite others' alert. Treating Sara or John as present."
+      }
+    ]
+  },
+  {
+    "id": "arabic-deadline-dispute",
+    "about": "A meeting in Arabic (MSA and Gulf mix) about a launch-deadline dispute that slides into team blame. Tips and the alert must be in Arabic.",
+    "self_name": "Karim",
+    "people": ["Karim", "Faisal", "Noura", "Abdullah"],
+    "context": {
+      "subject": "موعد إطلاق النسخة 3.0 من التطبيق",
+      "agenda": ["جاهزية التطوير", "الحملة التسويقية", "القرار على الموعد"],
+      "roles": [
+        {"name": "Karim", "role": "مدير المشروع"},
+        {"name": "Faisal", "role": "قائد فريق التطوير"},
+        {"name": "Noura", "role": "مديرة التسويق"},
+        {"name": "Abdullah", "role": "مهندس حلول"}
+      ],
+      "viewer_lang": "ar"
+    },
+    "turns": [
+      ["Karim", "طيب يا جماعة، خلونا نبدأ. الموضوع اليوم موعد إطلاق النسخة الجديدة من التطبيق."],
+      ["Noura", "الحملة التسويقية محجوزة من أول الشهر الجاي، ودفعنا للمؤثرين مقدم. ما نقدر نأجل."],
+      ["Faisal", "والله يا نورة، الفريق ما يقدر يخلص قبل نهاية الشهر. باقي عندنا بوابة الدفع الجديدة وما اختبرناها أبد."],
+      ["Noura", "بس انتم قلتوا في الاجتماع الماضي إن الموعد ممكن."],
+      ["Faisal", "قلنا ممكن إذا ما تغيرت المتطلبات، وتغيرت مرتين بعدها."],
+      ["Abdullah", "كم يوم تحتاجون بالضبط عشان بوابة الدفع؟"],
+      ["Faisal", "تقريباً أسبوعين للتطوير وأسبوع للاختبار."],
+      ["Noura", "ثلاث أسابيع؟ يعني منتصف الشهر الجاي. الحملة بتطلع والتطبيق مو جاهز."],
+      ["Faisal", "مو مشكلتي إن الحملة انحجزت قبل ما تسألونا."],
+      ["Noura", "يعني كل مرة نفس الشي، التقنية تتأخر واحنا نتحمل."],
+      ["Faisal", "لا لا، كل مرة التسويق يوعد العملاء بأشياء ما اتفقنا عليها."],
+      ["Karim", "خلونا نوقف اللوم شوي. السؤال: وش نقدر نطلق نهاية الشهر؟"],
+      ["Abdullah", "نقدر نطلق بدون بوابة الدفع الجديدة، ونخلي الدفع القديم شغال أسبوعين زيادة."],
+      ["Faisal", "هذا ممكن. الدفع القديم مستقر."],
+      ["Noura", "إذا الحملة تقدر تتكلم عن الميزات الثانية، ما عندي مانع."],
+      ["Karim", "تمام. فيصل، تأكد لي بكرة إن الباقي جاهز بدون الدفع الجديد؟"],
+      ["Faisal", "إن شاء الله بكرة الظهر أرسل لك التأكيد."],
+      ["Noura", "وأنا أعدل رسائل الحملة وأشيل أي ذكر للدفع الجديد."]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 8,
+        "why_now": "new words",
+        "ideal": "Tips in Arabic, e.g. 'اسأل فيصل: هل نقدر نطلق بدون بوابة الدفع الجديدة؟' and 'اسأل نورة: وش تكلفة تأجيل جزء من الحملة؟'. No alert.",
+        "must_not": "Tips or alert in English. Any alert; it's still a fact-based dispute."
+      },
+      {
+        "after_turn": 11,
+        "why_now": "new words",
+        "ideal": "Alert in Arabic: the talk slid into team blame ('كل مرة'). E.g. 'أوقف تبادل اللوم وارجع للخيارات.' Tips in Arabic: put the options on the table (partial launch, shift the campaign).",
+        "must_not": "Any English text. Taking the side of development or of marketing."
+      },
+      {
+        "after_turn": 18,
+        "why_now": "18 s of silence since the last words",
+        "ideal": "Empty tips is fine; do not repeat. If anything is said, it must be one Arabic tip, e.g. set a date for the new payment gateway.",
+        "must_not": "English text. Repeating the blame alert after the viewer already stopped it."
+      }
+    ]
+  },
+  {
+    "id": "false-alerts-two-people-testing",
+    "about": "Two people test Halo in a call, mixed Egyptian Arabic and English (modelled on the 2026-11-04 live test, not its transcript). The live coach fired 5 false alerts on these patterns: blame, cut off, tone, its own alert read aloud, and park-it on a repeated test line.",
+    "self_name": "Karim",
+    "people": ["Karim", "Sara"],
+    "context": {"subject": "Testing Halo", "viewer_lang": "en"},
+    "turns": [
+      ["Karim", "Okay Sara, let's test it. I'll read a few lines from the script."],
+      ["Karim", "We should launch now. March release is better because the team cannot write Arabic yet."],
+      ["Karim", "Nice, that shows up as a note now in the meeting."],
+      ["Sara", "In Saudi Arabia alone there are a hundred million people."],
+      ["Karim", "No, it's not."],
+      ["Karim", "Wait."],
+      ["Sara", "Hold on, hold on, my camera."],
+      ["Karim", "طيب اقفل الكاميرا"],
+      ["Karim", "cut"],
+      ["Karim", "cut"],
+      ["Karim", "The coach says lower your tone with Sara, you're screaming. Funny."],
+      ["Karim", "Now the fact check. Qatar has three million people."],
+      ["Karim", "I said the fact in Arabic and it answered in English, so I told it to answer in the same language."],
+      ["Karim", "Qatar has three million people, let me say it once more for the test."],
+      ["Sara", "Okay it caught that one."]
+    ],
+    "checkpoints": [
+      {"after_turn": 3, "why_now": "new words", "ideal": "No alert; nobody blamed anyone.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."},
+      {"after_turn": 6, "why_now": "new words", "ideal": "No alert; Sara finished her sentence before 'No, it's not'.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."},
+      {"after_turn": 10, "why_now": "new words", "ideal": "No alert; 'cut' is not shouting.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."},
+      {"after_turn": 11, "why_now": "new words", "ideal": "No alert; Karim is reading the coach aloud.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."},
+      {"after_turn": 15, "why_now": "new words", "ideal": "No alert; a test line repeated by one person is not circling.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."}
+    ]
+  }
+]
