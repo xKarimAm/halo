@@ -84,6 +84,19 @@ Nothing else needs changing. `.env` never leaves your PC and is git-ignored.
 
 The [install guide](docs/INSTALL.md) has the same steps by hand with a check after each one, plus Spark Open, Halo mode, updating and uninstalling.
 
+## The halo: what you see in the call
+
+<img src="docs/assets/live-call.jpg" alt="A real Google Meet call with Halo running: each speaker's points sit on their tile as small marked bubbles, the coach card is on the left and a fact-check card shows a disputed claim with its source" width="100%">
+
+Each speaker gets a halo: their name sits above their head on the video tile, with what they just said stacked under it as small marked bubbles. Each bubble is a point, a question, a decision or a pushback, with its own symbol and coloured by urgency, so you can read a debate at a glance without taking notes.
+
+- **Halo mode (optional, SAM 3.1 on your own GPU):** SAM finds the speaker's face, so the name follows them on camera (about 220 ms a frame and 2 GB of VRAM on an RTX 3080 Ti).
+- **Frame mode (default):** without a GPU, or with the camera off, the name and bubbles sit neatly inside the tile frame.
+- **Coach and fact check:** a coach card suggests what to ask next, and a public number gets a fact-check card with its verdict and source while the call is still going.
+- **You stay in control:** the Halo badge switches each layer on or off, and `Alt+H` hides everything.
+
+The screenshot is a real call with Halo running; Omar is an invented test guest (AI portrait, generated voice, scripted lines).
+
 ## Meta models used and where
 
 | Model | Exact id | Endpoint | Called from | What it does |
