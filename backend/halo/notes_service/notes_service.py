@@ -38,6 +38,7 @@ log = logging.getLogger("halo.notes_service")
 Envelope = dict[str, Any]
 SEARCH_CAP = 100
 MAX_FOLDERS = 200
+PAST_TRANSCRIPT_MAX = 5000  # transcript lines a Project hands the fact check (newest meetings first)
 # Karim 2026-11-04: meeting types the list sorts by; the contract holds the one list.
 MEETING_TYPES = tuple(json.loads(
     (Path(contracts.__file__).parent / "notes.ready.schema.json").read_text(encoding="utf-8")
@@ -189,6 +190,54 @@ class NotesService:
             self._static = Path(static_dir)
         else:
             self._static = Path(__file__).resolve().parents[3] / "notes-page"
+        bus.subscribe("meeting.context", self._on_context)
+
+    # -- past meetings for the fact check ----------------------------------------
+
+    async def _on_context(self, envelope: dict[str, Any]) -> None:
+        meeting_id = envelope.get("meetingid")
+        if meeting_id:
+            project = (envelope.get("data") or {}).get("project_id")
+            await asyncio.to_thread(self.file_and_write_past, str(meeting_id), project)
+
+    def _past_path(self, meeting_id: str) -> Path:
+        return self._data_dir / "references" / f"{meeting_id}.past.json"
+
+    def file_and_write_past(self, meeting_id: str, project_id: str | None) -> None:
+        """The popup's Project (a folder id) files the meeting at Start, and the Project's
+        other meetings go to references/<id>.past.json for Fact Check (design
+        2026-11-13). No Project, or no other meeting in it: the file goes, web only."""
+        data = self._load_folders()
+        folder = next((f for f in data["folders"] if f["folder_id"] == project_id), None)
+        if folder is None:
+            data["meetings"].pop(meeting_id, None)
+        else:
+            data["meetings"][meeting_id] = folder["folder_id"]
+        self._save_folders(data)
+        others = set() if folder is None else {
+            m for m, f in data["meetings"].items() if f == folder["folder_id"] and m != meeting_id}
+        lines: list[dict[str, Any]] = []
+        transcript: list[dict[str, Any]] = []
+        for p in self.passages() if others else []:
+            if p["meeting_id"] not in others:
+                continue
+            row = {"text": p["snippet"], "meeting_id": p["meeting_id"], "subject": p["subject"],
+                   "date": p["date"], "speaker": p.get("speaker") or ""}
+            if p["scope"] == "transcript":
+                transcript.append(row)
+            else:
+                lines.append({**row, "kind": p.get("kind") or p["scope"]})
+        path = self._past_path(meeting_id)
+        if not lines and not transcript:
+            path.unlink(missing_ok=True)
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        # ponytail: whole Project, newest first; Fact Check picks what fits its prompt cap.
+        tmp.write_text(json.dumps({"project": folder["name"] if folder else "", "lines": lines,
+                                   "transcript": transcript[:PAST_TRANSCRIPT_MAX]}, ensure_ascii=False),
+                       encoding="utf-8")
+        tmp.replace(path)
 
     # -- folders (data/folders.json) -----------------------------------------
 
@@ -628,7 +677,7 @@ class NotesService:
             page["visual_recap"] = True
         if store["checks"]:
             page["fact_checks"] = [{k: c[k] for k in ("point_id", "claim", "speaker_name", "verdict",
-                                                      "note", "sources", "notes_quote") if k in c}
+                                                      "note", "sources", "notes_quote", "notes_from") if k in c}
                                    for c in store["checks"]]
         if store["coaching"]:
             page["coaching"] = store["coaching"]

@@ -124,6 +124,11 @@ void initPopup(root, {
   // Automatic pairing (Karim 2026-11-04): the backend trusts this extension's Origin, no code to type.
   checkBackend: async () => (await fetch("http://127.0.0.1:8765/healthz").catch(() => undefined))?.ok === true,
   autoPair: () => pairAuto(),
+  listFolders: async () => {
+    const res = await fetch("http://127.0.0.1:8765/api/folders", { cache: "no-store" });
+    if (!res.ok) throw new Error(`folders: HTTP ${res.status}`);
+    return (await res.json()) as { folder_id: string; name: string }[];
+  },
   onMeetCall: async () => parseMeetTab((await activeTab())?.url).ok,
   watchMicState: (onChange) => {
     chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>) => {

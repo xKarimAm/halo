@@ -22,6 +22,15 @@ class Ack(BaseModel):
     status: Literal["ok", "error"]
     error: AckError | None = None
 
+class ClaimCheckedNotesFrom(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    meeting_id: UUID
+    subject: str
+    date: str
+    speaker: str
+
+
 class ClaimChecked(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -32,6 +41,7 @@ class ClaimChecked(BaseModel):
     note: str
     sources: list[str]
     notes_quote: str | None = None
+    notes_from: ClaimCheckedNotesFrom | None = None
     lang: Literal["en", "ar"]
 
 class CoachTips(BaseModel):
@@ -175,6 +185,15 @@ class MeetingPageRecording(BaseModel):
     start_ts_ms: int
 
 
+class MeetingPageFactChecksNotesFrom(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    meeting_id: UUID
+    subject: str
+    date: str
+    speaker: str
+
+
 class MeetingPageFactChecks(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -185,6 +204,7 @@ class MeetingPageFactChecks(BaseModel):
     note: str
     sources: list[str]
     notes_quote: str | None = None
+    notes_from: MeetingPageFactChecksNotesFrom | None = None
 
 
 class MeetingPageCoaching(BaseModel):

@@ -870,6 +870,23 @@ test("(M6) a Markdown file becomes the meeting's reference notes, and a check ca
   await expect(page.locator("#refFile")).toHaveCount(1);
 });
 
+// Karim 2026-11-13: a quote from an earlier meeting of the Project names who, which
+// meeting and when, and opens that meeting.
+test("(F3) a quote from an earlier meeting names its source and links to it", async ({ page }) => {
+  const checked = JSON.parse(JSON.stringify(GOLDEN));
+  const old = "44444444-4444-4444-8444-444444444444";
+  checked.fact_checks = [{ point_id: POINT_ID, claim: "We ship the beta on 3 December.", speaker_name: "Sara",
+    verdict: "disputed", note: "Last week's meeting decided 10 December.", sources: [],
+    notes_quote: "The beta ships on 10 December.",
+    notes_from: { meeting_id: old, subject: "Launch sync", date: "2026-11-05", speaker: "Layla" } }];
+  await page.route("**/api/meetings/" + MEETING_ID, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(checked) }));
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID);
+  const quote = page.locator(".fact-item .notes-quote");
+  await expect(quote).toContainText("Layla · Launch sync · 2026-11-05");
+  await expect(quote).toContainText("The beta ships on 10 December.");
+  await expect(quote.locator("a")).toHaveAttribute("href", "/notes/" + old);
+});
+
 // Karim 2026-11-04: an Arabic line sits against the transcript's right wall, avatar and
 // time with it; the transcript can be widened and narrowed; sections fold.
 test("(M7) an Arabic transcript line is laid out right to left, against the right wall", async ({ page }) => {

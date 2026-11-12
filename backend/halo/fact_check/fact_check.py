@@ -71,11 +71,12 @@ INSTRUCTIONS = (
 # Karim 2026-11-04: last meeting's Markdown as context, checked live. With notes, the
 # team's own plans, owners and dates become checkable against them.
 INSTRUCTIONS_NOTES = (
-    "Fact-check one claim said in a work meeting. The viewer added reference notes "
-    "(inside <notes> tags). First compare the claim with the notes: if the notes say "
-    "something about it (plans, dates, owners, numbers, decisions or facts), judge it "
-    "against the notes and copy into notes_quote the exact sentence from the notes that "
-    "settles it. If the notes do not cover it and it states a public fact (world figures, "
+    "Fact-check one claim said in a work meeting. Inside <notes> tags are the viewer's "
+    "reference notes and lines from earlier meetings of the same project (each: who, "
+    "meeting, date, kind, then the words). First compare the claim with the notes: if the "
+    "notes say something about it (plans, dates, owners, numbers, decisions or facts), judge "
+    "it against the notes and copy into notes_quote the exact sentence from the notes that "
+    "settles it (for an earlier-meeting line, only the words after the colon). If the notes do not cover it and it states a public fact (world figures, "
     "a company, a market, science, history), search the web and judge it, notes_quote "
     "empty. If neither covers it, reply verdict skip.\n"
     "verdict: supported, disputed, unclear or skip.\n"
@@ -116,6 +117,54 @@ def _shown_claim(rewrite: str, claim: str, spoken: str) -> str:
     """The model's wording only if every number in it was really said."""
     rewrite = rewrite.strip()[:CLAIM_MAX]
     return rewrite if rewrite and _numbers(rewrite) <= _numbers(f"{claim} {spoken}") else claim
+
+
+PAST_TRANSCRIPT_LINES = 8  # ponytail: best word-overlap transcript lines per claim; raise if misses show
+KIND_ORDER = {"summary": 0, "decision": 1}  # inside the cap, these go first; the rest keep newest-first
+
+
+def _past_line(row: dict[str, Any], kind: str) -> str:
+    return _as_data(f"- {row.get('speaker') or 'someone'} ({row.get('subject', '')}, {row.get('date', '')}, "
+                    f"{kind}): {row.get('text', '')}")
+
+
+def _notes_block(own: str, past: dict[str, Any] | None, said: str) -> tuple[str, list[dict[str, Any]]]:
+    """The <notes> text: the viewer's notes, then the Project's transcript lines that share
+    most words with the claim, then its summaries, decisions and points, cut at NOTES_MAX.
+    Returns it with the earlier-meeting rows it holds, so a quote can be traced back."""
+    text = _as_data(own)
+    rows: list[dict[str, Any]] = []
+    if not past:
+        return text, rows
+    want = _words(said)
+    heard = sorted(((len(want & _words(str(r.get("text", "")))), -i, r)
+                    for i, r in enumerate(past.get("transcript") or []) if isinstance(r, dict)),
+                   key=lambda x: (x[0], x[1]), reverse=True)
+    picked = [(r, "said") for hits, _, r in heard[:PAST_TRANSCRIPT_LINES] if hits > 0]
+    digest = sorted((r for r in past.get("lines") or [] if isinstance(r, dict)),
+                    key=lambda r: KIND_ORDER.get(str(r.get("kind")), 2))
+    picked += [(r, str(r.get("kind") or "note")) for r in digest]
+    head = f"\nEarlier meetings in this project ({_as_data(str(past.get('project', '')))}):"
+    if len(text) + len(head) >= NOTES_MAX:
+        return text, rows
+    text += head
+    for row, kind in picked:
+        line = "\n" + _past_line(row, kind)
+        if len(text) + len(line) > NOTES_MAX:
+            break
+        text += line
+        rows.append(row)
+    return text, rows
+
+
+def _source_line(quote: str, rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The earlier-meeting row the model quoted (whole formatted line or just its words)."""
+    q = _norm(quote)
+    for row in rows:
+        words = _norm(str(row.get("text", "")))
+        if words and (words in q or (len(q) >= 0.6 * len(words) and q in words)):
+            return row
+    return None
 
 
 def _same_claim(a: tuple[set[str], set[str]], b: tuple[set[str], set[str]]) -> bool:
@@ -160,7 +209,8 @@ class FactCheck:
             return
         # Live 2026-11-04: a digits-only gate missed "the pyramids are the only pyramids
         # in the world". Every statement goes; the model skips internal ones unsearched.
-        notes = bool(self._notes(meetingid))  # with notes, plans and tasks are checkable too
+        # With notes or earlier meetings of the Project, plans and tasks are checkable too.
+        notes = bool(self._notes(meetingid) or self._past(meetingid))
         if data.get("kind") not in ("point", "pushback", "decision") or (data.get("is_action") and not notes):
             return
         if data.get("kind") == "decision" and not notes:
@@ -181,8 +231,9 @@ class FactCheck:
         meetingid, point = self._pending.pop(0)
         claim = str(point["text"])[:CLAIM_MAX]
         spoken = str(point.get("quote", ""))[-CLAIM_MAX:]
-        notes = self._notes(meetingid)
-        prompt = (INSTRUCTIONS_NOTES.format(notes=_as_data(notes), claim=_as_data(claim), spoken=_as_data(spoken))
+        own = self._notes(meetingid)
+        notes, rows = _notes_block(own, self._past(meetingid), f"{claim} {spoken}")
+        prompt = (INSTRUCTIONS_NOTES.format(notes=notes, claim=_as_data(claim), spoken=_as_data(spoken))
                   if notes else INSTRUCTIONS.format(claim=_as_data(claim), spoken=_as_data(spoken)))
         result = await asyncio.to_thread(self._llm.search_json, prompt=prompt, schema=CHECK_SCHEMA,
                                          schema_name="claim_check")
@@ -193,7 +244,10 @@ class FactCheck:
         sources = data.get("sources", [])[:MAX_SOURCES]
         note = CITATION_MARK.sub("", data["note"]).strip()[:NOTE_MAX]
         quote = str(data.get("notes_quote") or "").strip()[:CLAIM_MAX]
-        if quote and (not notes or _norm(quote) not in _norm(notes)):
+        source = _source_line(quote, rows) if quote else None
+        if source is not None:  # an earlier meeting's line: the store's words, never the model's
+            quote = source["text"][:CLAIM_MAX]
+        elif quote and (not own or _norm(quote) not in _norm(own)):
             quote = ""  # a quote the notes do not hold is the model's, not the viewer's
         if data["verdict"] not in ("supported", "disputed") or not (sources or quote) or not note:
             return True
@@ -204,9 +258,22 @@ class FactCheck:
             "data": {"point_id": point["point_id"], "claim": _shown_claim(data["claim"], claim, spoken),
                      "speaker_name": str(point.get("speaker_name", "")), "verdict": data["verdict"],
                      "note": note, "sources": sources, "lang": data["lang"],
-                     **({"notes_quote": quote} if quote else {})},
+                     **({"notes_quote": quote} if quote else {}),
+                     **({"notes_from": {"meeting_id": source["meeting_id"], "subject": str(source["subject"])[:200],
+                                        "date": source["date"], "speaker": str(source["speaker"])[:100]}}
+                        if source is not None and quote else {})},
         })
         return True
+
+    def _past(self, meetingid: str) -> dict[str, Any] | None:
+        """Earlier meetings of this meeting's Project (the Notes Service writes them at Start)."""
+        if self._data_dir is None:
+            return None
+        try:
+            past = json.loads((self._data_dir / "references" / f"{meetingid}.past.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return past if isinstance(past, dict) and (past.get("lines") or past.get("transcript")) else None
 
     def _notes(self, meetingid: str) -> str:
         """The viewer's reference notes for this meeting (the Notes Service writes them)."""

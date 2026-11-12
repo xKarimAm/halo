@@ -11,6 +11,13 @@ export interface Ack {
   error?: AckError;
 }
 
+export interface ClaimCheckedNotesFrom {
+  meeting_id: string;
+  subject: string;
+  date: string;
+  speaker: string;
+}
+
 export interface ClaimChecked {
   point_id: string;
   claim: string;
@@ -19,6 +26,7 @@ export interface ClaimChecked {
   note: string;
   sources: string[];
   notes_quote?: string;
+  notes_from?: ClaimCheckedNotesFrom;
   lang: "en" | "ar";
 }
 
@@ -137,6 +145,13 @@ export interface MeetingPageRecording {
   start_ts_ms: number;
 }
 
+export interface MeetingPageFactChecksNotesFrom {
+  meeting_id: string;
+  subject: string;
+  date: string;
+  speaker: string;
+}
+
 export interface MeetingPageFactChecks {
   point_id: string;
   claim: string;
@@ -145,6 +160,7 @@ export interface MeetingPageFactChecks {
   note: string;
   sources: string[];
   notes_quote?: string;
+  notes_from?: MeetingPageFactChecksNotesFrom;
 }
 
 export interface MeetingPageCoaching {

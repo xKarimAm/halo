@@ -39,7 +39,8 @@
       ]
     },
     "project_id": {
-      "type": "string"
+      "type": "string",
+      "description": "The notes-page Project (folder_id from GET /api/folders) the meeting is filed in at Start; its earlier meetings feed the fact check."
     }
   },
   "required": [

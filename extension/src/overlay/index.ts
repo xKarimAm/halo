@@ -4,7 +4,7 @@ import type { ToPagePortMessage } from "../../../contracts/ext/port";
 import {
   Overlay, SystemClock, notesHref,
   type DocLike, type El, type UrgencyStyle,
-  sourceLink, type FactCheckCard,
+  factQuoteLine, sourceLink, type FactCheckCard,
 } from "./overlay";
 import { KIND_GLYPHS, OVERLAY_CSS, URGENCY_COLORS } from "./tokens";
 
@@ -398,9 +398,8 @@ export function mountControls(
     const head = make("div", "halo-coach-head");
     head.append(make("span", "", `${ar ? "تحقق" : "Fact check"} · ${word}`), close);
     card.append(head, make("p", "halo-fact-note", check.note));
-    if (check.notes_quote) {
-      card.append(make("p", "halo-fact-quote", `${ar ? "ملاحظاتك" : "Your notes"}: “${check.notes_quote}”`));
-    }
+    const quote = factQuoteLine(check);
+    if (quote) card.append(make("p", "halo-fact-quote", quote));
     const link = check.sources.map(sourceLink).find(Boolean);
     if (link) {
       const a = doc.createElement("a");

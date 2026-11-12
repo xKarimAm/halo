@@ -17,6 +17,7 @@ function depsWith(overrides: Partial<PopupDeps> = {}) {
     storage: memorySetupStorage(),
     port: { postMessage: (message) => posted.push(message) },
     listParticipants: () => [],
+    listFolders: async () => [{ folder_id: "halo-q4", name: "Halo Q4" }],
     onStart,
     ...overrides,
   };
@@ -32,7 +33,7 @@ function flush(): Promise<void> {
 function fillSaveForm(root: HTMLElement): void {
   (root.querySelector("#subject") as HTMLInputElement).value = "Launch readiness";
   (root.querySelector("#agenda") as HTMLTextAreaElement).value = "Pricing\nRTL";
-  (root.querySelector("#project") as HTMLInputElement).value = "halo-q4";
+  (root.querySelector("#project") as HTMLSelectElement).value = "halo-q4";
   const roleInputs = root.querySelectorAll(".role-role");
   (roleInputs[0] as HTMLInputElement).value = "Engineering lead";
   (roleInputs[0] as HTMLInputElement).dispatchEvent(new Event("input"));
@@ -221,7 +222,7 @@ describe("popup restore", () => {
     await initPopup(root, first);
     expect((root.querySelector("#subject") as HTMLInputElement).value).toBe("Launch readiness");
     expect((root.querySelector("#agenda") as HTMLTextAreaElement).value).toBe("Pricing\nRTL");
-    expect((root.querySelector("#project") as HTMLInputElement).value).toBe("halo-q4");
+    expect((root.querySelector("#project") as HTMLSelectElement).value).toBe("halo-q4");
     expect(root.querySelector("#pair-state")?.textContent).toBe("Paired");
   });
 });
@@ -524,5 +525,48 @@ describe("mic line names the device (Karim 2026-11-01)", () => {
       .toBe("Microphone: Arctis Nova Pro Wireless");
     expect(micStatusText("granted")).toBe("Microphone: ready");
     expect(micStatusText(undefined)).toBe("Microphone: starts with Start");
+  });
+});
+
+describe("popup Project picks a notes-page Project", () => {
+  it("lists the Projects, keeps the saved one and sends its id", async () => {
+    const deps = depsWith({
+      listFolders: async () => [{ folder_id: "f-1", name: "Launch" }, { folder_id: "f-2", name: "Hiring" }],
+    });
+    await deps.storage.saveContext({ ...golden, project_id: "f-2" });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const select = root.querySelector("#project") as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["No project", "Launch", "Hiring"]);
+    expect(select.value).toBe("f-2");
+    select.value = "f-1";
+    select.dispatchEvent(new Event("change"));
+    await flush();
+    expect(deps.posted.at(-1)?.data.project_id).toBe("f-1");
+  });
+
+  it("drops an old free-text project that names no Project", async () => {
+    const deps = depsWith({ listFolders: async () => [{ folder_id: "f-1", name: "Launch" }] });
+    await deps.storage.saveContext({ ...golden, project_id: "old free text" });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const select = root.querySelector("#project") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    select.dispatchEvent(new Event("change"));
+    await flush();
+    expect(deps.posted.at(-1)?.data.project_id).toBeUndefined();
+  });
+
+  it("keeps the saved Project when the app cannot list them", async () => {
+    const deps = depsWith({ listFolders: async () => { throw new Error("down"); } });
+    await deps.storage.saveContext({ ...golden, project_id: "f-9" });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initPopup(root, deps);
+    const select = root.querySelector("#project") as HTMLSelectElement;
+    expect(select.value).toBe("f-9");
+    expect(select.selectedOptions[0]?.textContent).toBe("Saved project");
   });
 });

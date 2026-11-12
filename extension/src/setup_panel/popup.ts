@@ -37,6 +37,8 @@ export interface PopupDeps {
   pairFn?: (code: string) => Promise<string>;
   /** True when the local Halo app answers (`/healthz`). Absent: assumed up. */
   checkBackend?: () => Promise<boolean>;
+  /** The notes-page Projects (`GET /api/folders`); the meeting is filed in the one picked at Start. */
+  listFolders?: () => Promise<{ folder_id: string; name: string }[]>;
   /** Automatic pairing (`POST /pair/auto`). Absent or refused: the 6-digit code shows. */
   autoPair?: () => Promise<string>;
   /** Defaults to navigator.clipboard (tests pass a fake). */
@@ -313,8 +315,16 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
     (option as HTMLOptionElement).selected = (saved.context?.viewer_lang ?? "en") === lang;
     langSelect.appendChild(option);
   }
-  const projectInput = el("input", { id: "project", class: "in", placeholder: "Optional" }) as HTMLInputElement;
-  projectInput.value = saved.context?.project_id ?? "";
+  // Karim 2026-11-13: Project picks a notes-page Project; its earlier meetings feed the fact check.
+  const projectInput = el("select", { id: "project", class: "in" }) as HTMLSelectElement;
+  projectInput.appendChild(el("option", { value: "" }, "No project"));
+  const savedProject = saved.context?.project_id ?? "";
+  const folders = await (deps.listFolders?.() ?? Promise.resolve(null)).catch(() => null);
+  for (const folder of folders ?? []) projectInput.appendChild(el("option", { value: folder.folder_id }, folder.name));
+  // The app is down: keep the saved pick rather than silently dropping it on the next save.
+  if (folders === null && savedProject) projectInput.appendChild(el("option", { value: savedProject }, "Saved project"));
+  projectInput.value = savedProject;
+  if (projectInput.value !== savedProject) projectInput.value = ""; // old free text: no such Project
   const rolesBox = el("div", { id: "roles" });
 
   const renderRows = (): void => {

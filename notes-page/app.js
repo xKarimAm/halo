@@ -877,7 +877,17 @@
       item.appendChild(note);
       if (c.notes_quote) {
         var nq = el("p", "notes-quote");
-        nq.appendChild(el("b", null, t(lang, "yourNotes") + " "));
+        var from = c.notes_from;
+        if (from) {
+          // Karim 2026-11-13: an earlier meeting of the Project: who, which meeting, when; opens it.
+          var src = el("a", null, [from.speaker, from.subject, from.date].filter(function (x) { return x; }).join(" \u00B7 ") + ":");
+          src.href = "/notes/" + from.meeting_id;
+          src.dataset.open = from.meeting_id;
+          nq.appendChild(src);
+          nq.appendChild(document.createTextNode(" "));
+        } else {
+          nq.appendChild(el("b", null, t(lang, "yourNotes") + " "));
+        }
         nq.appendChild(document.createTextNode("\u201C" + c.notes_quote + "\u201D"));
         item.appendChild(nq);
       }

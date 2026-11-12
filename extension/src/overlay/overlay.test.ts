@@ -1,4 +1,4 @@
-import { sourceLink } from "./overlay";
+import { factQuoteLine, sourceLink } from "./overlay";
 import { describe, expect, it } from "vitest";
 import {
   FakeClock,
@@ -574,5 +574,27 @@ describe("show switches", () => {
     overlay.show.points = false;
     overlay.render(doc as never, root as never, 20);
     expect(root.find((e) => e.attrs.has("data-point-id"))).toHaveLength(0);
+  });
+});
+
+describe("fact card quote line", () => {
+  const base = { claim: "We ship on 3 Dec.", verdict: "disputed" as const, note: "n", sources: [], lang: "en" as const };
+
+  it("names who, which meeting and when for an earlier meeting's line", () => {
+    expect(factQuoteLine({ ...base, notes_quote: "The beta ships on 10 December.",
+      notes_from: { meeting_id: "m", subject: "Launch sync", date: "2026-11-05", speaker: "Layla" } }))
+      .toBe("Layla · Launch sync · 2026-11-05: “The beta ships on 10 December.”");
+  });
+
+  it("keeps Your notes for the viewer's own notes, in Arabic too, and nothing without a quote", () => {
+    expect(factQuoteLine({ ...base, notes_quote: "x" })).toBe("Your notes: “x”");
+    expect(factQuoteLine({ ...base, lang: "ar", notes_quote: "x" })).toBe("ملاحظاتك: “x”");
+    expect(factQuoteLine(base)).toBeNull();
+  });
+
+  it("skips an empty speaker (a meeting summary)", () => {
+    expect(factQuoteLine({ ...base, notes_quote: "q",
+      notes_from: { meeting_id: "m", subject: "Weekly", date: "2026-11-01", speaker: "" } }))
+      .toBe("Weekly · 2026-11-01: “q”");
   });
 });

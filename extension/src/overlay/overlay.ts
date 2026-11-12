@@ -117,6 +117,19 @@ export interface FactCheckCard {
   lang: "en" | "ar";
   /** The sentence from the viewer's reference notes that settled it (Karim 2026-11-04). */
   notes_quote?: string;
+  /** Set when notes_quote is a line from an earlier meeting of the same Project (Karim 2026-11-13). */
+  notes_from?: { meeting_id: string; subject: string; date: string; speaker: string };
+}
+
+/** The fact card's quote line: who, which meeting and when for an earlier meeting, else "Your notes". */
+export function factQuoteLine(check: FactCheckCard): string | null {
+  if (!check.notes_quote) return null;
+  const ar = check.lang === "ar";
+  const from = check.notes_from;
+  const who = from
+    ? [from.speaker, from.subject, from.date].filter((part) => part.trim()).join(" · ")
+    : (ar ? "ملاحظاتك" : "Your notes");
+  return `${who}: “${check.notes_quote}”`;
 }
 
 export class Overlay {
