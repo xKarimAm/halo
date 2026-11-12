@@ -32,10 +32,25 @@ from halo.notes_service import NotesService
 from halo.notes_service import router as notes_router
 from halo.recorder import Recorder
 from halo.transcriber import Transcriber
-from halo.transcriber.transport import WsTransport
-from rig.fakes.config import engine_config
+from halo.transcriber.transport import GeminiTransport, WsTransport
+from rig.fakes.config import engine_config, fakes_enabled
 
 HOST, PORT = "127.0.0.1", 8765
+GEMINI_ROTATION = {"rotation_after_s": 8 * 60, "rotation_grace_s": 60}  # Gemini Live caps a session at 10 min
+
+
+def _gemini_parts() -> set[str]:
+    """HALO_GEMINI lists the parts that go to Google (llm.py reads the same list); the fakes still win."""
+    return set() if fakes_enabled() else {p.strip() for p in os.environ.get("HALO_GEMINI", "").split(",") if p.strip()}
+
+
+def _gemini() -> bool:
+    """Speech to text on Gemini (HALO_GEMINI has `speech`)."""
+    return "speech" in _gemini_parts()
+
+
+def _key_var() -> str:
+    return "GEMINI_API_KEY" if _gemini() else "META_API_KEY"
 _KEY_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
@@ -130,8 +145,9 @@ def create_app(bus: Bus | None = None) -> FastAPI:
         app.state.bus,
         app.state.audio_tab_queue,
         app.state.audio_mic_queue,
-        lambda stream, mode: WsTransport(asr_url),
-        key=os.environ.get("META_API_KEY", ""),
+        (lambda stream, mode: GeminiTransport()) if _gemini() else (lambda stream, mode: WsTransport(asr_url)),
+        key=os.environ.get(_key_var(), ""),
+        **(GEMINI_ROTATION if _gemini() else {}),
     )
     # Correlator: tile + name on every final turn (internal health only).
     app.state.correlator = Correlator(app.state.bus)
@@ -170,7 +186,7 @@ def create_app(bus: Bus | None = None) -> FastAPI:
     @app.get("/api/status")
     async def status() -> dict:
         """Read by the notes page to tell a keyless user why nothing happens."""
-        return {"meta_key": bool(os.environ.get("META_API_KEY"))}
+        return {"meta_key": bool(os.environ.get(_key_var()))}  # field name kept: the notes page reads it
 
     return app
 
@@ -182,10 +198,15 @@ app = create_app()
 
 def main() -> None:
     if os.environ.get("HALO_FAKES") != "1":
-        if not os.environ.get("META_API_KEY"):
-            print("warning: META_API_KEY is empty in .env: no transcripts, points or notes until you add it "
+        if _gemini_parts():
+            print(f"HALO_GEMINI: {', '.join(sorted(_gemini_parts()))} on Google (GEMINI_API_KEY), the rest on Meta")
+            if not os.environ.get("GEMINI_API_KEY"):
+                print("warning: GEMINI_API_KEY is empty in .env: those parts will fail")
+        if not os.environ.get(_key_var()):
+            print(f"warning: {_key_var()} is empty in .env: no transcripts, points or notes until you add it "
                   "(the tests need no key: uv run pytest backend contracts -q)")
-        if not os.environ.get(os.environ.get("HALO_PRIMARY_KEY_VAR") or "BASETEN_API_KEY"):
+        if not _gemini_parts() & {"text", "backup"} and not os.environ.get(
+                os.environ.get("HALO_PRIMARY_KEY_VAR") or "BASETEN_API_KEY"):
             print("note: no Spark Open key, so every text call runs on muse-spark-1.3-contributor (fine)")
     # Check the port before the banner: a judge saw "Halo backend on ..." and then a bind error.
     with socket.socket() as probe:

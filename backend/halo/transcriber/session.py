@@ -73,12 +73,16 @@ class TranscriptionSession:
         url: str = "",
         rotation_after_s: int = ROTATION_AFTER_S,
         soft_cut_silence_ms: int = SOFT_CUT_SILENCE_MS,
+        rotation_grace_s: int = 0,
     ) -> None:
         self.stream = stream
         self.mode = mode
         self.transport = transport
         self.url = url
         self.rotation_after_s = rotation_after_s
+        # Gemini ends a turn at each pause, so waiting for one keeps sentences whole;
+        # Voice keeps a monologue open, so it rotates on time (grace 0).
+        self.rotation_grace_s = rotation_grace_s
         self.soft_cut_silence_ms = soft_cut_silence_ms
         self._silence_run_ms = 0
         self._silence_peak = 0.0  # loudest frame RMS in the current silence run
@@ -313,8 +317,11 @@ class TranscriptionSession:
         """Rotate to a fresh session before 60 min; labels reset (Correlator re-locks)."""
         if self.closed or self._opened_at == 0:
             return False
-        if not self._rekey and time.monotonic() - self._opened_at < self.rotation_after_s:
+        age = time.monotonic() - self._opened_at
+        if not self._rekey and age < self.rotation_after_s:
             return False
+        if not self._rekey and self._assembler.open_text() and age < self.rotation_after_s + self.rotation_grace_s:
+            return False  # mid-turn: wait for the turn to end
         log.warning("transcriber session reopening (%s): stream=%s position_ms=%d",
                     "keywords" if self._rekey else "rotation",
                     self.stream, self.position_ms)

@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -58,12 +59,30 @@ ENGINES: dict[str, dict[str, str]] = {
     },
 }
 
+# HALO_GEMINI=<parts>: the listed parts go to Google with GEMINI_API_KEY (branch
+# feat/gemini-provider; main stays Meta-only, DECISIONS section 3). Parts: text (both
+# slots), backup (Meta contributor first, Gemini when it fails), search (fact check),
+# image, speech (app.py). Karim's mix 2026-11-13: backup,search. Models from
+# the 2026-11-13 probe: 3.1-flash-lite passed all 9 schemas in 0.8-4 s and is the
+# cheapest text model open to new keys (2.5-flash-lite: 404 for new users);
+# 3.8-flash is the failover (3.5-flash-lite gave 503s to half a burst).
+GEMINI_COMPAT_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+GEMINI_NATIVE_URL = "https://generativelanguage.googleapis.com/v1beta/models/"
+GEMINI_MODELS = {PRIMARY_ENGINE: "gemini-3.1-flash-lite", FAILOVER_ENGINE: "gemini-3.8-flash"}
+# Fact check: look-up on 3.5-flash-lite (1.2-1.4 s, 2-4 sources), 3.8-flash if busy.
+GEMINI_SEARCH_MODELS = ("gemini-3.5-flash-lite", "gemini-3.8-flash")
+GEMINI_IMAGE_MODEL = "gemini-3.1-flash-lite-image"
+
 # List price per 1M tokens (input, cached input, output) for the spend estimate
 # in health.json (Karim 2026-11-04). Spark Open: Baseten's model page; the
-# contributor: DECISIONS line 50. The provider's billing page is the truth.
+# contributor: DECISIONS line 50; Gemini: aistudio.google.com/docs/pricing
+# (2026-11-13; 3.8-flash doubles on 2027-01-01). The billing page is the truth.
 PRICES_PER_M: dict[str, tuple[float, float, float]] = {
     PRIMARY_ENGINE: (1.25, 0.15, 4.25),
     FAILOVER_ENGINE: (0.10, 0.002, 0.20),
+    "gemini-3.1-flash-lite": (0.25, 0.025, 1.50),
+    "gemini-3.8-flash": (0.75, 0.075, 3.75),
+    "gemini-3.5-flash-lite": (0.30, 0.03, 2.50),
 }
 
 # The rig's FakeLLM HTTP server stands in for both engines wire-compatibly.
@@ -76,6 +95,9 @@ def _fake_base_url(env: Mapping[str, str]) -> str:
     return f"http://127.0.0.1:{env.get('HALO_FAKE_PORT', '18777')}/v1"
 
 CALL_TIMEOUT_S = 4.0
+# ponytail: the contributor as first choice (backup mode) runs 3-4.5 s, so 4 s would
+# send most calls to Gemini; 6 s keeps them on Meta. Lower it if live points lag.
+META_FIRST_TIMEOUT_S = 6.0
 # ponytail: the contributor is the last resort; measured live at ~3-4.5 s per
 # Insight call, so a 4 s cut drops most points. Late beats none.
 FAILOVER_TIMEOUT_S = 10.0
@@ -124,6 +146,13 @@ class LLMClient:
         env: Mapping[str, str] | None = None,
     ) -> None:
         environ = os.environ if env is None else env
+        self._fakes = _fakes_on(environ)
+        # The fakes win, so CI and the thin run stay keyless and offline.
+        self._gem = set() if self._fakes else {
+            p.strip() for p in environ.get("HALO_GEMINI", "").split(",") if p.strip()}
+        self._gemini_key = environ.get("GEMINI_API_KEY")
+        self._meta_key = meta_key if meta_key is not None else environ.get("META_API_KEY")
+        self._slot: dict[str, dict[str, str]] = {}  # per-slot overrides (Gemini parts)
         # The primary host (Baseten by default; Modal or a local server) is
         # set from env. Blank or unset keeps the default.
         primary = ENGINES[PRIMARY_ENGINE]
@@ -141,7 +170,18 @@ class LLMClient:
             else environ.get(key_var) if key_var else None,
             FAILOVER_ENGINE: meta_key if meta_key is not None else environ.get("META_API_KEY"),
         }
-        self._fakes = _fakes_on(environ)
+        self._names = {e: e for e in ENGINES}  # what results, health and usage call each engine
+        gemini = {"base_url": GEMINI_COMPAT_URL, "key_var": "GEMINI_API_KEY", "reasoning_effort": "low"}
+        if "text" in self._gem:
+            self._slot = {e: {**gemini, "model": GEMINI_MODELS[e]} for e in ENGINES}
+            self._keys = dict.fromkeys(ENGINES, self._gemini_key)
+            self._names = dict(GEMINI_MODELS)
+        elif "backup" in self._gem:
+            self._slot = {PRIMARY_ENGINE: dict(ENGINES[FAILOVER_ENGINE]),
+                          FAILOVER_ENGINE: {**gemini, "model": GEMINI_MODELS[PRIMARY_ENGINE]}}
+            self._keys = {PRIMARY_ENGINE: self._keys[FAILOVER_ENGINE], FAILOVER_ENGINE: self._gemini_key}
+            self._names = {PRIMARY_ENGINE: FAILOVER_ENGINE, FAILOVER_ENGINE: GEMINI_MODELS[PRIMARY_ENGINE]}
+            call_timeout_s = META_FIRST_TIMEOUT_S
         self._fake_base = _fake_base_url(environ)
         self._key_warned: set[str] = set()
         self._clock: Clock = clock or time.monotonic
@@ -156,7 +196,7 @@ class LLMClient:
                                   limits=httpx.Limits(keepalive_expiry=120))
         self._primary_down_until = 0.0
         self._last_engine = PRIMARY_ENGINE if self._keys[PRIMARY_ENGINE] else FAILOVER_ENGINE
-        self._usage = {e: {"calls": 0, "in": 0, "cached": 0, "out": 0} for e in ENGINES}
+        self._usage = {n: {"calls": 0, "in": 0, "cached": 0, "out": 0} for n in self._names.values()}
 
     def close(self) -> None:
         self._http.close()
@@ -165,6 +205,7 @@ class LLMClient:
         cfg = dict(ENGINES[engine])
         if engine == PRIMARY_ENGINE:
             cfg.update(self._primary)
+        cfg.update(self._slot.get(engine, {}))
         if self._fakes:
             cfg["base_url"] = self._fake_base
         return cfg
@@ -172,7 +213,7 @@ class LLMClient:
     def health(self) -> dict[str, Any]:
         """Health callable for `bus.register_health("llm", client.health)`."""
         return {
-            "engine": self._last_engine,
+            "engine": self._names[self._last_engine],
             "failover": self._clock() < self._primary_down_until,
         }
 
@@ -190,14 +231,21 @@ class LLMClient:
 
     def _count(self, engine: str, response: httpx.Response) -> None:
         try:
-            u = response.json().get("usage") or {}
+            u = response.json().get("usage") or response.json().get("usageMetadata") or {}
         except (ValueError, AttributeError):
             return
-        tally = self._usage[engine]
+        tally = self._usage.setdefault(self._names.get(engine, engine),
+                                       {"calls": 0, "in": 0, "cached": 0, "out": 0})
         tally["calls"] += 1
-        tally["in"] += int(u.get("prompt_tokens") or u.get("input_tokens") or 0)
-        tally["cached"] += int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
-        tally["out"] += int(u.get("completion_tokens") or u.get("output_tokens") or 0)
+        tally["in"] += int(u.get("prompt_tokens") or u.get("input_tokens") or u.get("promptTokenCount") or 0)
+        tally["cached"] += int((u.get("prompt_tokens_details") or {}).get("cached_tokens")
+                               or u.get("cachedContentTokenCount") or 0)
+        tally["out"] += (int(u.get("completion_tokens") or u.get("output_tokens")
+                             or u.get("candidatesTokenCount") or 0) + int(u.get("thoughtsTokenCount") or 0))
+
+    def _named(self, result: LLMResult) -> LLMResult:
+        result.engine = self._names.get(result.engine, result.engine)
+        return result
 
     def complete_json(
         self,
@@ -211,6 +259,13 @@ class LLMClient:
     ) -> LLMResult:
         """One validated JSON completion, with retry + per-call failover.
         `timeout_s` replaces the live budgets for a call nobody is waiting on."""
+        return self._named(self._complete_json(
+            prompt=prompt, schema=schema, schema_name=schema_name, system=system,
+            prompt_cache_key=prompt_cache_key, timeout_s=timeout_s))
+
+    def _complete_json(self, *, prompt: str, schema: dict[str, Any], schema_name: str,
+                       system: str | None, prompt_cache_key: str | None,
+                       timeout_s: float | None) -> LLMResult:
         engines = [PRIMARY_ENGINE, FAILOVER_ENGINE]
         # No Spark Open key is a supported setup (README): the contributor is the
         # engine by design, not a failover, so the primary is not even tried.
@@ -240,7 +295,7 @@ class LLMClient:
                 if code != "missing_key":  # already logged once where detected
                     detail = outcome.result.error["message"] if outcome.result.error else ""
                     log.warning("llm primary %s failed (%s) on %s: %s; failing over to %s for %.0fs",
-                                engine, code, schema_name, detail, FAILOVER_ENGINE, self._cooldown)
+                                self._names[engine], code, schema_name, detail, self._names[FAILOVER_ENGINE], self._cooldown)
             if i == len(engines) - 1:
                 return last
         return last
@@ -255,15 +310,17 @@ class LLMClient:
         """One web-searched JSON reply (Meta Responses API, web_search tool).
         Data is the reply plus `sources`, the URLs the search returned. One try,
         no failover: only Meta has the tool, and a missed check costs nothing."""
+        if "search" in self._gem:
+            return self._gemini_search(prompt, schema)
         engine = FAILOVER_ENGINE
 
         def fail(code: str, message: str) -> LLMResult:
             return LLMResult(ok=False, engine=engine, error={"code": code, "message": message})
 
-        key = self._keys[engine]
+        key = self._meta_key  # Meta's own tool, whatever the text slots hold
         if not key:
             return fail("missing_key", f"{engine}: no key")
-        cfg = self._config(engine)
+        cfg = {**ENGINES[engine], "base_url": self._meta_base()}
         try:
             response = self._http.post(
                 cfg["base_url"].rstrip("/") + "/responses",
@@ -292,12 +349,14 @@ class LLMClient:
     def generate_image(self, prompt: str) -> bytes | None:
         """One PNG from Muse Image, or None. Its price is per image, so it is
         not in `usage()`: callers ask only when the viewer does."""
-        key = self._keys[FAILOVER_ENGINE]
+        if "image" in self._gem:
+            return self._gemini_image(prompt, self._gemini_key) if self._gemini_key else None
+        key = self._meta_key
         if not key:
             return None
         try:
             response = self._http.post(
-                self._config(FAILOVER_ENGINE)["base_url"].rstrip("/") + "/responses",
+                self._meta_base() + "/responses",
                 headers={"Authorization": f"Bearer {key}"},
                 json={"model": IMAGE_MODEL, "input": prompt,
                       "tools": [{"type": "image_generation", "output_format": "png"}]},
@@ -307,6 +366,78 @@ class LLMClient:
             return base64.b64decode(calls[-1]["result"], validate=True)
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
             log.warning("muse image call failed: %r", exc)
+            return None
+
+    def _meta_base(self) -> str:
+        """The Meta API host for its own tools (web search, image), whatever the text slots hold."""
+        return (self._fake_base if self._fakes else ENGINES[FAILOVER_ENGINE]["base_url"]).rstrip("/")
+
+    def _gemini_search(self, prompt: str, schema: dict[str, Any]) -> LLMResult:
+        """Look up, then judge. Measured 2026-11-13: asking Gemini for JSON (schema or
+        words) stops it searching, so the verdict would carry no sources and fact_check
+        drops it; a plain look-up question searched 10 of 10 claims (Arabic too)."""
+        engine = GEMINI_SEARCH_MODELS[0]
+
+        def fail(code: str, message: str) -> LLMResult:
+            return LLMResult(ok=False, engine=engine, error={"code": code, "message": message})
+
+        key = self._gemini_key
+        if not key:
+            return fail("missing_key", f"{engine}: no key in GEMINI_API_KEY")
+        # Only the bare claim reliably triggers a search (10/10); the whole task prompt
+        # skipped it on 4 of 7 public claims. ponytail: reads fact_check's <said> tag,
+        # falling back to the whole prompt.
+        claim = re.search(r"Claim: <said>(.*?)</said>", prompt, re.DOTALL)
+        ask = ("Look this up on the web and say what reliable sources report, in two sentences: "
+               + (claim.group(1) if claim else prompt))
+        for engine in GEMINI_SEARCH_MODELS:  # 3.5-flash-lite answered 503 to half a burst
+            try:
+                response = self._http.post(
+                    GEMINI_NATIVE_URL + engine + ":generateContent", headers={"x-goog-api-key": key},
+                    json={"contents": [{"parts": [{"text": ask}]}], "tools": [{"google_search": {}}]},
+                    timeout=httpx.Timeout(SEARCH_TIMEOUT_S))
+            except httpx.HTTPError as exc:
+                return fail("connection_error", f"{engine}: {exc!r}"[:200])
+            if response.status_code == 200:
+                break
+        if response.status_code != 200:
+            return fail("engine_error", f"{engine}: HTTP {response.status_code} {_excerpt(response)}")
+        self._count(engine, response)
+        try:
+            candidate = response.json()["candidates"][0]
+            found = "".join(p.get("text", "") for p in candidate["content"]["parts"])
+            chunks = (candidate.get("groundingMetadata") or {}).get("groundingChunks") or []
+            # Google's vertexaisearch redirect links; they open the source page.
+            sources = list(dict.fromkeys(u for c in chunks if (u := (c.get("web") or {}).get("uri"))))
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+            return fail("bad_reply", f"{engine}: unreadable search reply")
+        # The verdict stays on Gemini even when the text slots are Meta (fact check alone).
+        judge = GEMINI_MODELS[PRIMARY_ENGINE]
+        body = {"model": judge, "reasoning_effort": "low",
+                "messages": [{"role": "user", "content": f"{prompt}\nWhat web sources report: <said>{found}</said>"}],
+                "response_format": {"type": "json_schema", "json_schema": {"name": "halo.search", "schema": schema}}}
+        judged = self._post_once(judge, GEMINI_COMPAT_URL, key, body, schema, SEARCH_TIMEOUT_S).result
+        if not judged.ok or judged.data is None:
+            return fail("bad_reply", f"{engine}: verdict failed the schema")
+        return LLMResult(ok=True, engine=engine, data={**judged.data, "sources": sources})
+
+    def _gemini_image(self, prompt: str, key: str) -> bytes | None:
+        # ponytail: Gemini returns JPEG and has no PNG option (imageConfig.outputMimeType
+        # is a 400); browsers sniff it under the recap's image/png type. Convert if a
+        # strict consumer ever appears.
+        try:
+            response = self._http.post(
+                GEMINI_NATIVE_URL + GEMINI_IMAGE_MODEL + ":generateContent",
+                headers={"x-goog-api-key": key},
+                json={"contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"responseModalities": ["IMAGE"]}},
+                timeout=httpx.Timeout(IMAGE_TIMEOUT_S),
+            )
+            parts = response.json()["candidates"][0]["content"]["parts"]
+            data = [p["inlineData"]["data"] for p in parts if "inlineData" in p]
+            return base64.b64decode(data[-1], validate=True)
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
+            log.warning("gemini image call failed: %r", exc)
             return None
 
     def _call_engine(
@@ -341,7 +472,7 @@ class LLMClient:
                                 "json_schema": {"name": schema_name, "schema": schema}},
             "reasoning_effort": cfg["reasoning_effort"],
         }
-        if prompt_cache_key is not None:
+        if prompt_cache_key is not None and cfg["base_url"] != GEMINI_COMPAT_URL:  # Gemini: HTTP 400
             body["prompt_cache_key"] = prompt_cache_key
 
         outcome = self._post_once(engine, cfg["base_url"], key, body, schema, timeout_s)

@@ -17,7 +17,7 @@ from typing import Any
 
 from contracts.binary import TAB, FrameError, parse_header
 from halo.transcriber.protocol import DIARIZATION, ENDPOINTING
-from halo.transcriber.session import EngineTransport, TranscriptionSession
+from halo.transcriber.session import ROTATION_AFTER_S, EngineTransport, TranscriptionSession
 
 log = logging.getLogger("halo.transcriber")
 
@@ -37,8 +37,11 @@ class Transcriber:
         make_transport: Callable[[str, str], EngineTransport],
         key: str = "",
         keywords: list[str] | None = None,
+        rotation_after_s: int = ROTATION_AFTER_S,
+        rotation_grace_s: int = 0,
     ) -> None:
         self._bus = bus
+        self._rotation = {"rotation_after_s": rotation_after_s, "rotation_grace_s": rotation_grace_s}
         self._queues = {"tab": queue_tab, "mic": queue_mic}
         self._make_transport = make_transport
         self._key = key
@@ -80,8 +83,10 @@ class Transcriber:
             await self._close_active()
         self._active = meeting_id
         self._sessions = {
-            "tab": TranscriptionSession("tab", DIARIZATION, self._make_transport("tab", DIARIZATION)),
-            "mic": TranscriptionSession("mic", ENDPOINTING, self._make_transport("mic", ENDPOINTING)),
+            "tab": TranscriptionSession("tab", DIARIZATION, self._make_transport("tab", DIARIZATION),
+                                        **self._rotation),
+            "mic": TranscriptionSession("mic", ENDPOINTING, self._make_transport("mic", ENDPOINTING),
+                                        **self._rotation),
         }
         loop = asyncio.get_running_loop()
         for stream, session in self._sessions.items():

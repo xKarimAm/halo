@@ -126,6 +126,30 @@ def test_rotation_reopens_at_position():
     assert session.position_ms == 200
 
 
+def test_rotation_waits_for_the_open_turn_up_to_a_grace_minute():
+    """Gemini caps a session at 10 min: rotate between turns, never mid-sentence,
+    unless the turn runs past the grace (then cut, as before)."""
+    session, _ = make_session(script(), "tab", DIARIZATION)
+    session.rotation_after_s, session.rotation_grace_s = 480, 60
+    asyncio.run(session.open("key"))
+    session._assembler.handle({"type": "speechStart", "turnId": 0, "audioProcessedMs": 0})
+    session._assembler.handle({"type": "transcript", "transcript": "still talking", "final": False})
+    session._opened_at -= 490
+    assert asyncio.run(session.maybe_rotate()) is False
+    session._opened_at -= 60
+    assert asyncio.run(session.maybe_rotate()) is True
+
+
+def test_voice_rotation_has_no_grace_so_a_monologue_still_rotates_on_time():
+    session, _ = make_session(script(), "tab", DIARIZATION)
+    session.rotation_after_s = 480
+    asyncio.run(session.open("key"))
+    session._assembler.handle({"type": "speechStart", "turnId": 0, "audioProcessedMs": 0})
+    session._assembler.handle({"type": "transcript", "transcript": "a long monologue", "final": False})
+    session._opened_at -= 490
+    assert asyncio.run(session.maybe_rotate()) is True
+
+
 def test_reopen_keeps_turns_on_the_meeting_clock():
     """A reopened Voice session counts audio from 0 again, so its offsets
     start at the audio already sent, not at the first frame's anchor."""
