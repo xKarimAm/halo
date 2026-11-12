@@ -398,3 +398,13 @@ def test_with_only_earlier_meetings_a_decision_is_checked(tmp_path):
     llm = FakeLLM({"verdict": "skip", "note": "", "sources": []})
     run_with_past(llm, decision("We ship the beta on 3 December."), tmp=tmp_path)
     assert len(llm.prompts) == 1
+
+
+def test_a_short_stored_line_does_not_claim_a_quote_that_merely_contains_it(tmp_path):
+    # Review 2026-11-13: "Yes." used to match any quote holding the word "yes".
+    short = {"project": "Launch", "lines": [], "transcript": [
+        {"text": "Yes.", "meeting_id": OLD, "subject": "Launch sync", "date": "2026-11-05", "speaker": "Omar"}]}
+    llm = FakeLLM({"verdict": "disputed", "note": "Made up.", "sources": ["https://example.com/a"],
+                   "notes_quote": "Yes, the beta ships on 1 January."})
+    out = run_with_past(llm, point("Yes the beta ships on 3 December."), tmp=tmp_path, past=short)
+    assert "notes_from" not in out[0]["data"] and out[0]["data"]["sources"] == ["https://example.com/a"]

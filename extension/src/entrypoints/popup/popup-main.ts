@@ -125,7 +125,7 @@ void initPopup(root, {
   checkBackend: async () => (await fetch("http://127.0.0.1:8765/healthz").catch(() => undefined))?.ok === true,
   autoPair: () => pairAuto(),
   listFolders: async () => {
-    const res = await fetch("http://127.0.0.1:8765/api/folders", { cache: "no-store" });
+    const res = await fetch("http://127.0.0.1:8765/api/folders", { cache: "no-store", signal: AbortSignal.timeout(2000) });
     if (!res.ok) throw new Error(`folders: HTTP ${res.status}`);
     return (await res.json()) as { folder_id: string; name: string }[];
   },

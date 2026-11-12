@@ -183,6 +183,7 @@ class NotesService:
         # ponytail: one image at a time for the whole app; each costs money and
         # nobody needs two at once, so no per-meeting locks.
         self._recap_lock = threading.Lock()
+        self._filed: dict[str, str | None] = {}  # meeting id -> the Project its last context filed it in
         self._data_dir = Path(data_dir) if data_dir is not None else Path(
             os.environ.get("HALO_DATA_DIR") or "data")
         self._db_path = self._data_dir / "events.sqlite"
@@ -196,8 +197,11 @@ class NotesService:
 
     async def _on_context(self, envelope: dict[str, Any]) -> None:
         meeting_id = envelope.get("meetingid")
-        if meeting_id:
-            project = (envelope.get("data") or {}).get("project_id")
+        project = (envelope.get("data") or {}).get("project_id")
+        # The hub re-sends the context on a language switch: only a new Project files the
+        # meeting again, so a move made on the notes page mid-call stays (review 2026-11-13).
+        if meeting_id and self._filed.get(str(meeting_id), "") != (project or None):
+            self._filed[str(meeting_id)] = project or None
             await asyncio.to_thread(self.file_and_write_past, str(meeting_id), project)
 
     def _past_path(self, meeting_id: str) -> Path:
@@ -209,11 +213,13 @@ class NotesService:
         2026-11-13). No Project, or no other meeting in it: the file goes, web only."""
         data = self._load_folders()
         folder = next((f for f in data["folders"] if f["folder_id"] == project_id), None)
-        if folder is None:
-            data["meetings"].pop(meeting_id, None)
-        else:
-            data["meetings"][meeting_id] = folder["folder_id"]
-        self._save_folders(data)
+        filed = None if folder is None else folder["folder_id"]
+        if data["meetings"].get(meeting_id) != filed:  # write only a change: fewer racing writers
+            if filed is None:
+                data["meetings"].pop(meeting_id)
+            else:
+                data["meetings"][meeting_id] = filed
+            self._save_folders(data)
         others = set() if folder is None else {
             m for m, f in data["meetings"].items() if f == folder["folder_id"] and m != meeting_id}
         lines: list[dict[str, Any]] = []

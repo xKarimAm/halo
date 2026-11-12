@@ -121,6 +121,7 @@ def _shown_claim(rewrite: str, claim: str, spoken: str) -> str:
 
 PAST_TRANSCRIPT_LINES = 8  # ponytail: best word-overlap transcript lines per claim; raise if misses show
 KIND_ORDER = {"summary": 0, "decision": 1}  # inside the cap, these go first; the rest keep newest-first
+QUOTE_MIN = 15  # chars: a stored line shorter than this must be quoted whole
 SENTENCE_END = re.compile(r"(?<=[.!?؟])\s+")
 
 
@@ -166,7 +167,8 @@ def _source_line(quote: str, rows: list[dict[str, Any]]) -> dict[str, Any] | Non
         text = str(row.get("text", ""))
         for part in (text, *SENTENCE_END.split(text)):
             words = _norm(part)
-            if words and (words in q or (len(q) >= 0.6 * len(words) and q in words)):
+            # A short row ("Yes.") inside a longer quote proves nothing (review 2026-11-13).
+            if words and ((len(words) >= QUOTE_MIN and words in q) or (len(q) >= 0.6 * len(words) and q in words)):
                 return {**row, "text": part}
     return None
 

@@ -70,3 +70,20 @@ def test_no_project_or_an_unknown_one_removes_the_past_notes(tmp_path):
     asyncio.run(bus.publish(context(folder["folder_id"])))
     asyncio.run(bus.publish(context(None)))
     assert past(data) is None
+
+
+def test_a_resent_context_keeps_a_move_made_on_the_notes_page(tmp_path):
+    # Review 2026-11-13: the hub re-sends meeting.context on a language switch.
+    bus, svc, _ = service(tmp_path)
+    launch = svc.create_folder("Launch", MEETING)
+    other = svc.create_folder("Other")
+    asyncio.run(bus.publish(context(launch["folder_id"])))
+    svc.move_to_folder(NEW, other["folder_id"])
+    asyncio.run(bus.publish(context(launch["folder_id"])))
+    assert svc._load_folders()["meetings"][NEW] == other["folder_id"]
+
+
+def test_no_project_does_not_rewrite_the_folders_file(tmp_path):
+    bus, _, data = service(tmp_path)
+    asyncio.run(bus.publish(context(None)))
+    assert not (data / "folders.json").exists()
