@@ -14,7 +14,7 @@ ACK lives on the extension ⇄ Gateway socket only. Inside the backend, `bus.pub
 | `meeting.started` | `meeting.started.schema.json` | Hub at Start click | Correlator, Event Store, Notes Builder (via Gateway → Bus) |
 | `meeting.ended` | `meeting.ended.schema.json` | Hub (left/tab_closed); Gateway backstop (timeout, 60 s) | Transcriber, Notes Builder, Recorder — once per meeting, first wins |
 | `system.status` | `system.status.schema.json` | Gateway (from `bus.health()`, 5 s and on change) | Overlay |
-| `meeting.context` | `meeting.context.schema.json` | Setup Panel via hub; re-sent by hub on `set_viewer_lang` | Insight, Event Store |
+| `meeting.context` | `meeting.context.schema.json` | Setup Panel via hub; re-sent by hub on `set_viewer_lang`. `project_id` is a notes-page Project (`folder_id`) | Insight, Event Store, Notes Service (files the meeting in the Project, writes `references/<id>.past.json` for Fact Check) |
 | `tiles.snapshot` | `tiles.snapshot.schema.json` | Meet Adapter | Overlay + Frame Source in-tab; Correlator + Event Store via hub/socket |
 | `speaker.active` | `speaker.active.schema.json` | Meet Adapter | Overlay in-tab; Correlator + Event Store via hub/socket |
 | `transcript.final` | `transcript.final.schema.json` | Transcriber | Correlator, Event Store |
@@ -26,7 +26,7 @@ ACK lives on the extension ⇄ Gateway socket only. Inside the backend, `bus.pub
 | `tags.set` | `tags.set.schema.json` | Classifier (model); Notes Service on POST /api/tags (user) | Overlay (via Gateway), Event Store, Classifier (skip set) |
 | `notes.ready` | `notes.ready.schema.json` | Notes Builder | Event Store, Overlay toast (via Gateway) |
 | `coach.tips` | `coach.tips.schema.json` | Coach (meeting so far; new words at most every 8 s, or a 15 s silence) | Overlay coach panel (via Gateway), Event Store, Notes Service (page `coaching`) |
-| `claim.checked` | `claim.checked.schema.json` | Fact Check (a point with a number, searched on the web; supported or disputed only) | Overlay fact card (via Gateway), Event Store, Notes Service (page `fact_checks`) |
+| `claim.checked` | `claim.checked.schema.json` | Fact Check (a point searched on the web, or checked against the viewer's notes and the Project's earlier meetings; supported or disputed only; `notes_from` names the earlier meeting a quote came from) | Overlay fact card (via Gateway), Event Store, Notes Service (page `fact_checks`) |
 | envelope | `envelope.schema.json` | every envelope sender | every receiver |
 | ACK | `ack.schema.json` | Gateway (socket); `bus.publish()` return value | Hub; backend publishers |
 | `faces.update` (in-tab) | `faces.update.schema.json` | Face Detector | Overlay |

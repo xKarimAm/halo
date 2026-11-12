@@ -121,6 +121,7 @@ def _shown_claim(rewrite: str, claim: str, spoken: str) -> str:
 
 PAST_TRANSCRIPT_LINES = 8  # ponytail: best word-overlap transcript lines per claim; raise if misses show
 KIND_ORDER = {"summary": 0, "decision": 1}  # inside the cap, these go first; the rest keep newest-first
+SENTENCE_END = re.compile(r"(?<=[.!?؟])\s+")
 
 
 def _past_line(row: dict[str, Any], kind: str) -> str:
@@ -158,12 +159,15 @@ def _notes_block(own: str, past: dict[str, Any] | None, said: str) -> tuple[str,
 
 
 def _source_line(quote: str, rows: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """The earlier-meeting row the model quoted (whole formatted line or just its words)."""
+    """The earlier-meeting row the model quoted (whole formatted line or just its words).
+    A quote of one sentence of a longer line (a summary) comes back as that sentence."""
     q = _norm(quote)
     for row in rows:
-        words = _norm(str(row.get("text", "")))
-        if words and (words in q or (len(q) >= 0.6 * len(words) and q in words)):
-            return row
+        text = str(row.get("text", ""))
+        for part in (text, *SENTENCE_END.split(text)):
+            words = _norm(part)
+            if words and (words in q or (len(q) >= 0.6 * len(words) and q in words)):
+                return {**row, "text": part}
     return None
 
 
@@ -247,6 +251,7 @@ class FactCheck:
         source = _source_line(quote, rows) if quote else None
         if source is not None:  # an earlier meeting's line: the store's words, never the model's
             quote = source["text"][:CLAIM_MAX]
+            sources = []  # live 2026-11-13: the web search ran anyway; its links were unrelated
         elif quote and (not own or _norm(quote) not in _norm(own)):
             quote = ""  # a quote the notes do not hold is the model's, not the viewer's
         if data["verdict"] not in ("supported", "disputed") or not (sources or quote) or not note:

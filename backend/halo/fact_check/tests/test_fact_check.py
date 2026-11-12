@@ -342,6 +342,33 @@ def test_only_transcript_lines_that_share_words_with_the_claim_are_added(tmp_pat
     assert out[0]["data"]["notes_from"]["speaker"] == "Omar"
 
 
+SUMMARY_PAST = {"project": "Launch", "transcript": [], "lines": [
+    {"text": "The team set the launch for Monday. They agreed to keep the free tier at three meetings "
+             "per month while deferring Pro pricing.", "meeting_id": OLD, "subject": "Launch sync",
+     "date": "2026-11-05", "speaker": "", "kind": "summary"}]}
+
+
+def test_one_sentence_of_a_long_summary_is_shown_as_that_sentence(tmp_path):
+    # Live 2026-11-13: the model quoted one sentence of a summary and the card lost it.
+    llm = FakeLLM({"verdict": "disputed", "note": "They agreed on three.", "sources": [],
+                   "notes_quote": "They agreed to keep the free tier at three meetings per month"})
+    out = run_with_past(llm, point("We agreed the free tier is five meetings a month."), tmp=tmp_path,
+                        past=SUMMARY_PAST)
+    data = out[0]["data"]
+    assert data["notes_quote"] == ("They agreed to keep the free tier at three meetings per month "
+                                   "while deferring Pro pricing.")
+    assert data["notes_from"]["speaker"] == "" and data["notes_from"]["meeting_id"] == OLD
+
+
+def test_a_verdict_from_an_earlier_meeting_drops_the_web_links(tmp_path):
+    # Live 2026-11-13: the web search ran anyway and its unrelated links rode along.
+    llm = FakeLLM({"verdict": "disputed", "note": "Last week's meeting decided 10 December.",
+                   "sources": ["https://example.com/unrelated"],
+                   "notes_quote": "The beta ships on 10 December."})
+    data = run_with_past(llm, decision("We ship the beta on 3 December."), tmp=tmp_path)[0]["data"]
+    assert data["sources"] == [] and data["notes_from"]["speaker"] == "Layla"
+
+
 def test_the_viewers_own_notes_quote_has_no_meeting_source(tmp_path):
     llm = FakeLLM({"verdict": "disputed", "note": "Your notes say 12 November.", "sources": [],
                    "notes_quote": "We agreed to launch on 12 November."})
