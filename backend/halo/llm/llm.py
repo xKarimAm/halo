@@ -256,16 +256,18 @@ class LLMClient:
         system: str | None = None,
         prompt_cache_key: str | None = None,
         timeout_s: float | None = None,
+        effort: str | None = None,
     ) -> LLMResult:
         """One validated JSON completion, with retry + per-call failover.
-        `timeout_s` replaces the live budgets for a call nobody is waiting on."""
+        `timeout_s` replaces the live budgets for a call nobody is waiting on;
+        `effort` replaces the engine's reasoning effort (the coach thinks longer)."""
         return self._named(self._complete_json(
             prompt=prompt, schema=schema, schema_name=schema_name, system=system,
-            prompt_cache_key=prompt_cache_key, timeout_s=timeout_s))
+            prompt_cache_key=prompt_cache_key, timeout_s=timeout_s, effort=effort))
 
     def _complete_json(self, *, prompt: str, schema: dict[str, Any], schema_name: str,
                        system: str | None, prompt_cache_key: str | None,
-                       timeout_s: float | None) -> LLMResult:
+                       timeout_s: float | None, effort: str | None = None) -> LLMResult:
         engines = [PRIMARY_ENGINE, FAILOVER_ENGINE]
         # No Spark Open key is a supported setup (README): the contributor is the
         # engine by design, not a failover, so the primary is not even tried.
@@ -281,7 +283,7 @@ class LLMClient:
             outcome = self._call_engine(
                 engine, prompt=prompt, schema=schema,
                 schema_name=schema_name, system=system,
-                prompt_cache_key=prompt_cache_key, timeout_s=timeout_s,
+                prompt_cache_key=prompt_cache_key, timeout_s=timeout_s, effort=effort,
             )
             if outcome.result.ok:
                 self._last_engine = engine
@@ -289,7 +291,8 @@ class LLMClient:
             last = outcome.result
             if not outcome.failover:
                 return outcome.result
-            if engine == PRIMARY_ENGINE:
+            if engine == PRIMARY_ENGINE and timeout_s is None:
+                # Live 2026-11-04: slow coach calls benched the primary for live points.
                 self._primary_down_until = self._clock() + self._cooldown
                 code = outcome.result.error["code"] if outcome.result.error else "unknown"
                 if code != "missing_key":  # already logged once where detected
@@ -460,6 +463,7 @@ class LLMClient:
         system: str | None,
         prompt_cache_key: str | None,
         timeout_s: float | None = None,
+        effort: str | None = None,
     ) -> _Outcome:
         cfg = self._config(engine)
         key = self._keys[engine]
@@ -480,7 +484,7 @@ class LLMClient:
             + [{"role": "user", "content": prompt}],
             "response_format": {"type": "json_schema",
                                 "json_schema": {"name": schema_name, "schema": schema}},
-            "reasoning_effort": cfg["reasoning_effort"],
+            "reasoning_effort": effort or cfg["reasoning_effort"],
         }
         if prompt_cache_key is not None and cfg["base_url"] != GEMINI_COMPAT_URL:  # Gemini: HTTP 400
             body["prompt_cache_key"] = prompt_cache_key

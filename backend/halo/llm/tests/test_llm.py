@@ -640,3 +640,21 @@ def test_a_caller_off_the_live_path_can_give_the_call_longer():
     assert llm.complete_json(prompt=PROMPT, schema=SCHEMA).ok
     assert llm.complete_json(prompt=PROMPT, schema=SCHEMA, timeout_s=60).ok
     assert budgets == [4.0, 60]
+
+
+def test_a_slow_call_nobody_waits_on_never_benches_the_primary():
+    # Live 2026-11-04: slow coach calls benched the primary for live points for 30 s.
+    clock = Clock()
+    script = Script(clock)
+    script.primary.append((200, GOOD, 50.0))  # past the coach's own 40 s budget
+    script.failover.append((200, GOOD, 0.1))
+    script.primary.append((200, GOOD, 0.1))
+    client = script.client(clock, [])
+    try:
+        slow = client.complete_json(prompt=PROMPT, schema=SCHEMA, timeout_s=40.0, effort="medium")
+        assert slow.ok and slow.engine == FAILOVER_ENGINE
+        live = client.complete_json(prompt=PROMPT, schema=SCHEMA)  # no time passed
+        assert live.ok and live.engine == PRIMARY_ENGINE
+        assert primary_calls(script)[0]["reasoning_effort"] == "medium"
+    finally:
+        client.close()

@@ -5,7 +5,7 @@ import type { PortMeetingContext } from "../../../contracts/ext/port";
 import type { MeetingContext } from "../../../contracts/ext/gen/types";
 import goldenContext from "../../../contracts/golden/meeting.context.json";
 import { PairingError } from "./pairing";
-import { CONSENT_NOTICE, initPopup, type PopupDeps } from "./popup";
+import { CONSENT_NOTICE, initPopup, NOTES_URL, type PopupDeps } from "./popup";
 import { memorySetupStorage } from "./storage";
 
 const golden = goldenContext.data as unknown as MeetingContext;
@@ -40,6 +40,15 @@ function fillSaveForm(root: HTMLElement): void {
 }
 
 describe("popup Save", () => {
+  it("links to the Halo app's meetings page in a new tab", async () => {
+    const root = document.createElement("div");
+    await initPopup(root, depsWith());
+    const link = root.querySelector("#open-app") as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe(NOTES_URL);
+    expect(link.target).toBe("_blank");
+    expect(link.textContent).toBe("Open Halo");
+  });
+
   it("posts one meeting.context on the Port matching the golden shape", async () => {
     const deps = depsWith({ listParticipants: () => ["Layla", "Omar"] });
     const root = document.createElement("div");

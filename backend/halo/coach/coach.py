@@ -28,10 +28,14 @@ from typing import Any
 log = logging.getLogger("halo.coach")
 
 TICK_S = 1.0
-MIN_GAP_S = 8.0  # ponytail: one call per 8 s per meeting at most (~7 RPM); raise if RPM gets tight
+# Karim 2026-11-16: "think for a while before it talks": tips said on the first two
+# words ("Hello, hello?" -> "no topic yet") were wrong a breath later.
+WARMUP_S = 60.0  # no call until a minute after the first words
+MIN_GAP_S = 45.0  # then at most one call per 45 s of new talk
 SILENCE_S = 15.0  # one silence call per quiet stretch
 MAX_WORDS = 2000  # newest words only; shorter input, faster call
-COACH_TIMEOUT_S = 8.0  # live 2026-11-04: 14 coach timeouts at 4 s, each demoting live points for 30 s
+COACH_TIMEOUT_S = 40.0  # off the live path; a slow coach call no longer benches the primary
+COACH_EFFORT = "medium"  # probe 2026-11-16: Meta 24 s, Gemini 3.8 Flash 11 s, deeper tips than minimal
 ALERT_GAP_S = 180.0  # live 2026-11-04: at most one alert per 3 minutes
 MAX_SAID = 12  # earlier tips kept in the prompt so they are not reworded (live 2026-11-04)
 PROMPT_CACHE_KEY = "coach-v5"
@@ -108,6 +112,11 @@ INSTRUCTIONS = (
     "while an item is open, tip on it now; a vague follow-up needs a date. "
     "Silence after a "
     "question is thinking time: wait, then rephrase it or ask one person.\n"
+    "Before saying anything is missing (a topic, a goal, an owner, a question), "
+    "search the meeting words for it: said in any form, it is not missing. "
+    "The setup subject and agenda can be stale; what people say wins. A tip "
+    "must be worth interrupting the viewer for: no tip beats a weak or "
+    "generic one.\n"
     "tips is the whole list the viewer sees next: keep a tip on screen word "
     "for word while it still applies, drop it once it is settled, add one "
     "only for a new item; never reword a tip or bring back one shown "
@@ -144,7 +153,9 @@ def _alert_kind(alert: str) -> str:
 
 class Coach:
     def __init__(self, bus: Any, llm: Any, *, clock: Any = None, min_gap_s: float = MIN_GAP_S,
-                 silence_s: float = SILENCE_S, max_words: int = MAX_WORDS) -> None:
+                 silence_s: float = SILENCE_S, max_words: int = MAX_WORDS, warmup_s: float = WARMUP_S) -> None:
+        self._warmup = warmup_s
+        self._first_turn: dict[str, float] = {}
         self._bus = bus
         self._llm = llm
         self._clock = clock or time.monotonic
@@ -207,6 +218,7 @@ class Coach:
                 span[0], span[1] = min(span[0], start), max(span[1], end)
             self._due.add(meetingid)
             self._last_turn[meetingid] = self._clock()
+            self._first_turn.setdefault(meetingid, self._clock())
             self._silence_spent.discard(meetingid)
 
     async def _on_started(self, envelope: dict[str, Any]) -> None:
@@ -240,14 +252,18 @@ class Coach:
         self._ended.add(meetingid)
         for store in (self._turns, self._spoken_ms, self._span, self._reads, self._contexts, self._self_names, self._tips, self._said, self._people, self._alerts,
                       self._last_alert, self._shown_alerts,
-                      self._last_turn, self._last_call):
+                      self._last_turn, self._last_call, self._first_turn):
             store.pop(meetingid, None)
         self._due.discard(meetingid)
         self._silence_spent.discard(meetingid)
 
     def _reason(self, meetingid: str, now: float) -> str | None:
-        """Why to call now, or None. New words win over silence."""
-        if meetingid in self._due and now - self._last_call.get(meetingid, -1e9) >= self._min_gap:
+        """Why to call now, or None. New words win over silence; nothing in the first minute."""
+        if now - self._first_turn.get(meetingid, now) < self._warmup:
+            return None
+        if now - self._last_call.get(meetingid, -1e9) < self._min_gap:
+            return None  # one look per gap, silence included
+        if meetingid in self._due:
             return "new words"
         quiet = now - self._last_turn.get(meetingid, now)
         if meetingid not in self._silence_spent and quiet >= self._silence:
@@ -268,7 +284,7 @@ class Coach:
             result = await asyncio.to_thread(
                 self._llm.complete_json, prompt=self.build_prompt(meetingid, reason),
                 schema=TIPS_SCHEMA, schema_name="coach.tips", prompt_cache_key=PROMPT_CACHE_KEY,
-                timeout_s=COACH_TIMEOUT_S)
+                timeout_s=COACH_TIMEOUT_S, effort=COACH_EFFORT)
             if meetingid not in self._turns:
                 continue  # the meeting ended during the call
             if result is None or not result.ok or not isinstance(result.data, dict):

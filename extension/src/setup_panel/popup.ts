@@ -53,6 +53,9 @@ export const CONSENT_NOTICE =
   "يقوم Halo بتسجيل هذا الاجتماع ونسخه على هذا الجهاز لعرض النقاط والملاحظات المباشرة. " +
   "تبقى التسجيلات والملاحظات على هذا الجهاز حتى يتم حذفها.";
 
+/** The Halo app's meetings page, served by the local backend. */
+export const NOTES_URL = "http://127.0.0.1:8765/notes";
+
 function el(tag: string, attrs: Record<string, string> = {}, text = ""): HTMLElement {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -153,7 +156,10 @@ export async function initPopup(root: HTMLElement, deps: PopupDeps): Promise<voi
   const logo = el("h1", { class: "logo" }, "Halo");
   logo.prepend(el("i"));
   const conn = el("span", { id: "conn", class: "pill", role: "status" });
-  header.append(logo, el("span", { class: "sp" }), conn);
+  // Karim 2026-11-16: open the Halo app from the popup, no hunting for the address.
+  const appLink = el("a", { id: "open-app", class: "pill", href: NOTES_URL, target: "_blank", rel: "noopener" },
+    "Open Halo");
+  header.append(logo, el("span", { class: "sp" }), appLink, conn);
   root.append(header);
 
   // Pairing: only shown when something is needed (app down, or a code).

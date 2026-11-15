@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from halo.bus import Bus
 from halo.coach import Coach
-from halo.coach.coach import COACH_TIMEOUT_S, MIN_GAP_S, SILENCE_S
+from halo.coach.coach import COACH_EFFORT, COACH_TIMEOUT_S, MIN_GAP_S, SILENCE_S, WARMUP_S
 
 from contracts.validate import validate_envelope
 
@@ -19,7 +19,9 @@ class FakeLLM:
         self.replies = list(replies)
         self.prompts: list[str] = []
 
-    def complete_json(self, *, prompt, schema, schema_name="", system=None, prompt_cache_key=None, timeout_s=None):
+    def complete_json(self, *, prompt, schema, schema_name="", system=None, prompt_cache_key=None, timeout_s=None,
+                      effort=None):
+        self.efforts = [*getattr(self, "efforts", []), effort]
         self.prompts.append(prompt)
         self.timeouts = [*getattr(self, "timeouts", []), timeout_s]
         data = self.replies.pop(0)
@@ -53,7 +55,7 @@ def setup(replies):
     bus = Bus()
     llm = FakeLLM(replies)
     clock = Clock()
-    coach = Coach(bus, llm, clock=clock)
+    coach = Coach(bus, llm, clock=clock, warmup_s=0.0)
     tips: list = []
     bus.subscribe("coach.tips", tips.append)
     return bus, llm, coach, tips, clock
@@ -108,7 +110,10 @@ def test_a_long_silence_calls_once_until_someone_speaks():
         await coach.tick()
         clock.now += SILENCE_S
         await coach.tick()
-        assert "Why now: 15 s of silence" in llm.prompts[1]
+        assert len(llm.prompts) == 1  # a silence waits out the gap too (Karim 2026-11-16: think, not speed)
+        clock.now += MIN_GAP_S - SILENCE_S
+        await coach.tick()
+        assert f"Why now: {MIN_GAP_S:.0f} s of silence" in llm.prompts[1]
         clock.now += 60
         await coach.tick()
         assert len(llm.prompts) == 2  # one call per quiet stretch
@@ -409,5 +414,26 @@ def test_no_viewer_name_means_no_viewer_numbers_and_tidy_quotes():
         await bus.publish(turn("Hello there", n=2))
         await coach.tick()
         assert tips[0]["data"]["tips"] == ["No goal yet: open with 'Today we decide.'"]
+
+    asyncio.run(run())
+
+
+def test_the_coach_listens_a_minute_before_its_first_tip_and_thinks_harder():
+    # Karim 2026-11-16: "think for a while before it talks"; "Hello, hello?" got "no topic yet".
+    async def run():
+        bus = Bus()
+        llm = FakeLLM([{"read": "Opening: Karim introduced the Halo demo.", "tips": [], "alert": "", "alert_quote": ""}])
+        clock = Clock()
+        coach = Coach(bus, llm, clock=clock)
+        await bus.publish(turn("Hello, hello?", n=2))
+        await coach.tick()
+        clock.now += WARMUP_S - 1
+        await bus.publish(turn("My name is Karim and this is the Halo demo.", n=3))
+        await coach.tick()
+        assert llm.prompts == []  # still inside the first minute
+        clock.now += 1
+        await coach.tick()
+        assert len(llm.prompts) == 1 and "Halo demo" in llm.prompts[0]
+        assert llm.efforts == [COACH_EFFORT] and MIN_GAP_S >= 30
 
     asyncio.run(run())

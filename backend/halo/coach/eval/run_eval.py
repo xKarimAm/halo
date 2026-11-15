@@ -60,8 +60,9 @@ def run_scenario(mod, llm: LLMClient, sc: dict, rnd: int) -> list[dict]:
         coach._turns[MID] = [tuple(t) for t in sc["turns"][: cp["after_turn"]]]
         prompt = coach.build_prompt(MID, cp["why_now"])
         t0 = time.time()
+        extra = {"effort": mod.COACH_EFFORT} if hasattr(mod, "COACH_EFFORT") else {}  # as live
         res = llm.complete_json(prompt=prompt, schema=mod.TIPS_SCHEMA, schema_name="coach.tips",
-                                prompt_cache_key=mod.PROMPT_CACHE_KEY)
+                                prompt_cache_key=mod.PROMPT_CACHE_KEY, **extra)
         secs = round(time.time() - t0, 1)
         before = len(bus.out)
         if res.ok and isinstance(res.data, dict):
