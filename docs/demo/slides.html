@@ -14,7 +14,8 @@
     --shadow:0 .5vh 2.2vh #7a5a3a14, 0 .1vh .3vh #7a5a3a12;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden}
+  html{background:var(--bg)}
+  html,body{margin:0;color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden}
   .slide{width:100vw;height:100vh;padding:2.6vh 3.4vw;grid-template-rows:auto 1fr auto;gap:1.6vh;position:relative;overflow:hidden;display:none}
   .slide.on{display:grid}
   .slide::after{content:"";position:absolute;inset:auto -10vw -30vh auto;width:60vw;height:60vh;border-radius:50%;
@@ -155,11 +156,49 @@
   .qrbox svg{width:min(40vh,100%);height:auto;display:block;margin:0 auto 1.2vh}
   .thanks{font-size:3.6vh;font-weight:700;margin-top:1.4vh}
 
-  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* trippy layer: drifting colour blobs, a cursor glow, particles (full on the title, softer after it) */
+  .aura{position:fixed;inset:-20vh -20vw;z-index:-2;pointer-events:none;filter:blur(8vh) saturate(1.2);opacity:.55;transition:opacity .8s}
+  .aura i{position:absolute;border-radius:50%;mix-blend-mode:multiply;animation:drift 18s ease-in-out infinite alternate}
+  .aura i:nth-child(1){width:60vh;height:60vh;left:10vw;top:10vh;background:#f2c98a}
+  .aura i:nth-child(2){width:70vh;height:70vh;right:5vw;top:30vh;background:#b9cfb3;animation-duration:22s;animation-delay:-6s}
+  .aura i:nth-child(3){width:50vh;height:50vh;left:40vw;bottom:0;background:#f0b99a;animation-duration:26s;animation-delay:-12s}
+  .aura i:nth-child(4){width:45vh;height:45vh;left:-5vw;bottom:10vh;background:#b8c9e6;animation-duration:20s;animation-delay:-3s}
+  @keyframes drift{0%{transform:translate(0,0) scale(1) rotate(0)}50%{transform:translate(12vw,-8vh) scale(1.25) rotate(40deg)}100%{transform:translate(-8vw,10vh) scale(.9) rotate(-30deg)}}
+  body.calm .aura{opacity:.22}
+  #fx{position:fixed;inset:0;z-index:-1;pointer-events:none}
+  .glow{position:fixed;width:40vh;height:40vh;border-radius:50%;pointer-events:none;z-index:-1;transform:translate(-50%,-50%);
+    background:radial-gradient(closest-side,#fff6e2cc,transparent);left:-50vw}
+  .title{background:transparent}
+  .title .big{transition:transform .25s ease-out;filter:drop-shadow(0 3vh 4vh #5f7f6255)}
+  .title h1{background:linear-gradient(100deg,#2a2924 0%,#5f7f62 30%,#c7764f 55%,#e8a85a 70%,#2a2924 100%);background-size:250% 100%;
+    -webkit-background-clip:text;background-clip:text;color:transparent;animation:sheen 7s ease-in-out infinite}
+  @keyframes sheen{50%{background-position:100% 0}}
+  .type{display:inline-block;vertical-align:bottom;white-space:nowrap;overflow:hidden;border-right:.4vh solid transparent}
+  .on .type.one{animation:typing 1.2s steps(9,end) .5s both}
+  .on .type.two{border-right-color:var(--clay);animation:typing 1.6s steps(15,end) 2s both,caret .8s step-end infinite}
+  @keyframes typing{from{width:0}}
+  @keyframes caret{50%{border-color:transparent}}
+  .eq{display:flex;gap:.5vh;align-items:center;height:5vh;margin-top:2.4vh}
+  .eq i{width:.7vh;border-radius:.4vh;background:linear-gradient(var(--clay),var(--sun));animation:eq 1.1s ease-in-out infinite}
+  @keyframes eq{0%,100%{height:15%}50%{height:100%}}
+  .eqlbl{font-size:2vh;color:var(--muted);margin-left:1vw;letter-spacing:.08em;text-transform:uppercase}
+  .flyers{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .flyer{position:absolute;display:flex;align-items:center;gap:.6vw;background:#ffffffd9;border:.2vh solid #2a292422;border-radius:99px;
+    padding:.6vh 1.1vw .6vh .6vw;font-size:1.9vh;box-shadow:var(--shadow);white-space:nowrap;animation:fly linear infinite;opacity:0;filter:saturate(.9)}
+  .flyer i{display:grid;place-items:center;width:2.6vh;height:2.6vh;border-radius:50%;font-style:normal;font-weight:700;font-size:1.6vh}
+  @keyframes fly{0%{transform:translate(0,0) rotate(var(--r));opacity:0}8%{opacity:.75}85%{opacity:.75}100%{transform:translate(var(--dx),var(--dy)) rotate(calc(var(--r) * -1));opacity:0}}
+  .title .hero{position:relative;z-index:1}
+  .hint{animation:nudge 2s ease-in-out infinite}
+  @keyframes nudge{50%{transform:translateX(.8vw)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#fx,.flyers,.glow{display:none}}
 </style>
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
+<div class="aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="glow" aria-hidden="true"></div>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="halo" viewBox="0 0 136 136" overflow="visible">
@@ -175,13 +214,15 @@
 <!-- 1: title -->
 <main class="slide title" aria-label="Halo">
   <header><span class="event"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"><span>Round 5 · Monday 16 November</span></span></header>
+  <div class="flyers" aria-hidden="true"></div>
   <div class="hero">
     <svg class="big pop" aria-hidden="true"><use href="#halo"/></svg>
     <div>
       <h1 class="pop" style="--i:1">Halo</h1>
-      <div class="tag pop" style="--i:2">You talk. Halo remembers.</div>
-      <div class="hi pop" style="--i:3"><b>Marhaba, Doha.</b> It listens to a Google Meet call in Arabic, English or both, and writes the meeting while you talk.</div>
-      <div class="chips pop" style="--i:4">
+      <div class="tag"><span class="type one">You talk.</span> <span class="type two">Halo remembers.</span></div>
+      <div class="hi pop" style="--i:3"><b>Marhaba, Tinkerers!</b> Halo listens to a Google Meet call in Arabic, English or both, and writes the meeting while you talk.</div>
+      <div class="eq pop" style="--i:4" aria-hidden="true"><i style="animation-delay:-0.36s;animation-duration:0.82s"></i><i style="animation-delay:-0.72s;animation-duration:0.76s"></i><i style="animation-delay:-0.59s;animation-duration:0.99s"></i><i style="animation-delay:-0.06s;animation-duration:1.11s"></i><i style="animation-delay:-0.04s;animation-duration:1.05s"></i><i style="animation-delay:-0.08s;animation-duration:0.77s"></i><i style="animation-delay:-0.47s;animation-duration:1.36s"></i><i style="animation-delay:-0.14s;animation-duration:0.88s"></i><i style="animation-delay:-0.69s;animation-duration:1.46s"></i><i style="animation-delay:-0.63s;animation-duration:1.02s"></i><i style="animation-delay:-1.07s;animation-duration:0.74s"></i><i style="animation-delay:-0.94s;animation-duration:0.93s"></i><i style="animation-delay:-0.16s;animation-duration:0.79s"></i><i style="animation-delay:-0.34s;animation-duration:1.35s"></i><i style="animation-delay:-0.20s;animation-duration:1.17s"></i><i style="animation-delay:-0.70s;animation-duration:1.00s"></i><i style="animation-delay:-0.60s;animation-duration:0.75s"></i><i style="animation-delay:-0.07s;animation-duration:0.86s"></i><i style="animation-delay:-0.75s;animation-duration:1.04s"></i><i style="animation-delay:-0.35s;animation-duration:1.17s"></i><i style="animation-delay:-0.50s;animation-duration:0.94s"></i><i style="animation-delay:-0.87s;animation-duration:1.26s"></i><i style="animation-delay:-0.27s;animation-duration:1.16s"></i><i style="animation-delay:-0.58s;animation-duration:1.40s"></i><i style="animation-delay:-0.80s;animation-duration:0.93s"></i><i style="animation-delay:-1.08s;animation-duration:0.79s"></i><i style="animation-delay:-0.46s;animation-duration:1.31s"></i><i style="animation-delay:-0.17s;animation-duration:1.09s"></i><span class="eqlbl">listening</span></div>
+      <div class="chips pop" style="--i:5">
         <span class="chip"><i style="background:#bfe0f5">•</i>Point</span>
         <span class="chip"><i style="background:#ddd0f5">?</i>Question</span>
         <span class="chip"><i style="background:#c6ead5">✓</i>Decision</span>
@@ -189,7 +230,7 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span>Karim Amer · built with Meta Muse models and coding agents</span><span>press → to start</span></div>
+  <div class="foot"><span>Karim Amer · built with Meta Muse models and coding agents</span><span class="hint">press → to start</span></div>
 </main>
 
 <!-- 2: in the call (mock; texts are real Halo outputs from test calls) -->
@@ -345,7 +386,7 @@
       <svg role="img" aria-label="QR code: github.com/xKarimAm/halo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 264 264"><g transform="scale(8)"><path fill="#fff" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#111" d="M2 2.5h7m1 0h2m2 0h2m1 0h2m1 0h2m2 0h7m-29 1h1m5 0h1m3 0h1m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m2 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m3 0h5m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m5 0h1m1 0h4m1 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m1 0h2m1 0h3m1 0h3m2 0h1m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-18 1h2m2 0h1m-15 1h7m7 0h1m1 0h1m1 0h1m3 0h2m3 0h1m-28 1h1m3 0h1m3 0h1m2 0h3m2 0h4m1 0h5m1 0h1m-29 1h1m1 0h2m2 0h5m1 0h1m3 0h1m1 0h1m1 0h6m-26 1h1m2 0h3m1 0h1m1 0h4m1 0h2m2 0h1m2 0h2m1 0h1m2 0h1m-28 1h1m2 0h1m1 0h2m1 0h1m5 0h4m3 0h1m1 0h1m2 0h3m-28 1h3m1 0h1m1 0h2m1 0h1m1 0h3m1 0h2m1 0h4m1 0h2m1 0h2m-29 1h1m1 0h1m3 0h1m1 0h2m1 0h1m2 0h3m1 0h1m1 0h2m1 0h1m-23 1h1m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m3 0h5m1 0h2m2 0h1m-26 1h1m2 0h1m7 0h2m1 0h1m7 0h2m1 0h1m-29 1h6m1 0h9m2 0h1m1 0h9m-29 1h1m1 0h1m1 0h4m5 0h4m3 0h1m1 0h2m1 0h2m-27 1h1m1 0h3m3 0h1m4 0h2m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m-28 1h1m1 0h1m2 0h2m1 0h1m2 0h1m5 0h1m1 0h9m-20 1h2m1 0h2m1 0h1m1 0h1m1 0h1m1 0h1m3 0h2m1 0h2m-29 1h7m1 0h2m3 0h3m2 0h3m1 0h1m1 0h1m-25 1h1m5 0h1m1 0h1m1 0h1m5 0h1m2 0h2m3 0h2m2 0h1m-29 1h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m3 0h1m2 0h8m-28 1h1m1 0h3m1 0h1m1 0h2m1 0h3m2 0h1m1 0h4m1 0h1m2 0h3m-29 1h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h8m2 0h1m-28 1h1m5 0h1m1 0h4m1 0h4m1 0h1m1 0h3m1 0h2m1 0h1m-28 1h7m3 0h2m2 0h1m2 0h3m4 0h1"/></g></svg>
       <b>github.com/xKarimAm/halo</b>
       <div style="font-size:1.9vh;color:var(--muted);margin-top:.8vh">Open source (MIT) · full steps in <code>docs/INSTALL.md</code></div>
-      <div class="thanks">Shukran, Doha!</div>
+      <div class="thanks">Shukran, Tinkerers!</div>
     </div>
   </div>
   <div class="foot"><span>Questions? Find me after the talk.</span><span>You talk. Halo remembers.</span></div>
@@ -375,6 +416,54 @@
   });
   addEventListener("click", next);
   show((+location.hash.slice(1) || 1) - 1, 0);
+
+  // trippy layer: particles drifting up like sound that swirl around the cursor, a cursor glow, the icon tilting
+  // toward the cursor, and real Halo points drifting past in both languages. ponytail: one canvas, 90 dots.
+  (() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const c = document.getElementById("fx"), g = c.getContext("2d"), glow = document.querySelector(".glow");
+    const cols = ["#5f7f62", "#c7764f", "#e8c98a", "#5e7fae"], R = devicePixelRatio || 1;
+    let W, H, mx = -1e4, my = -1e4;
+    const size = () => { W = c.width = innerWidth * R; H = c.height = innerHeight * R; c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px"; };
+    size(); addEventListener("resize", size);
+    const dots = Array.from({length: 90}, () => ({x: Math.random() * W, y: Math.random() * H, v: .2 + Math.random() * .7, r: 1 + Math.random() * 2.6, c: cols[Math.floor(Math.random() * 4)], p: Math.random() * 6.28}));
+    addEventListener("mousemove", e => {
+      mx = e.clientX * R; my = e.clientY * R;
+      glow.style.left = e.clientX + "px"; glow.style.top = e.clientY + "px";
+      const big = document.querySelector(".title.on .big");
+      if (big) { const dx = e.clientX / innerWidth - .5, dy = e.clientY / innerHeight - .5; big.style.transform = `perspective(60vh) rotateY(${dx * 22}deg) rotateX(${-dy * 22}deg) translate(${dx * 2}vh,${dy * 2}vh)`; }
+    });
+    (function frame(t) {
+      const calm = !document.querySelector(".title.on");
+      document.body.classList.toggle("calm", calm);
+      g.clearRect(0, 0, W, H);
+      for (const d of dots) {
+        d.y -= d.v * R * (calm ? .4 : 1); d.x += Math.sin(t / 900 + d.p) * .4 * R;
+        const dx = mx - d.x, dy = my - d.y, dist = Math.hypot(dx, dy) || 1;
+        if (dist < 220 * R) { d.x -= dy / dist * 1.6; d.y += dx / dist * 1.6; }
+        if (d.y < -10) { d.y = H + 10; d.x = Math.random() * W; }
+        g.globalAlpha = calm ? .25 : .7; g.fillStyle = d.c; g.beginPath(); g.arc(d.x, d.y, d.r * R, 0, 6.28); g.fill();
+        if (!calm && dist < 160 * R) { g.globalAlpha = .25 * (1 - dist / (160 * R)); g.strokeStyle = d.c; g.lineWidth = R; g.beginPath(); g.moveTo(d.x, d.y); g.lineTo(mx, my); g.stroke(); }
+      }
+      requestAnimationFrame(frame);
+    })(0);
+    const said = [["✓", "#c6ead5", "We launch in Qatar on January 15th."], ["≠", "#f8d6c0", "December launch is better to avoid missing season."],
+      ["•", "#bfe0f5", "أنا أشوف إن الإطلاق يكون في خمسة عشر يناير"], ["?", "#ddd0f5", "What does the data say about December signups?"],
+      ["✓", "#c6ead5", "Omar owns the signup numbers by Thursday."], ["≠", "#f8d6c0", "Disputed: about 32 to 37 million, not 100 million."],
+      ["•", "#bfe0f5", "The Gulf is the prize here."], ["?", "#ddd0f5", "Should we keep the free plan at three meetings per month?"]];
+    const box = document.querySelector(".flyers");
+    said.forEach(([k, bg, txt], i) => {
+      const f = document.createElement("span"); f.className = "flyer";
+      const ic = document.createElement("i"); ic.style.background = bg; ic.textContent = k; f.append(ic, txt);
+      const fromLeft = i % 2 === 0;
+      f.style.top = [10, 85, 14, 91][i % 4] + (i % 3) + "%"; f.style[fromLeft ? "left" : "right"] = "-30vw";
+      f.style.setProperty("--dx", (fromLeft ? 1 : -1) * (130 + (i % 3) * 15) + "vw");
+      f.style.setProperty("--dy", ((i % 3) - 1) * 12 + "vh");
+      f.style.setProperty("--r", ((i % 5) - 2) * 2 + "deg");
+      f.style.animationDuration = 22 + (i % 4) * 5 + "s"; f.style.animationDelay = -(i * 3.3) + "s";
+      box.appendChild(f);
+    });
+  })();
 </script>
 </body>
 </html>
