@@ -33,6 +33,10 @@ SPEAKER_WINDOW_S = 3.0
 MIN_WORDS = 3  # ponytail: a lone "Yes." never becomes a point; it rides with the next turn
 REHOLD_MAX_WORDS = 30  # an unfinished "none" waits for more words up to this size
 SENTENCE_END = (".", "?", "!", "؟")  # ؟ = Arabic question mark
+# Live 2026-11-16: held words with no full stop (Arabic often has none) were quoted on a
+# point said 17 s later. A continuation arrives within a pause; later words start afresh.
+# ponytail: a fixed gap; tune it if slow speakers lose their sentence starts.
+REHOLD_GAP_MS = 5000
 MAX_RPM = 30  # Karim 2026-11-01: 12 fit Baseten's basic tier, unused now; contributor allows 150
 RPM_WINDOW_S = 60.0
 HEALTH_INTERVAL_S = 30.0
@@ -100,6 +104,7 @@ class Insight:
         self._min_words = min_words
         # Words a "none" sent back to wait: no new call until more arrive.
         self._rehold_words: dict[tuple[str, str], int] = {}
+        self._reheld: dict[tuple[str, str], int] = {}  # held filler turns at the front of _held
         self._bus = bus
         self._llm = llm
         self._clock = clock or time.monotonic
@@ -237,6 +242,10 @@ class Insight:
         meetingid, _ = key
         turns = self._held.pop(key, [])
         self._rehold_words.pop(key, None)
+        reheld = self._reheld.pop(key, 0)
+        if 0 < reheld < len(turns) and (int(turns[reheld].get("ts_start_ms", 0))
+                                        - int(turns[reheld - 1].get("ts_end_ms", 0))) > REHOLD_GAP_MS:
+            turns = turns[reheld:]  # nobody finished that sentence: drop it
         if not turns:
             return
         now = self._clock()
@@ -272,6 +281,7 @@ class Insight:
                 # Cut off mid-sentence: the words wait for the rest of it.
                 self._held[key] = turns + self._held.get(key, [])
                 self._rehold_words[key] = len(text.split())
+                self._reheld[key] = len(turns)
             return  # filler: the turns are spent, no point
         latest = turns[-1]
         point: dict[str, Any] = {

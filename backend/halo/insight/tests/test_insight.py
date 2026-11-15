@@ -487,6 +487,27 @@ def test_a_cut_off_sentence_judged_none_waits_for_the_rest():
     asyncio.run(run())
 
 
+def test_held_filler_is_dropped_when_the_next_words_come_much_later():
+    # Live 2026-11-16: off-mic Arabic chat (no full stop) was held, then quoted
+    # on "Let's lock it, we launch on January fifteenth" said 17 s later.
+    async def run():
+        clock = Clock()
+        bus = Bus()
+        llm = FakeLLM(clock, [point_reply("", kind="none"), point_reply("Launch locked for 15 January")])
+        insight = Insight(bus, llm, clock=clock, speaker_window_s=0.0)
+        bus.subscribe("turn.attributed", lambda _e: insight.flush())
+        points: list = []
+        bus.subscribe("points.upsert", points.append)
+        t1, t2 = ("00000073-0000-4000-8000-000000000073", "00000074-0000-4000-8000-000000000074")
+        await bus.publish(turn_envelope(t1, "sibha fi halha ma tdayeqhash", ts=1000))
+        await bus.publish(turn_envelope(t2, "Let's lock it, we launch on January fifteenth.", ts=21000))
+        assert points[0]["data"]["turn_ids"] == [t2]
+        assert points[0]["data"]["quote"] == "Let's lock it, we launch on January fifteenth."
+        assert "sibha" not in llm.calls[1]["prompt"]
+
+    asyncio.run(run())
+
+
 def test_an_urgent_point_carries_its_short_why():
     # Karim 2026-11-02: an urgent bubble says why ("Urgent · today").
     async def run():
