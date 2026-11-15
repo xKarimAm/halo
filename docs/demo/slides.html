@@ -191,6 +191,17 @@
   .title .hero{position:relative;z-index:1}
   .hint{animation:nudge 2s ease-in-out infinite}
   @keyframes nudge{50%{transform:translateX(.8vw)}}
+
+  /* no Meta key */
+  .opts{grid-template-columns:repeat(3,1fr);gap:1.4vw;align-content:center}
+  .opts .card{padding:2.2vh 1.4vw;border-top:.7vh solid var(--sage);display:flex;flex-direction:column;gap:1.1vh}
+  .opts .card.free{border-top-color:var(--sun);background:linear-gradient(180deg,#fff8ea,var(--card))}
+  .opts .card b{font-size:3vh}
+  .opts .card span{font-size:2.15vh}
+  .opts .card pre{margin:0;background:#2a2924;color:#fbf5ec;border-radius:1vh;padding:1.1vh 1vw;font-size:1.9vh;line-height:1.5;white-space:pre-wrap}
+  .opts .badge{align-self:flex-start;font-size:1.7vh;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.4vh .9vw;border-radius:99px;background:var(--sage-t);color:var(--sage)}
+  .opts .free .badge{background:#fbe9c6;color:#8a5a12}
+  .opts small{font-size:1.75vh;color:var(--muted);line-height:1.4}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#fx,.flyers,.glow{display:none}}
 </style>
 <script>document.documentElement.classList.add("js")</script>
@@ -367,7 +378,43 @@
   <div class="foot"><span>Reasons from docs/DECISIONS.md and the build itself; dates from git</span><span></span></div>
 </main>
 
-<!-- 6: try it -->
+<!-- 6: no Meta key -->
+<main class="slide" aria-label="No Meta key? Run it anyway">
+  <header>
+    <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
+    <h1>No Meta key? Run it anyway</h1><small>one line in <code>.env</code> picks the models</small>
+    <span class="brand"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"></span>
+  </header>
+  <div class="row opts">
+    <div class="card free pop" style="--i:1">
+      <span class="badge">Free key</span>
+      <b>Google AI Studio</b>
+      <span>Points, coach, notes and speech on Gemini's free tier.</span>
+      <pre>HALO_GEMINI=text,speech
+GEMINI_API_KEY=your-key</pre>
+      <small>Free tier: gemini-3.1-flash-lite (text), gemini-3.5-transcribe-live (speech). Not free: web fact check and the recap image. Google may use free-tier content to improve its products.</small>
+    </div>
+    <div class="card pop" style="--i:2">
+      <span class="badge">Your own model</span>
+      <b>Local or any OpenAI-style server</b>
+      <span>Point the text engine at Ollama, llama.cpp or any compatible endpoint.</span>
+      <pre>HALO_PRIMARY_BASE_URL=http://127.0.0.1:PORT/v1
+HALO_PRIMARY_MODEL=your-model</pre>
+      <small>Wired in and documented in <code>.env.example</code>; not tried on stage yet. Speech still needs Muse Voice or Gemini.</small>
+    </div>
+    <div class="card pop" style="--i:3">
+      <span class="badge">No key at all</span>
+      <b>Offline, with fakes</b>
+      <span>Fake speech and fake models run the whole pipeline with no network.</span>
+      <pre>HALO_FAKES=1
+uv run pytest backend contracts -q</pre>
+      <small>Good for reading the code, the contracts and the event flow end to end.</small>
+    </div>
+  </div>
+  <div class="foot"><span>Free Gemini key: aistudio.google.com · checked tonight: Halo starts and answers on a Gemini key alone</span><span></span></div>
+</main>
+
+<!-- 7: try it -->
 <main class="slide" aria-label="Try it yourself">
   <header>
     <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
