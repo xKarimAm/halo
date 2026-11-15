@@ -3045,9 +3045,12 @@
     // The extension's one-time welcome page links here with ?tour=1 (Karim 2026-11-04).
     // The flag leaves the address at once, so a reload or a bookmark never restarts it.
     var tourOnce = /[?&]tour=1(&|$)/.test(window.location.search);
+    var tourDemo = /[?&]tour=demo(&|$)/.test(window.location.search);
     if (tourOnce) window.history.replaceState(null, "", window.location.pathname);
     var first = meetingId || idFromPath();
-    if (first) app.openMeeting(first, false);
+    if (first) Promise.resolve(app.openMeeting(first, false)).then(function () {
+      if (tourDemo) setTimeout(function () { startTour(app, TOUR_DEMO); }, 400);
+    });
     else Promise.resolve(app.loadMeetings(false)).then(function () { if (tourOnce) startTour(app); });
     return app;
   }
@@ -3202,12 +3205,42 @@
       "عميل واحد مشترك يتحقق من كل رد مقابل عقود هالو وينتقل للبديل في كل طلب، والمفاتيح تبقى في الخادم ولا تحمل الإضافة أياً منها."] }
   ];
 
-  function startTour(app) {
+  // -- Stage tour: ?tour=demo on a meeting page (Karim 2026-11-16, AI Tinkerers) ------
+  // One sentence per card, Next by Next, for a 3-minute talk. Same engine as Induction;
+  // a step with two strings shows its line with no What/Why/How labels.
+  var TOUR_DEMO = [
+    { en: ["Halo", "A Chrome extension for Google Meet. It listens to the call in Arabic and English, and writes the meeting while you talk."],
+      ar: ["هالو", "إضافة Chrome لـ Google Meet، تستمع للمكالمة بالعربية والإنجليزية وتكتب الاجتماع وأنت تتحدث."] },
+    { en: ["In the call", "Each person's points float beside their video as they speak, with a live coach on the left and fact checks below."],
+      ar: ["أثناء المكالمة", "تظهر نقاط كل شخص بجانب صورته لحظة كلامه، مع مدرب مباشر على اليسار والتحقق من المعلومات في الأسفل."] },
+    { sel: ".mband h1", up: ".mband", en: ["When the call ends", "This page is waiting: a title and a short summary of what happened."],
+      ar: ["عند انتهاء المكالمة", "هذه الصفحة جاهزة: عنوان وملخص قصير لما حدث."] },
+    { sel: ".ucol", up: ".board", en: ["Action items", "Every task, with its owner and how urgent it is. Change any tag; your call wins."],
+      ar: ["المهام", "كل مهمة مع صاحبها ومدى إلحاحها. غيّر أي وسم، وقرارك هو المعتمد."] },
+    { sel: ".c-decision", en: ["Decisions", "What was agreed, each with the exact words and the moment it was said."],
+      ar: ["القرارات", "ما اتُّفق عليه، كل قرار بكلماته الأصلية ولحظة قوله."] },
+    { sel: ".dis", en: ["Disagreements", "Who wanted what, and whether it was settled or parked, so nobody leaves thinking it is decided."],
+      ar: ["الخلافات", "من أراد ماذا، وهل حُسم الأمر أم أُجّل، كي لا يخرج أحد ظاناً أنه حُسم."] },
+    { sel: ".facts", en: ["Fact checks", "Numbers said in the call, checked on the web and against earlier meetings in the same project."],
+      ar: ["التحقق من المعلومات", "أرقام قيلت في المكالمة، يُتحقق منها عبر الويب ومقابل الاجتماعات السابقة في المشروع نفسه."] },
+    { sel: ".coach", en: ["Coach", "Every tip the coach gave during the call: what was missing, and what to say next."],
+      ar: ["المدرب", "كل نصيحة قدمها المدرب أثناء المكالمة: ما الذي كان ناقصاً، وماذا تقول بعدها."] },
+    { sel: ".speaking", en: ["How you spoke", "Only you see this: your share of the talk, your longest stretch, the questions you asked."],
+      ar: ["طريقة كلامك", "لا يراها غيرك: نصيبك من الحديث، وأطول مقطع لك، والأسئلة التي طرحتها."] },
+    { sel: ".recap", en: ["Visual recap", "The whole meeting as one picture, drawn when you ask for it."],
+      ar: ["الملخص المرئي", "الاجتماع كله في صورة واحدة، تُرسم عند طلبك."] },
+    { sel: ".top .seg", en: ["Arabic or English", "One click switches the whole app to Arabic, right to left."],
+      ar: ["العربية أو الإنجليزية", "بنقرة واحدة يتحول التطبيق كله إلى العربية من اليمين إلى اليسار."] },
+    { en: ["You talk. Halo remembers.", "Open source on GitHub: xKarimAm/halo."],
+      ar: ["أنت تتحدث، وهالو يتذكر.", "مفتوح المصدر على GitHub: xKarimAm/halo."] }
+  ];
+
+  function startTour(app, only) {
     var doc = app.doc;
     if (doc.getElementById("tour")) return;
     var lang = app.lang;
-    var steps = app.view === "list" || !app.page ? TOUR_HOME.slice() : TOUR_MEETING.concat(TOUR_END);
-    if (app.view === "list" && !(app.meetings || []).length) steps = TOUR_HOME.filter(function (s) { return !s.open; }).concat(TOUR_END);
+    var steps = only || (app.view === "list" || !app.page ? TOUR_HOME.slice() : TOUR_MEETING.concat(TOUR_END));
+    if (!only && app.view === "list" && !(app.meetings || []).length) steps = TOUR_HOME.filter(function (s) { return !s.open; }).concat(TOUR_END);
     var at = 0;
     var back = doc.activeElement;
     var shade = el("div", "tour");
@@ -3275,7 +3308,8 @@
       var h = el("h2", null, words[0]);
       h.id = "tourTitle";
       card.appendChild(h);
-      [["tourWhat", words[1]], ["tourWhy", words[2]], ["tourHow", words[3]]].forEach(function (row) {
+      if (words.length === 2) card.appendChild(el("p", "tour-line tour-say", words[1]));
+      else [["tourWhat", words[1]], ["tourWhy", words[2]], ["tourHow", words[3]]].forEach(function (row) {
         if (!row[1]) return;
         var p = el("p", "tour-line");
         p.appendChild(el("b", null, t(lang, row[0]) + " "));

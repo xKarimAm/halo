@@ -1071,6 +1071,22 @@ test("(M16) Induction tours the home, carries on into a meeting and ends on the 
   await expect(page.locator("#tour")).toHaveCount(0);
 });
 
+// Karim 2026-11-16 (AI Tinkerers): ?tour=demo opens a one-line-per-card stage tour on a meeting.
+test("(M16b) ?tour=demo walks the meeting one line per card and ends on the catchphrase", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(baseURL + "/?meeting=" + MEETING_ID + "&tour=demo");
+  const card = page.locator(".tour-card");
+  await expect(card.locator("h2")).toHaveText("Halo");
+  await expect(card.locator(".tour-say")).toContainText("Chrome extension for Google Meet");
+  await expect(card).not.toContainText("Why:");
+  for (let i = 0; i < 15 && (await page.locator("#tour").count()); i++) {
+    if ((await card.locator("h2").textContent()) === "You talk. Halo remembers.") break;
+    await card.locator(".pv-open").click();
+  }
+  await expect(card.locator("h2")).toHaveText("You talk. Halo remembers.");
+  await expect(card.locator(".pv-open")).toHaveText("Finish");
+});
+
 test("(M17) Arabic UI keeps English content left to right, dates and roles in Arabic", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const p = JSON.parse(JSON.stringify(GOLDEN));
