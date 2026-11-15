@@ -85,10 +85,11 @@
   .cloud b{font-size:2.4vh;white-space:nowrap} .cloud .later{margin-left:auto;color:var(--muted);white-space:nowrap}
 
   /* 2: why */
-  .why{grid-template-columns:repeat(3,1fr);gap:1.3vw;align-content:start}
+  .why{grid-template-columns:repeat(4,1fr);gap:1.1vw;align-content:start}
   .why .card{padding:1.5vh 1.1vw;border-top:.6vh solid var(--sun)}
-  .why .card b{font-size:2.7vh}
-  .why .card .how{margin-top:.8vh;color:var(--ink);font-size:1.95vh}
+  .why .card b{font-size:2.45vh}
+  .why .card span{font-size:1.95vh}
+  .why .card .how{margin-top:.8vh;color:var(--ink);font-size:1.85vh}
   .why .card .how::before{content:"How we got there: ";font-weight:700}
   .timeline{display:grid;grid-template-columns:repeat(5,1fr);border-top:3px solid var(--sage);padding-top:1.4vh;gap:1vw;margin-top:2vh}
   .timeline div{font-size:2vh;color:var(--muted);position:relative}
@@ -161,11 +162,11 @@
       <div class="lt">In Chrome: the extension</div>
       <div class="row" style="grid-template-columns:1fr 1.25fr 1.2fr">
         <div class="card pop" style="--i:1"><b><i class="n">1</i>Meet tab</b><span>Reads the video tiles and who is speaking right now.</span></div>
-        <div class="card pop" style="--i:2"><b><i class="n">2</i>Audio capture</b><span>Tab audio in an offscreen page, your mic from the Meet tab: two streams, 16 kHz PCM, 100 ms frames.</span></div>
+        <div class="card pop" style="--i:2"><b><i class="n">2</i>Audio capture</b><span>Tab audio in an offscreen page, your mic from the Meet tab: two 16 kHz streams in 100 ms frames, plus a recording stream.</span></div>
         <div class="card pop" style="--i:3"><b><i class="n">7</i>Overlay on Meet</b><span>Points beside each speaker's tile, the coach panel, fact cards.</span></div>
       </div>
     </section>
-    <div class="pipe"><span>↓ <b>audio frames + JSON events</b> over one paired WebSocket on 127.0.0.1</span><span>↑ <b>points, tips, checks</b> back to the overlay</span></div>
+    <div class="pipe"><span>↓ <b>tab audio, mic audio, recording + JSON events</b> over one paired WebSocket on 127.0.0.1</span><span>↑ <b>points, tips, checks</b> back to the overlay</span></div>
     <section class="lane local">
       <div class="lt">On the laptop: Python + FastAPI, one process</div>
       <div class="row flow">
@@ -183,7 +184,7 @@
         <div class="card pop" style="--i:9"><b>Coach</b><span>Listens <em>60 s</em> first, then thinks at most once per <em>45 s</em>.</span></div>
         <div class="card pop" style="--i:10"><b>Fact check</b><span>Gemini on: one model searches, a second one judges.</span></div>
         <div class="card pop" style="--i:11"><b>Classifier</b><span>Every <em>10 s</em>, re-checks new points' kind and urgency.</span></div>
-        <div class="card pop" style="--i:12"><b>Event store</b><span>SQLite + full-text search, on the laptop. The notes service reads it; a recorder keeps the audio.</span></div>
+        <div class="card pop" style="--i:12"><b>Event store</b><span>SQLite + full-text search, on the laptop. The notes service reads it; the recorder writes the recording to disk.</span></div>
         <div class="card pop" style="--i:13"><b><i class="n">8</i>Notes builder</b><span>Call ends: AI title + summary, tasks and decisions from live points.</span></div>
       </div>
       <div class="llm pop" style="--i:14">
@@ -208,6 +209,9 @@
   </header>
   <div>
     <div class="row why">
+      <div class="card pop" style="--i:0"><b>Keep the live path light</b>
+        <span>Audio streams into Muse Voice as it is spoken: one session for your mic, one for the call. Only finished turns go to Spark, and turns that pile up are folded into the next call.</span>
+        <span class="how">Pushing the live stream straight through Spark could not keep up. So the recording is a third stream written straight to disk, and the notes are built from stored events after the call.</span></div>
       <div class="card pop" style="--i:1"><b>Contracts before code</b>
         <span>Every arrow on the diagram is a JSON Schema. Python and TypeScript types are generated from them, and every model reply is schema-checked.</span>
         <span class="how">Everything depends on them, so one agent wrote them first and nobody else coded until they were done.</span></div>
@@ -225,9 +229,12 @@
         <span class="how">Choosing that saved about 8-10 agent-hours of plumbing.</span></div>
       <div class="card pop" style="--i:6"><b>Test without a live call</b>
         <span>A fake Meet page, fake speech and fake models, and a replayer for recorded calls, built alongside the first modules.</span>
-        <span class="how">The full chain, audio to bubble, had to pass on the rig before going live. Measured on day 0: Spark's median was 2.7&nbsp;s against a ~3&nbsp;s target.</span></div>
+        <span class="how">The full chain, audio to bubble, had to pass on the rig before going live.</span></div>
+      <div class="card pop" style="--i:7"><b>Measure first</b>
+        <span>Day-0 probes before any module: Spark's median was 2.7&nbsp;s on a live-points prompt, against a ~3&nbsp;s target from pause to point.</span>
+        <span class="how">The probes fixed the fallbacks up front: a slow model fails over; weak Arabic speech would mean an English-leaning demo.</span></div>
     </div>
-    <div class="timeline pop" style="--i:7">
+    <div class="timeline pop" style="--i:8">
       <div><b>Oct 30, evening</b>Diagram, decisions, repo skeleton</div>
       <div><b>Oct 31, 00:41</b>All contracts done</div>
       <div><b>Oct 31, 01:38</b>Fake Meet page + replayer</div>
@@ -235,7 +242,7 @@
       <div><b>Nov 5</b>v1.0.0 tagged</div>
     </div>
   </div>
-  <div class="foot"><span>Reasons from docs/DECISIONS.md; dates from git</span><span></span></div>
+  <div class="foot"><span>Reasons from docs/DECISIONS.md and the build itself; dates from git</span><span></span></div>
 </main>
 
 <!-- 3: set up and run -->
