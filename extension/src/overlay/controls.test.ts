@@ -395,6 +395,18 @@ describe("meeting coach panel", () => {
     expect(panel.hidden).toBe(true);
   });
 
+  it("shows the read line above the tips, and a read alone still opens the panel", () => {
+    const { deliver } = setup();
+    const panel = $<HTMLElement>(".halo-coach");
+    const read = $<HTMLElement>(".halo-coach-read");
+    deliver(tips("c1", ["Open with the goal."]));
+    expect(read.hidden).toBe(true);
+    deliver({ id: "c2", type: "coach.tips", data: { read: "Opening: no topic yet.", tips: [], lang: "en" } });
+    expect(panel.hidden).toBe(false);
+    expect(read.hidden).toBe(false);
+    expect(read.textContent).toBe("Opening: no topic yet.");
+  });
+
   it("dismisses until the next tips, hides with Alt+H, and sets Arabic direction", () => {
     const { overlay, deliver, refresh } = setup();
     deliver(tips("c1", ["One."]));

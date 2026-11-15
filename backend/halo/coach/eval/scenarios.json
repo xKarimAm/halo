@@ -614,5 +614,74 @@
       {"after_turn": 11, "why_now": "new words", "ideal": "No alert; Karim is reading the coach aloud.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."},
       {"after_turn": 15, "why_now": "new words", "ideal": "No alert; a test line repeated by one person is not circling.", "must_not": "Any alert. Two people testing the app: a short 'No, wait', a camera aside, reading the coach aloud, repeating a test line."}
     ]
+  },
+  {
+    "id": "rambling-opening-then-monologue",
+    "about": "Karim 2026-11-16: the viewer opens with mic checks and side chat and no topic, then talks alone at length with no question. The read should name the missing opening; tips should give an opening line and delivery feedback, never polish a mic-check line.",
+    "self_name": "Karim",
+    "people": [
+      "Karim",
+      "Layla",
+      "Omar"
+    ],
+    "context": {
+      "subject": "APP status",
+      "agenda": [],
+      "roles": [
+        {
+          "name": "Karim",
+          "role": "Technical product manager"
+        }
+      ],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      [
+        "Karim",
+        "Can anyone hear me in this call?"
+      ],
+      [
+        "Karim",
+        "Can anyone hear me?"
+      ],
+      [
+        "Karim",
+        "Hey, now it's working. That is pretty great."
+      ],
+      [
+        "Karim",
+        "That is pretty great."
+      ],
+      [
+        "Layla",
+        "Yes, we hear you."
+      ],
+      [
+        "Karim",
+        "Okay, um, so basically, yeah, give me one second, my coffee is here."
+      ],
+      [
+        "Omar",
+        "No worries."
+      ],
+      [
+        "Karim",
+        "So, um, basically the app, you know, we have been working on a lot of things, the overlay, the notes, the coach, and also some backend stuff, and I think it is mostly good, there are some bugs, and we fixed the pairing, and also the fact check now uses Gemini, and kind of the image thing, and I mean we should probably talk about the launch at some point, and the pricing too, and also the QA team said something last week but I don't remember exactly what."
+      ],
+      [
+        "Karim",
+        "And yeah, also the dashboard, we need to decide on that, and basically the free plan and the limits, so there's a lot, um, and I think the main thing is we want to launch soon."
+      ]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 6,
+        "why_now": "new words"
+      },
+      {
+        "after_turn": 9,
+        "why_now": "new words"
+      }
+    ]
   }
 ]

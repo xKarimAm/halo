@@ -34,18 +34,20 @@ MAX_WORDS = 2000  # newest words only; shorter input, faster call
 COACH_TIMEOUT_S = 8.0  # live 2026-11-04: 14 coach timeouts at 4 s, each demoting live points for 30 s
 ALERT_GAP_S = 180.0  # live 2026-11-04: at most one alert per 3 minutes
 MAX_SAID = 12  # earlier tips kept in the prompt so they are not reworded (live 2026-11-04)
-PROMPT_CACHE_KEY = "coach-v4"
+PROMPT_CACHE_KEY = "coach-v5"
 
 TIPS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
+        # Karim 2026-11-16: "tell me what is going on"; one line above the tips.
+        "read": {"type": "string", "maxLength": 160},
         "tips": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 160},
                  "maxItems": 3},
         "alert": {"type": "string", "maxLength": 80},
         # The exact words that prove the alert; no match in the transcript, no alert.
         "alert_quote": {"type": "string", "maxLength": 120},
     },
-    "required": ["tips", "alert", "alert_quote"],
+    "required": ["read", "tips", "alert", "alert_quote"],
     "additionalProperties": False,
 }
 
@@ -77,8 +79,23 @@ INSTRUCTIONS = (
     "others. Not an alert: disagreement, a firm no, a joke, testing the app, "
     "reading text aloud, or one short interruption. Never add a name, owner "
     "or date nobody said. An empty alert has an empty alert_quote.\n"
-    "tips: 0 to 3, each one sentence of at most 16 words ending with a "
-    "period. Each tip names one concrete item from the recent words: a "
+    # Karim 2026-11-16: tips felt superficial ("keep one That is pretty great").
+    "read: one sentence of at most 20 words on what is going on right now, "
+    "from the viewer's side: the stage (opening, discussion, deciding, "
+    "wrap-up), the topic in their words, and the one thing missing. Use the "
+    "speech numbers; give minutes only when they list them. Talk to the "
+    "viewer as you. Opening with mic checks, small talk or side chat and no "
+    "topic yet: say so (Opening: mic checks and side chat; no topic or goal "
+    "yet.). Empty only when nothing has been said.\n"
+    "tips: 0 to 3 constructive tips, each ONE sentence of at most 20 words "
+    "ending with a period: what you noticed, then what to do next, with the "
+    "words to say when it helps (No goal stated yet: open with 'Today we "
+    "decide the launch date.'). Feedback on the viewer's own speaking "
+    "counts: a long monologue, no questions asked, filler, the main point "
+    "buried, an ask with no deadline. Quote the speech numbers only as "
+    "given. Never praise, never echo a line back to polish it; mic checks "
+    "and side chat are an opening problem, not lines to edit. Each tip "
+    "names one concrete item from the recent words: a "
     "number, a claim nobody has checked (on paper, a guess, from the docs), "
     "a question nobody answered, an option nobody named, a decision with no "
     "owner or date, someone who has not spoken. Role gaps: for a product "
@@ -91,21 +108,27 @@ INSTRUCTIONS = (
     "while an item is open, tip on it now; a vague follow-up needs a date. "
     "Silence after a "
     "question is thinking time: wait, then rephrase it or ask one person.\n"
-    "Return empty tips when the previous tips still fit or everything is "
-    "settled; never repeat or reword a previous tip. Write the tips and the "
-    "whole alert, its lead-in too, in the viewer language (Arabic: تدخل: …)."
+    "tips is the whole list the viewer sees next: keep a tip on screen word "
+    "for word while it still applies, drop it once it is settled, add one "
+    "only for a new item; never reword a tip or bring back one shown "
+    "earlier. Everything settled: empty tips. Write the tips and the "
+    "whole alert, its lead-in too, and the read in the viewer language "
+    "(Arabic: تدخل: …)."
 )
 # Live 2026-11-04 (alone, testing): "open with the one number" he never said,
 # "drop the Arabic aside", his own sentences echoed back as orders.
+# Karim 2026-11-16: alone and rambling, he wants the read and real feedback on delivery.
 REHEARSAL = ("The viewer is alone in the call, rehearsing or testing: names are the "
              "future audience, so never tell them to ask or invite anyone, and a "
-             "silence is a break (empty tips). Tips only on how they said their own "
-             "words: put their main point first, cut filler, keep the stronger of two "
-             "versions of a line. Never ask for a number, fact or deadline they did not "
-             "say. Mixing Arabic and English is normal: never tip on language. Never "
-             "turn their sentence into an order. Each kind of tip (main point first, "
-             "cut filler, keep a line) at most once per meeting. Most moments need "
-             "no tip: return empty tips unless one would change what they say next.")
+             "silence is a break (empty tips). Coach their delivery: a clear opening "
+             "(topic and goal in the first minute), main point first, structure, "
+             "pace, filler, one idea per sentence. Never ask for a number, fact or "
+             "deadline they did not say. Mixing Arabic and English is normal: never "
+             "tip on language. Never turn their sentence into an order. Each kind of "
+             "tip at most once per meeting. Alone, talk share and questions asked "
+             "say nothing: never tell them to invite, ask or let anyone speak.")
+SHARE_MIN_WORDS = 80  # ponytail: talk share means little before about half a minute of talk
+FILLER = re.compile(r"\b(um+|uh+|erm|you know|basically|kind of|sort of|i mean)\b|يعني", re.IGNORECASE)
 
 
 def _norm(text: str) -> str:
@@ -129,6 +152,9 @@ class Coach:
         self._silence = silence_s
         self._max_words = max_words
         self._turns: dict[str, list[tuple[str, str]]] = {}
+        self._spoken_ms: dict[str, dict[str, int]] = {}  # per speaker, from turn times
+        self._span: dict[str, list[int]] = {}  # first start, last end (ms)
+        self._reads: dict[str, str] = {}
         self._contexts: dict[str, dict[str, Any]] = {}
         self._self_names: dict[str, str] = {}
         self._people: dict[str, list[str]] = {}  # who is in the call (Meet tiles)
@@ -171,7 +197,14 @@ class Coach:
             return
         text = str(data.get("text", "")).strip()
         if text and meetingid not in self._ended:
-            self._turns.setdefault(meetingid, []).append((str(data.get("name") or "?"), text))
+            name = str(data.get("name") or "?")
+            self._turns.setdefault(meetingid, []).append((name, text))
+            start, end = int(data.get("ts_start_ms") or 0), int(data.get("ts_end_ms") or 0)
+            if end > start:
+                spoken = self._spoken_ms.setdefault(meetingid, {})
+                spoken[name] = spoken.get(name, 0) + end - start
+                span = self._span.setdefault(meetingid, [start, end])
+                span[0], span[1] = min(span[0], start), max(span[1], end)
             self._due.add(meetingid)
             self._last_turn[meetingid] = self._clock()
             self._silence_spent.discard(meetingid)
@@ -205,7 +238,7 @@ class Coach:
         if not isinstance(meetingid, str):
             return
         self._ended.add(meetingid)
-        for store in (self._turns, self._contexts, self._self_names, self._tips, self._said, self._people, self._alerts,
+        for store in (self._turns, self._spoken_ms, self._span, self._reads, self._contexts, self._self_names, self._tips, self._said, self._people, self._alerts,
                       self._last_alert, self._shown_alerts,
                       self._last_turn, self._last_call):
             store.pop(meetingid, None)
@@ -255,15 +288,25 @@ class Coach:
             alert = ""  # nobody to talk over
         if _alert_kind(alert) in self._alerts.get(meetingid, set()):
             alert = ""  # eval: the same alert kind, reworded, fired loop after loop
-        if not tips and not alert:
-            return  # nothing new for the viewer: the panel keeps its tips
+        read = str(data.get("read") or "").strip()[:160]
+        if not read and not tips and not alert:
+            return  # an empty reply: the panel keeps what it shows
+        if alert and not tips:
+            tips = self._tips.get(meetingid, [])  # an alert rides on the tips on screen
+        read = read or self._reads.get(meetingid, "")
+        # Blind eval 2026-11-16: carried-over tips contradicted a new read ("all
+        # settled"), so the reply is the whole list now and empty tips clear it.
+        if not alert and tips == self._tips.get(meetingid, []) and read == self._reads.get(meetingid):
+            return  # nothing changed on screen
+        self._reads[meetingid] = read
         said = self._said.setdefault(meetingid, [])
         said.extend(t for t in tips if t not in said)
         del said[:-MAX_SAID]
-        tips = tips or self._tips.get(meetingid, [])
         self._tips[meetingid] = tips
         lang = self._contexts.get(meetingid, {}).get("viewer_lang", "en")
         payload: dict[str, Any] = {"tips": tips, "lang": lang if lang in ("en", "ar") else "en"}
+        if read:
+            payload["read"] = read
         if alert:
             payload["alert"] = alert
             self._alerts.setdefault(meetingid, set()).add(_alert_kind(alert))
@@ -311,7 +354,10 @@ class Coach:
                 f"{r.get('name')} ({r.get('role')})" if r.get("role") else str(r.get("name"))
                 for r in roles))
         if self._said.get(meetingid):
-            lines.append("Previous tips: " + " ".join(self._said[meetingid]))
+            lines.append("Tips shown earlier: " + " ".join(self._said[meetingid]))
+        if self._tips.get(meetingid):
+            lines.append("Tips on screen now: " + " | ".join(self._tips[meetingid]))
+        lines.append(self.speech(meetingid))
         lines.append(f"Why now: {reason}")
         lines.append("The meeting so far:")
         kept: list[str] = []
@@ -323,3 +369,30 @@ class Coach:
             kept.append(f"{name}{' (you)' if me and name == me else ''}: {text}")
         lines.extend(reversed(kept))
         return "\n".join(lines)
+
+    def speech(self, meetingid: str) -> str:
+        """Speech numbers for the read and the delivery tips (Karim 2026-11-16).
+        Counted from words, so they hold without turn times (the eval has none);
+        minutes and pace come from the turn times when there are any.
+        ponytail: a fixed filler list; "like" is left out on purpose (too often real)."""
+        turns = self._turns.get(meetingid, [])
+        me = self._self_names.get(meetingid, "")
+        words = sum(len(t.split()) for _, t in turns)
+        mine = [t for n, t in turns if me and n == me]
+        my_words = sum(len(t.split()) for t in mine)
+        run = longest = 0
+        for name, text in turns:
+            run = run + len(text.split()) if me and name == me else 0
+            longest = max(longest, run)
+        parts = [f"your longest unbroken stretch {longest} words",
+                 f"questions you asked {sum(t.count('?') + t.count('؟') for t in mine)}",
+                 f"filler words {sum(len(FILLER.findall(t)) for t in mine)}"]
+        if words >= SHARE_MIN_WORDS:  # eval: "you spoke 100%, ask Sara" three lines in
+            parts.insert(0, f"you said {round(100 * my_words / words)}% of {words} words")
+        span = self._span.get(meetingid)
+        if span:
+            parts.insert(0, f"{(span[1] - span[0]) / 60000:.0f} min in")
+            my_ms = self._spoken_ms.get(meetingid, {}).get(me, 0)
+            if my_ms >= 20000:
+                parts.append(f"your pace {my_words / (my_ms / 60000):.0f} words per minute")
+        return "Speech so far: " + "; ".join(parts) + "."

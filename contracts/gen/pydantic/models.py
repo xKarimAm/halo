@@ -47,6 +47,7 @@ class ClaimChecked(BaseModel):
 class CoachTips(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
+    read: str | None = None
     tips: list[str]
     alert: str | None = None
     lang: Literal["en", "ar"]

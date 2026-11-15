@@ -25,7 +25,7 @@ How to use each one: [user guide](USER-GUIDE.md). A per-commit log is in [demo/f
 | Halo menu | One pill at the top centre: points language and the colour/glyph legend. | Tested |
 | Hide everything | Alt+H hides or shows all bubbles. | Tested |
 | Notes toast | "Meeting notes are ready" with a link when the meeting ends. | Tested |
-| Live coach | A side panel with 0 to 3 tips on steering the meeting (a decision with no owner, an unanswered question, someone who hasn't spoken) and a short alert when you should act now. Alone in a call, it coaches a rehearsal. Tuned in blind-judged loops on 10 scripted meetings. | Tested |
+| Live coach | A side panel with a one-line read of what is going on, then 0 to 3 constructive tips on steering the meeting and on your own delivery (a decision with no owner, an unanswered question, someone who hasn't spoken) and a short alert when you should act now. Alone in a call, it coaches a rehearsal. Tuned in blind-judged loops on 10 scripted meetings. | Tested |
 | Faster points | Points start at the speaker's pause, not the end of the sentence. | Tested |
 | Halo mode | The name floats above the speaker's head and the bubbles sit beside the face, from SAM 3.1 on your own GPU. | Optional (NVIDIA GPU), tested |
 

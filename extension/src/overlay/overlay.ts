@@ -140,7 +140,7 @@ export class Overlay {
   status: unknown = null;
   notesToast: unknown = null;
   // Meeting coach (coach.tips): the newest 0-3 tips + optional alert; null until the first.
-  coach: { tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
+  coach: { read?: string; tips: string[]; alert?: string; lang: "en" | "ar" } | null = null;
   // Fact Check (claim.checked): every claim checked this meeting, newest first, until dismissed.
   factChecks: FactCheckCard[] = [];
   perFace = 3;

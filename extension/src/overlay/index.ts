@@ -374,7 +374,9 @@ export function mountControls(
   coachHead.append(make("span", "", "Coach"), closeCoach);
   const alert = make("p", "halo-coach-alert");
   alert.setAttribute("role", "alert");
-  coach.append(coachHead, alert, tipList);
+  // Karim 2026-11-16: one line on what is going on, above the tips.
+  const read = make("p", "halo-coach-read");
+  coach.append(coachHead, alert, read, tipList);
   doc.body.append(coach);
 
   // Fact checks (Spark web search): lower left, above Meet's controls. Each
@@ -418,13 +420,15 @@ export function mountControls(
     toast.hidden = href === null;
     if (href) link.href = href;
     const tips = overlay.coach;
-    coach.hidden = !tips || (!tips.tips.length && !tips.alert) || overlay.hidden || !overlay.show.coach || tips === dismissedTips;
+    coach.hidden = !tips || (!tips.tips.length && !tips.alert && !tips.read) || overlay.hidden || !overlay.show.coach || tips === dismissedTips;
     if (tips && tips !== shownTips) {
       shownTips = tips;
       coach.dir = tips.lang === "ar" ? "rtl" : "ltr";
       coach.lang = tips.lang;
       alert.textContent = tips.alert ?? "";
       alert.hidden = !tips.alert;
+      read.textContent = tips.read ?? "";
+      read.hidden = !tips.read;
       tipList.replaceChildren(...tips.tips.map((t) => make("li", "", t)));
     }
     facts.hidden = !overlay.factChecks.length || overlay.hidden || !overlay.show.facts;

@@ -31,6 +31,7 @@ export interface ClaimChecked {
 }
 
 export interface CoachTips {
+  read?: string;
   tips: string[];
   alert?: string;
   lang: "en" | "ar";

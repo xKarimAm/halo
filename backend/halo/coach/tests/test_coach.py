@@ -93,7 +93,7 @@ def test_new_words_call_within_seconds_but_at_most_once_per_gap():
         assert len(llm.prompts) == 1  # inside the gap: waits
         clock.now += 1
         await coach.tick()
-        assert len(tips) == 2 and "Previous tips: One." in llm.prompts[1]
+        assert len(tips) == 2 and "Tips shown earlier: One." in llm.prompts[1]
         await coach.tick()
         assert len(llm.prompts) == 2  # nothing new: no call
 
@@ -338,3 +338,62 @@ def test_a_coach_call_gets_more_time_than_a_live_point():
         assert llm.timeouts == [COACH_TIMEOUT_S] and COACH_TIMEOUT_S >= 8
 
     asyncio.run(run())
+
+
+def test_the_read_line_shows_what_is_going_on_and_updates_alone():
+    # Karim 2026-11-16: "tell me what the introduction is and what is going on".
+    async def run():
+        bus, _llm, coach, tips, clock = setup([
+            {"read": "Opening: mic checks, no topic yet.", "tips": ["Open with the goal."], "alert": "",
+             "alert_quote": ""},
+            {"read": "Opening: mic checks, no topic yet.", "tips": ["Open with the goal."], "alert": "",
+             "alert_quote": ""},
+            {"read": "Deciding the launch date; no owner yet.", "tips": ["Ask who owns it."], "alert": "",
+             "alert_quote": ""},
+            {"read": "Settled: launch on the 15th, Layla owns it.", "tips": [], "alert": "", "alert_quote": ""}])
+        for n, text in enumerate(["Can you hear me?", "Hello hello", "We launch on the fifteenth.", "Layla owns it."],
+                                 start=2):
+            await bus.publish(turn(text, n=n))
+            await coach.tick()
+            clock.now += MIN_GAP_S
+        # The second reply changes nothing on screen; empty tips with a new read clear the list
+        # (blind eval 2026-11-16: carried-over tips contradicted an "all settled" read).
+        assert [t["data"] for t in tips] == [
+            {"read": "Opening: mic checks, no topic yet.", "tips": ["Open with the goal."], "lang": "en"},
+            {"read": "Deciding the launch date; no owner yet.", "tips": ["Ask who owns it."], "lang": "en"},
+            {"read": "Settled: launch on the 15th, Layla owns it.", "tips": [], "lang": "en"}]
+        assert "Tips on screen now: Ask who owns it." in _llm.prompts[3]
+        assert all(validate_envelope(t) == [] for t in tips)
+
+    asyncio.run(run())
+
+
+def test_the_prompt_carries_speech_numbers_for_the_viewer():
+    async def run():
+        bus, llm, coach, _tips, _clock = setup([{"read": "", "tips": [], "alert": "", "alert_quote": ""}])
+        await bus.publish(env("meeting.started", {
+            "meeting_id": MEETING, "platform": "meet", "meeting_code": "abc-defg-hij",
+            "t0_ms": 0, "self_name": "Karim"}, 89))
+        await bus.publish(env("turn.attributed", {
+            "turn_id": "00000000-0000-4000-8000-000000000002", "text": "Um so basically we ship it, you know",
+            "lang": "en", "ts_start_ms": 0, "ts_end_ms": 30000, "tile_id": "t0", "name": "Karim",
+            "attribution": "provisional", "overlap": False}, 2))
+        await bus.publish(env("turn.attributed", {
+            "turn_id": "00000000-0000-4000-8000-000000000003", "text": "When?", "lang": "en",
+            "ts_start_ms": 90000, "ts_end_ms": 91000, "tile_id": "t1", "name": "Layla",
+            "attribution": "provisional", "overlap": False}, 3))
+        await coach.tick()
+        line = next(x for x in llm.prompts[0].splitlines() if x.startswith("Speech so far"))
+        assert line == ("Speech so far: 2 min in; your longest unbroken stretch "
+                        "8 words; questions you asked 0; filler words 3; your pace 16 words per minute.")
+
+    asyncio.run(run())
+
+
+def test_talk_share_shows_only_after_enough_words():
+    _bus, _llm, coach, _tips, _clock = setup([])
+    coach._self_names[MEETING] = "Karim"
+    coach._turns[MEETING] = [("Karim", "word " * 60), ("Layla", "word " * 20)]
+    assert "you said 75% of 80 words" in coach.speech(MEETING)
+    coach._turns[MEETING] = [("Karim", "word " * 30)]
+    assert "you said" not in coach.speech(MEETING)

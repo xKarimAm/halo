@@ -13,6 +13,7 @@ Every feature and small detail with the commit that added it, kept for the demo 
 | Colour = urgency | Red urgent, amber medium, blue later, as a tab on each bubble; kind is a glyph (• point, ? question, ✓ decision, ≠ pushback). | 2026-11-01 |
 | Urgent stays | Urgent points stay on screen until you click them and press Archive; others fade after 60 s. | 2026-11-01 |
 | Original quote | Click a bubble: kind, speaker, the point and the exact words said, in their own script direction (Arabic right-to-left). | earlier |
+| Coach read line | One sentence at the top of the coach panel on what is going on: the stage, the topic, and what is missing ("Opening: mic checks and side chat; no topic or goal yet."). Tips now say what happened, then what to do, with words to say, and coach your own delivery (monologue, no questions, filler). | coach v5, 2026-11-16 |
 | Meeting coach | A left-side panel with 1-3 tips on steering the meeting (a decision with no owner, a question nobody answered, someone who has not spoken), from the model reading the whole meeting so far, about once a minute. x hides it until the next tips. | f4c5985 (not yet live-checked) |
 | Faster points | Points start the moment the speaker pauses (no waiting for 8 words or a full stop) with a shorter model reply: about 1.5-2 s sooner per point. One-word transcript scraps ("Can" / "anyone hear") are gone: a pause cut needs 3 words. | e95e150 (not yet live-checked) |
 | Points language | Switch points between English and Arabic mid-meeting from the Halo menu. | earlier |

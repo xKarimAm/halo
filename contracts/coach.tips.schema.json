@@ -2,9 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://halo.local/contracts/coach.tips",
   "title": "coach.tips",
-  "description": "Meeting coach: 0-3 short tips on how to steer the meeting, plus an optional alert (a short command to the viewer, e.g. 'De-escalate now.') when a moment needs action now. Sent within seconds of new words or a long silence; each new event replaces the last.",
+  "description": "Meeting coach: an optional one-sentence read of what is going on, 0-3 short constructive tips on how to steer the meeting, plus an optional alert (a short command to the viewer, e.g. 'De-escalate now.') when a moment needs action now. Sent within seconds of new words or a long silence; each new event replaces the last.",
   "type": "object",
   "properties": {
+    "read": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "What is going on right now, in one sentence (stage, topic, what is missing). Karim 2026-11-16."
+    },
     "tips": {
       "type": "array",
       "items": {

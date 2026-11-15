@@ -81,6 +81,8 @@ export const OVERLAY_CSS = `
 .halo-coach-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600;letter-spacing:.02em;color:${HALO_GOLD}}
 .halo-coach-alert{margin:0 0 8px;padding:6px 9px;border-radius:9px;background:${URGENCY_COLORS.urgent};color:#fff;font-weight:700;font-size:13px}
 .halo-coach-alert[hidden]{display:none}
+.halo-coach-read{margin:0 0 8px;color:#f5f7fa;opacity:.85;font-style:italic}
+.halo-coach-read[hidden]{display:none}
 .halo-coach ul{margin:0;padding-inline-start:16px;display:flex;flex-direction:column;gap:6px}
 .halo-facts{position:fixed;left:12px;bottom:92px;z-index:2147483647;width:min(280px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px}
 .halo-facts[hidden]{display:none}
