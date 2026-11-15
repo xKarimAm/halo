@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Halo slides</title>
-<!-- Halo talk slides: title, architecture, why, set up + run. Open in Chrome, F11, arrows or Space to move.
-     brand/aitinkerers-doha.png is the event's logo; it is not in the repo (their trademark), so the page hides it when missing. -->
+<!-- Halo talk slides. Open in Chrome, F11. Space, Right arrow, Page Down or a click: next build step, then the next slide.
+     Left arrow / Page Up: back. #3 in the address opens slide 3. brand/aitinkerers-doha.png is the event's logo; it is not
+     in the public repo, so the page hides it when missing. -->
 <style>
   :root{
     --bg:#fbf5ec; --ink:#2a2924; --muted:#6b6358; --line:#e6dccb; --card:#fffdf9;
@@ -13,111 +14,154 @@
     --shadow:0 .5vh 2.2vh #7a5a3a14, 0 .1vh .3vh #7a5a3a12;
   }
   *{box-sizing:border-box}
-  html{scroll-snap-type:y mandatory}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
-  .slide{width:100vw;height:100vh;padding:2.6vh 3.4vw;display:grid;grid-template-rows:auto 1fr auto;gap:1.4vh;
-    scroll-snap-align:start;position:relative;overflow:hidden}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden}
+  .slide{width:100vw;height:100vh;padding:2.6vh 3.4vw;grid-template-rows:auto 1fr auto;gap:1.6vh;position:relative;overflow:hidden;display:none}
+  .slide.on{display:grid}
   .slide::after{content:"";position:absolute;inset:auto -10vw -30vh auto;width:60vw;height:60vh;border-radius:50%;
     background:radial-gradient(closest-side,#f6dfb855,transparent);pointer-events:none;z-index:-1}
   header{display:flex;align-items:center;gap:1.2vw}
   header h1{margin:0;font-size:5vh;letter-spacing:-.02em}
   header small{color:var(--muted);font-size:2.5vh}
-  header .brand{margin-left:auto;display:flex;align-items:center;gap:1vw;color:var(--muted);font-size:1.9vh}
-  header .brand img{height:2.4vh}
+  header .brand{margin-left:auto}
+  header .brand img{height:2.4vh;display:block}
   .icon{width:6vh;height:6vh;overflow:visible;flex:none}
   .ring{transform-box:fill-box;transform-origin:center;animation:ring 3.6s ease-out infinite}
   .ring.b{animation-delay:1.2s}.ring.c{animation-delay:2.4s}
   @keyframes ring{0%{transform:scale(.5);opacity:.8}100%{transform:scale(3.4);opacity:0}}
-  .card{background:var(--card);border:1.5px solid var(--line);border-radius:1.4vh;padding:1.2vh 1vw;box-shadow:var(--shadow)}
-  .card b{display:block;font-size:2.6vh;margin-bottom:.4vh}
-  .card span{font-size:2.1vh;color:var(--muted);line-height:1.35;display:block}
+  .card{background:var(--card);border:1.5px solid var(--line);border-radius:1.4vh;padding:1.3vh 1vw;box-shadow:var(--shadow)}
+  .card b{display:block;font-size:2.7vh;margin-bottom:.4vh}
+  .card span{font-size:2.15vh;color:var(--muted);line-height:1.35;display:block}
   em{font-style:normal;color:var(--clay);font-weight:650;white-space:nowrap}
   code{font-family:Consolas,ui-monospace,monospace;font-size:.92em;background:#7a5a3a12;padding:0 .3em;border-radius:.4em}
   .n{display:inline-grid;place-items:center;width:3vh;height:3vh;border-radius:50%;background:var(--sage);color:#fff;
     font-size:1.8vh;font-weight:700;margin-right:.5vw;font-style:normal;vertical-align:.2vh}
   .row{display:grid;gap:1vw;align-items:stretch}
   .foot{display:flex;justify-content:space-between;color:var(--muted);font-size:1.8vh}
+  .progress{position:fixed;left:0;bottom:0;height:.5vh;background:var(--sage);transition:width .4s ease;z-index:9}
 
-  /* entrances: only when JS runs (html.js), so a no-JS view shows everything */
-  html.js .slide .pop{opacity:0;transform:translateY(1.6vh) scale(.98)}
-  html.js .slide.in .pop{animation:pop .55s cubic-bezier(.22,1,.36,1) forwards;animation-delay:calc(var(--i,0) * 70ms)}
-  @keyframes pop{to{opacity:1;transform:none}}
+  /* build steps: hidden until the deck reaches them (only with JS, so a no-JS view shows all) */
+  html.js [data-step]{opacity:0;transform:translateY(1.8vh) scale(.98);transition:opacity .5s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+  html.js [data-step].shown{opacity:1;transform:none}
+  .on .pop{animation:pop .6s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 80ms)}
+  @keyframes pop{from{opacity:0;transform:translateY(1.6vh) scale(.97)}}
 
-  /* 0: title */
-  .title{grid-template-rows:auto 1fr auto;background:radial-gradient(120vh 90vh at 18% 35%,#fff3df,transparent 70%),
-    radial-gradient(90vh 70vh at 85% 80%,#f3e2c9,transparent 70%),var(--bg)}
+  /* title */
+  .title{background:radial-gradient(120vh 90vh at 18% 35%,#fff3df,transparent 70%),radial-gradient(90vh 70vh at 85% 80%,#f3e2c9,transparent 70%),var(--bg)}
   .title .hero{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4vw;padding:0 3vw}
   .title .big{width:30vh;height:30vh;overflow:visible;animation:float 6s ease-in-out infinite}
   @keyframes float{50%{transform:translateY(-1.4vh) rotate(-1.5deg)}}
   .title h1{font-size:15vh;margin:0;letter-spacing:-.04em;line-height:.9}
-  .title .tag{font-size:4.2vh;margin:1.6vh 0 2.4vh;color:var(--ink)}
-  .title .hi{font-size:3vh;color:var(--muted);line-height:1.5}
+  .title .tag{font-size:4.2vh;margin:1.6vh 0 2.4vh}
+  .title .hi{font-size:3vh;color:var(--muted);line-height:1.5;max-width:60vw}
   .title .hi b{color:var(--ink)}
-  .title .event{display:flex;align-items:center;gap:1.4vw;font-size:2.4vh;color:var(--muted)}
-  .title .event img{height:4.2vh}
+  .event{display:flex;align-items:center;gap:1.4vw;font-size:2.4vh;color:var(--muted)}
+  .event img{height:4.2vh}
   .chips{display:flex;gap:1vw;flex-wrap:wrap;margin-top:2.6vh}
   .chip{display:inline-flex;align-items:center;gap:.6vw;background:#fff;border:1.5px solid var(--line);border-radius:99px;
     padding:.8vh 1.2vw .8vh .8vw;font-size:2.2vh;box-shadow:var(--shadow);animation:bob 5s ease-in-out infinite}
-  .chip i{display:grid;place-items:center;width:3vh;height:3vh;border-radius:50%;font-style:normal;font-weight:700;color:#1d1b18;font-size:1.8vh}
+  .chip i{display:grid;place-items:center;width:3vh;height:3vh;border-radius:50%;font-style:normal;font-weight:700;font-size:1.8vh}
   .chip:nth-child(2){animation-delay:.6s}.chip:nth-child(3){animation-delay:1.2s}.chip:nth-child(4){animation-delay:1.8s}
   @keyframes bob{50%{transform:translateY(-.6vh)}}
 
-  /* 1: architecture */
-  .stack{display:grid;grid-template-rows:auto auto auto;gap:1.2vh;align-content:space-between}
-  .lane{border:2px solid;border-radius:1.6vh;padding:1.9vh 1.1vw 1.4vh;position:relative}
-  .lane>.lt{position:absolute;top:-1.5vh;left:1.1vw;background:var(--bg);padding:0 .6vw;font-weight:700;font-size:1.9vh;
-    letter-spacing:.05em;text-transform:uppercase;border-radius:.6vh}
+  /* in the call: a Meet-like mock, Halo's overlay styles on dark tiles */
+  .meet{position:relative;background:#202124;border-radius:2vh;padding:2vh;display:grid;grid-template-columns:2.2fr 1fr;gap:1.6vh;height:100%;
+    max-height:74vh;box-shadow:0 1.6vh 5vh #3a2a1a2e}
+  .tile{position:relative;border-radius:1.4vh;background:linear-gradient(160deg,#3c4043,#2b2d30);display:grid;place-items:center;overflow:hidden}
+  .tile.speaking{outline:.45vh solid #8ab4f8}
+  .tile .face{width:18vh;height:18vh;border-radius:50%;display:grid;place-items:center;font-size:8vh;font-weight:600;color:#fff}
+  .tile .name{position:absolute;left:1.4vh;bottom:1.2vh;color:#fff;font-size:2vh;font-weight:600}
+  .tile .wave{position:absolute;right:1.4vh;top:1.4vh;display:flex;gap:.4vh;align-items:end;height:2.4vh}
+  .tile .wave i{width:.5vh;background:#8ab4f8;border-radius:.3vh;animation:wave 1s ease-in-out infinite}
+  .tile .wave i:nth-child(2){animation-delay:.2s}.tile .wave i:nth-child(3){animation-delay:.4s}
+  @keyframes wave{0%,100%{height:30%}50%{height:100%}}
+  .side{display:grid;grid-template-rows:1fr 1fr;gap:1.6vh}
+  .bubbles{position:absolute;left:1.6vh;top:1.6vh;display:grid;gap:.8vh;justify-items:start}
+  .bub{display:flex;align-items:center;gap:.7vh;background:#ffffffe6;color:#1d1b18;border:.25vh solid #111;border-radius:99px;
+    padding:.6vh 1.2vh .6vh .6vh;font-size:2vh;box-shadow:0 .6vh 1.6vh #0006}
+  .bub i{display:grid;place-items:center;width:2.6vh;height:2.6vh;border-radius:50%;font-style:normal;font-weight:700;font-size:1.6vh;border:.2vh solid #111}
+  .pane{position:absolute;width:34%;background:#fffdf9f2;color:#1d1b18;border-radius:1.2vh;padding:1.2vh 1.4vh;font-size:1.9vh;line-height:1.4;box-shadow:0 1vh 3vh #0007}
+  .pane b{display:block;font-size:1.8vh;margin-bottom:.4vh}
+  .pane .read{color:#6b6358;font-style:italic;margin-bottom:.6vh}
+  .pane.coach{left:2.4vh;bottom:5.4vh}
+  .pane.fact{right:2.4vh;bottom:5.4vh;width:30%}
+  .pane.fact b{color:#b4472f}
+  .pane .src{color:#5e7fae;text-decoration:underline;font-size:1.7vh}
+  .mocknote{position:absolute;right:2.4vh;top:1.6vh;color:#ffffff99;font-size:1.6vh}
+
+  /* screenshots with callouts */
+  .shotwrap{display:grid;place-items:center;min-height:0}
+  .shot{position:relative;height:100%;max-height:74vh;max-width:100%;aspect-ratio:16/10;border-radius:1.6vh;box-shadow:0 1.6vh 5vh #3a2a1a2e}
+  .shot>img:not(.floatcard){display:block;width:100%;height:100%;border-radius:1.6vh}
+  .co{position:absolute;display:flex;align-items:center;gap:.6vw;pointer-events:none}
+  .co .dot{width:2.6vh;height:2.6vh;border-radius:50%;background:var(--sun);border:.4vh solid #fff;box-shadow:0 0 0 .3vh var(--clay);flex:none;position:relative}
+  .co .dot::after{content:"";position:absolute;inset:-.4vh;border-radius:50%;border:.3vh solid var(--sun);animation:ping 1.8s ease-out infinite}
+  @keyframes ping{to{transform:scale(2.6);opacity:0}}
+  .co .lbl{background:var(--ink);color:#fff;font-size:2.2vh;font-weight:600;padding:.8vh 1vw;border-radius:1vh;white-space:nowrap;box-shadow:var(--shadow)}
+  .co.left{flex-direction:row-reverse}
+  .floatcard{position:absolute;right:-1.5vw;bottom:-2.5vh;width:46%;border-radius:1.4vh;box-shadow:0 1.6vh 5vh #3a2a1a40;border:.3vh solid #fff}
+  html.js .floatcard.shown{transform:rotate(-1.5deg)}
+
+  /* architecture */
+  .stack{display:grid;gap:1.3vh;align-content:center}
+  .lane{border:2px solid;border-radius:1.6vh;padding:2vh 1.1vw 1.5vh;position:relative}
+  .lane>.lt{position:absolute;top:-1.5vh;left:1.1vw;background:var(--bg);padding:0 .6vw;font-weight:700;font-size:1.9vh;letter-spacing:.05em;text-transform:uppercase;border-radius:.6vh}
   .chrome{background:var(--sky-t);border-color:var(--sky)} .chrome>.lt{color:var(--sky)}
   .local{background:var(--sage-t);border-color:var(--sage)} .local>.lt{color:var(--sage)}
-  .pipe{display:flex;justify-content:center;gap:2.4vw;font-size:2.2vh;color:var(--muted)}
+  .pipe{position:relative;display:flex;justify-content:center;align-items:center;gap:2.4vw;font-size:2.2vh;color:var(--muted);height:5vh}
   .pipe b{color:var(--ink)}
-  .flow{grid-template-columns:1fr auto 1.3fr auto 1.2fr auto 1.25fr}
+  .rain{position:absolute;left:8%;top:-1vh;bottom:-1vh;width:1vh}
+  .rain i{position:absolute;left:0;width:1vh;height:1vh;border-radius:50%;background:var(--sky);animation:fall 1.6s linear infinite;opacity:0}
+  .rain.up{left:auto;right:8%}.rain.up i{background:var(--sage);animation-name:rise}
+  .rain i:nth-child(2){animation-delay:.53s}.rain i:nth-child(3){animation-delay:1.06s}
+  @keyframes fall{0%{top:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:100%;opacity:0}}
+  @keyframes rise{0%{top:100%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:0;opacity:0}}
+  .flowbox{position:relative}
+  .flow{grid-template-columns:1fr auto 1.25fr auto 1.1fr auto 1.25fr}
+  .packet{position:absolute;top:-1.1vh;width:1.4vh;height:1.4vh;border-radius:50%;background:var(--clay);box-shadow:0 0 1.2vh var(--clay);animation:travel 3.2s cubic-bezier(.45,0,.55,1) infinite}
+  @keyframes travel{0%{left:2%;opacity:0}10%{opacity:1}85%{opacity:1}100%{left:86%;opacity:0}}
   .arrow{display:grid;place-items:center;font-size:3vh;color:var(--sage)}
-  .bus{background:var(--ink);color:#fff;border-radius:1.4vh;padding:1.2vh 1vw;box-shadow:var(--shadow)}
-  .bus b{font-size:2.6vh;display:block} .bus span{font-size:2vh;opacity:.85;line-height:1.35}
-  .drop{height:1.8vh;margin:0 6%;border:2px solid var(--ink);border-bottom:0;border-radius:1vh 1vh 0 0}
+  .bus{background:var(--ink);color:#fff;border-radius:1.4vh;padding:1.3vh 1vw;box-shadow:var(--shadow);animation:glow 3.2s ease-in-out infinite}
+  @keyframes glow{50%{box-shadow:0 0 0 .5vh #e8c98a66,var(--shadow)}}
+  .bus b{font-size:2.7vh;display:block} .bus span{font-size:2.05vh;opacity:.85;line-height:1.35}
+  .drop{height:2vh;margin:0 6%;border:2px solid var(--ink);border-bottom:0;border-radius:1vh 1vh 0 0}
   .fan{grid-template-columns:repeat(6,1fr)}
-  .llm{display:grid;grid-template-columns:auto 1fr;gap:1vw;align-items:center;margin-top:1.4vh;background:var(--card);
-    border:2px dashed var(--sage);border-radius:1.4vh;padding:1vh 1vw}
-  .llm b{font-size:2.4vh} .llm span{font-size:2vh;color:var(--muted);line-height:1.35}
-  .cloud{background:var(--clay-t);border:2px solid var(--clay);border-radius:1.4vh;padding:1vh 1.2vw;display:flex;gap:1.6vw;
-    align-items:center;font-size:2.05vh}
+  .shown .fan .card{animation:pop .6s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 90ms)}
+  .llm{display:grid;grid-template-columns:auto 1fr;gap:1vw;align-items:center;margin-top:1.4vh;background:var(--card);border:2px dashed var(--sage);border-radius:1.4vh;padding:1.1vh 1vw}
+  .llm b{font-size:2.5vh} .llm span{font-size:2.1vh;color:var(--muted)}
+  .cloud{background:var(--clay-t);border:2px solid var(--clay);border-radius:1.4vh;padding:1.1vh 1.2vw;display:flex;gap:1.6vw;align-items:center;font-size:2.15vh}
   .cloud b{font-size:2.4vh;white-space:nowrap} .cloud .later{margin-left:auto;color:var(--muted);white-space:nowrap}
 
-  /* 2: why */
-  .why{grid-template-columns:repeat(4,1fr);gap:1.1vw;align-content:start}
-  .why .card{padding:1.5vh 1.1vw;border-top:.6vh solid var(--sun)}
-  .why .card b{font-size:2.45vh}
-  .why .card span{font-size:1.95vh}
-  .why .card .how{margin-top:.8vh;color:var(--ink);font-size:1.85vh}
-  .why .card .how::before{content:"How we got there: ";font-weight:700}
-  .timeline{display:grid;grid-template-columns:repeat(5,1fr);border-top:3px solid var(--sage);padding-top:1.4vh;gap:1vw;margin-top:2vh}
+  /* why */
+  .whyrows{display:grid;gap:1.4vh;align-content:center}
+  .why{grid-template-columns:repeat(4,1fr);gap:1.1vw}
+  .why .card{padding:1.6vh 1.1vw;border-top:.6vh solid var(--sun)}
+  .why .card b{font-size:2.6vh}
+  .why .card span{font-size:2.1vh}
+  .why .card .how{margin-top:.9vh;color:var(--ink);font-size:1.9vh;padding-top:.8vh;border-top:1px dashed var(--line)}
+  .timeline{display:grid;grid-template-columns:repeat(5,1fr);padding-top:1.6vh;gap:1vw;margin-top:1.4vh;position:relative}
+  .timeline::before{content:"";position:absolute;left:0;top:0;height:3px;background:var(--sage);width:0;transition:width 1.4s cubic-bezier(.22,1,.36,1)}
+  .timeline.shown::before{width:100%}
   .timeline div{font-size:2vh;color:var(--muted);position:relative}
-  .timeline div::before{content:"";position:absolute;top:-2.3vh;left:0;width:1.8vh;height:1.8vh;border-radius:50%;background:var(--sun);border:3px solid var(--sage)}
-  .timeline b{display:block;color:var(--ink);font-size:2.25vh}
+  .timeline div::before{content:"";position:absolute;top:-2.5vh;left:0;width:1.8vh;height:1.8vh;border-radius:50%;background:var(--sun);border:3px solid var(--sage)}
+  .timeline b{display:block;color:var(--ink);font-size:2.3vh}
 
-  /* 3: set up */
-  .setup{grid-template-columns:1.6fr 1fr;gap:2vw;align-items:start}
-  .steps{margin:0;padding:0;list-style:none;display:grid;gap:1vh;counter-reset:s}
-  .steps li{background:var(--card);border:1.5px solid var(--line);border-radius:1.2vh;padding:1vh 1vw 1vh 5vh;position:relative;
-    font-size:2.05vh;line-height:1.4;counter-increment:s;box-shadow:var(--shadow)}
-  .steps li::before{content:counter(s);position:absolute;left:1vh;top:1vh;width:3vh;height:3vh;border-radius:50%;background:var(--sage);
-    color:#fff;display:grid;place-items:center;font-size:1.8vh;font-weight:700}
-  .steps b{font-size:2.25vh}
-  .qrbox{background:var(--card);border:1.5px solid var(--line);border-radius:1.6vh;padding:2vh;text-align:center;font-size:2.3vh;box-shadow:var(--shadow)}
-  .qrbox svg{width:min(36vh,100%);height:auto;display:block;margin:0 auto 1.2vh}
-  .qrbox .side{margin-top:1.4vh;text-align:left;font-size:1.9vh;color:var(--muted);line-height:1.45}
-  .thanks{font-size:3.4vh;font-weight:700;margin-top:1.6vh}
+  /* setup */
+  .setup{grid-template-columns:1.5fr 1fr;gap:2.4vw;align-items:center}
+  .steps{margin:0;padding:0;list-style:none;display:grid;gap:1.3vh;counter-reset:s}
+  .steps li{background:var(--card);border:1.5px solid var(--line);border-radius:1.2vh;padding:1.2vh 1vw 1.2vh 5.4vh;position:relative;font-size:2.2vh;line-height:1.45;counter-increment:s;box-shadow:var(--shadow)}
+  .steps li::before{content:counter(s);position:absolute;left:1.1vh;top:1.2vh;width:3.2vh;height:3.2vh;border-radius:50%;background:var(--sage);color:#fff;display:grid;place-items:center;font-size:1.9vh;font-weight:700}
+  .steps b{font-size:2.4vh}
+  .qrbox{background:var(--card);border:1.5px solid var(--line);border-radius:1.6vh;padding:2.2vh;text-align:center;font-size:2.4vh;box-shadow:var(--shadow)}
+  .qrbox svg{width:min(40vh,100%);height:auto;display:block;margin:0 auto 1.2vh}
+  .thanks{font-size:3.6vh;font-weight:700;margin-top:1.4vh}
 
-  @media (prefers-reduced-motion:reduce){*{animation:none!important}html.js .slide .pop{opacity:1;transform:none}}
-  @media (max-aspect-ratio:4/3){.slide{height:auto;min-height:100vh;overflow:visible}.flow,.fan,.why,.setup,.title .hero{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <!-- the extension's icon: sage tile, cream H, gold dot with rings -->
   <symbol id="halo" viewBox="0 0 136 136" overflow="visible">
     <rect width="136" height="136" rx="32" fill="#5f7f62"/>
     <path d="M38 34h17v27h28V34h17v70H83V76H55v28H38z" fill="#fbf8f1"/>
@@ -128,17 +172,15 @@
   </symbol>
 </svg>
 
-<!-- 0: title -->
+<!-- 1: title -->
 <main class="slide title" aria-label="Halo">
-  <header>
-    <span class="event pop"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"><span>Round 5 · Monday 16 November</span></span>
-  </header>
+  <header><span class="event"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"><span>Round 5 · Monday 16 November</span></span></header>
   <div class="hero">
     <svg class="big pop" aria-hidden="true"><use href="#halo"/></svg>
     <div>
       <h1 class="pop" style="--i:1">Halo</h1>
       <div class="tag pop" style="--i:2">You talk. Halo remembers.</div>
-      <div class="hi pop" style="--i:3"><b>Marhaba, Doha.</b> A Chrome extension and a small local backend that listen to a Google Meet call in Arabic, English or both, and write the meeting while you talk.</div>
+      <div class="hi pop" style="--i:3"><b>Marhaba, Doha.</b> It listens to a Google Meet call in Arabic, English or both, and writes the meeting while you talk.</div>
       <div class="chips pop" style="--i:4">
         <span class="chip"><i style="background:#bfe0f5">•</i>Point</span>
         <span class="chip"><i style="background:#ddd0f5">?</i>Question</span>
@@ -147,142 +189,192 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span>Karim Amer · built with Meta Muse models and coding agents</span><span>→ next</span></div>
+  <div class="foot"><span>Karim Amer · built with Meta Muse models and coding agents</span><span>press → to start</span></div>
 </main>
 
-<!-- 1: architecture -->
+<!-- 2: in the call (mock; texts are real Halo outputs from test calls) -->
+<main class="slide" aria-label="In the call">
+  <header>
+    <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
+    <h1>In the call</h1><small>points land on the speaker's tile while they talk</small>
+    <span class="brand"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"></span>
+  </header>
+  <div class="meet">
+    <div class="tile speaking">
+      <div class="face" style="background:#4a5a7a">O</div>
+      <span class="wave"><i></i><i></i><i></i></span>
+      <span class="name">Omar</span>
+      <div class="bubbles">
+        <span class="bub" data-step="1"><i style="background:#bfe0f5">•</i>The Gulf is the prize here.</span>
+        <span class="bub" data-step="1"><i style="background:#f8d6c0">≠</i>December launch is better to avoid missing season.</span>
+      </div>
+      <div class="pane coach" data-step="3"><b>Coach</b>Ask who will verify the payment gateway and get a commitment date today.</div>
+      <div class="pane fact" data-step="4"><b>Fact check · Disputed</b>Saudi Arabia's population is approximately 32 to 37 million, not 100 million.<br><span class="src">weforum.org</span></div>
+    </div>
+    <div class="side">
+      <div class="tile">
+        <div class="face" style="background:#6a4a6a;width:10vh;height:10vh;font-size:4.4vh">K</div>
+        <span class="name">Karim (you)</span>
+        <div class="bubbles"><span class="bub" data-step="2"><i style="background:#c6ead5">✓</i>We launch in Qatar on January 15th.</span></div>
+      </div>
+      <div class="tile">
+        <div class="face" style="background:#7a6a3a;width:10vh;height:10vh;font-size:4.4vh">L</div>
+        <span class="name">Layla</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Illustration with real Halo outputs from a test call; the live demo shows the real thing</span><span></span></div>
+</main>
+
+<!-- 3: after the call -->
+<main class="slide" aria-label="After the call">
+  <header>
+    <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
+    <h1>When the call ends</h1><small>the notes are already written</small>
+    <span class="brand"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"></span>
+  </header>
+  <div class="shotwrap">
+    <div class="shot">
+      <img src="img/notes-page.jpg" alt="Halo's notes page: summary, action items, decisions and the transcript">
+      <div class="co" data-step="1" style="left:40%;top:20%"><span class="dot"></span><span class="lbl">A summary of what happened</span></div>
+      <div class="co" data-step="2" style="left:22%;top:42%"><span class="dot"></span><span class="lbl">Tasks by urgency, with owners</span></div>
+      <div class="co" data-step="3" style="left:24%;top:72%"><span class="dot"></span><span class="lbl">Decisions, each linked to its moment</span></div>
+      <div class="co left" data-step="4" style="right:20%;top:35%"><span class="dot"></span><span class="lbl">Arabic and English transcript</span></div>
+      <img class="floatcard" data-step="5" src="img/facts.jpg" alt="A fact check: Saudi Arabia's population is about 32 to 37 million, Disputed">
+    </div>
+  </div>
+  <div class="foot"><span>One page per meeting, all on your laptop</span><span></span></div>
+</main>
+
+<!-- 4: architecture -->
 <main class="slide" aria-label="How Halo works">
   <header>
     <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
-    <h1>How Halo works</h1><small>one spoken point fans out into several model calls, all triggered by events</small>
+    <h1>How Halo works</h1><small>one spoken point fans out into several model calls</small>
     <span class="brand"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"></span>
   </header>
   <div class="stack">
-    <section class="lane chrome">
+    <section class="lane chrome" data-step="1">
       <div class="lt">In Chrome: the extension</div>
-      <div class="row" style="grid-template-columns:1fr 1.25fr 1.2fr">
-        <div class="card pop" style="--i:1"><b><i class="n">1</i>Meet tab</b><span>Reads the video tiles and who is speaking right now.</span></div>
-        <div class="card pop" style="--i:2"><b><i class="n">2</i>Audio capture</b><span>Tab audio in an offscreen page, your mic from the Meet tab: two 16 kHz streams in 100 ms frames, plus a recording stream.</span></div>
-        <div class="card pop" style="--i:3"><b><i class="n">7</i>Overlay on Meet</b><span>Points beside each speaker's tile, the coach panel, fact cards.</span></div>
+      <div class="row" style="grid-template-columns:1fr 1.2fr 1.1fr">
+        <div class="card"><b><i class="n">1</i>Meet tab</b><span>Tiles, and who is speaking</span></div>
+        <div class="card"><b><i class="n">2</i>Audio capture</b><span>Tab + mic in 100 ms frames, plus a recording</span></div>
+        <div class="card"><b><i class="n">7</i>Overlay</b><span>Points on tiles, coach, fact cards</span></div>
       </div>
     </section>
-    <div class="pipe"><span>↓ <b>tab audio, mic audio, recording + JSON events</b> over one paired WebSocket on 127.0.0.1</span><span>↑ <b>points, tips, checks</b> back to the overlay</span></div>
-    <section class="lane local">
+    <div class="pipe" data-step="2"><span class="rain"><i></i><i></i><i></i></span><span>↓ <b>audio + events</b> over one paired local WebSocket</span><span>↑ <b>points, tips, checks</b></span><span class="rain up"><i></i><i></i><i></i></span></div>
+    <section class="lane local" data-step="3">
       <div class="lt">On the laptop: Python + FastAPI, one process</div>
-      <div class="row flow">
-        <div class="card pop" style="--i:4"><b>Gateway</b><span>Pairing, origin checks, routes audio, acks every event.</span></div>
-        <div class="arrow">→</div>
-        <div class="card pop" style="--i:5"><b><i class="n">3</i>Transcriber</b><span>Two streaming Muse Voice sessions (tab + mic). A <em>600 ms pause</em> closes a turn.</span></div>
-        <div class="arrow">→</div>
-        <div class="card pop" style="--i:6"><b><i class="n">4</i>Correlator</b><span>Who said it: the lit tile, until a voice locks to a tile.</span></div>
-        <div class="arrow">→</div>
-        <div class="bus pop" style="--i:7"><b><i class="n" style="background:var(--sun);color:var(--ink)">5</i>Event bus</b><span>Every event checked against a JSON Schema contract. Modules never import each other.</span></div>
+      <div class="flowbox">
+        <span class="packet"></span>
+        <div class="row flow">
+          <div class="card"><b>Gateway</b><span>Pairing, origin checks, acks</span></div>
+          <div class="arrow">→</div>
+          <div class="card"><b><i class="n">3</i>Transcriber</b><span>2 Muse Voice streams; a <em>600 ms</em> pause ends a turn</span></div>
+          <div class="arrow">→</div>
+          <div class="card"><b><i class="n">4</i>Correlator</b><span>Turn → the speaking tile</span></div>
+          <div class="arrow">→</div>
+          <div class="bus"><b><i class="n" style="background:var(--sun);color:var(--ink)">5</i>Event bus</b><span>Schema-checked events; no module imports another</span></div>
+        </div>
       </div>
-      <div class="drop" aria-hidden="true"></div>
-      <div class="row fan">
-        <div class="card pop" style="--i:8"><b><i class="n">6</i>Insight</b><span>Live points per speaker, seconds after a pause (<em>4–6 s</em> live).</span></div>
-        <div class="card pop" style="--i:9"><b>Coach</b><span>Listens <em>60 s</em> first, then thinks at most once per <em>45 s</em>.</span></div>
-        <div class="card pop" style="--i:10"><b>Fact check</b><span>Gemini on: one model searches, a second one judges.</span></div>
-        <div class="card pop" style="--i:11"><b>Classifier</b><span>Every <em>10 s</em>, re-checks new points' kind and urgency.</span></div>
-        <div class="card pop" style="--i:12"><b>Event store</b><span>SQLite + full-text search, on the laptop. The notes service reads it; the recorder writes the recording to disk.</span></div>
-        <div class="card pop" style="--i:13"><b><i class="n">8</i>Notes builder</b><span>Call ends: AI title + summary, tasks and decisions from live points.</span></div>
+      <div data-step="4">
+        <div class="drop" aria-hidden="true"></div>
+        <div class="row fan">
+          <div class="card" style="--i:0"><b><i class="n">6</i>Insight</b><span>Points, seconds after a pause</span></div>
+          <div class="card" style="--i:1"><b>Coach</b><span>Listens <em>60 s</em>, then every <em>45 s</em></span></div>
+          <div class="card" style="--i:2"><b>Fact check</b><span>Search, then a judge model</span></div>
+          <div class="card" style="--i:3"><b>Classifier</b><span>Re-checks tags every <em>10 s</em></span></div>
+          <div class="card" style="--i:4"><b>Event store</b><span>SQLite + search, local</span></div>
+          <div class="card" style="--i:5"><b><i class="n">8</i>Notes</b><span>Title, summary, tasks at the end</span></div>
+        </div>
       </div>
-      <div class="llm pop" style="--i:14">
-        <b>One shared LLM client</b>
-        <span>Schema check on every reply, one retry, per-call failover: Muse Spark first; with <code>HALO_GEMINI=backup</code>, Gemini takes a call when Spark fails or is slower than <em>6 s</em>. A slow coach call never benches the primary.</span>
-      </div>
+      <div class="llm" data-step="5"><b>One LLM client</b><span>Schema check, retry, per-call failover: Muse Spark, then Gemini if Spark takes over <em>6 s</em></span></div>
     </section>
+    <div class="cloud" data-step="5"><b>Cloud APIs today</b><span>Meta Muse Voice · Spark · Image &nbsp;|&nbsp; Google Gemini (opt-in)</span><span class="later">Next: parts on local models</span></div>
   </div>
-  <div class="cloud pop" style="--i:15">
-    <b>Cloud APIs today</b>
-    <span>Meta Muse Voice · Spark · Image &nbsp;|&nbsp; Google Gemini, opt-in via <code>HALO_GEMINI</code>: backup + web fact check</span>
-    <span class="later">Later: parts on local models (not built)</span>
-  </div>
+  <div class="foot"><span>Every box is a module; every arrow is a JSON Schema contract</span><span></span></div>
 </main>
 
-<!-- 2: why -->
+<!-- 5: why -->
 <main class="slide" aria-label="Why it looks like this">
   <header>
     <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
-    <h1>Why it looks like this</h1><small>one person, coding agents in parallel, about a week from diagram to v1.0</small>
+    <h1>Why it looks like this</h1><small>one person, coding agents in parallel, about a week</small>
     <span class="brand"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"></span>
   </header>
-  <div>
-    <div class="row why">
-      <div class="card pop" style="--i:0"><b>Keep the live path light</b>
-        <span>Audio streams into Muse Voice as it is spoken: one session for your mic, one for the call. Only finished turns go to Spark, and turns that pile up are folded into the next call.</span>
-        <span class="how">Pushing the live stream straight through Spark could not keep up. So the recording is a third stream written straight to disk, and the notes are built from stored events after the call.</span></div>
-      <div class="card pop" style="--i:1"><b>Contracts before code</b>
-        <span>Every arrow on the diagram is a JSON Schema. Python and TypeScript types are generated from them, and every model reply is schema-checked.</span>
-        <span class="how">Everything depends on them, so one agent wrote them first and nobody else coded until they were done.</span></div>
-      <div class="card pop" style="--i:2"><b>One folder per module, one agent per lane</b>
-        <span>Each module is a lane in its own git worktree. Lanes ask each other through GitHub issues; a linter fails CI if one module imports another.</span>
-        <span class="how">That is what let three agents build at the same time without breaking each other.</span></div>
-      <div class="card pop" style="--i:3"><b>One process, one event bus</b>
-        <span>A modular monolith: modules talk only through an in-process bus. No Redis, no LangGraph, no Pipecat.</span>
-        <span class="how">It runs on one laptop and starts with one command, so the moving parts stay few.</span></div>
-      <div class="card pop" style="--i:4"><b>Local, nothing hosted</b>
-        <span>Open source, no logins, no cloud backend. Notes, transcripts and recordings stay on your PC; API keys live only in the backend.</span>
-        <span class="how">The extension holds no keys and talks only to 127.0.0.1, behind pairing and origin checks.</span></div>
-      <div class="card pop" style="--i:5"><b>Reliability only where it is needed</b>
-        <span>Acks and resends only on the browser-to-backend socket, the one place a message can get lost. Inside the process a publish returns at once.</span>
-        <span class="how">Choosing that saved about 8-10 agent-hours of plumbing.</span></div>
-      <div class="card pop" style="--i:6"><b>Test without a live call</b>
-        <span>A fake Meet page, fake speech and fake models, and a replayer for recorded calls, built alongside the first modules.</span>
-        <span class="how">The full chain, audio to bubble, had to pass on the rig before going live.</span></div>
-      <div class="card pop" style="--i:7"><b>Measure first</b>
-        <span>Day-0 probes before any module: Spark's median was 2.7&nbsp;s on a live-points prompt, against a ~3&nbsp;s target from pause to point.</span>
-        <span class="how">The probes fixed the fallbacks up front: a slow model fails over; weak Arabic speech would mean an English-leaning demo.</span></div>
+  <div class="whyrows">
+    <div class="row why" data-step="1">
+      <div class="card"><b>Keep the live path light</b><span>Voice streams live; only finished turns reach Spark.</span><span class="how">The raw stream through Spark couldn't keep up. The recording goes straight to disk.</span></div>
+      <div class="card"><b>Contracts before code</b><span>Every arrow is a JSON Schema, with types for both languages.</span><span class="how">One agent wrote them first; nobody else coded until they were done.</span></div>
+      <div class="card"><b>One agent per lane</b><span>One folder, one worktree, one owner. Asks go through GitHub issues.</span><span class="how">A linter fails CI on cross-imports, so three agents never collided.</span></div>
+      <div class="card"><b>One process, one bus</b><span>A modular monolith. No Redis, no LangGraph, no Pipecat.</span><span class="how">One laptop, one command, few moving parts.</span></div>
     </div>
-    <div class="timeline pop" style="--i:8">
-      <div><b>Oct 30, evening</b>Diagram, decisions, repo skeleton</div>
+    <div class="row why" data-step="2">
+      <div class="card"><b>Local, nothing hosted</b><span>Notes, transcripts and recordings stay on your PC.</span><span class="how">The extension holds no keys and only talks to 127.0.0.1.</span></div>
+      <div class="card"><b>Reliability where needed</b><span>Acks and resends only on the browser socket.</span><span class="how">The one place a message can get lost. Saved ~8-10 agent-hours.</span></div>
+      <div class="card"><b>Test without a call</b><span>Fake Meet page, fake speech and models, a replayer.</span><span class="how">Audio to bubble had to pass on the rig before going live.</span></div>
+      <div class="card"><b>Measure first</b><span>Day-0 probe: Spark's median was 2.7&nbsp;s, target ~3&nbsp;s.</span><span class="how">Fallbacks were set before any module was written.</span></div>
+    </div>
+    <div class="timeline" data-step="3">
+      <div><b>Oct 30, evening</b>Diagram, decisions, repo</div>
       <div><b>Oct 31, 00:41</b>All contracts done</div>
-      <div><b>Oct 31, 01:38</b>Fake Meet page + replayer</div>
-      <div><b>Oct 31 – Nov 4</b>Modules built in parallel lanes, merged</div>
+      <div><b>Oct 31, 01:38</b>Fake Meet + replayer</div>
+      <div><b>Oct 31 – Nov 4</b>Modules in parallel lanes</div>
       <div><b>Nov 5</b>v1.0.0 tagged</div>
     </div>
   </div>
   <div class="foot"><span>Reasons from docs/DECISIONS.md and the build itself; dates from git</span><span></span></div>
 </main>
 
-<!-- 3: set up and run -->
-<main class="slide" aria-label="Set it up and run it">
+<!-- 6: try it -->
+<main class="slide" aria-label="Try it yourself">
   <header>
     <svg class="icon" aria-hidden="true"><use href="#halo"/></svg>
-    <h1>Set it up and run it</h1><small>Windows, macOS or Linux</small>
+    <h1>Try it yourself</h1><small>Windows, macOS or Linux</small>
     <span class="brand"><img src="brand/aitinkerers-doha.png" alt="AI Tinkerers Doha" onerror="this.remove()"></span>
   </header>
   <div class="row setup">
     <ol class="steps">
-      <li class="pop" style="--i:1"><b>You need</b> Google Chrome, Git, Node.js 22+, a headset and a Meta Model API key. Setup installs uv, which brings Python 3.12.</li>
-      <li class="pop" style="--i:2"><b>Get it and run setup</b><br><code>git clone https://github.com/xKarimAm/halo.git</code> then <code>cd halo</code><br><code>powershell -ExecutionPolicy Bypass -File .\setup.ps1</code> (macOS/Linux: <code>sh setup.sh</code>). It asks for your key (kept only in the git-ignored <code>.env</code>), builds the extension and starts the backend.</li>
-      <li class="pop" style="--i:3"><b>Load the extension</b> <code>chrome://extensions</code> → Developer mode → Load unpacked → <code>extension\.output\chrome-mv3</code>. Click the Halo icon: it pairs by itself and says Connected.</li>
-      <li class="pop" style="--i:4"><b>Try it without a call</b> <code>uv run python packaging/demo.py</code> plays three scripted meetings (English, Arabic, mixed) in about 3 minutes; then open <code>http://127.0.0.1:8765</code>. Later starts: <code>uv run halo</code>.</li>
-      <li class="pop" style="--i:5"><b>Live</b> Join a Google Meet with a headset, open the Halo popup, press Start. Points float on the tiles; the notes are waiting when the call ends.</li>
-      <li class="pop" style="--i:6"><b>Optional</b> in <code>.env</code>: <code>BASETEN_API_KEY</code> (Muse Spark Open first), <code>HALO_GEMINI=search,backup</code> + <code>GEMINI_API_KEY</code>. No key? <code>uv run pytest backend contracts -q</code> and <code>npm --prefix extension test</code> still run.</li>
+      <li class="pop" style="--i:1"><b>You need</b> Chrome, Git, Node.js 22+, a headset and a Meta Model API key.</li>
+      <li class="pop" style="--i:2"><b>Clone and run setup</b><br><code>git clone https://github.com/xKarimAm/halo.git</code><br><code>cd halo</code> · <code>powershell -ExecutionPolicy Bypass -File .\setup.ps1</code><br>(macOS/Linux: <code>sh setup.sh</code>)</li>
+      <li class="pop" style="--i:3"><b>Load the extension</b> <code>chrome://extensions</code> → Developer mode → Load unpacked → <code>extension\.output\chrome-mv3</code></li>
+      <li class="pop" style="--i:4"><b>No call needed</b> <code>uv run python packaging/demo.py</code>, then open <code>http://127.0.0.1:8765</code></li>
+      <li class="pop" style="--i:5"><b>Live</b> Join a Meet with a headset, open Halo, press Start.</li>
     </ol>
     <div class="qrbox pop" style="--i:3">
       <svg role="img" aria-label="QR code: github.com/xKarimAm/halo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 264 264"><g transform="scale(8)"><path fill="#fff" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#111" d="M2 2.5h7m1 0h2m2 0h2m1 0h2m1 0h2m2 0h7m-29 1h1m5 0h1m3 0h1m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m2 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m3 0h5m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m5 0h1m1 0h4m1 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m1 0h2m1 0h3m1 0h3m2 0h1m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-18 1h2m2 0h1m-15 1h7m7 0h1m1 0h1m1 0h1m3 0h2m3 0h1m-28 1h1m3 0h1m3 0h1m2 0h3m2 0h4m1 0h5m1 0h1m-29 1h1m1 0h2m2 0h5m1 0h1m3 0h1m1 0h1m1 0h6m-26 1h1m2 0h3m1 0h1m1 0h4m1 0h2m2 0h1m2 0h2m1 0h1m2 0h1m-28 1h1m2 0h1m1 0h2m1 0h1m5 0h4m3 0h1m1 0h1m2 0h3m-28 1h3m1 0h1m1 0h2m1 0h1m1 0h3m1 0h2m1 0h4m1 0h2m1 0h2m-29 1h1m1 0h1m3 0h1m1 0h2m1 0h1m2 0h3m1 0h1m1 0h2m1 0h1m-23 1h1m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m3 0h5m1 0h2m2 0h1m-26 1h1m2 0h1m7 0h2m1 0h1m7 0h2m1 0h1m-29 1h6m1 0h9m2 0h1m1 0h9m-29 1h1m1 0h1m1 0h4m5 0h4m3 0h1m1 0h2m1 0h2m-27 1h1m1 0h3m3 0h1m4 0h2m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m-28 1h1m1 0h1m2 0h2m1 0h1m2 0h1m5 0h1m1 0h9m-20 1h2m1 0h2m1 0h1m1 0h1m1 0h1m1 0h1m3 0h2m1 0h2m-29 1h7m1 0h2m3 0h3m2 0h3m1 0h1m1 0h1m-25 1h1m5 0h1m1 0h1m1 0h1m5 0h1m2 0h2m3 0h2m2 0h1m-29 1h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m3 0h1m2 0h8m-28 1h1m1 0h3m1 0h1m1 0h2m1 0h3m2 0h1m1 0h4m1 0h1m2 0h3m-29 1h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h8m2 0h1m-28 1h1m5 0h1m1 0h4m1 0h4m1 0h1m1 0h3m1 0h2m1 0h1m-28 1h7m3 0h2m2 0h1m2 0h3m4 0h1"/></g></svg>
       <b>github.com/xKarimAm/halo</b>
-      <div class="side">Open source (MIT). Every step with a check after it: <code>docs/INSTALL.md</code>. Stuck: <code>docs/TROUBLESHOOTING.md</code>. Everything runs on your PC; only the model calls leave it.</div>
+      <div style="font-size:1.9vh;color:var(--muted);margin-top:.8vh">Open source (MIT) · full steps in <code>docs/INSTALL.md</code></div>
       <div class="thanks">Shukran, Doha!</div>
     </div>
   </div>
   <div class="foot"><span>Questions? Find me after the talk.</span><span>You talk. Halo remembers.</span></div>
 </main>
 
+<div class="progress" aria-hidden="true"></div>
 <script>
-  // ponytail: four slides; arrows, space and page keys step; each slide plays its entrance once when it scrolls in
-  const slides = [...document.querySelectorAll(".slide")];
-  const seen = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add("in")), {threshold: .5});
-  slides.forEach(s => seen.observe(s));
+  // ponytail: tiny deck: one slide at a time; next reveals the slide's next [data-step], then moves on
+  const slides = [...document.querySelectorAll(".slide")], bar = document.querySelector(".progress");
+  let at = 0, step = 0;
+  const steps = s => Math.max(0, ...[...s.querySelectorAll("[data-step]")].map(n => +n.dataset.step));
+  function show(i, st) {
+    at = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle("on", k === at));
+    const s = slides[at]; step = st === "all" ? steps(s) : st;
+    s.querySelectorAll("[data-step]").forEach(n => n.classList.toggle("shown", +n.dataset.step <= step));
+    bar.style.width = (100 * (at + 1) / slides.length) + "%";
+    history.replaceState(null, "", "#" + (at + 1));
+  }
+  function next() { step < steps(slides[at]) ? show(at, step + 1) : at < slides.length - 1 && show(at + 1, 0); }
+  function prev() { step > 0 ? show(at, step - 1) : at > 0 && show(at - 1, "all"); }
   addEventListener("keydown", e => {
-    const d = {ArrowRight:1, ArrowDown:1, PageDown:1, " ":1, ArrowLeft:-1, ArrowUp:-1, PageUp:-1}[e.key];
-    if (!d) return;
-    e.preventDefault();
-    const i = Math.round(scrollY / innerHeight);
-    slides[Math.max(0, Math.min(slides.length - 1, i + d))].scrollIntoView({behavior: "smooth"});
+    if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); next(); }
+    if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); prev(); }
+    if (e.key === "Home") show(0, 0);
+    if (e.key === "End") show(slides.length - 1, "all");
   });
+  addEventListener("click", next);
+  show((+location.hash.slice(1) || 1) - 1, 0);
 </script>
 </body>
 </html>
