@@ -419,7 +419,17 @@ class LLMClient:
         judged = self._post_once(judge, GEMINI_COMPAT_URL, key, body, schema, SEARCH_TIMEOUT_S).result
         if not judged.ok or judged.data is None:
             return fail("bad_reply", f"{engine}: verdict failed the schema")
-        return LLMResult(ok=True, engine=engine, data={**judged.data, "sources": sources})
+        return LLMResult(ok=True, engine=engine, data={**judged.data, "sources": [self._unredirect(u) for u in sources]})
+
+    def _unredirect(self, url: str) -> str:
+        """The page a Google grounding link points to, so the card names the real site
+        (it read "vertexaisearch.cloud.google.com"). Measured 2026-11-15: one HEAD, 0.1-1 s,
+        a 302 to the source. ponytail: the redirect link itself if that fails."""
+        try:
+            location = self._http.head(url, timeout=httpx.Timeout(3.0)).headers.get("location", "")
+        except httpx.HTTPError:
+            return url
+        return location if location.startswith(("https://", "http://")) else url
 
     def _gemini_image(self, prompt: str, key: str) -> bytes | None:
         # ponytail: Gemini returns JPEG and has no PNG option (imageConfig.outputMimeType

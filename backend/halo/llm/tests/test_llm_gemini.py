@@ -66,6 +66,8 @@ def test_search_looks_up_first_then_judges_with_the_schema():
     seen = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "HEAD":  # the redirect link resolves to the real page
+            return httpx.Response(302, headers={"location": "https://www.un.org/population"})
         body = json.loads(request.content)
         seen.append((str(request.url), body))
         if "generateContent" in str(request.url):
@@ -80,7 +82,19 @@ def test_search_looks_up_first_then_judges_with_the_schema():
     assert judge_url.endswith("/openai/chat/completions") and judge_body["model"] == "gemini-3.1-flash-lite"
     assert "Sources report over 109 million people." in judge_body["messages"][-1]["content"]
     assert result.ok and result.engine == "gemini-3.5-flash-lite"
-    assert result.data == {"text": "disputed", "sources": ["https://vertexaisearch.cloud.google.com/r/1"]}
+    assert result.data == {"text": "disputed", "sources": ["https://www.un.org/population"]}
+
+
+def test_search_keeps_the_redirect_link_when_it_does_not_resolve():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "HEAD":
+            raise httpx.ConnectError("offline")
+        if "generateContent" in str(request.url):
+            return httpx.Response(200, json=GROUNDED)
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"text": "disputed"}'}}]})
+
+    result = make(handler).search_json(prompt="check: Egypt has 50 million people", schema=SCHEMA)
+    assert result.data["sources"] == ["https://vertexaisearch.cloud.google.com/r/1"]
 
 
 def test_search_falls_back_to_the_second_model_on_a_busy_reply():
@@ -180,7 +194,8 @@ def test_search_only_judges_on_gemini_while_text_stays_on_meta():
     hosts = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        hosts.append(request.url.host)
+        if request.method != "HEAD":  # HEADs only resolve the source links
+            hosts.append(request.url.host)
         if "generateContent" in str(request.url):
             return httpx.Response(200, json=GROUNDED)
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"text": "disputed"}'}}]})
