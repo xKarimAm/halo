@@ -404,6 +404,15 @@ def test_talk_share_shows_only_after_enough_words():
     assert "you said" not in coach.speech(MEETING)
 
 
+def test_alone_there_is_no_unbroken_stretch():
+    # Eval 2026-11-16 on Karim's rehearsal: alone, the stretch was every word he said,
+    # read back as "you ran 93 words without a pause" over short choppy lines.
+    _bus, _llm, coach, _tips, _clock = setup([])
+    coach._self_names[MEETING] = "Karim"
+    coach._turns[MEETING] = [("Karim", "Hello, hello?"), ("Karim", "this is the Halo demo")]
+    assert "unbroken" not in coach.speech(MEETING)
+
+
 def test_no_viewer_name_means_no_viewer_numbers_and_tidy_quotes():
     # Review 2026-11-16: zeros for an unknown viewer read as "you asked no questions".
     async def run():

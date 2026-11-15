@@ -38,7 +38,7 @@ COACH_TIMEOUT_S = 40.0  # off the live path; a slow coach call no longer benches
 COACH_EFFORT = "medium"  # probe 2026-11-16: Meta 24 s, Gemini 3.8 Flash 11 s, deeper tips than minimal
 ALERT_GAP_S = 180.0  # live 2026-11-04: at most one alert per 3 minutes
 MAX_SAID = 12  # earlier tips kept in the prompt so they are not reworded (live 2026-11-04)
-PROMPT_CACHE_KEY = "coach-v5"
+PROMPT_CACHE_KEY = "coach-v6"
 
 TIPS_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -89,8 +89,9 @@ INSTRUCTIONS = (
     "wrap-up), the topic in their words, and the one thing missing. Use the "
     "speech numbers; give minutes only when they list them. Talk to the "
     "viewer as you. Opening with mic checks, small talk or side chat and no "
-    "topic yet: say so (Opening: mic checks and side chat; no topic or goal "
-    "yet.). Empty only when nothing has been said.\n"
+    "topic yet: say so (Opening: mic checks and side chat; no topic yet.). "
+    "Once a topic is said, never call the topic or a goal missing. Empty "
+    "only when nothing has been said.\n"
     "tips: 0 to 3 constructive tips, each ONE sentence of at most 20 words "
     "ending with a period: what you noticed, then what to do next, with the "
     "words to say when it helps (No goal stated yet: open with 'Today we "
@@ -117,6 +118,16 @@ INSTRUCTIONS = (
     "The setup subject and agenda can be stale; what people say wins. A tip "
     "must be worth interrupting the viewer for: no tip beats a weak or "
     "generic one.\n"
+    # Karim's rehearsal 2026-11-16: "goal missing" after he said the topic,
+    # "one idea per sentence", "involve the others" mid-demo: tips for the sake of tips.
+    "A tip that would fit any meeting is generic: drop it (one idea per "
+    "sentence, engage the audience, structure your pitch, define the user "
+    "problem, state a goal). Once the topic is said, the opening is done: "
+    "never ask for a goal or purpose on top. A demo, talk or walkthrough "
+    "where the viewer holds the floor is the format: never tell them to "
+    "pause for others or ask for feedback, and role gaps are for a team "
+    "deciding, not for a talk. Talk about Halo or the coach itself, or a "
+    "line said to test the app, is testing: no tip on it.\n"
     "tips is the whole list the viewer sees next: keep a tip on screen word "
     "for word while it still applies, drop it once it is settled, add one "
     "only for a new item; never reword a tip or bring back one shown "
@@ -129,9 +140,10 @@ INSTRUCTIONS = (
 # Karim 2026-11-16: alone and rambling, he wants the read and real feedback on delivery.
 REHEARSAL = ("The viewer is alone in the call, rehearsing or testing: names are the "
              "future audience, so never tell them to ask or invite anyone, and a "
-             "silence is a break (empty tips). Coach their delivery: a clear opening "
-             "(topic and goal in the first minute), main point first, structure, "
-             "pace, filler, one idea per sentence. Never ask for a number, fact or "
+             "silence is a break (empty tips). Coach their delivery, each tip naming "
+             "what they did with their words or the given numbers: no topic yet "
+             "after the first minute, the main point buried after asides, pace, "
+             "filler, a sentence that trails off. Never ask for a number, fact or "
              "deadline they did not say. Mixing Arabic and English is normal: never "
              "tip on language. Never turn their sentence into an order. Each kind of "
              "tip at most once per meeting. Alone, talk share and questions asked "
@@ -405,7 +417,8 @@ class Coach:
         for name, text in turns:
             run = run + len(text.split()) if me and name == me else 0
             longest = max(longest, run)
-        parts = [f"your longest unbroken stretch {longest} words",
+        # alone, the stretch is every word said, read back as "no pause" (eval 2026-11-16)
+        parts = ([f"your longest unbroken stretch {longest} words"] if self._others_here(meetingid) else []) + [
                  f"questions you asked {sum(t.count('?') + t.count('؟') for t in mine)}",
                  f"filler words {sum(len(FILLER.findall(t)) for t in mine)}"]
         if words >= SHARE_MIN_WORDS:  # eval: "you spoke 100%, ask Sara" three lines in

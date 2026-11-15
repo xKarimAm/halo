@@ -683,5 +683,182 @@
         "why_now": "new words"
       }
     ]
+  },
+  {
+    "id": "karim-rehearsal-2026-11-16",
+    "about": "Karim's real rehearsal words, 2026-11-16. He stated who he is and the topic (Halo demo for AI Tinkerers); the popup subject 'APP status' is stale. Live coach kept saying 'goal missing' and quoting 'app health': wrong. Good: no tip, or a delivery note grounded in what he said; never repeat a missing-topic claim.",
+    "self_name": "Karim Amer",
+    "people": [
+      "Karim Amer"
+    ],
+    "context": {
+      "subject": "APP status",
+      "agenda": [],
+      "roles": [],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      [
+        "Karim Amer",
+        "Hello, hello?"
+      ],
+      [
+        "Karim Amer",
+        "Hey my name is Karim and this is the Halo project demo"
+      ],
+      [
+        "Karim Amer",
+        "for AI thinkers in Qatar"
+      ],
+      [
+        "Karim Amer",
+        "i literally just open with my name and introduction and all the coach said is that"
+      ],
+      [
+        "Karim Amer",
+        "you didn't put a topic which i did put a"
+      ],
+      [
+        "Karim Amer",
+        "topic"
+      ],
+      [
+        "Karim Amer",
+        "Hello hello"
+      ],
+      [
+        "Karim Amer",
+        "This is a meeting and how's everyone doing today we're going to talk about the project demo for Halo"
+      ],
+      [
+        "Karim Amer",
+        "Yeah it's literally trying to just say tips for the sake of tips while the coach's thing is not speed it should be thinking and giving"
+      ],
+      [
+        "Karim Amer",
+        "feedback that is actually beneficial for me"
+      ],
+      [
+        "Karim Amer",
+        "Let's see if we"
+      ],
+      [
+        "Karim Amer",
+        "can have it think for a while before it talks or gives me any"
+      ],
+      [
+        "Karim Amer",
+        "tips so it can analyze at least like"
+      ],
+      [
+        "Karim Amer",
+        "a minute of the meeting or something around that if it finds something that is critical"
+      ],
+      [
+        "Karim Amer",
+        "i can also"
+      ],
+      [
+        "Karim Amer",
+        "like archive it or"
+      ],
+      [
+        "Karim Amer",
+        "um hide it maybe so maybe that's good maybe that'll be actually"
+      ],
+      [
+        "Karim Amer",
+        "interesting"
+      ],
+      [
+        "Karim Amer",
+        "Qatar is the biggest country in the world and that is fantastic"
+      ],
+      [
+        "Karim Amer",
+        "And right now I just said something that wasn't true"
+      ],
+      [
+        "Karim Amer",
+        "which is Qatar is the biggest country in the"
+      ],
+      [
+        "Karim Amer",
+        "world and the fact checker didn't run a"
+      ],
+      [
+        "Karim Amer",
+        "check"
+      ]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 9,
+        "why_now": "new words"
+      },
+      {
+        "after_turn": 16,
+        "why_now": "new words"
+      },
+      {
+        "after_turn": 23,
+        "why_now": "new words"
+      }
+    ]
+  },
+{
+    "id": "karim-demo-script",
+    "about": "The stage script spoken into the call: a solo product demo with a launch date and a remembered free-plan limit. Good: read names the demo and the launch decision; at most a concrete tip (e.g. who owns the January 15 launch). Never invite others to speak, never invent a missing topic.",
+    "self_name": "Karim Amer",
+    "people": [
+      "Karim Amer",
+      "Guest"
+    ],
+    "context": {
+      "subject": "Launch sync",
+      "agenda": [],
+      "roles": [],
+      "viewer_lang": "en"
+    },
+    "turns": [
+      [
+        "Karim Amer",
+        "Halo is a Chrome extension for Google Meet."
+      ],
+      [
+        "Karim Amer",
+        "It listens to the call in Arabic and English, and writes the meeting while you talk."
+      ],
+      [
+        "Karim Amer",
+        "During the call, each person's points float beside their video as they speak. Let me show you."
+      ],
+      [
+        "Karim Amer",
+        "We launch on January fifteenth."
+      ],
+      [
+        "Karim Amer",
+        "Last week we agreed the free plan allows ten meetings per month."
+      ],
+      [
+        "Karim Amer",
+        "On the left, the coach reads the meeting and tells me what is missing, like an owner for that launch."
+      ],
+      [
+        "Karim Amer",
+        "When the call ends, this page is waiting."
+      ]
+    ],
+    "checkpoints": [
+      {
+        "after_turn": 6,
+        "why_now": "new words"
+      },
+      {
+        "after_turn": 7,
+        "why_now": "15 s of silence since the last words"
+      }
+    ]
   }
 ]
