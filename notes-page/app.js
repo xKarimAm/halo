@@ -3231,9 +3231,12 @@
       ar: ["الملخص المرئي", "الاجتماع كله في صورة واحدة، تُرسم عند طلبك."] },
     { sel: ".top .seg", en: ["Arabic or English", "One click switches the whole app to Arabic, right to left."],
       ar: ["العربية أو الإنجليزية", "بنقرة واحدة يتحول التطبيق كله إلى العربية من اليمين إلى اليسار."] },
-    { en: ["You talk. Halo remembers.", "Open source on GitHub: xKarimAm/halo."],
+    { qr: true, en: ["You talk. Halo remembers.", "Open source on GitHub: xKarimAm/halo."],
       ar: ["أنت تتحدث، وهالو يتذكر.", "مفتوح المصدر على GitHub: xKarimAm/halo."] }
   ];
+
+  // https://github.com/xKarimAm/halo, made once with segno 1.6.6 (error level M); a phone camera reads it.
+  var QR_GITHUB_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 264 264\"><g transform=\"scale(8)\"><path fill=\"#fff\" d=\"M0 0h33v33h-33z\"/><path class=\"qrline\" stroke=\"#111\" d=\"M2 2.5h7m1 0h2m2 0h2m1 0h2m1 0h2m2 0h7m-29 1h1m5 0h1m3 0h1m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m2 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m3 0h5m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m5 0h1m1 0h4m1 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m1 0h2m1 0h3m1 0h3m2 0h1m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-18 1h2m2 0h1m-15 1h7m7 0h1m1 0h1m1 0h1m3 0h2m3 0h1m-28 1h1m3 0h1m3 0h1m2 0h3m2 0h4m1 0h5m1 0h1m-29 1h1m1 0h2m2 0h5m1 0h1m3 0h1m1 0h1m1 0h6m-26 1h1m2 0h3m1 0h1m1 0h4m1 0h2m2 0h1m2 0h2m1 0h1m2 0h1m-28 1h1m2 0h1m1 0h2m1 0h1m5 0h4m3 0h1m1 0h1m2 0h3m-28 1h3m1 0h1m1 0h2m1 0h1m1 0h3m1 0h2m1 0h4m1 0h2m1 0h2m-29 1h1m1 0h1m3 0h1m1 0h2m1 0h1m2 0h3m1 0h1m1 0h2m1 0h1m-23 1h1m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m3 0h5m1 0h2m2 0h1m-26 1h1m2 0h1m7 0h2m1 0h1m7 0h2m1 0h1m-29 1h6m1 0h9m2 0h1m1 0h9m-29 1h1m1 0h1m1 0h4m5 0h4m3 0h1m1 0h2m1 0h2m-27 1h1m1 0h3m3 0h1m4 0h2m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m-28 1h1m1 0h1m2 0h2m1 0h1m2 0h1m5 0h1m1 0h9m-20 1h2m1 0h2m1 0h1m1 0h1m1 0h1m1 0h1m3 0h2m1 0h2m-29 1h7m1 0h2m3 0h3m2 0h3m1 0h1m1 0h1m-25 1h1m5 0h1m1 0h1m1 0h1m5 0h1m2 0h2m3 0h2m2 0h1m-29 1h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m3 0h1m2 0h8m-28 1h1m1 0h3m1 0h1m1 0h2m1 0h3m2 0h1m1 0h4m1 0h1m2 0h3m-29 1h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h8m2 0h1m-28 1h1m5 0h1m1 0h4m1 0h4m1 0h1m1 0h3m1 0h2m1 0h1m-28 1h7m3 0h2m2 0h1m2 0h3m4 0h1\"/></g></svg>";
 
   function startTour(app, only) {
     var doc = app.doc;
@@ -3309,6 +3312,12 @@
       h.id = "tourTitle";
       card.appendChild(h);
       if (words.length === 2) card.appendChild(el("p", "tour-line tour-say", words[1]));
+      if (s.qr) {
+        var qr = el("img", "tour-qr");
+        qr.alt = "QR code: github.com/xKarimAm/halo";
+        qr.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(QR_GITHUB_SVG);
+        card.appendChild(qr);
+      }
       else [["tourWhat", words[1]], ["tourWhy", words[2]], ["tourHow", words[3]]].forEach(function (row) {
         if (!row[1]) return;
         var p = el("p", "tour-line");

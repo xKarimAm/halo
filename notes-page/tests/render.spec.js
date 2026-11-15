@@ -1085,6 +1085,11 @@ test("(M16b) ?tour=demo walks the meeting one line per card and ends on the catc
   }
   await expect(card.locator("h2")).toHaveText("You talk. Halo remembers.");
   await expect(card.locator(".pv-open")).toHaveText("Finish");
+  // the last card carries a scannable QR to the GitHub repo, big enough to read from the room
+  const qr = card.locator("img.tour-qr");
+  await expect(qr).toHaveAttribute("alt", "QR code: github.com/xKarimAm/halo");
+  expect(await qr.evaluate((n) => n.complete && n.naturalWidth > 0)).toBe(true);
+  expect((await qr.boundingBox()).width).toBeGreaterThanOrEqual(240);
 });
 
 test("(M17) Arabic UI keeps English content left to right, dates and roles in Arabic", async ({ page }) => {

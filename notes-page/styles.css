@@ -742,3 +742,4 @@ button.fold[aria-expanded="false"]::after{transform:rotate(-45deg)}
 @media (max-width:560px){#view.home .home-band{margin-top:-20px} #view.home .home-band .mband-in{padding:0 16px}}
 /* Stage tour (?tour=demo): one big line per card. */
 .tour-say{font-size:20px;line-height:1.4}
+.tour-qr{display:block;width:260px;height:260px;margin:12px auto 4px;border-radius:8px;image-rendering:pixelated}
