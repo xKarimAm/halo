@@ -88,7 +88,9 @@ The [install guide](docs/INSTALL.md) has the same steps by hand with a check aft
 
 ## The halo: what you see in the call
 
-<img src="docs/assets/live-call.jpg" alt="A real Google Meet call with Halo running: each speaker's points sit on their tile as small marked bubbles, the coach card is on the left and a fact-check card shows a disputed claim with its source" width="100%">
+<img src="docs/assets/in-call.jpg" alt="An illustration of a Google Meet call with Halo running, using real Halo outputs from a test call: each speaker's points sit on their tile as small marked bubbles, the coach card is bottom left and a fact-check card shows a disputed claim with its source" width="100%">
+
+<sub>Illustration built from real Halo outputs; see <a href="docs/demo/slides.html">the talk slides</a>.</sub>
 
 Each speaker gets a halo: their name sits above their head on the video tile, with what they just said stacked under it as small marked bubbles. Each bubble is a point, a question, a decision or a pushback, with its own symbol and coloured by urgency, so you can read a debate at a glance without taking notes.
 
