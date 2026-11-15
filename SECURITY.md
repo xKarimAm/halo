@@ -27,6 +27,7 @@ Since 2026-11-04 the popup pairs on its own: `POST /pair/auto` mints a token onl
 
 - Transcripts, notes, recordings and logs stay in `data/` (git-ignored). Delete the folder to wipe them; the extension keeps its pairing token and tile names in Chrome's storage until you remove it.
 - What leaves your PC: the call and mic audio go to Meta's speech-to-text, and the transcript text goes to Muse Spark (at api.meta.ai, or at Baseten, Modal or your own server when you set a Spark Open key). Reference notes, Ask questions and the recap prompt go to the same models. Video frames never leave the PC; in Halo mode they go only to the local SAM worker.
+- **Google Gemini (opt-in):** only with `HALO_GEMINI` set in `.env`. Each part it lists sends that text (or audio, for `speech`) to Google with your `GEMINI_API_KEY`: `search` sends each checked claim to Gemini with Google Search, `backup` sends a point's prompt when Meta is slow or down. Left blank, nothing goes to Google.
 - **Web searches:** every spoken point and pushback goes to Muse Spark with its web search tool for the live fact check (decisions, actions and your notes too when you attach reference notes), at most 60 calls a meeting, so that text can reach a search engine. Internal plans and figures are meant to be skipped, but the model decides that. To keep every sentence off the web, add `HALO_FACT_CHECK=0` to `.env`.
 
 ## Reporting a problem

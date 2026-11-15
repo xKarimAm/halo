@@ -278,7 +278,8 @@ class Coach:
             await self._publish(meetingid, result.data)
 
     async def _publish(self, meetingid: str, data: dict[str, Any]) -> None:
-        tips = [str(t).strip()[:160] for t in data.get("tips", []) if str(t).strip()][:3]
+        tips = [re.sub(r"([.?!]['\"])\.$", r"\1", str(t).strip())[:160]  # eval: "...plan.'."
+                for t in data.get("tips", []) if str(t).strip()][:3]
         alert = re.sub(r"^(alert|تنبيه)\s*:\s*", "", str(data.get("alert") or "").strip(), flags=re.IGNORECASE)[:80]
         if alert and not self._proven(meetingid, str(data.get("alert_quote") or "")):
             alert = ""  # live 2026-11-04: alerts on words nobody said, or on a read-aloud alert
@@ -377,6 +378,10 @@ class Coach:
         ponytail: a fixed filler list; "like" is left out on purpose (too often real)."""
         turns = self._turns.get(meetingid, [])
         me = self._self_names.get(meetingid, "")
+        span = self._span.get(meetingid)
+        if not me:  # zeros would read as "you asked no questions"
+            minutes = f"{(span[1] - span[0]) / 60000:.0f} min in; " if span else ""
+            return f"Speech so far: {minutes}viewer not known yet, so no numbers on the viewer."
         words = sum(len(t.split()) for _, t in turns)
         mine = [t for n, t in turns if me and n == me]
         my_words = sum(len(t.split()) for t in mine)
@@ -389,7 +394,6 @@ class Coach:
                  f"filler words {sum(len(FILLER.findall(t)) for t in mine)}"]
         if words >= SHARE_MIN_WORDS:  # eval: "you spoke 100%, ask Sara" three lines in
             parts.insert(0, f"you said {round(100 * my_words / words)}% of {words} words")
-        span = self._span.get(meetingid)
         if span:
             parts.insert(0, f"{(span[1] - span[0]) / 60000:.0f} min in")
             my_ms = self._spoken_ms.get(meetingid, {}).get(me, 0)

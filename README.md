@@ -29,6 +29,8 @@
 
 > [!IMPORTANT]
 > Every AI model Halo calls at runtime is a Meta model: Muse Voice Transcribe, Muse Spark (1.3 contributor, or Spark Open when its key is set) and, optionally, SAM 3.1 on your own GPU. The [table below](#meta-models-used-and-where) names each one, its endpoint and the file that calls it.
+>
+> Optional, off by default: `HALO_GEMINI` in `.env` sends the parts it lists (web fact-check search, backup text, all text, the recap image or speech) to Google Gemini with `GEMINI_API_KEY`. Left blank, everything in this box holds. See `.env.example`.
 
 > [!NOTE]
 > Built solo by Karim for the Meta Global AI Developer Hackathon (Indie track). All code was written during the event: the first commit is Oct 30, 2026. Meta's Muse (with Wonder and Muse Spark 1.3) built the first wave of modules, then Claude Code carried the integration and live fixes; OpenCode was the backup and Gemini the research tool. Halo calls none of them at runtime ([how it was built](#how-it-was-built)).
@@ -181,7 +183,7 @@ Halo was built in six days by one person directing several coding agents in para
 | **Muse on Muse Spark 1.3** (contributor mode, on the Meta API key) | The setup panel, Meet adapter, frame source and the first notes page. |
 | **Claude Code** (Anthropic) | Oct 30: the architecture, decisions and module plans with me. From Oct 31: merging the Muse modules and the live-call fixes, then the coach, the notes page redesign, Ask your meetings, automatic pairing, the meetings home, docs and reviews. Its commits carry a `Co-Authored-By: Claude` line. |
 | **OpenCode** on Muse Spark 1.3 (`opencode.json`) | The backup harness for the Muse windows. |
-| Gemini | Research only. |
+| Gemini | Research; at runtime only the parts you list in `HALO_GEMINI` (off by default). |
 
 In the history, every commit without a Claude trailer is from Oct 30–31 (1 and 55): that first Muse wave. Check with `git log --no-merges --invert-grep -i --grep="co-authored-by: claude" --format=%ad --date=short | sort | uniq -c`. None of these tools is called by Halo at runtime, and the repo has no Anthropic, OpenAI or LangChain package. A separate Claude agent judged the coach eval blind; it never runs inside Halo.
 

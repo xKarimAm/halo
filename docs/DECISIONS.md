@@ -62,7 +62,7 @@ Every agent (Muse, OpenCode, any Claude account) reads this first. If another do
 | Baseten $100 | Runtime Insight only (Spark Open, the open-weights prize entry). W2 moved off Baseten on 2026-10-30, so coding never competes with Insight for the 15 RPM limit. |
 | Meta API free credit ($148) | W3: Muse + Wonder for hard modules (about $100 cap), runtime Voice + Spark (rest). **Any Muse window that runs Spark 1.3 on the API key uses `muse-spark-1.3-contributor`** (about 12-21x cheaper; the code is open source anyway). The product's runtime Spark 1.3 calls use it too (section 5). Pass the key per run; never store it. Free credits mean Meta may use the content: tell test-call participants. |
 | Modal $30 | optional: only for the SAM 3.1 stretch. Never leave a GPU warm. |
-| Gemini | research only, never in the product |
+| Gemini | optional per-part provider via `HALO_GEMINI`, off by default (Karim 2026-11-13: `search,backup`); speech and images stay on Meta |
 | Claude (any account) | plans, contracts review, PR review, integration. Not bulk coding. |
 
 ### Windows (2026-10-30): one TUIOS window, one pane per agent

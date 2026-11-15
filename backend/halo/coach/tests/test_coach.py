@@ -397,3 +397,17 @@ def test_talk_share_shows_only_after_enough_words():
     assert "you said 75% of 80 words" in coach.speech(MEETING)
     coach._turns[MEETING] = [("Karim", "word " * 30)]
     assert "you said" not in coach.speech(MEETING)
+
+
+def test_no_viewer_name_means_no_viewer_numbers_and_tidy_quotes():
+    # Review 2026-11-16: zeros for an unknown viewer read as "you asked no questions".
+    async def run():
+        bus, _llm, coach, tips, _clock = setup([
+            {"read": "Opening.", "tips": ["No goal yet: open with 'Today we decide.'."], "alert": "", "alert_quote": ""}])
+        coach._turns[MEETING] = [("Layla", "Hello?")]
+        assert coach.speech(MEETING) == "Speech so far: viewer not known yet, so no numbers on the viewer."
+        await bus.publish(turn("Hello there", n=2))
+        await coach.tick()
+        assert tips[0]["data"]["tips"] == ["No goal yet: open with 'Today we decide.'"]
+
+    asyncio.run(run())
